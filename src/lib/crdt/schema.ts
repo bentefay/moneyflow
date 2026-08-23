@@ -23,6 +23,7 @@
 
 import { schema } from "loro-mirror";
 
+import { DATE_FORMAT_PREFERENCES } from "@/lib/domain/date-format-preference";
 import {
     DEFAULT_DUPLICATE_DETECTION_SETTINGS,
     DEFAULT_FILTER_SETTINGS,
@@ -392,6 +393,26 @@ export const userAutomationPreferenceSchema = schema.LoroMap({
 });
 
 /**
+ * Per-user display preferences - keyed by user pubkeyHash.
+ *
+ * How a date reads is a property of the VIEWER, not of the vault: two members of a shared vault
+ * sitting in different countries should each read dates in their own convention, so this cannot
+ * live in `vaultPreferencesSchema` the way `defaultCurrency` does. It gets its own record for the
+ * same reason `userAutomationPreferenceSchema` has one, and stays separate from that record
+ * because presentation and rule-editor memory have nothing to do with each other.
+ */
+export const userDisplayPreferenceSchema = schema.LoroMap({
+    /** Owning user (pubkeyHash). Also the record key. */
+    pubkeyHash: schema.String({ required: true }),
+    /**
+     * How this viewer wants dates presented. Optional, so an absent value means the viewer has
+     * never chosen — which follows the browser — rather than an explicit choice, and needs no
+     * migration for vaults that predate the field.
+     */
+    dateFormat: richSchema.StringEnum(DATE_FORMAT_PREFERENCES, { required: false })
+});
+
+/**
  * Vault preferences schema - vault-scoped settings synced across members
  */
 export const vaultPreferencesSchema = schema.LoroMap({
@@ -439,6 +460,9 @@ export const vaultSchema = schema({
     // them as empty records with no data loss.
     fieldRules: schema.LoroMapRecord(fieldRuleSchema),
     userAutomationPreferences: schema.LoroMapRecord(userAutomationPreferenceSchema),
+    // Per-viewer presentation choices, keyed by pubkeyHash. Additive in the same sense as the two
+    // keys above: a vault without it hydrates an empty record.
+    userDisplayPreferences: schema.LoroMapRecord(userDisplayPreferenceSchema),
     preferences: vaultPreferencesSchema
 });
 
@@ -476,6 +500,7 @@ export type AutomationApplication = InferType<typeof automationApplicationSchema
 /** Serialised (wire) shape of a field rule; domain model lives in automation/rules.ts. */
 export type FieldRuleWire = InferType<typeof fieldRuleSchema>;
 export type UserAutomationPreference = InferType<typeof userAutomationPreferenceSchema>;
+export type UserDisplayPreference = InferType<typeof userDisplayPreferenceSchema>;
 export type VaultPreferences = InferType<typeof vaultPreferencesSchema>;
 
 /** Hierarchical transaction storage types */
@@ -499,6 +524,7 @@ export type AutomationApplicationInput = InferInputType<typeof automationApplica
 /** Input (write) shape of a field rule, accepted by loro-mirror drafts. */
 export type FieldRuleInput = InferInputType<typeof fieldRuleSchema>;
 export type UserAutomationPreferenceInput = InferInputType<typeof userAutomationPreferenceSchema>;
+export type UserDisplayPreferenceInput = InferInputType<typeof userDisplayPreferenceSchema>;
 export type NestedDuplicateInput = InferInputType<typeof nestedDuplicateSchema>;
 
 /** Hierarchical transaction storage input types */

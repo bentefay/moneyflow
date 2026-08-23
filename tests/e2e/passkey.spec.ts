@@ -16,7 +16,8 @@ import {
     awaitVaultPersistence,
     createNewIdentity,
     enterSeedPhrase,
-    extractSeedPhrase
+    extractSeedPhrase,
+    fillRecoveryPhraseCredential
 } from "./helpers";
 import {
     addSecondAuthenticator,
@@ -85,6 +86,13 @@ async function addPasskeyFromSettings(
     await awaitVaultPersistence(page);
     await page.goto("/settings");
     await page.getByTestId("add-passkey-button").click();
+    // The add-passkey dialog's `SeedPhraseInput` takes the DEFAULT `autoFocus`
+    // (`PasskeyManager.tsx:238` passes no prop, unlike the revoke gate at :213), so a mount effect
+    // moves focus to word 1. Playwright's `fill` writes through `insertText`, which goes to whatever
+    // is focused at that moment, so the fill must not race it. Here — unlike the unlock page, where
+    // callers may arrive after clicking the passkey button — nothing else moves focus, so waiting for
+    // the autofocus to land is the deterministic gate. See `helpers/auth.ts` for the mechanism.
+    await expect(page.getByTestId("seed-word-input-0")).toBeFocused();
     await page.getByTestId("recovery-phrase-credential").fill(seedWords.join(" "));
     await page.getByTestId("confirm-add-passkey-button").click();
     await expect(page.getByTestId("passkey-credential-row")).toHaveCount(expectedCount, {
@@ -185,7 +193,7 @@ test.describe("Passkey", () => {
             await page.evaluate(() => sessionStorage.clear());
             await awaitVaultPersistence(page);
             await page.goto("/unlock");
-            await page.getByTestId("recovery-phrase-credential").fill(seedWords.join(" "));
+            await fillRecoveryPhraseCredential(page, seedWords.join(" "));
             await page.getByTestId("unlock-button").click();
             await page.waitForURL("**/transactions", { timeout: 20000 });
             expect(await readSessionPubkeyHash(page)).toBe(recoveryHash);
@@ -247,7 +255,7 @@ test.describe("Passkey", () => {
         });
 
         await test.step("the user is never trapped: the phrase still unlocks", async () => {
-            await page.getByTestId("recovery-phrase-credential").fill(seedWords.join(" "));
+            await fillRecoveryPhraseCredential(page, seedWords.join(" "));
             await page.getByTestId("unlock-button").click();
             await page.waitForURL("**/transactions", { timeout: 20000 });
         });
@@ -415,15 +423,16 @@ test.describe("Passkey", () => {
         await test.step("that phrase unlocks the identity the passkey created", async () => {
             await page.evaluate(() => sessionStorage.clear());
             await page.goto("/unlock");
-            // This unlock step flaked ~1 in 8 full-suite --retries=0 runs under parallel
-            // load; the identical page.getByTestId("recovery-phrase-credential")
-            // .fill(words.join(" ")) pattern at :72/:171/:232 passes reliably, and a
-            // deterministic product bug would fail every run, not ~1/8 — so this is a
-            // load-dependent test-timing flake, not a product defect. Entering the phrase
-            // via the validated per-word grid waits for the "Valid recovery phrase"
-            // indicator, giving a deterministic settle before the unlock click, consistent
-            // with the other unlock tests. The single-field credential path stays covered
-            // at :72/:171/:232 (and identity/onboarding-vault specs). See Q-P20B-16.
+            // This step flaked ~1 in 8 full-suite --retries=0 runs under parallel load and was
+            // moved to the per-word grid, which fixed it. The mechanism was NOT identified at the
+            // time and the reasoning recorded here — "a deterministic product bug would fail every
+            // run" — was sound but incomplete: it established the class without the cause, so the
+            // same race was left in place at the sibling call sites and duly failed one of them
+            // later. It is now known, and `fillRecoveryPhraseCredential` gates against it, so the
+            // credential-field path is deterministic and needs no avoidance.
+            //
+            // Kept on the per-word grid anyway, because that is the gesture a human makes and
+            // something should cover it. See `helpers/auth.ts` for the mechanism. (Q-P20B-16.)
             await enterSeedPhrase(page, words, true);
             await page.getByTestId("unlock-button").click();
             await page.waitForURL("**/transactions", { timeout: 20000 });

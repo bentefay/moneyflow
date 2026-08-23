@@ -238,9 +238,9 @@ All at product `371a88a`, 2026-07-28.
   `TransactionTable.tsx:401:25 warning Compilation Skipped: Use of incompatible library … react-hooks/incompatible-library`.
   Zero errors.
 - **Format failures are exclusively frozen/root-owned spec markdown** — `human-scratch.md`,
-  PROGRESS/QUESTIONS/DECISIONS/DEPENDENCIES/RISKS, and 9 evidence/review files. **No
-  `src/**`, `tests/**`, or config file flags.** This is the known-acceptable condition; I did NOT
-  run bare `pnpm format` (it would reflow the frozen scratch and corrupt the audit).
+  PROGRESS/QUESTIONS/DECISIONS/DEPENDENCIES/RISKS, and 9 evidence/review files. **No `src/**`,
+  `tests/**`, or config file flags.** This is the known-acceptable condition; I did NOT run bare
+  `pnpm format` (it would reflow the frozen scratch and corrupt the audit).
 - **Build:** `Next.js 16.2.11 (Turbopack)`, compiled in 6.3s, TypeScript in 10.4s, 17/17 static
   pages generated, all 17 routes emitted. **No image-optimization break** — sharp 0.35.3's prebuilt
   `@img` binary loads (§3.1).

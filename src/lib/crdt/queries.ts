@@ -23,6 +23,7 @@ import type {
     TransactionStore,
     VaultState
 } from "./schema";
+import { canonicalTransactionKey, preferCanonicalTransaction } from "./transaction-canonical-key";
 
 // ============================================
 // PAGINATION TYPES
@@ -130,36 +131,6 @@ export function compareTransactionOrder(
     if (leftIndex > rightIndex) return 1;
 
     return left.id.localeCompare(right.id);
-}
-
-function preferCanonicalTransaction(left: Transaction, right: Transaction): Transaction {
-    return canonicalTransactionKey(left).localeCompare(canonicalTransactionKey(right)) <= 0
-        ? left
-        : right;
-}
-
-function canonicalTransactionKey(transaction: Transaction): string {
-    return (
-        transaction.$cid ??
-        JSON.stringify({
-            accountId: transaction.accountId,
-            allocations: Object.entries(transaction.allocations).sort(([left], [right]) =>
-                left.localeCompare(right)
-            ),
-            amount: transaction.amount,
-            originalAmount: transaction.originalAmount,
-            creationInstant: transaction.creationInstant.toString(),
-            date: transaction.date.toString(),
-            deletedAt: transaction.deletedAt?.toString(),
-            description: transaction.description,
-            descriptionAliasId: transaction.descriptionAliasId,
-            importId: transaction.importId,
-            importRowIndex: transaction.importRowIndex,
-            notes: transaction.notes,
-            statusId: transaction.statusId,
-            tagIds: [...transaction.tagIds]
-        })
-    );
 }
 
 function materializeNestedTransaction(duplicate: NestedDuplicate): Transaction {

@@ -179,9 +179,10 @@ not complete until FS-001 and every HS requirement pass.
 - Give every canonical example A, B, C, D, E, F, G and H its own named E2E expectation against the
   production settlement path. All eight are mandatory in E2E as well as P16B unit/property coverage;
   no general journey, combined example or manually observed result substitutes for any one.
-- Mandatory E2E follows canonical steps 1–12: create/unlock, Bob, default Me ownership, paid -$100,
-  real-grid 50/50, Bob owes Me $50, expand source, navigate back, reload, non-paid removal, restore,
-  negative reversal, and invalid/paste/decimal/edit semantics.
+- Mandatory E2E follows canonical steps 1–12: create/unlock, Bob, default Me ownership,
+  paid -$100,
+  real-grid 50/50, Bob owes Me $50, expand source, navigate back, reload, non-paid
+  removal, restore, negative reversal, and invalid/paste/decimal/edit semantics.
 - Additional E2E/manual coverage includes add row, imported edit, joint ownership, multiple
   currency, historical Person, invalid warnings, collaboration, keyboard, responsive/horizontal
   scroll, dark/ reduced motion, deterministic accessibility, console/network and repeated

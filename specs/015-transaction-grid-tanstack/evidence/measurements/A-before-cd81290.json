@@ -1,0 +1,234 @@
+{
+    "arm": "A-before-cd81290",
+    "commit": "cd812905b68f23cae118c971112df313c0412ccd",
+    "fixture": {
+        "csvDigest": "eb9ae04124d02eb3621ae40ec8fb85ebf52c19cf982a9f11139e7f66481ae7e0",
+        "definitionDigest": "c689afbd6d017383e960b1b5f56e5bea8f958abdc955cd039f612a586602add7",
+        "transactionCount": 10000
+    },
+    "lockfileSha256": "747b21c13d61b683729999bcdd1ef66bd844f3ef9fc2f722e62780fac51f2f88",
+    "reactVirtual": "3.14.6",
+    "virtualCore": "3.17.4",
+    "consoleWarnings": [],
+    "notes": {
+        "annotatedRows": 480,
+        "expandedAriaRows": 2,
+        "expandedHeight": 123,
+        "seconds": 324.321749338,
+        "unexpandedHeight": 57
+    },
+    "notesPlanned": 480,
+    "seed": {
+        "commitSeconds": 2.138960259,
+        "identitySeconds": 1.2603595010000004,
+        "preload": {
+            "clientHeight": 693,
+            "highestIndex": 9999,
+            "iterations": 200,
+            "scrollHeight": 507845,
+            "settledAtTop": true
+        },
+        "preloadSeconds": 33.640302338999994,
+        "rowsImported": 10000
+    },
+    "routes": [
+        {
+            "clampedFrames": 0,
+            "droppedSampleCount": 0,
+            "maxScrollTop": 7200,
+            "sampleCount": 720,
+            "settledStart": false,
+            "startOffset": 0,
+            "counts": {
+                "blank": 1,
+                "dropped": 99,
+                "full": 717,
+                "partial": 50,
+                "stale": 0
+            },
+            "durationSeconds": 14.449422,
+            "expectedFrames": 867,
+            "idleFrames": 1,
+            "failures": [
+                "presented fps 53.151 < 59",
+                "fully presented 82.699% < 99%",
+                "visibly empty frames 1 > 0"
+            ],
+            "fullyPresentedRatio": 0.8269896193771626,
+            "intervals": {
+                "maxMilliseconds": 499.98,
+                "p50Milliseconds": 16.666,
+                "p95Milliseconds": 16.666,
+                "p99Milliseconds": 66.664
+            },
+            "intervalsWallClock": {
+                "maxMilliseconds": 515.957,
+                "p50Milliseconds": 16.672,
+                "p95Milliseconds": 17.284,
+                "p99Milliseconds": 58.606
+            },
+            "movingFrames": 867,
+            "observedBeginFrames": 868,
+            "wholeRouteSeconds": 14.466088,
+            "wallClockNoiseFloor": {
+                "maxMilliseconds": 17.452,
+                "p50Milliseconds": 16.663,
+                "p95Milliseconds": 17.269,
+                "p99Milliseconds": 17.635
+            },
+            "passed": false,
+            "presentedFramesPerSecond": 53.1509149639342,
+            "routeId": "ordinary",
+            "visiblyEmptyFrames": 1
+        },
+        {
+            "clampedFrames": 1,
+            "droppedSampleCount": 0,
+            "maxScrollTop": 5917,
+            "sampleCount": 402,
+            "settledStart": false,
+            "startOffset": 0,
+            "counts": {
+                "blank": 23,
+                "dropped": 459,
+                "full": 385,
+                "partial": 88,
+                "stale": 0
+            },
+            "durationSeconds": 15.91603,
+            "expectedFrames": 957,
+            "idleFrames": 2,
+            "failures": [
+                "presented fps 31.164 < 59",
+                "p95 interval 66.664ms > 17ms",
+                "fully presented 40.314% < 99%",
+                "visibly empty frames 23 > 0",
+                "BeginFrameSource stalled: observed 957 ticks, span implies 959"
+            ],
+            "fullyPresentedRatio": 0.4031413612565445,
+            "intervals": {
+                "maxMilliseconds": 566.644,
+                "p50Milliseconds": 16.666,
+                "p95Milliseconds": 66.664,
+                "p99Milliseconds": 466.648
+            },
+            "intervalsWallClock": {
+                "maxMilliseconds": 567.758,
+                "p50Milliseconds": 16.673,
+                "p95Milliseconds": 58.399,
+                "p99Milliseconds": 488.076
+            },
+            "movingFrames": 955,
+            "observedBeginFrames": 957,
+            "wholeRouteSeconds": 15.982694,
+            "wallClockNoiseFloor": {
+                "maxMilliseconds": 17.452,
+                "p50Milliseconds": 16.663,
+                "p95Milliseconds": 17.269,
+                "p99Milliseconds": 17.635
+            },
+            "passed": false,
+            "presentedFramesPerSecond": 31.163550206929745,
+            "routeId": "fast-reversal",
+            "visiblyEmptyFrames": 23
+        },
+        {
+            "clampedFrames": 3,
+            "droppedSampleCount": 0,
+            "maxScrollTop": 20182,
+            "sampleCount": 360,
+            "settledStart": false,
+            "startOffset": 0,
+            "counts": {
+                "blank": 0,
+                "dropped": 156,
+                "full": 62,
+                "partial": 32,
+                "stale": 0
+            },
+            "durationSeconds": 3.216538,
+            "expectedFrames": 250,
+            "idleFrames": 297,
+            "failures": [
+                "presented fps 16.166 < 59",
+                "p95 interval 1016.626ms > 17ms",
+                "fully presented 10.363% < 99%"
+            ],
+            "fullyPresentedRatio": 0.10362694300518134,
+            "intervals": {
+                "maxMilliseconds": 1049.958,
+                "p50Milliseconds": 16.666,
+                "p95Milliseconds": 1016.626,
+                "p99Milliseconds": 1049.958
+            },
+            "intervalsWallClock": {
+                "maxMilliseconds": 1058.695,
+                "p50Milliseconds": 16.797,
+                "p95Milliseconds": 1032.54,
+                "p99Milliseconds": 1058.695
+            },
+            "movingFrames": 193,
+            "observedBeginFrames": 547,
+            "wholeRouteSeconds": 9.116302,
+            "wallClockNoiseFloor": {
+                "maxMilliseconds": 17.452,
+                "p50Milliseconds": 16.663,
+                "p95Milliseconds": 17.269,
+                "p99Milliseconds": 17.635
+            },
+            "passed": false,
+            "presentedFramesPerSecond": 16.166449766798962,
+            "routeId": "large-movement",
+            "visiblyEmptyFrames": 0
+        },
+        {
+            "clampedFrames": 0,
+            "droppedSampleCount": 0,
+            "maxScrollTop": 7788,
+            "sampleCount": 240,
+            "settledStart": false,
+            "startOffset": 0,
+            "counts": {
+                "blank": 5,
+                "dropped": 97,
+                "full": 235,
+                "partial": 29,
+                "stale": 0
+            },
+            "durationSeconds": 6.099756,
+            "expectedFrames": 366,
+            "idleFrames": 0,
+            "failures": [
+                "presented fps 44.100 < 59",
+                "fully presented 64.208% < 99%",
+                "visibly empty frames 5 > 0"
+            ],
+            "fullyPresentedRatio": 0.6420765027322405,
+            "intervals": {
+                "maxMilliseconds": 549.978,
+                "p50Milliseconds": 16.666,
+                "p95Milliseconds": 16.666,
+                "p99Milliseconds": 316.654
+            },
+            "intervalsWallClock": {
+                "maxMilliseconds": 562.497,
+                "p50Milliseconds": 16.672,
+                "p95Milliseconds": 24.118,
+                "p99Milliseconds": 314.742
+            },
+            "movingFrames": 366,
+            "observedBeginFrames": 366,
+            "wholeRouteSeconds": 6.099756,
+            "wallClockNoiseFloor": {
+                "maxMilliseconds": 17.452,
+                "p50Milliseconds": 16.663,
+                "p95Milliseconds": 17.269,
+                "p99Milliseconds": 17.635
+            },
+            "passed": false,
+            "presentedFramesPerSecond": 44.100124660724134,
+            "routeId": "free-spin",
+            "visiblyEmptyFrames": 5
+        }
+    ]
+}

@@ -36,6 +36,7 @@ import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvat
 import { UndoControls, UndoKeyboardShortcuts } from "@/components/features/undo/UndoControls";
 import { VaultSelector } from "@/components/features/vault/VaultSelector";
 import { ActiveVaultProvider } from "@/components/providers/active-vault-provider";
+import { DateLocaleProvider } from "@/components/providers/date-locale-provider";
 import {
     useVaultPresenceContext,
     VaultPresenceProvider
@@ -97,9 +98,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <SyncStatusProvider>
                     <VaultProvider registerDisconnect={registerVaultDisconnect}>
                         <VaultPresenceProvider>
-                            <AppLayoutContent disconnectVault={disconnectVault}>
-                                {children}
-                            </AppLayoutContent>
+                            <DateLocaleProvider>
+                                <AppLayoutContent disconnectVault={disconnectVault}>
+                                    {children}
+                                </AppLayoutContent>
+                            </DateLocaleProvider>
                         </VaultPresenceProvider>
                     </VaultProvider>
                 </SyncStatusProvider>

@@ -13,19 +13,23 @@
  * the wiring's shape.
  */
 
-import type { Range } from "@tanstack/react-virtual";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Temporal } from "temporal-polyfill";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { TransactionStore } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
+
+import { buildFakeTransactionStore, installVirtualGridLayout } from "./virtual-grid-harness";
 
 const ACCOUNT_ID = "account-cheque";
 const STATUS_ID = "status-for-review";
 
 /** Mutable vault contents, read through a store so the page sees a stable identity per revision. */
 const vault = vi.hoisted(() => ({
-    transactions: [] as unknown[],
+    store: {} as Record<string, unknown>,
+    /** Bumped whenever the store is replaced, so the mocked index hook re-derives exactly once. */
+    revision: 0,
     listeners: new Set<() => void>()
 }));
 
@@ -35,43 +39,9 @@ vi.mock("next/navigation", () => ({
     useSearchParams: () => new URLSearchParams()
 }));
 
-// jsdom gives the scroll container no height, so the real virtualizer mounts no rows at all. Only
-// rows the range extractor keeps are mounted, which is enough to observe what survives filtering.
-vi.mock("@tanstack/react-virtual", () => ({
-    defaultRangeExtractor: (range: Range) => {
-        const start = Math.max(range.startIndex - range.overscan, 0);
-        const end = Math.min(range.endIndex + range.overscan, range.count - 1);
-        return Array.from({ length: end - start + 1 }, (_, index) => start + index);
-    },
-    useVirtualizer: (options: {
-        readonly count: number;
-        readonly estimateSize: () => number;
-        readonly overscan: number;
-        readonly rangeExtractor: (range: Range) => number[];
-    }) => ({
-        getVirtualItems: () =>
-            options
-                .rangeExtractor({
-                    startIndex: 0,
-                    endIndex: Math.min(4, options.count - 1),
-                    overscan: options.overscan,
-                    count: options.count
-                })
-                .map((index) => ({
-                    index,
-                    key: index,
-                    start: index * options.estimateSize(),
-                    end: (index + 1) * options.estimateSize(),
-                    size: options.estimateSize(),
-                    lane: 0
-                })),
-        getTotalSize: () => options.count * options.estimateSize(),
-        measureElement: () => {}
-    })
-}));
-
 vi.mock("@/lib/crdt/context", async () => {
-    const { useSyncExternalStore } = await import("react");
+    const { useMemo, useSyncExternalStore } = await import("react");
+    const { buildTransactionIndex } = await import("@/lib/crdt/transaction-cursor");
 
     const subscribe = (listener: () => void) => {
         vault.listeners.add(listener);
@@ -79,11 +49,20 @@ vi.mock("@/lib/crdt/context", async () => {
             vault.listeners.delete(listener);
         };
     };
-    const readTransactions = () => vault.transactions;
+    const readRevision = () => vault.revision;
 
     return {
-        useActiveTransactions: () =>
-            useSyncExternalStore(subscribe, readTransactions, readTransactions),
+        // The grid's source is the document-scoped index, not a flat array. Memoised on the
+        // store's revision exactly as the real hook memoises on the store's identity: a fresh
+        // index every render would give the page a fresh cursor every render, and the selection
+        // reconciliation keyed on cursor identity would then never settle.
+        useTransactionIndex: () => {
+            // Subscribed so replacing the store re-renders, then memoised on the store's own
+            // identity — exactly how the real hook memoises on `state.transactions`.
+            useSyncExternalStore(subscribe, readRevision, readRevision);
+            const store = vault.store as TransactionStore;
+            return useMemo(() => buildTransactionIndex(store), [store]);
+        },
         useActiveAccounts: () => accounts,
         useActiveTags: () => empty,
         // The real alias graph, so the page's own lookup does the one-hop symlink resolution.
@@ -255,8 +234,13 @@ describe("transaction search matches the alias-resolved description", () => {
     // settles on its own condition rather than on elapsed time.
     vi.setConfig({ testTimeout: 30_000 });
 
+    let restoreLayout: () => void;
+
     beforeEach(() => {
-        vault.transactions = [
+        // The real virtualizer, given real element sizes, so what survives filtering is decided by
+        // the page and the cursor rather than by a fixed window a fake chose.
+        restoreLayout = installVirtualGridLayout();
+        vault.store = buildFakeTransactionStore([
             // The reported case: a manually added row stores an empty description and carries only
             // the alias, so raw-field search could never find it.
             createTransaction("tx-manual", "2026-07-29", {
@@ -273,9 +257,12 @@ describe("transaction search matches the alias-resolved description", () => {
                 descriptionAliasId: "alias-groceries"
             }),
             createTransaction("tx-unaliased", "2026-07-26", { description: "Bookshop" })
-        ];
+        ]);
+        vault.revision += 1;
         vault.listeners.clear();
     });
+
+    afterEach(() => restoreLayout());
 
     it("finds an aliased row by the alias text the table displays for it", async () => {
         await renderTransactionsPage();

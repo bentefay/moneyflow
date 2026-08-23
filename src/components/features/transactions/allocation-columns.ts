@@ -31,6 +31,21 @@ interface BuildAllocationColumnModelInput {
     readonly activePeople: readonly AllocationColumnPerson[];
     readonly allPeople: readonly AllocationColumnPerson[];
     readonly transactions: readonly AllocationColumnTransaction[];
+    /**
+     * Historical people discovered from rows the caller no longer holds.
+     *
+     * The grid holds a sliding window of the matching set, so the row that revealed a deleted
+     * person's allocation can scroll out of it — and a column that vanished mid-scroll would be a
+     * visible defect. The caller accumulates what it has seen under the current filters and passes it
+     * here; see {@link retainHistoricalAllocationPersonIds}.
+     */
+    readonly retainedHistoricalPersonIds?: ReadonlySet<string>;
+}
+
+/** A caller's accumulated historical people, and the filters they were discovered under. */
+export interface RetainedHistoricalAllocationPeople<TFilterKey> {
+    readonly filterKey: TFilterKey;
+    readonly personIds: ReadonlySet<string>;
 }
 
 export type AllocationDraftResult =
@@ -71,30 +86,77 @@ export function buildTransactionGridTemplate(allocationCount: number): string {
 }
 
 /**
+ * The people these rows allocate to who are not active and whose allocation is not a plain zero.
+ *
+ * Exported because a caller holding only a window of the rows has to accumulate this across windows;
+ * `buildAllocationColumnModel` uses the same function, so the two cannot drift.
+ */
+export function historicalAllocationPersonIds(
+    transactions: readonly AllocationColumnTransaction[],
+    activePersonIds: ReadonlySet<string>
+): ReadonlySet<string> {
+    const historicalIds = new Set<string>();
+    for (const transaction of transactions) {
+        for (const [personId, value] of Object.entries(
+            materializeAllocationRecord(transaction.allocations)
+        )) {
+            if (!activePersonIds.has(personId) && hasHistoricalAllocation(value)) {
+                historicalIds.add(personId);
+            }
+        }
+    }
+    return historicalIds;
+}
+
+/**
+ * The historical people to keep showing a column for, given what the caller has just discovered.
+ *
+ * Monotone while the filters hold, and reset when they change. That reproduces what deriving the
+ * columns from a growing page used to do in effect: a column appeared once its row had been paged in
+ * and stayed until the matching set changed. Growth is bounded by the number of deleted people who
+ * still hold allocations, not by the number of rows scrolled past.
+ *
+ * Returns `current` unchanged — the identical object, so a caller storing it in state re-renders
+ * nothing — whenever the discovered ids are all already retained, which is every window but the few
+ * that reveal a new one.
+ */
+export function retainHistoricalAllocationPersonIds<TFilterKey>(
+    current: RetainedHistoricalAllocationPeople<TFilterKey>,
+    filterKey: TFilterKey,
+    discoveredPersonIds: ReadonlySet<string>
+): RetainedHistoricalAllocationPeople<TFilterKey> {
+    if (filterKey !== current.filterKey) return { filterKey, personIds: discoveredPersonIds };
+
+    const isAlreadyRetained = [...discoveredPersonIds].every((personId) =>
+        current.personIds.has(personId)
+    );
+    if (isAlreadyRetained) return current;
+
+    return { filterKey, personIds: new Set([...current.personIds, ...discoveredPersonIds]) };
+}
+
+/**
  * Active People use the People screen's name/id ordering. Historical references follow by ID so
  * malformed legacy state cannot destabilise the table between renders.
  */
 export function buildAllocationColumnModel({
     activePeople,
     allPeople,
-    transactions
+    transactions,
+    retainedHistoricalPersonIds
 }: BuildAllocationColumnModelInput): AllocationColumnModel {
     const active = [...activePeople].sort(
         (left, right) => left.name.localeCompare(right.name) || compareText(left.id, right.id)
     );
     const activeIds = new Set(active.map(({ id }) => id));
     const peopleById = new Map(allPeople.map((person) => [person.id, person]));
-    const historicalIds = new Set<string>();
-
-    for (const transaction of transactions) {
-        for (const [personId, value] of Object.entries(
-            materializeAllocationRecord(transaction.allocations)
-        )) {
-            if (!activeIds.has(personId) && hasHistoricalAllocation(value)) {
-                historicalIds.add(personId);
-            }
-        }
-    }
+    // The rows in hand, plus whatever the caller has retained from rows it no longer holds. Retained
+    // ids are re-checked against the active set, so a deleted person who has since been restored
+    // takes their active column rather than appearing twice.
+    const historicalIds = new Set([
+        ...historicalAllocationPersonIds(transactions, activeIds),
+        ...[...(retainedHistoricalPersonIds ?? [])].filter((personId) => !activeIds.has(personId))
+    ]);
 
     const columns: AllocationColumn[] = active.map(({ id, name }) => ({
         field: allocationField(id),

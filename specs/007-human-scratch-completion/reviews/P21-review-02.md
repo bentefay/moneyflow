@@ -9,9 +9,9 @@
   `fb971499e0d9616e268a0c1ec4e041586458d07f` — UNCHANGED. I committed NOTHING.**
 - **Product/test tip:** `5576175`. `git diff --stat 5576175..HEAD` touches ONLY `specs/**` (7 files:
   HANDOFF.md, PROGRESS.md, QUESTIONS.md, evidence/P20B/implementation-04.md,
-  evidence/P21/implementation-02.md, reviews/P20B-review-02.md, human-scratch.md). **NO
-  `src/**`, NO `tests/**`.** Product/test range is EMPTY. Scope gate PASSES. History is strictly
-  linear (single-parent each commit; 0 merges).
+  evidence/P21/implementation-02.md, reviews/P20B-review-02.md, human-scratch.md). **NO `src/**`, NO
+  `tests/**`.** Product/test range is EMPTY. Scope gate PASSES. History is strictly linear
+  (single-parent each commit; 0 merges).
 - **Date:** 2026-07-27. Node `v22.21.1`, pnpm `11.13.1`.
 
 ---

@@ -74,3 +74,9 @@
 - [Probe control flow, not terminal state](feedback_probe-control-flow-not-terminal-state.md) — log
   iterations and elapsed ms, else a 280 ms retry loop reads as a no-op; count branches before
   grading a two-case comment.
+- [Visible count is not a mount count](feedback_visible-count-is-not-a-mount-count.md) — a MEASURED
+  section can read the wrong field of its own artifact; recount from raw JSON and validate the
+  coordinate transform against an independently recorded value.
+- [Ask what can write before attesting](feedback_ask-what-can-write-before-attesting.md) — a cron
+  committed mid-chain and voided four results; capture HEAD/tree/status before AND after every
+  command, and scope the re-run by what the delta can reach.

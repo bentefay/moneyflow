@@ -4,7 +4,6 @@
  * The reported defect was "all dates display in US format". The display helper
  * was already locale-aware; the real failures were narrower and are pinned here:
  *
- * - the editing presentation rendered a four-digit year (frozen text requires two);
  * - date ENTRY parsed with chrono's default `en` parser, which is US-ordered, so an
  *   en-GB/en-AU viewer typing back the `03/08` they were shown saved 8 March;
  * - year-less entry carried chrono's forward-date bias, so `15/1` shown for a
@@ -26,43 +25,44 @@ import {
 const refDate = Temporal.PlainDate.from("2026-08-02");
 
 describe("formatDateForEditing", () => {
-    // The frozen text requires the year while editing, rendered as TWO digits.
+    // Editing always shows the year, unpadded and in full.
     const testCases = [
-        { iso: "2026-08-03", locale: "en-AU", expected: "03/08/26" },
-        { iso: "2026-08-03", locale: "en-GB", expected: "03/08/26" },
-        { iso: "2026-08-03", locale: "en-US", expected: "08/03/26" },
-        { iso: "2026-08-03", locale: "de-DE", expected: "03.08.26" },
-        { iso: "2026-08-03", locale: "ja-JP", expected: "26/08/03" },
+        { iso: "2026-08-03", locale: "en-AU", expected: "3/8/2026" },
+        { iso: "2026-08-03", locale: "en-GB", expected: "3/8/2026" },
+        { iso: "2026-08-03", locale: "en-US", expected: "8/3/2026" },
+        { iso: "2026-08-03", locale: "de-DE", expected: "3.8.2026" },
+        { iso: "2026-08-03", locale: "ja-JP", expected: "2026/8/3" },
         // A current-year date still shows the year while editing.
-        { iso: "2026-01-15", locale: "en-AU", expected: "15/01/26" },
+        { iso: "2026-01-15", locale: "en-AU", expected: "15/1/2026" },
         // Different-year dates, including below the 2000 boundary.
-        { iso: "2025-06-15", locale: "en-AU", expected: "15/06/25" },
-        { iso: "1999-12-31", locale: "en-AU", expected: "31/12/99" },
-        { iso: "1999-12-31", locale: "en-US", expected: "12/31/99" }
+        { iso: "2025-06-15", locale: "en-AU", expected: "15/6/2025" },
+        { iso: "1999-12-31", locale: "en-AU", expected: "31/12/1999" },
+        { iso: "1999-12-31", locale: "en-US", expected: "12/31/1999" }
     ] as const;
 
     it.each(testCases)("renders $iso as $expected for $locale", ({ iso, locale, expected }) => {
         expect(formatDateForEditing(iso, locale)).toBe(expected);
     });
 
-    it("never renders a four-digit year", () => {
-        // The defect: `year: "numeric"` produced "03/08/2026" while editing.
+    it("always renders the year in full", () => {
+        // A two-digit year cannot say which century it means, so the same four
+        // keystrokes stood for 1999 and 2099. Editing is where that ambiguity
+        // does damage, because whatever it shows is what gets typed back.
         for (const iso of ["2026-08-03", "2025-06-15", "1999-12-31", "1776-07-04"]) {
-            expect(formatDateForEditing(iso, "en-AU")).not.toMatch(/\d{4}/);
+            expect(formatDateForEditing(iso, "en-AU")).toContain(iso.slice(0, 4));
         }
     });
 });
 
-describe("formatTransactionDate two-digit year", () => {
-    // The frozen text puts no floor on this: every different-year presentation
-    // is two digits, including dates at or below the year 2000 that previously
-    // rendered DD/MM/YYYY.
+describe("formatTransactionDate four-digit year", () => {
+    // Every different-year presentation carries the full year, including dates
+    // at or below the year 2000.
     const testCases = [
-        { iso: "2000-06-15", locale: "en-GB", expected: "15/6/00" },
-        { iso: "1999-12-31", locale: "en-GB", expected: "31/12/99" },
-        { iso: "1985-08-20", locale: "en-GB", expected: "20/8/85" },
-        { iso: "1999-12-31", locale: "en-US", expected: "12/31/99" },
-        { iso: "1999-12-31", locale: "de-DE", expected: "31.12.99" }
+        { iso: "2000-06-15", locale: "en-GB", expected: "15/6/2000" },
+        { iso: "1999-12-31", locale: "en-GB", expected: "31/12/1999" },
+        { iso: "1985-08-20", locale: "en-GB", expected: "20/8/1985" },
+        { iso: "1999-12-31", locale: "en-US", expected: "12/31/1999" },
+        { iso: "1999-12-31", locale: "de-DE", expected: "31.12.1999" }
     ] as const;
 
     it.each(testCases)("renders $iso as $expected for $locale", ({ iso, locale, expected }) => {
@@ -71,8 +71,16 @@ describe("formatTransactionDate two-digit year", () => {
 
     it("preserves a leading-zero year in a year-first locale", () => {
         // The defect: the leading-zero strip assumed the year was the THIRD
-        // numeric part, so ja-JP's leading "01" was stripped to "1/1/5".
-        expect(formatTransactionDate("2001-01-05", refDate, "ja-JP")).toBe("01/1/5");
+        // numeric part, so ja-JP's leading "01" was stripped to "1/1/5". The
+        // year is no longer abbreviated, but the strip is still field-aware.
+        expect(formatTransactionDate("2001-01-05", refDate, "ja-JP")).toBe("2001/1/5");
+    });
+
+    it("leaves an ISO-shaped locale at fixed width", () => {
+        // A year-first numeric pattern is ISO, and ISO does not drop padding:
+        // "1988-1-27" is a form nobody writes.
+        expect(formatTransactionDate("1988-01-27", refDate, "en-CA")).toBe("1988-01-27");
+        expect(formatDateForEditing("1988-01-27", "en-CA")).toBe("1988-01-27");
     });
 });
 
@@ -120,25 +128,25 @@ describe("locales whose default calendar is not Gregorian", () => {
     });
 
     it("does not shift a th-TH year by the Buddhist era offset", () => {
-        expect(formatDateForEditing("2026-08-03", "th-TH")).toBe("03/08/26");
-        expect(parseLocaleDate("03/08/26", "th-TH", refDate)).toBe("2026-08-03");
+        expect(formatDateForEditing("2026-08-03", "th-TH")).toBe("3/8/2026");
+        expect(parseLocaleDate("3/8/2026", "th-TH", refDate)).toBe("2026-08-03");
     });
 });
 
-describe("locales whose editing skeleton differs from their numeric one", () => {
+describe("locales that once diverged between their editing and numeric skeletons", () => {
     // Regression (review 02, F-4). `Intl` may order or punctuate the 2-digit
-    // skeleton differently from the numeric one. The parser derived its formats
-    // from the numeric skeleton alone, so it could not accept the very string
-    // the editing field had just displayed.
+    // skeleton differently from the numeric one — mt-MT flipped to day-first,
+    // ug-CN and it-CH repunctuated — so a parser deriving its formats from the
+    // numeric skeleton alone could not accept, or silently transposed, the very
+    // string the editing field had just displayed.
     //
-    // The nine-locale table below cannot catch this: every one of those locales
-    // happens to agree between the two skeletons. Naming MORE locales was not
-    // the fix — naming the CLASS was. These are chosen because they diverge.
+    // Editing and the different-year display are now rendered from ONE skeleton,
+    // which is what makes that class unrepresentable rather than merely fixed.
+    // These locales stay named because they are the ones that would expose a
+    // second skeleton creeping back in.
     const orderFlipping = [
-        // Rendered day-first while the numeric skeleton is month-first, so the
-        // displayed date was silently STORED transposed rather than rejected.
-        { locale: "mt-MT", iso: "2026-08-03", editing: "03/08/26" },
-        { locale: "ug-CN", iso: "2026-08-03", editing: "26-08-03" }
+        { locale: "mt-MT", iso: "2026-08-03", editing: "8/3/2026" },
+        { locale: "ug-CN", iso: "2026-08-03", editing: "2026-3-8" }
     ] as const;
 
     it.each(orderFlipping)(
@@ -146,6 +154,16 @@ describe("locales whose editing skeleton differs from their numeric one", () => 
         ({ locale, iso, editing }) => {
             expect(formatDateForEditing(iso, locale)).toBe(editing);
             expect(parseLocaleDate(editing, locale, refDate)).toBe(iso);
+        }
+    );
+
+    it.each(["mt-MT", "ug-CN", "it-CH", "lv-LV", "te-IN"] as const)(
+        "shows %s the same string while editing as at rest",
+        (locale) => {
+            const iso = "2025-06-15";
+            expect(formatDateForEditing(iso, locale)).toBe(
+                formatTransactionDate(iso, refDate, locale)
+            );
         }
     );
 
@@ -314,9 +332,7 @@ describe("no displayed value shifts because of a time zone", () => {
                     // neighbouring civil date.
                     const date = Temporal.PlainDate.from(iso);
                     expect(compact).toContain(String(date.day));
-                    expect(editing).toBe(
-                        `${String(date.day).padStart(2, "0")}/${String(date.month).padStart(2, "0")}/${String(date.year % 100).padStart(2, "0")}`
-                    );
+                    expect(editing).toBe(`${date.day}/${date.month}/${date.year}`);
 
                     // And the value survives the round trip unchanged.
                     expect(parseLocaleDate(editing, "en-AU", refDate)).toBe(iso);

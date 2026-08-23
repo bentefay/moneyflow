@@ -32,6 +32,9 @@ function Calendar({
             )}
             captionLayout={captionLayout}
             formatters={{
+                // "default" is the host locale, which is right only for a caller that has not
+                // localised the calendar. Any caller that has passes its own formatters, and the
+                // spread below lets those win.
                 formatMonthDropdown: (date) => date.toLocaleString("default", { month: "short" }),
                 ...formatters
             }}

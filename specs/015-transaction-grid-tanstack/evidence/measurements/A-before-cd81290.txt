@@ -1,0 +1,122 @@
+arm: A-before-cd81290
+commit: cd812905b68f23cae118c971112df313c0412ccd
+react-virtual: 3.14.6  virtual-core: 3.17.4
+lockfile sha256: 747b21c13d61b683729999bcdd1ef66bd844f3ef9fc2f722e62780fac51f2f88
+fixture: c689afbd6d017383e960b1b5f56e5bea8f958abdc955cd039f612a586602add7
+seed: import 2.14s, prefix preload 33.64s in 200 steps, scrollHeight 507845px
+notes: 480/480 rows annotated+expanded in 324.3s; collapsed 57px vs expanded 123px, 2 ARIA rows
+console warnings: none
+
+  route                       ordinary
+  scored duration (s)         14.449
+  whole route (s)             14.466
+  moving frames scored        867
+  expected frames             867
+  observed BeginFrames        868
+  idle vsyncs (excluded)      1
+  presented FPS               53.151
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            16.666
+  p99 vsync (ms)              66.664
+  max vsync (ms)              499.980
+  p50 wall-clock (ms)         16.672
+  p95 wall-clock (ms)         17.284
+  p99 wall-clock (ms)         58.606
+  max wall-clock (ms)         515.957
+  wall-clock noise floor p95  17.269
+  full                        717
+  blank (visibly empty)       1
+  partial                     50
+  stale                       0
+  dropped                     99
+  fully presented             82.699%
+  verdict                     FAIL
+  ! presented fps 53.151 < 59
+  ! fully presented 82.699% < 99%
+  ! visibly empty frames 1 > 0
+
+  route                       fast-reversal
+  scored duration (s)         15.916
+  whole route (s)             15.983
+  moving frames scored        955
+  expected frames             957
+  observed BeginFrames        957
+  idle vsyncs (excluded)      2
+  presented FPS               31.164
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            66.664
+  p99 vsync (ms)              466.648
+  max vsync (ms)              566.644
+  p50 wall-clock (ms)         16.673
+  p95 wall-clock (ms)         58.399
+  p99 wall-clock (ms)         488.076
+  max wall-clock (ms)         567.758
+  wall-clock noise floor p95  17.269
+  full                        385
+  blank (visibly empty)       23
+  partial                     88
+  stale                       0
+  dropped                     459
+  fully presented             40.314%
+  verdict                     FAIL
+  ! presented fps 31.164 < 59
+  ! p95 interval 66.664ms > 17ms
+  ! fully presented 40.314% < 99%
+  ! visibly empty frames 23 > 0
+  ! BeginFrameSource stalled: observed 957 ticks, span implies 959
+
+  route                       large-movement
+  scored duration (s)         3.217
+  whole route (s)             9.116
+  moving frames scored        193
+  expected frames             250
+  observed BeginFrames        547
+  idle vsyncs (excluded)      297
+  presented FPS               16.166
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            1016.626
+  p99 vsync (ms)              1049.958
+  max vsync (ms)              1049.958
+  p50 wall-clock (ms)         16.797
+  p95 wall-clock (ms)         1032.540
+  p99 wall-clock (ms)         1058.695
+  max wall-clock (ms)         1058.695
+  wall-clock noise floor p95  17.269
+  full                        62
+  blank (visibly empty)       0
+  partial                     32
+  stale                       0
+  dropped                     156
+  fully presented             10.363%
+  verdict                     FAIL
+  ! presented fps 16.166 < 59
+  ! p95 interval 1016.626ms > 17ms
+  ! fully presented 10.363% < 99%
+
+  route                       free-spin
+  scored duration (s)         6.100
+  whole route (s)             6.100
+  moving frames scored        366
+  expected frames             366
+  observed BeginFrames        366
+  idle vsyncs (excluded)      0
+  presented FPS               44.100
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            16.666
+  p99 vsync (ms)              316.654
+  max vsync (ms)              549.978
+  p50 wall-clock (ms)         16.672
+  p95 wall-clock (ms)         24.118
+  p99 wall-clock (ms)         314.742
+  max wall-clock (ms)         562.497
+  wall-clock noise floor p95  17.269
+  full                        235
+  blank (visibly empty)       5
+  partial                     29
+  stale                       0
+  dropped                     97
+  fully presented             64.208%
+  verdict                     FAIL
+  ! presented fps 44.100 < 59
+  ! fully presented 64.208% < 99%
+  ! visibly empty frames 5 > 0

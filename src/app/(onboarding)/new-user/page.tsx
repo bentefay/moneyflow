@@ -12,6 +12,7 @@
 "use client";
 
 import { AlertTriangle, ArrowRight, CheckCircle2, KeyRound, Loader2, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { type FormEvent, useCallback, useRef, useState } from "react";
 
 import {
@@ -132,6 +133,7 @@ export default function NewUserPage() {
         setMnemonic(null);
         // Changing identity invalidates all in-memory authenticated state, so a full navigation
         // is used for the same reason as the recovery-phrase branch below.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full document navigation is the point: client-side routing would keep the previous identity's in-memory state and React Query cache alive across an identity change.
         window.location.assign("/settings");
     }, []);
 
@@ -154,6 +156,7 @@ export default function NewUserPage() {
                 // Changing identity invalidates all in-memory authenticated state. Use a full
                 // navigation so React Query and the app providers cannot reuse the prior identity's
                 // cached vault list or active VaultProvider tree.
+                // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full document navigation is the point: client-side routing would keep the previous identity's in-memory state and React Query cache alive across an identity change.
                 window.location.assign("/settings");
             } catch {
                 // Error is handled by useIdentity hook
@@ -293,12 +296,12 @@ export default function NewUserPage() {
                         {/* Back link */}
                         <p className="text-muted-foreground text-sm">
                             Already have an account?{" "}
-                            <a
+                            <Link
                                 href="/unlock"
                                 className="text-primary font-medium underline-offset-4 hover:underline"
                             >
                                 Unlock it
-                            </a>
+                            </Link>
                         </p>
                     </div>
                 );

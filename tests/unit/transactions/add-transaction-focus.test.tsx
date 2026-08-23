@@ -14,14 +14,17 @@
  * request aimed at a row outside the visible window must still land, not be silently dropped.
  */
 
-import type { Range } from "@tanstack/react-virtual";
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { OnChangeFn } from "@tanstack/table-core";
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-    NO_ROWS_SELECTED,
-    setRowsSelected
-} from "@/components/features/transactions/table-selection";
+    asTransactionId,
+    NO_TRANSACTION_ROWS_SELECTED,
+    setTransactionRowsSelected,
+    transactionRowOrderFromIds,
+    type TransactionRowSelection
+} from "@/components/features/transactions/table-model";
 import {
     pendingFocusDescriptionId,
     retireFocusDescription,
@@ -32,59 +35,50 @@ import {
 import type { TransactionRowData } from "@/components/features/transactions/TransactionRow";
 import { TransactionTable } from "@/components/features/transactions/TransactionTable";
 
-interface CapturedVirtualizerOptions {
-    count: number;
-    getScrollElement: () => HTMLElement | null;
-    estimateSize: () => number;
-    overscan: number;
-    rangeExtractor: (range: Range) => number[];
-}
-
-const virtualizerSpy = vi.hoisted(() =>
-    vi.fn((options: CapturedVirtualizerOptions) => ({
-        // Mirrors the real virtualizer closely enough to matter here: only the rows the range
-        // extractor keeps are ever mounted, so a dropped index really is an unmounted row.
-        getVirtualItems: () =>
-            options
-                .rangeExtractor({
-                    startIndex: 0,
-                    endIndex: Math.min(4, options.count - 1),
-                    overscan: options.overscan,
-                    count: options.count
-                })
-                .map((index) => ({
-                    index,
-                    key: index,
-                    start: index * options.estimateSize(),
-                    end: (index + 1) * options.estimateSize(),
-                    size: options.estimateSize(),
-                    lane: 0
-                })),
-        getTotalSize: () => options.count * options.estimateSize(),
-        measureElement: vi.fn()
-    }))
-);
-
-vi.mock("@tanstack/react-virtual", () => ({
-    defaultRangeExtractor: (range: Range) => {
-        const start = Math.max(range.startIndex - range.overscan, 0);
-        const end = Math.min(range.endIndex + range.overscan, range.count - 1);
-        return Array.from({ length: end - start + 1 }, (_, index) => start + index);
-    },
-    useVirtualizer: virtualizerSpy
-}));
+import {
+    contiguousRowWindow,
+    HARNESS_ROW_HEIGHT,
+    installVirtualGridLayout,
+    mountedRowIndexes
+} from "./virtual-grid-harness";
 
 vi.mock("@/components/features/accounts", () => ({
     AccountCombobox: () => <button type="button">Account</button>
 }));
 
 function createTransactions(count: number): TransactionRowData[] {
-    return Array.from({ length: count }, (_, index) => ({
-        id: `transaction-${index}`,
+    return Array.from({ length: count }, (unused, index) => ({
+        id: `transaction-${String(index)}`,
         date: "2026-01-01",
         description: "",
         amount: 0
     }));
+}
+
+/** The grid, with the selection wiring every test here needs and nothing more. */
+function renderGrid(props: {
+    readonly transactions: TransactionRowData[];
+    readonly focusDescriptionTransactionId?: string | null;
+    readonly onFocusDescriptionApplied?: () => void;
+    readonly rowSelection?: TransactionRowSelection;
+    readonly onRowSelectionChange?: OnChangeFn<TransactionRowSelection>;
+}) {
+    const element = (
+        <TransactionTable
+            rowWindow={contiguousRowWindow(props.transactions)}
+            matchingRowCount={props.transactions.length}
+            rowOrder={transactionRowOrderFromIds(
+                props.transactions.map((transaction) => asTransactionId(transaction.id))
+            )}
+            rowSelection={props.rowSelection ?? NO_TRANSACTION_ROWS_SELECTED}
+            onRowSelectionChange={props.onRowSelectionChange ?? (() => undefined)}
+            matchingRowsChange={null}
+            onMatchingSetReconciled={() => undefined}
+            focusDescriptionTransactionId={props.focusDescriptionTransactionId}
+            onFocusDescriptionApplied={props.onFocusDescriptionApplied}
+        />
+    );
+    return { element, ...render(element) };
 }
 
 describe("transaction reveal intent", () => {
@@ -140,27 +134,40 @@ describe("transaction reveal intent", () => {
 });
 
 describe("transaction table description focus", () => {
-    beforeEach(() => virtualizerSpy.mockClear());
+    // The real virtualizer, given real element sizes. A focus request aimed at a row outside the
+    // window is only interesting if the window is genuinely bounded, which a fake window could
+    // assert about itself but not demonstrate.
+    let restoreLayout: () => void;
+
+    beforeEach(() => {
+        restoreLayout = installVirtualGridLayout();
+    });
+    afterEach(() => restoreLayout());
 
     it("focuses the requested row's description and reports the request as applied once", () => {
         const onFocusDescriptionApplied = vi.fn();
-        const { rerender } = render(
-            <TransactionTable
-                transactions={createTransactions(3)}
-                focusDescriptionTransactionId="transaction-1"
-                onFocusDescriptionApplied={onFocusDescriptionApplied}
-            />
-        );
+        const { rerender } = renderGrid({
+            focusDescriptionTransactionId: "transaction-1",
+            onFocusDescriptionApplied,
+            transactions: createTransactions(3)
+        });
 
         const descriptions = screen.getAllByTestId("description-editable");
         expect(document.activeElement).toBe(descriptions[1]);
         expect(onFocusDescriptionApplied).toHaveBeenCalledTimes(1);
 
-        // A later re-render with the request already retired must not steal the caret back.
-        descriptions[2].focus();
+        // A later re-render with the request already retired must not steal the caret back. Wrapped,
+        // because focusing a live description input is a real gesture that updates its own state.
+        act(() => descriptions[2].focus());
         rerender(
             <TransactionTable
-                transactions={createTransactions(3)}
+                rowWindow={contiguousRowWindow(createTransactions(3))}
+                matchingRowCount={3}
+                rowOrder={transactionRowOrderFromIds([])}
+                rowSelection={NO_TRANSACTION_ROWS_SELECTED}
+                onRowSelectionChange={() => undefined}
+                matchingRowsChange={null}
+                onMatchingSetReconciled={() => undefined}
                 focusDescriptionTransactionId={null}
                 onFocusDescriptionApplied={onFocusDescriptionApplied}
             />
@@ -170,23 +177,28 @@ describe("transaction table description focus", () => {
     });
 
     it("touches no other row's description when no focus is requested", () => {
-        render(<TransactionTable transactions={createTransactions(3)} />);
+        renderGrid({ transactions: createTransactions(3) });
 
         expect(document.activeElement).toBe(document.body);
     });
 
     it("mounts a focus target that falls outside the visible virtual window", () => {
-        render(
-            <TransactionTable
-                transactions={createTransactions(500)}
-                focusDescriptionTransactionId="transaction-400"
-            />
-        );
+        renderGrid({
+            focusDescriptionTransactionId: "transaction-400",
+            transactions: createTransactions(500)
+        });
 
-        const options = virtualizerSpy.mock.calls.at(-1)?.[0];
-        if (!options) throw new Error("Expected virtualizer options");
-        const distantRange = { startIndex: 0, endIndex: 4, overscan: 5, count: 500 };
-        expect(options.rangeExtractor(distantRange)).toContain(400);
+        // Row 400 is far outside the measured window — the grid mounts it anyway, because a focus
+        // request that lands on an unmounted row is a request silently dropped.
+        const indexes = mountedRowIndexes();
+        expect(indexes).toContain(400);
+        expect(indexes).not.toContain(300);
+        expect(indexes.length).toBeLessThan(500);
+        // The pinned row sits where the virtualizer placed it, not at the top of the group.
+        const pinnedWrapper = document.querySelector('[data-index="400"]');
+        expect(pinnedWrapper).toHaveStyle({
+            transform: `translateY(${String(400 * HARNESS_ROW_HEIGHT)}px)`
+        });
 
         const row = screen
             .getAllByTestId("transaction-row")
@@ -198,21 +210,19 @@ describe("transaction table description focus", () => {
     });
 
     it("leaves selection alone when a row is asked to take focus", () => {
-        const onSelectionChange = vi.fn();
-        render(
-            <TransactionTable
-                transactions={createTransactions(3)}
-                selection={setRowsSelected(
-                    NO_ROWS_SELECTED,
-                    ["transaction-0", "transaction-2"],
-                    true
-                )}
-                onSelectionChange={onSelectionChange}
-                focusDescriptionTransactionId="transaction-1"
-            />
-        );
+        const onRowSelectionChange = vi.fn();
+        renderGrid({
+            focusDescriptionTransactionId: "transaction-1",
+            onRowSelectionChange,
+            rowSelection: setTransactionRowsSelected(
+                NO_TRANSACTION_ROWS_SELECTED,
+                [asTransactionId("transaction-0"), asTransactionId("transaction-2")],
+                true
+            ),
+            transactions: createTransactions(3)
+        });
 
-        expect(onSelectionChange).not.toHaveBeenCalled();
+        expect(onRowSelectionChange).not.toHaveBeenCalled();
         const rows = screen.getAllByTestId("transaction-row");
         expect(rows.map((row) => row.getAttribute("aria-selected"))).toEqual([
             "true",

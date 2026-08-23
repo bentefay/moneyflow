@@ -14,14 +14,19 @@
  * that assertion too. Counting is what distinguishes them.
  */
 
-import type { Range } from "@tanstack/react-virtual";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Temporal } from "temporal-polyfill";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TransactionTable as TransactionTableComponent } from "@/components/features/transactions";
-import { compareTransactionOrder } from "@/lib/crdt/queries";
+import type { TransactionInput, TransactionStore } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
+
+import {
+    buildFakeTransactionStore,
+    insertIntoFakeStore,
+    installVirtualGridLayout
+} from "./virtual-grid-harness";
 
 const ACCOUNT_ID = "account-cheque";
 const STATUS_ID = "status-for-review";
@@ -38,7 +43,9 @@ const focusRequestRenders = vi.hoisted(() => [] as Array<string | null>);
 
 /** Mutable vault contents, reassigned by the fake `insertTransaction` and read through a store. */
 const vault = vi.hoisted(() => ({
-    transactions: [] as unknown[],
+    store: {} as Record<string, unknown>,
+    /** Bumped whenever the store changes, so the mocked index hook re-derives exactly once. */
+    revision: 0,
     listeners: new Set<() => void>()
 }));
 
@@ -48,44 +55,9 @@ vi.mock("next/navigation", () => ({
     useSearchParams: () => new URLSearchParams()
 }));
 
-// jsdom gives the scroll container no height, so the real virtualizer mounts no rows at all. This
-// mirrors it closely enough to matter: only rows the range extractor keeps are mounted, so the
-// production pinning of the focus target is still what decides whether the request can land.
-vi.mock("@tanstack/react-virtual", () => ({
-    defaultRangeExtractor: (range: Range) => {
-        const start = Math.max(range.startIndex - range.overscan, 0);
-        const end = Math.min(range.endIndex + range.overscan, range.count - 1);
-        return Array.from({ length: end - start + 1 }, (_, index) => start + index);
-    },
-    useVirtualizer: (options: {
-        readonly count: number;
-        readonly estimateSize: () => number;
-        readonly overscan: number;
-        readonly rangeExtractor: (range: Range) => number[];
-    }) => ({
-        getVirtualItems: () =>
-            options
-                .rangeExtractor({
-                    startIndex: 0,
-                    endIndex: Math.min(4, options.count - 1),
-                    overscan: options.overscan,
-                    count: options.count
-                })
-                .map((index) => ({
-                    index,
-                    key: index,
-                    start: index * options.estimateSize(),
-                    end: (index + 1) * options.estimateSize(),
-                    size: options.estimateSize(),
-                    lane: 0
-                })),
-        getTotalSize: () => options.count * options.estimateSize(),
-        measureElement: () => {}
-    })
-}));
-
 vi.mock("@/lib/crdt/context", async () => {
-    const { useCallback, useSyncExternalStore } = await import("react");
+    const { useCallback, useMemo, useSyncExternalStore } = await import("react");
+    const { buildTransactionIndex } = await import("@/lib/crdt/transaction-cursor");
 
     const subscribe = (listener: () => void) => {
         vault.listeners.add(listener);
@@ -93,14 +65,23 @@ vi.mock("@/lib/crdt/context", async () => {
             vault.listeners.delete(listener);
         };
     };
-    const readTransactions = () => vault.transactions;
+    const readRevision = () => vault.revision;
 
     return {
         // The real hook returns transactions already sorted newest-first by the hierarchical store,
         // so the fake sorts on insert to match. Sort order is load-bearing: it decides the created
         // row's index, and therefore whether the page's scroll effect runs against it at all.
-        useActiveTransactions: () =>
-            useSyncExternalStore(subscribe, readTransactions, readTransactions),
+        // The grid's source is the document-scoped index, not a flat array. Memoised on the store's
+        // revision exactly as the real hook memoises on the store's identity: a fresh index every
+        // render would give the page a fresh cursor every render, and the selection reconciliation
+        // keyed on cursor identity would then never settle.
+        useTransactionIndex: () => {
+            // Subscribed so replacing the store re-renders, then memoised on the store's own
+            // identity — exactly how the real hook memoises on `state.transactions`.
+            useSyncExternalStore(subscribe, readRevision, readRevision);
+            const store = vault.store as TransactionStore;
+            return useMemo(() => buildTransactionIndex(store), [store]);
+        },
         useActiveAccounts: () => accounts,
         useActiveTags: () => empty,
         useDescriptionAliases: () => empty,
@@ -109,10 +90,18 @@ vi.mock("@/lib/crdt/context", async () => {
         usePeople: () => empty,
         useActiveFieldRules: () => noRules,
         useTransactionActions: () => ({
-            insertTransaction: useCallback(({ transaction }: { readonly transaction: unknown }) => {
-                vault.transactions = [...vault.transactions, transaction].sort(newestFirst);
-                for (const listener of vault.listeners) listener();
-            }, []),
+            // The real hierarchical insert, into the same store shape the page's cursor reads, so
+            // the created row lands where the product would put it rather than where a test-local
+            // sort chose. The nanosecond `creationInstant` bump two adds in one test depend on is
+            // then resolved by the production comparator inside the cursor.
+            insertTransaction: useCallback(
+                ({ transaction }: { readonly transaction: TransactionInput }) => {
+                    vault.store = insertIntoFakeStore(vault.store as TransactionStore, transaction);
+                    vault.revision += 1;
+                    for (const listener of vault.listeners) listener();
+                },
+                []
+            ),
             updateTransaction: noop,
             setTransactionAllocation: noop,
             moveTransaction: noop,
@@ -202,37 +191,6 @@ const presence = {
     disconnect: async () => {}
 };
 
-interface TransactionOrderKey {
-    readonly id: string;
-    readonly date: Temporal.PlainDate;
-    readonly creationInstant: Temporal.Instant;
-    readonly importRowIndex?: number;
-}
-
-function orderKey(value: unknown): TransactionOrderKey {
-    const { id, date, creationInstant, importRowIndex } = Object(value);
-    if (typeof id !== "string") throw new Error("Expected a transaction id");
-    if (!(date instanceof Temporal.PlainDate)) throw new Error("Expected a transaction date");
-    if (!(creationInstant instanceof Temporal.Instant)) {
-        throw new Error("Expected a transaction creationInstant");
-    }
-    return {
-        id,
-        date,
-        creationInstant,
-        importRowIndex: typeof importRowIndex === "number" ? importRowIndex : undefined
-    };
-}
-
-/**
- * Newest first, via the production comparator. Same-day rows are the interesting case — two adds in
- * one test land on today — and the tie-break on `creationInstant` is what the page's own nanosecond
- * bump exists to satisfy, so borrowing the real comparator keeps the fake honest about row order.
- */
-function newestFirst(left: unknown, right: unknown): number {
-    return compareTransactionOrder(orderKey(left), orderKey(right));
-}
-
 function createTransaction(id: string, day: string) {
     return {
         id,
@@ -302,16 +260,22 @@ describe("add transaction consumes the focus intent exactly once", () => {
     // assertion below still settles on its own condition rather than on elapsed time.
     vi.setConfig({ testTimeout: 30_000 });
 
+    let restoreLayout: () => void;
+
     beforeEach(() => {
-        vault.transactions = [
+        restoreLayout = installVirtualGridLayout();
+        vault.store = buildFakeTransactionStore([
             createTransaction("existing-newer", "2026-07-29"),
             createTransaction("existing-older", "2026-07-28")
-        ];
+        ]);
+        vault.revision += 1;
         vault.listeners.clear();
         descriptionFocusCalls.length = 0;
         focusRequestRenders.length = 0;
         countDescriptionFocusCalls();
     });
+
+    afterEach(() => restoreLayout());
 
     it("applies the created row's focus request once and never re-asserts it", async () => {
         await renderTransactionsPage();

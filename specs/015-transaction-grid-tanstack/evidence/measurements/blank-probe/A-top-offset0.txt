@@ -1,0 +1,104 @@
+arm: A-top-offset0
+commit: cd812905b68f23cae118c971112df313c0412ccd
+react-virtual: (unset)  virtual-core: (unset)
+lockfile sha256: (unset)
+harness digest: (unset)
+  measurement core: ad8865765c5c430587e80dbfa97ac22bf81cf668128ed5af4e42bf9251d32491  (must match across arms)
+  orchestration:    1c39fd7165b20b5fd82267f57d9a92dbcc0de430df4d213dda3d781b6d24b137
+  seeding path:     a7638fa2a9ed1f8de531a3a2951a762726c03535889b26d31712cc757aa5bc12  (arms may differ)
+fixture: transactions 55ad36c8a81fd67c72887642dfcb11803c93cfb1f18f4e9cd8467e6c0543af90
+         enrichment   9e32ed1e477553bbe447974f7d490cdf332d1ef4b9f697191f6e0d7ee0df4422
+campaign: 1 of 1 sessions x 1 repeats
+
+session 1: seed 117.0s (identity 1.3s, 4 imports 1.4/1.4/1.5/1.7s, row access 35.0s in 200 paging steps (0 = no pagination to work around), scrollHeight 515873px)
+  notes: 480 rows annotated+expanded in 366.2s; collapsed 57px vs expanded 103px, 2 ARIA rows
+  imports ledger: 2533/2527/2476/2464 = 10000 rows in the vault; grid shows 10000; duplicates flagged per import 0/0/0/0; grid count after each import 2464/4940/7467/10000
+  fixture on the DOM: 3 allocation columns (Alex Rivera %, Me %, Priya Raman %); accounts seen Tokyo Cash, Berlin Savings, Travel Rewards Card, Default; 229/915 sampled rows tagged, 160 allocated
+  console warnings: none
+
+per-run table
+session  run  route     fps     p95ms   full%   blank  stale  dropped  route s  smplr dfps  load  verdict
+1        1    ordinary  55.464  16.666  81.933  2      0      54       11.984   0.490       1.04  FAIL   
+
+variance (within session = repeats; between sessions = per-session means)
+route ordinary — 0/1 runs passed  (FAILS: a route passes only if every run passes)
+    presentedFramesPerSecond within: s1 mean 55.464 sd n/a [55.464..55.464]
+                             between sessions: mean 55.464 sd n/a [55.464..55.464]
+    p95IntervalMilliseconds  within: s1 mean 16.666 sd n/a [16.666..16.666]
+                             between sessions: mean 16.666 sd n/a [16.666..16.666]
+    fullyPresentedRatio      within: s1 mean 0.819 sd n/a [0.819..0.819]
+                             between sessions: mean 0.819 sd n/a [0.819..0.819]
+    blankFrames              within: s1 mean 2.0 sd n/a [2.0..2.0]
+                             between sessions: mean 2.0 sd n/a [2.0..2.0]
+    droppedFrames            within: s1 mean 54.0 sd n/a [54.0..54.0]
+                             between sessions: mean 54.0 sd n/a [54.0..54.0]
+    achievedRouteSeconds     within: s1 mean 11.984 sd n/a [11.984..11.984]
+                             between sessions: mean 11.984 sd n/a [11.984..11.984]
+    loadAverageOneMinute     within: s1 mean 1.040 sd n/a [1.040..1.040]
+                             between sessions: mean 1.040 sd n/a [1.040..1.040]
+    samplerPerturbationFps   within: s1 mean 0.490 sd n/a [0.490..0.490]
+                             between sessions: mean 0.490 sd n/a [0.490..0.490]
+    ! clean: presented fps 55.464 < 59
+    ! clean: fully presented 81.933% < 99%
+    ! instrumented: visibly empty frames 2 > 0
+
+session 1 — final repeat detail (clean pass then instrumented pass)
+
+  route (clean)               ordinary
+  scored duration (s)         11.900
+  whole route (s)             12.300
+  moving frames scored        714
+  expected frames             717
+  observed BeginFrames        738
+  idle vsyncs (excluded)      21
+  presented FPS               55.464
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            16.666
+  p99 vsync (ms)              49.998
+  max vsync (ms)              533.312
+  p50 wall-clock (ms)         16.646
+  p95 wall-clock (ms)         18.287
+  p99 wall-clock (ms)         49.351
+  max wall-clock (ms)         534.628
+  wall-clock noise floor p95  17.269
+  presented in full           585
+  presented partial           75
+  dropped                     54
+  fully presented             81.933%
+  verdict                     FAIL
+  ! presented fps 55.464 < 59
+  ! fully presented 81.933% < 99%
+
+  route                       ordinary
+  scored duration (s)         11.933
+  whole route (s)             12.300
+  moving frames scored        716
+  expected frames             723
+  observed BeginFrames        738
+  idle vsyncs (excluded)      15
+  presented FPS               54.974
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            16.666
+  p99 vsync (ms)              33.332
+  max vsync (ms)              499.980
+  p50 wall-clock (ms)         16.662
+  p95 wall-clock (ms)         19.571
+  p99 wall-clock (ms)         47.626
+  max wall-clock (ms)         500.945
+  wall-clock noise floor p95  17.269
+  full                        647
+  blank (visibly empty)       2
+  partial                     13
+  stale                       0
+  dropped                     61
+  fully presented (semantic)  89.525%
+  semantic coverage           98.5%
+  verdict                     FAIL
+  reasons (moving frames)   
+    state:STATE_DROPPED       60
+    compositor-partial-update  13
+    no-semantic-sample        11
+    uncovered-viewport        2
+  ! presented fps 54.974 < 59
+  ! fully presented 89.525% < 99%
+  ! visibly empty frames 2 > 0

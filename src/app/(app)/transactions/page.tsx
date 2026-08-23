@@ -31,8 +31,14 @@ import {
     TransactionTable,
     TransactionTableToolbar
 } from "@/components/features/transactions";
-import { materializeAllocationRecord } from "@/components/features/transactions/allocation-columns";
+import {
+    historicalAllocationPersonIds,
+    materializeAllocationRecord,
+    type RetainedHistoricalAllocationPeople,
+    retainHistoricalAllocationPersonIds
+} from "@/components/features/transactions/allocation-columns";
 import type { DescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
+import { transactionRowOrderFromCursor } from "@/components/features/transactions/cursor-row-order";
 import {
     allocationValueChanged,
     formatAmountForRuleLabel,
@@ -43,13 +49,22 @@ import {
     type RobotCurrentValue
 } from "@/components/features/transactions/field-rule-robot-state";
 import {
-    isRowSelected,
-    NO_ROWS_SELECTED,
-    reconcileToMatchingRows,
-    selectedRowCount,
-    selectOnlyRow,
-    type TransactionSelection
-} from "@/components/features/transactions/table-selection";
+    advanceTransactionRowWindowStart,
+    TRANSACTION_ROW_WINDOW_ROWS,
+    type TransactionRowWindow,
+    type TransactionVisibleRange,
+    withPinnedTransactionRow
+} from "@/components/features/transactions/row-window";
+import {
+    asTransactionId,
+    isTransactionRowSelected,
+    type MatchingTransactionRows,
+    NO_TRANSACTION_ROWS_SELECTED,
+    selectedTransactionRowCount,
+    selectOnlyTransactionRow,
+    type TransactionId,
+    type TransactionRowSelection
+} from "@/components/features/transactions/table-model";
 import {
     pendingFocusDescriptionId,
     retireFocusDescription,
@@ -72,24 +87,25 @@ import {
     useActiveFieldRules,
     useActivePeople,
     useActiveTags,
-    useActiveTransactions,
     useDescriptionAliases,
     useDescriptionAliasActions,
     usePeople,
     useStatuses,
     useTransactionActions,
+    useTransactionIndex,
     useVaultAction
 } from "@/lib/crdt/context";
 import type { DescriptionAliasTarget } from "@/lib/crdt/description-aliases";
 import { resolveMemberDisplayName, resolvePersonDisplayName } from "@/lib/crdt/person";
-import { compareTransactionOrder, filterTransactions } from "@/lib/crdt/queries";
 import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
+import {
+    createTransactionCursor,
+    type TransactionCursor,
+    type TransactionFilter
+} from "@/lib/crdt/transaction-cursor";
 import { getNextTagColor } from "@/lib/domain";
 import { type RuleField, type RuleMatchSubject } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
-
-// Number of transactions to load per page
-const PAGE_SIZE = 50;
 
 /**
  * Search param carrying a stable source-transaction ID, used by the People page "View transaction"
@@ -107,6 +123,32 @@ function materializeAliasTarget(target: DescriptionAliasTargetIntent): Descripti
     return target.kind === "existing"
         ? target
         : { kind: "new", aliasId: generateId(), name: target.name };
+}
+
+/**
+ * The rows that have entered the matching set since the previous cursor.
+ *
+ * Lazy on purpose. `reconcileRowSelection` iterates this only under an `all-matching` baseline —
+ * the one case where a newly-matching row would otherwise inherit the baseline and become selected
+ * without the user asking. Under the ordinary `no-rows` baseline the generator is never started, so
+ * a filter change or a peer's edit costs only a re-check of the exceptions.
+ *
+ * When it *is* iterated the cost is the size of the new matching set, because "which rows are new"
+ * has no cheaper answer against a cursor that holds no list. That is the price of holding a
+ * select-all across a change to the matching set, paid at the moment of the change and never at
+ * rest — where the previous implementation paid it on every vault change regardless.
+ */
+function newlyMatchingTransactionIds(
+    previous: TransactionCursor,
+    next: TransactionCursor
+): Iterable<TransactionId> {
+    return {
+        *[Symbol.iterator]() {
+            for (const transaction of next.values()) {
+                if (!previous.includes(transaction.id)) yield asTransactionId(transaction.id);
+            }
+        }
+    };
 }
 
 /**
@@ -135,8 +177,10 @@ function TransactionsPageContent() {
     // Toast notifications
     const { toast } = useToast();
 
-    // CRDT state - transactions are pre-sorted by the hierarchical structure
-    const transactions = useActiveTransactions();
+    // CRDT state. The grid's source is the document-scoped transaction index rather than a flattened
+    // array: one walk of the hierarchy per document change, from which a cursor answers counts,
+    // windows and positions without a matching list ever existing.
+    const transactionIndex = useTransactionIndex();
     const accounts = useActiveAccounts();
     const tags = useActiveTags();
     const aliases = useDescriptionAliases();
@@ -190,14 +234,26 @@ function TransactionsPageContent() {
     // Filter state
     const [filters, setFilters] = useState<TransactionFiltersState>(createEmptyFilters());
 
-    // Pagination state
-    const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
+    // Where the bounded window of rows the grid holds starts, in the matching order. The grid reports
+    // what its viewport is showing and this follows in whole blocks — see `row-window.ts`. It is not
+    // a page count: the virtualizer's own count is the whole matching set, so every position is
+    // addressable whatever this happens to be.
+    const [rowWindowStart, setRowWindowStart] = useState(0);
+    // The row holding the caret, so it can be kept in the window however far the grid is scrolled
+    // away from it. `TransactionTable` pins the same row into the virtual range; this is the half of
+    // that pin only the cursor's owner can supply, and it must stay fresh rather than be remembered,
+    // because the focused row is the one being edited.
+    const [focusedTransactionId, setFocusedTransactionId] = useState<string | null>(null);
     const [revealIntent, setRevealIntent] = useState<TransactionRevealIntent | null>(null);
     const transactionTableContainerRef = useRef<HTMLDivElement>(null);
 
-    // Selection over the whole filtered result set, held as a baseline plus exceptions so that
-    // "every matching transaction" is a constant-size value rather than a list of every id.
-    const [selection, setSelection] = useState<TransactionSelection>(NO_ROWS_SELECTED);
+    // Selection over the whole matching result set, held as a baseline plus exceptions so that
+    // "every matching transaction" is a constant-size value rather than a list of every id. Owned
+    // here and handed to the grid's table instance as controlled state, because the bulk-edit
+    // toolbar and the deep-link reveal both act on it from outside the grid.
+    const [rowSelection, setRowSelection] = useState<TransactionRowSelection>(
+        NO_TRANSACTION_ROWS_SELECTED
+    );
 
     const lastManualCreationInstantRef = useRef<Temporal.Instant | null>(null);
 
@@ -210,7 +266,7 @@ function TransactionsPageContent() {
     );
 
     // Clear selection helper
-    const clearSelection = useCallback(() => setSelection(NO_ROWS_SELECTED), []);
+    const clearSelection = useCallback(() => setRowSelection(NO_TRANSACTION_ROWS_SELECTED), []);
 
     // Row-level presence from the shared Loro ephemeral session (HS-003). Publishing focus is a
     // side effect of navigating the table, never of rendering it, so presence cannot loop.
@@ -239,10 +295,10 @@ function TransactionsPageContent() {
     // Leaving the page must retract focus; otherwise a peer sees a stale indicator until expiry.
     useEffect(() => clearPresenceFocus, [clearPresenceFocus]);
 
-    // Filter transactions using the query helper
-    // Data is already sorted by the hierarchical structure
-    const filteredTransactions = useMemo(() => {
-        return filterTransactions(transactions, {
+    // The filter dimensions, as the cursor's own value. Separate from the cursor below so a render
+    // that changes neither the filters nor the document rebuilds neither.
+    const cursorFilter = useMemo(
+        (): TransactionFilter => ({
             dateRange: {
                 start: filters.dateRange.start
                     ? Temporal.PlainDate.from(filters.dateRange.start)
@@ -260,90 +316,186 @@ function TransactionsPageContent() {
             // aliased row is the alias name resolved through the same one-hop symlink lookup.
             resolveDescriptionAliasName: (aliasId) => aliasLookup.resolve(aliasId)?.name,
             showDuplicatesOnly: filters.showDuplicatesOnly,
-            excludeDeleted: true,
-            // Data is pre-sorted, but filterTransactions preserves order when sortBy is "date" and sortDirection is "desc"
-            sortBy: "date",
-            sortDirection: "desc"
-        });
-    }, [transactions, filters, aliasLookup]);
-
-    // Every transaction matching the active filters, in the order the table presents them. This is
-    // what selection is a property of: select-all and shift-click ranges act on it, not on the
-    // paginated slice below, so a row that is neither rendered nor paged in is still covered.
-    const filteredTransactionIds = useMemo(
-        () => filteredTransactions.map((transaction) => transaction.id),
-        [filteredTransactions]
+            excludeDeleted: true
+        }),
+        [aliasLookup, filters]
     );
 
-    // Changing the filters re-derives the set the header acts on and reports: a row that has left
-    // the result set drops out, and a row that has only just entered it stays unselected — the user
-    // never selected it, and a relaxed filter must not select rows on their behalf. Adjusting
-    // during render (React's documented pattern, as with `landedSourceId` below) keeps this off the
-    // per-toggle path: it costs anything only when the matching set itself changes, never on a
-    // click.
-    const [matchingIdsAtSelection, setMatchingIdsAtSelection] = useState(filteredTransactionIds);
-    if (matchingIdsAtSelection !== filteredTransactionIds) {
-        setSelection((currentSelection) =>
-            reconcileToMatchingRows(
-                currentSelection,
-                matchingIdsAtSelection,
-                filteredTransactionIds
-            )
-        );
-        setMatchingIdsAtSelection(filteredTransactionIds);
-    }
+    // Every transaction matching the active filters, in the order the table presents them — as a
+    // random-access view rather than an array. This is what selection is a property of: select-all
+    // and shift-click ranges act on it, not on the paginated window below, so a row that is neither
+    // rendered nor paged in is still covered. `cursor.count` costs a census of the days that
+    // contribute rows, never a pass over the rows themselves.
+    const cursor = useMemo(
+        () => createTransactionCursor(transactionIndex, cursorFilter),
+        [cursorFilter, transactionIndex]
+    );
+
+    // Changing the filters — or the document — re-derives the set the header acts on and reports: a
+    // row that has left the result set drops out, and a row that has only just entered it stays
+    // unselected, because the user never selected it and a relaxed filter must not select rows on
+    // their behalf. Applying it needs the table, which lives in the grid, so the change travels down
+    // as a value and the reconciled selection comes back through `onRowSelectionChange`.
+    //
+    // Adjusting `reconciledCursor` during render is React's documented pattern and is what keeps
+    // this off the per-toggle path: it costs anything only when the cursor itself is rebuilt.
+    //
+    // The trigger is the cursor's identity, which is deliberately COARSER than "the matching set
+    // changed": the cursor is rebuilt whenever the filters or the document change, and a document
+    // change usually leaves the matching set identical. There is no cheap exact signal — comparing
+    // `cursor.count` would miss a row leaving as another arrives — so this errs towards reconciling.
+    // The cost of the coarseness is that a vault change drops a cell selection the user was still
+    // building, which is fail-closed: the grid never copies data the user did not select. What it
+    // notably does NOT do is fire on paging: `displayCount` is not a dependency of the cursor, so
+    // scrolling more rows into view leaves both selections alone.
+    const [reconciledCursor, setReconciledCursor] = useState(cursor);
+    const matchingRowsChange = useMemo(
+        (): MatchingTransactionRows | null =>
+            reconciledCursor === cursor
+                ? null
+                : {
+                      includes: (transactionId) => cursor.includes(transactionId),
+                      newlyMatchingRowIds: newlyMatchingTransactionIds(reconciledCursor, cursor)
+                  },
+        [cursor, reconciledCursor]
+    );
+    const handleMatchingSetReconciled = useCallback(() => setReconciledCursor(cursor), [cursor]);
 
     // "View transaction" from the People page carries one stable source ID. It is a one-shot
     // navigation intent, not a standing selection override: the row is paged in, selected and
     // revealed exactly once, and the param is then dropped from the URL. Every later render — and
-    // therefore every bulk action — derives selection from `selection` alone, so the landed row
+    // therefore every bulk action — derives selection from `rowSelection` alone, so the landed row
     // can be deselected like any other row. Matching is on the stable ID, never a row index, so the
     // target survives filtering, pagination and reordering.
     //
     // The seed runs during render rather than in an effect so the row is already selected on its
     // first paint (no flicker), which is React's documented adjust-state-while-rendering pattern.
     // `landedSourceId` makes it idempotent, and the vault loads asynchronously, so an intent whose
-    // target has not arrived yet stays pending instead of being dropped against an empty list.
+    // target has not arrived yet stays pending instead of being dropped against an empty vault.
+    // Membership is a map lookup; paging the row in is the reveal effect's job.
     const [landedSourceId, setLandedSourceId] = useState<string | null>(null);
-    const pendingSourceIndex =
-        requestedTransactionId == null || requestedTransactionId === landedSourceId
-            ? -1
-            : filteredTransactions.findIndex(
-                  (transaction) => transaction.id === requestedTransactionId
-              );
+    // Memoised for the React Compiler's sake, not for the cost: a call on an opaque object in the
+    // raw render body sits next to the state adjustments below, and the compiler cannot prove such a
+    // call pure — so it stops treating this component's `useState` setters as stable and skips
+    // optimising the whole component. Containing the call in a memo keeps the render body pure.
+    // The array method this replaced needed no such wrapper because the compiler knows `findIndex`.
+    const requestedTransactionIsMatching = useMemo(
+        () => requestedTransactionId != null && cursor.includes(requestedTransactionId),
+        [cursor, requestedTransactionId]
+    );
+    const hasRequestedTransaction =
+        requestedTransactionIsMatching && requestedTransactionId !== landedSourceId;
     if (requestedTransactionId == null) {
         // The param is gone, so the intent is spent and the same source can be revisited later.
         if (landedSourceId != null) setLandedSourceId(null);
-    } else if (pendingSourceIndex >= 0) {
+    } else if (hasRequestedTransaction) {
         setLandedSourceId(requestedTransactionId);
-        // Extend the page just far enough to include the requested source.
-        const requiredDisplayCount = Math.ceil((pendingSourceIndex + 1) / PAGE_SIZE) * PAGE_SIZE;
-        setDisplayCount((currentDisplayCount) =>
-            Math.max(currentDisplayCount, requiredDisplayCount)
-        );
-        setSelection(selectOnlyRow(requestedTransactionId));
+        setRowSelection(selectOnlyTransactionRow(asTransactionId(requestedTransactionId)));
         setRevealIntent(revealExistingTransaction(requestedTransactionId));
     }
 
-    // Paginate
-    const displayedTransactions = useMemo(
-        () => filteredTransactions.slice(0, displayCount),
-        [filteredTransactions, displayCount]
+    // Where the focused row sits in the matching order, or `-1` when nothing is focused. A binary
+    // search to that row's own date, and memoised for the React Compiler's sake as well as the
+    // cost's: an opaque call in the raw render body, next to the state adjustments above, is what
+    // makes the compiler skip this whole component.
+    const focusedRowIndex = useMemo(
+        () => (focusedTransactionId == null ? -1 : cursor.indexOf(focusedTransactionId)),
+        [cursor, focusedTransactionId]
     );
+
+    // The focused row's position, but only while it lies *outside* the block. Inside it — which is
+    // where focus is in every ordinary state — the block already holds the row, and making the window
+    // depend on which row has the caret would re-slice the cursor and rebuild the row model on every
+    // arrow key. Plain arithmetic, so this stays out of the memo's dependencies as a scalar.
+    const pinnedRowIndex =
+        focusedRowIndex >= rowWindowStart &&
+        focusedRowIndex < rowWindowStart + TRANSACTION_ROW_WINDOW_ROWS
+            ? -1
+            : focusedRowIndex;
+
+    // The rows the grid holds: a bounded block of the matching order around what is visible, plus the
+    // focused row when scrolling has carried it out of that block. Distinct from `cursor.count`, which
+    // is what the virtualizer counts and what selection is a property of — conflating the two either
+    // hands the row model every matching row or breaks select-all.
+    const windowTransactions = useMemo((): TransactionRowWindow<Transaction> => {
+        const blockRows = cursor.slice(rowWindowStart, TRANSACTION_ROW_WINDOW_ROWS);
+        const block = {
+            indexes: blockRows.map((unused, offset) => rowWindowStart + offset),
+            rows: blockRows
+        };
+        return withPinnedTransactionRow(
+            block,
+            pinnedRowIndex,
+            (rowIndex) => cursor.slice(rowIndex, 1)[0]
+        );
+    }, [cursor, pinnedRowIndex, rowWindowStart]);
+
     // Constant time, whatever the size of the result set: the count is a subtraction against the
     // baseline, never a scan of the matching rows.
-    const selectedCount = selectedRowCount(selection, filteredTransactionIds.length);
-    const hasMore = displayCount < filteredTransactions.length;
+    const selectedCount = selectedTransactionRowCount(rowSelection, cursor.count);
 
-    // Every selected transaction, rendered or not, resolved once per bulk action rather than by a
-    // linear `find` per selected id. Deliberately a callback and not a memo: enumerating is the one
-    // selection operation whose cost is the size of the result set, and a bulk action is the only
-    // moment that cost is unavoidable — rendering, toggling and the header's own state must not pay
-    // it. Filtering `filteredTransactions` directly keeps the rows in the table's own order.
-    const collectSelectedTransactions = useCallback(
-        (): readonly Transaction[] =>
-            filteredTransactions.filter((transaction) => isRowSelected(selection, transaction.id)),
-        [filteredTransactions, selection]
+    // The grid reports what its viewport shows; the window follows in whole blocks, so all but a few
+    // of these answer "no change" and re-render nothing.
+    const handleVisibleRowRangeChange = useCallback(
+        (range: TransactionVisibleRange) => {
+            setRowWindowStart((current) =>
+                advanceTransactionRowWindowStart(current, range, cursor.count)
+            );
+        },
+        [cursor.count]
+    );
+
+    // Scrolling retires only the scroll step. A pending focus step outlives it, because the grid keeps
+    // the target row mounted across the scroll and reports back once the caret has landed. Functional,
+    // because the row's focus retirement can land in the same flush as this one: a value computed from
+    // a captured `revealIntent` would be stale by the time React applied it and would resurrect the
+    // focus step, re-asserting an intent that has already landed.
+    const handleScrollToRowIndexApplied = useCallback(() => {
+        setRevealIntent((currentIntent) =>
+            currentIntent == null ? null : retireScroll(currentIntent)
+        );
+    }, []);
+
+    // Focus is tracked here as well as in the grid, for a different purpose: the grid pins the row
+    // into the virtual range, and this keeps it in the window so there is a row to pin.
+    const handleTransactionFocus = useCallback(
+        (transactionId: string) => setFocusedTransactionId(transactionId),
+        []
+    );
+    const handleTransactionBlur = useCallback(() => {
+        setFocusedTransactionId(null);
+        clearPresenceFocus();
+    }, [clearPresenceFocus]);
+
+    // Positions within the matching order, for shift-click ranges and single-target keystrokes.
+    // Index-backed rather than list-backed: `indexOf` is a binary search to the row's own date, and
+    // `slice` yields lazily in blocks, so a range spans rows the grid does not hold without ever
+    // copying the matching set. A full-span selection still ends with one exception per selected
+    // row — that is the selection representation, not this — see `cursor-row-order.ts`.
+    const rowOrder = useMemo(() => transactionRowOrderFromCursor(cursor), [cursor]);
+
+    // Every selected transaction, rendered or not. Deliberately a callback and not a memo:
+    // enumerating is the one selection operation whose cost is the size of the result set, and a
+    // bulk action is the only moment that cost is unavoidable — acting on N rows costs N regardless,
+    // while rendering, toggling and the header's own state must never pay it. Walking the cursor
+    // keeps the rows in the table's own order.
+    const collectSelectedTransactions = useCallback((): readonly Transaction[] => {
+        const selected: Transaction[] = [];
+        for (const transaction of cursor) {
+            if (isTransactionRowSelected(rowSelection, asTransactionId(transaction.id))) {
+                selected.push(transaction);
+            }
+        }
+        return selected;
+    }, [cursor, rowSelection]);
+
+    /** One transaction by its stable id, or `undefined` when it is absent or soft-deleted. */
+    const findTransaction = useCallback(
+        (transactionId: string): Transaction | undefined => {
+            const transaction = transactionIndex.canonicalById.get(transactionId);
+            return transaction != null && transaction.deletedAt == null ? transaction : undefined;
+        },
+        [transactionIndex]
     );
 
     useEffect(() => {
@@ -362,32 +514,49 @@ function TransactionsPageContent() {
         router.replace("/transactions", { scroll: false });
     }, [landedSourceId, requestedTransactionId, router]);
 
-    // Scrolling retires only the scroll step. A pending focus step outlives it, because the table
-    // keeps the target row mounted across the scroll and reports back once the caret has landed.
-    useEffect(() => {
-        if (revealIntent == null || !revealIntent.scrollPending) return;
+    // Where a row waiting to be revealed sits in the matching order, or `-1` while it has no place
+    // there — the document may not hold it yet, or the filters may exclude it. Asking the cursor is a
+    // binary search to that row's own date, and it is asked only while an intent is pending.
+    // Memoised for the same reason as `requestedTransactionIsMatching` above: this opaque call
+    // precedes a state adjustment in the render body.
+    const revealRowIndex = useMemo(
+        () =>
+            revealIntent != null && revealIntent.scrollPending
+                ? cursor.indexOf(revealIntent.transactionId)
+                : -1,
+        [cursor, revealIntent]
+    );
 
-        const transactionIndex = displayedTransactions.findIndex(
-            (transaction) => transaction.id === revealIntent.transactionId
-        );
-        if (transactionIndex < 0) return;
+    // Bringing the target's block into the window happens during render rather than in an effect,
+    // because it is a function of the intent and the cursor rather than of the DOM — React's
+    // documented adjust-state-while-rendering pattern, as with `landedSourceId` above. It terminates:
+    // once the window covers the target the same start comes back and the branch stops firing. The
+    // arithmetic is contained in a memo for the compiler's sake, not the cost's, exactly as
+    // `revealRowIndex` above is — an opaque call beside a render-phase state adjustment is what makes
+    // the compiler skip this whole component.
+    const revealWindowStart = useMemo(
+        () =>
+            revealRowIndex < 0
+                ? rowWindowStart
+                : advanceTransactionRowWindowStart(
+                      rowWindowStart,
+                      { startIndex: revealRowIndex, endIndex: revealRowIndex },
+                      cursor.count
+                  ),
+        [cursor.count, revealRowIndex, rowWindowStart]
+    );
+    if (revealWindowStart !== rowWindowStart) {
+        setRowWindowStart(revealWindowStart);
+    }
 
-        const grid = transactionTableContainerRef.current?.querySelector<HTMLElement>(
-            '[role="grid"][aria-label="Transactions"]'
-        );
-        const scrollContainer = grid?.parentElement;
-        if (!grid || !scrollContainer || displayedTransactions.length === 0) return;
-
-        const estimatedRowHeight = grid.scrollHeight / displayedTransactions.length;
-        const precedingVisibleRowIndex = Math.max(0, transactionIndex - 1);
-        scrollContainer.scrollTop = grid.offsetTop + precedingVisibleRowIndex * estimatedRowHeight;
-        // Functional, because the row's focus retirement lands in the same flush as this one. A
-        // value computed from the captured `revealIntent` would be stale by the time React applied
-        // it and would resurrect the focus step, re-asserting an intent that has already landed.
-        setRevealIntent((currentIntent) =>
-            currentIntent == null ? null : retireScroll(currentIntent)
-        );
-    }, [displayedTransactions, revealIntent]);
+    // The pending reveal *is* the scroll request; it needs no state of its own, and holding one would
+    // mean an effect whose whole body was a `setState` mirroring a value already in hand.
+    //
+    // The scroll itself is the virtualizer's `scrollToIndex`, which knows every row's measured
+    // height. This used to derive a `scrollTop` from `scrollHeight / loadedRows`, an averaged row
+    // height that is wrong by construction whenever a notes row is expanded — and it first had to
+    // page the target in, which a full count makes unnecessary.
+    const scrollToRowIndex = revealRowIndex < 0 ? null : revealRowIndex;
 
     const focusDescriptionTransactionId = pendingFocusDescriptionId(revealIntent);
     const handleFocusDescriptionApplied = useCallback(() => {
@@ -396,15 +565,12 @@ function TransactionsPageContent() {
         );
     }, []);
 
-    // Load more handler
-    const handleLoadMore = useCallback(() => {
-        setDisplayCount((prev) => prev + PAGE_SIZE);
-    }, []);
-
-    // Convert to row data format
-    const tableData = useMemo(
-        () =>
-            displayedTransactions.map((tx) => {
+    // Convert to row data format. The absolute positions travel with the rows: they are what the
+    // grid and the virtualizer address rows by, and the window is contiguous only up to the pin.
+    const rowWindow = useMemo(
+        (): TransactionRowWindow<TransactionRowData> => ({
+            indexes: windowTransactions.indexes,
+            rows: windowTransactions.rows.map((tx) => {
                 const acc = accounts[tx.accountId];
                 const stat = statuses[tx.statusId];
                 // Check if this transaction has suspected duplicates (is a parent with nested dups)
@@ -446,8 +612,9 @@ function TransactionsPageContent() {
                     accountOwnerships:
                         typeof acc === "object" && acc.ownerships ? acc.ownerships : {}
                 };
-            }),
-        [displayedTransactions, accounts, statuses, tags, aliasLookup]
+            })
+        }),
+        [windowTransactions, accounts, statuses, tags, aliasLookup]
     );
 
     const activeFieldRules = useActiveFieldRules();
@@ -491,7 +658,7 @@ function TransactionsPageContent() {
                 readonly accountLabel: string;
             }
         >();
-        for (const tx of displayedTransactions) {
+        for (const tx of windowTransactions.rows) {
             const resolvedAlias =
                 tx.descriptionAliasId != null
                     ? (aliasLookup.resolve(tx.descriptionAliasId) ?? null)
@@ -530,7 +697,7 @@ function TransactionsPageContent() {
             });
         }
         return byId;
-    }, [accountCurrency, accountName, aliasLookup, displayedTransactions]);
+    }, [accountCurrency, accountName, aliasLookup, windowTransactions]);
 
     const [autoOpenRobotTxId, setAutoOpenRobotTxId] = useState<string | null>(null);
 
@@ -678,14 +845,44 @@ function TransactionsPageContent() {
         [clearPendingRuleEdit, pendingRuleEdit, robotContextById]
     );
 
+    const activeAllocationPeople = useMemo(
+        () =>
+            Object.values(people)
+                .filter((person): person is Person & { $cid: string } => typeof person === "object")
+                .map((person) => ({ id: person.id, name: resolvePersonDisplayName(person) })),
+        [people]
+    );
+    const activeAllocationPersonIds = useMemo(
+        () => new Set(activeAllocationPeople.map((person) => person.id)),
+        [activeAllocationPeople]
+    );
+
+    // A deleted person who still holds an allocation earns a column, and which rows reveal that is
+    // now a function of where the grid is scrolled. Accumulating the ids seen under the current
+    // filters keeps such a column from vanishing when its row scrolls out of the window — the growing
+    // page this replaces was monotone in the same way, and reset the same way when the filters
+    // changed. Adjusted during render rather than in an effect, as with the reveal above; the
+    // discovery is contained in a memo so the render body holds no opaque call.
+    const discoveredHistoricalPersonIds = useMemo(
+        () => historicalAllocationPersonIds(windowTransactions.rows, activeAllocationPersonIds),
+        [activeAllocationPersonIds, windowTransactions]
+    );
+    const [retainedHistoricalPeople, setRetainedHistoricalPeople] = useState<
+        RetainedHistoricalAllocationPeople<TransactionFilter>
+    >(() => ({ filterKey: cursorFilter, personIds: discoveredHistoricalPersonIds }));
+    const nextRetainedHistoricalPeople = retainHistoricalAllocationPersonIds(
+        retainedHistoricalPeople,
+        cursorFilter,
+        discoveredHistoricalPersonIds
+    );
+    if (nextRetainedHistoricalPeople !== retainedHistoricalPeople) {
+        setRetainedHistoricalPeople(nextRetainedHistoricalPeople);
+    }
+
     const allocationColumnModel = useMemo(
         () =>
             buildAllocationColumnModel({
-                activePeople: Object.values(people)
-                    .filter(
-                        (person): person is Person & { $cid: string } => typeof person === "object"
-                    )
-                    .map((person) => ({ id: person.id, name: resolvePersonDisplayName(person) })),
+                activePeople: activeAllocationPeople,
                 allPeople: Object.values(allPeople)
                     .filter(
                         (person): person is Person & { $cid: string } => typeof person === "object"
@@ -695,9 +892,10 @@ function TransactionsPageContent() {
                         id: person.id,
                         name: resolvePersonDisplayName(person)
                     })),
-                transactions: displayedTransactions
+                transactions: windowTransactions.rows,
+                retainedHistoricalPersonIds: nextRetainedHistoricalPeople.personIds
             }),
-        [allPeople, displayedTransactions, people]
+        [activeAllocationPeople, allPeople, nextRetainedHistoricalPeople, windowTransactions]
     );
 
     // Account options for transaction rows
@@ -754,15 +952,10 @@ function TransactionsPageContent() {
             importRowIndex: undefined,
             deletedAt: undefined
         };
-        const insertionIndex = transactions.findIndex(
-            (existingTransaction) => compareTransactionOrder(transaction, existingTransaction) < 0
-        );
-        const canonicalIndex = insertionIndex < 0 ? transactions.length : insertionIndex;
-        const requiredDisplayCount = Math.ceil((canonicalIndex + 1) / PAGE_SIZE) * PAGE_SIZE;
-        // Retain the canonical prefix while making the created row part of the displayed page.
-        setDisplayCount((currentDisplayCount) =>
-            Math.max(currentDisplayCount, requiredDisplayCount)
-        );
+        // Where the row lands in the canonical order is the cursor's answer to give, once the
+        // document holds it — so the reveal intent below carries the paging as well as the scroll,
+        // rather than this gesture predicting a position against a list of every transaction.
+        //
         // Selection means "target for bulk operations", and an empty new row is an edit target, not
         // a bulk-operation target. So creating a row leaves any in-progress multi-row selection
         // exactly as the user left it, and identifies the new row by putting the caret in it.
@@ -770,7 +963,7 @@ function TransactionsPageContent() {
         insertTransaction({
             transaction
         });
-    }, [accountOptions, defaultStatusId, insertTransaction, transactions]);
+    }, [accountOptions, defaultStatusId, insertTransaction]);
 
     // Handle bulk delete - uses deleteTransaction mutation
     const handleBulkDelete = useCallback(() => {
@@ -918,7 +1111,7 @@ function TransactionsPageContent() {
     // Handle description commit text (user typed and pressed Enter/blurred)
     const handleDescriptionCommitText = useCallback(
         (txId: string, text: string, origin: DescriptionAliasEditOrigin) => {
-            const tx = transactions.find((t) => t.id === txId);
+            const tx = findTransaction(txId);
             if (!tx) return;
 
             const location = { accountId: tx.accountId, date: tx.date, transactionId: tx.id };
@@ -982,9 +1175,9 @@ function TransactionsPageContent() {
             }
         },
         [
-            transactions,
             aliasLookup,
             assignDescriptionAlias,
+            findTransaction,
             assignDescriptionAliasByExactName,
             changeOneDescriptionAlias,
             notePendingRuleEdit,
@@ -1005,7 +1198,7 @@ function TransactionsPageContent() {
     // Modal: "just this one" handler
     const handleAliasJustThis = useCallback(() => {
         const { transactionId, mode, target } = aliasModalState;
-        const tx = transactions.find((t) => t.id === transactionId);
+        const tx = findTransaction(transactionId);
         if (!tx) {
             closeAliasModal();
             return;
@@ -1028,16 +1221,16 @@ function TransactionsPageContent() {
         closeAliasModal();
     }, [
         aliasModalState,
-        transactions,
         changeOneDescriptionAlias,
         closeAliasModal,
+        findTransaction,
         removeOneDescriptionAlias
     ]);
 
     // Modal: "all" handler
     const handleAliasAll = useCallback(() => {
         const { transactionId, mode, target } = aliasModalState;
-        const tx = transactions.find((t) => t.id === transactionId);
+        const tx = findTransaction(transactionId);
         if (!tx) {
             closeAliasModal();
             return;
@@ -1059,17 +1252,17 @@ function TransactionsPageContent() {
         closeAliasModal();
     }, [
         aliasModalState,
-        transactions,
         aliasLookup,
         changeAllDescriptionAliases,
         closeAliasModal,
+        findTransaction,
         removeAllDescriptionAliases
     ]);
 
     // Handle single transaction delete
     const handleSingleDelete = useCallback(
         (id: string) => {
-            const tx = transactions.find((t) => t.id === id);
+            const tx = findTransaction(id);
             if (tx) {
                 deleteTransaction({
                     location: {
@@ -1079,18 +1272,20 @@ function TransactionsPageContent() {
                     }
                 });
             }
-            // Nothing to do to the selection here: the deleted row leaves `filteredTransactions`,
-            // so the reconciliation above drops it under either baseline. Clearing it a second time
-            // by id would be a weaker duplicate of that one mechanism.
+            // Nothing to do to the selection here: the deleted row leaves the matching set, so the
+            // reconciliation above drops it under either baseline. Clearing it a second time by id
+            // would be a weaker duplicate of that one mechanism.
         },
-        [transactions, deleteTransaction]
+        [deleteTransaction, findTransaction]
     );
 
     // Handle resolve duplicate (unnest from parent)
     const handleResolveDuplicate = useCallback(
         (id: string) => {
-            // Find the parent transaction that contains this duplicate
-            for (const tx of transactions) {
+            // Find the parent transaction that contains this duplicate. Canonical copies only, so a
+            // losing copy of a concurrently moved row cannot be unnested from.
+            for (const tx of transactionIndex.canonicalById.values()) {
+                if (tx.deletedAt != null) continue;
                 const dupIndex = tx.suspectedDuplicates?.findIndex((d) => d.id === id);
                 if (dupIndex !== undefined && dupIndex >= 0) {
                     unnestDuplicate({
@@ -1105,14 +1300,14 @@ function TransactionsPageContent() {
                 }
             }
         },
-        [transactions, unnestDuplicate]
+        [transactionIndex, unnestDuplicate]
     );
 
     // Handle inline edit update (from TransactionTable)
     const handleTransactionUpdate = useCallback(
         (id: string, updates: Partial<TransactionRowData>) => {
             // Find the transaction to get its location
-            const tx = transactions.find((t) => t.id === id);
+            const tx = findTransaction(id);
             if (!tx) return;
 
             // Check if date or account changed - requires move
@@ -1188,12 +1383,12 @@ function TransactionsPageContent() {
                 });
             }
         },
-        [transactions, updateTransaction, moveTransaction, notePendingRuleEdit]
+        [findTransaction, updateTransaction, moveTransaction, notePendingRuleEdit]
     );
 
     const handleTransactionAllocationUpdate = useCallback(
         (id: string, personId: string, value: number) => {
-            const transaction = transactions.find((candidate) => candidate.id === id);
+            const transaction = findTransaction(id);
             if (!transaction) return;
 
             setTransactionAllocation({
@@ -1212,7 +1407,7 @@ function TransactionsPageContent() {
                 notePendingRuleEdit(transaction.id, "allocation");
             }
         },
-        [notePendingRuleEdit, setTransactionAllocation, transactions]
+        [findTransaction, notePendingRuleEdit, setTransactionAllocation]
     );
 
     // Tag options for filter/bulk edit (with label for FilterOption)
@@ -1311,21 +1506,28 @@ function TransactionsPageContent() {
                 <TransactionTableToolbar
                     onAddClick={handleAddTransaction}
                     selectedCount={selectedCount}
-                    totalCount={filteredTransactions.length}
+                    totalCount={cursor.count}
                     isFiltered={hasActiveFilters(filters)}
                 />
 
                 {/* Table */}
                 <TransactionTable
-                    transactions={tableData}
+                    rowWindow={rowWindow}
+                    matchingRowCount={cursor.count}
+                    onVisibleRowRangeChange={handleVisibleRowRangeChange}
+                    scrollToRowIndex={scrollToRowIndex}
+                    onScrollToRowIndexApplied={handleScrollToRowIndexApplied}
+                    rowOrder={rowOrder}
+                    rowSelection={rowSelection}
+                    onRowSelectionChange={setRowSelection}
+                    matchingRowsChange={matchingRowsChange}
+                    onMatchingSetReconciled={handleMatchingSetReconciled}
                     allocationColumns={allocationColumnModel.columns}
-                    gridTemplateColumns={allocationColumnModel.gridTemplateColumns}
                     presenceByTransactionId={presenceByTransactionId}
                     resolveMemberName={resolveMemberName}
                     onTransactionFieldFocus={handleTransactionFieldFocus}
-                    onTransactionBlur={clearPresenceFocus}
-                    matchingRowIds={filteredTransactionIds}
-                    selection={selection}
+                    onTransactionFocus={handleTransactionFocus}
+                    onTransactionBlur={handleTransactionBlur}
                     availableAccounts={accountOptions}
                     availableStatuses={statusOptionsForInlineEdit}
                     availableTags={tagOptionsForInlineEdit}
@@ -1333,11 +1535,8 @@ function TransactionsPageContent() {
                     availableAliases={availableAliasOptions}
                     onDescriptionCommitText={handleDescriptionCommitText}
                     onDescriptionSelectAlias={handleDescriptionSelectAlias}
-                    onSelectionChange={setSelection}
                     focusDescriptionTransactionId={focusDescriptionTransactionId}
                     onFocusDescriptionApplied={handleFocusDescriptionApplied}
-                    onLoadMore={handleLoadMore}
-                    hasMore={hasMore}
                     onTransactionDelete={handleSingleDelete}
                     onResolveDuplicate={handleResolveDuplicate}
                     onTransactionUpdate={handleTransactionUpdate}

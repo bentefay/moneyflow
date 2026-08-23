@@ -259,6 +259,41 @@ test.describe("Vault Settings", () => {
         });
     });
 
+    test.describe("Date Format", () => {
+        /** Choose a presentation. The option's accessible name carries its label and its example. */
+        async function chooseDateFormat(page: Page, label: RegExp): Promise<void> {
+            await page.getByRole("combobox", { name: /date format/i }).click();
+            await page.getByRole("option", { name: label }).click();
+        }
+
+        test("should default to following the browser", async ({ page }) => {
+            await createNewIdentity(page);
+
+            const selector = page.getByRole("combobox", { name: /date format/i });
+            await expect(selector).toBeVisible();
+            await expect(selector).toContainText(/automatic/i);
+        });
+
+        test("should persist the chosen date format after page refresh", async ({ page }) => {
+            await createNewIdentity(page);
+
+            await chooseDateFormat(page, /day first/i);
+            await expect(page.getByRole("combobox", { name: /date format/i })).toContainText(
+                /day first/i
+            );
+
+            await awaitVaultPersistence(page);
+            await reloadPage(page);
+            await page
+                .getByRole("heading", { name: "Vault Settings", level: 1 })
+                .waitFor({ timeout: 10000 });
+
+            await expect(page.getByRole("combobox", { name: /date format/i })).toContainText(
+                /day first/i
+            );
+        });
+    });
+
     test.describe("Vault Name", () => {
         test("should update vault name in header when renamed in settings", async ({ page }) => {
             await createNewIdentity(page);

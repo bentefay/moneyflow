@@ -1,0 +1,148 @@
+{
+    "arm": "A-count",
+    "commit": "cd812905b68f23cae118c971112df313c0412ccd",
+    "fixture": {
+        "accounts": [
+            "Everyday Checking (USD)",
+            "Travel Rewards Card (USD)",
+            "Berlin Savings (EUR)",
+            "Tokyo Cash (JPY)"
+        ],
+        "csvDigest": "519f43abb52b24cc9181639654b91b24fa135368e998732b6c9bdd1100ad259c",
+        "definitionDigest": "55ad36c8a81fd67c72887642dfcb11803c93cfb1f18f4e9cd8467e6c0543af90",
+        "enrichmentDigest": "9e32ed1e477553bbe447974f7d490cdf332d1ef4b9f697191f6e0d7ee0df4422",
+        "expectedEnrichment": {
+            "allocatedRows": 1776,
+            "allocatedRowsByDescription": [
+                ["AMZN Mktp US*2Z4KL", 876],
+                ["SQ *BLUE BOTTLE COFFEE", 900]
+            ],
+            "taggedRows": 2512,
+            "taggedRowsByDescription": [
+                ["SAFEWAY #1234", 833],
+                ["TFL TRAVEL CHARGE", 821],
+                ["Netflix.com", 858]
+            ]
+        },
+        "fieldRules": 5,
+        "notesPlanned": 480,
+        "people": ["Alex Rivera", "Priya Raman"],
+        "tags": ["Groceries", "Transport", "Subscriptions"],
+        "transactionCount": 10000
+    },
+    "diagnosticStartOffsetOverride": null,
+    "harnessDigest": null,
+    "harnessDigests": {
+        "measurementCore": "39afdd1c53365f92a53d92a67ce2df88b04d3df4e4cc8a16a9fd9c22cde1e2b7",
+        "orchestration": "d7e214738f7461021e108d857227bb25dbbf97e94bb8edbb09f54b350edd04c9",
+        "seedingPath": "a7638fa2a9ed1f8de531a3a2951a762726c03535889b26d31712cc757aa5bc12"
+    },
+    "maximumLoadAverage": 2.5,
+    "lockfileSha256": null,
+    "reactVirtual": null,
+    "repeatsPerSession": 1,
+    "routes": [
+        {
+            "durationSeconds": 12,
+            "id": "ordinary",
+            "inputMode": "wheel",
+            "peakVelocityPixelsPerSecond": 600,
+            "provenance": "specified",
+            "startOffsetPixels": 0,
+            "ticks": 720
+        },
+        {
+            "durationSeconds": 6.700000000000001,
+            "id": "fast-reversal",
+            "inputMode": "wheel",
+            "peakVelocityPixelsPerSecond": 4000,
+            "provenance": "specified",
+            "startOffsetPixels": 100000,
+            "ticks": 402
+        },
+        {
+            "durationSeconds": 6,
+            "id": "large-movement",
+            "inputMode": "wheel",
+            "peakVelocityPixelsPerSecond": 400000,
+            "provenance": "specified",
+            "startOffsetPixels": 250000,
+            "ticks": 360
+        },
+        {
+            "durationSeconds": 4.000000000000001,
+            "id": "free-spin",
+            "inputMode": "wheel",
+            "peakVelocityPixelsPerSecond": 9000,
+            "provenance": "specified",
+            "startOffsetPixels": 0,
+            "ticks": 240
+        }
+    ],
+    "sessions": 1,
+    "virtualCore": null,
+    "sessionsCaptured": [
+        {
+            "consoleWarnings": [],
+            "notes": {
+                "annotatedRows": 0,
+                "expandedAriaRows": 0,
+                "expandedHeight": 0,
+                "seconds": 0,
+                "unexpandedHeight": 0
+            },
+            "hostLoad": {
+                "atEnd": null,
+                "atStart": null,
+                "maximumAllowed": 2.5
+            },
+            "runs": [],
+            "seed": {
+                "accountsCreated": [],
+                "domEvidence": {
+                    "accountsSeen": [],
+                    "allocatedExample": null,
+                    "allocationColumnCount": 0,
+                    "allocationColumnLabels": [],
+                    "rowsSampled": 0,
+                    "rowsWithAllocations": 0,
+                    "rowsWithRulePercentage": 0,
+                    "rowsWithTags": 0,
+                    "taggedExample": null
+                },
+                "geometry": {
+                    "clientHeight": 0,
+                    "height": 0,
+                    "left": 0,
+                    "maxOffset": 0,
+                    "scrollHeight": 0,
+                    "scrollTop": 0,
+                    "top": 0,
+                    "width": 0
+                },
+                "identitySeconds": 0,
+                "importLedger": {
+                    "note": null,
+                    "perImport": [],
+                    "total": 0,
+                    "trusted": false
+                },
+                "imports": [],
+                "peopleCreated": [],
+                "preload": {
+                    "gridRowCount": null,
+                    "highestIndex": -1,
+                    "iterations": 0,
+                    "scrollHeight": 0
+                },
+                "preloadSeconds": 0,
+                "rowsImported": 0,
+                "rulesCreated": 0,
+                "seedSeconds": 0,
+                "tagsCreated": []
+            },
+            "sessionIndex": 1
+        }
+    ],
+    "summary": []
+}
