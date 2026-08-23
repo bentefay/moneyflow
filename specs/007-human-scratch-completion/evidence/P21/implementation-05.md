@@ -179,9 +179,10 @@ All at product `371a88a`, 2026-07-28, exit codes captured directly (not through 
 - **Lint warning is the known-acceptable one**, verbatim at
   `TransactionTable.tsx:401:25 warning Compilation Skipped: Use of incompatible library … react-hooks/incompatible-library`.
   Zero errors.
-- **format:check flags only frozen/root-owned
-  `specs/**`markdown** —`human-scratch.md`, PROGRESS/QUESTIONS/DECISIONS/DEPENDENCIES/RISKS and 9 evidence/review files. **No `src/**`, `tests/**`or config file flags.** I did NOT run bare`pnpm
-  format` — it would reflow the frozen scratch and corrupt the audit.
+- **format:check flags only frozen/root-owned `specs/**`markdown** —`human-scratch.md`,
+  PROGRESS/QUESTIONS/DECISIONS/DEPENDENCIES/RISKS and 9 evidence/review files. **No `src/**`,
+  `tests/**`or config file flags.** I did NOT run bare`pnpm format` — it would reflow the frozen
+  scratch and corrupt the audit.
 - **The 2 skipped unit tests are explicitly env-gated benchmarks**, not silent skips:
   `allocation.test.ts:564` `it.runIf(process.env.P16A_BENCHMARK === "1")` and
   `settlement.test.ts:2869` `it.runIf(process.env.P16B_BENCHMARK === "1")`. Both run explicitly in

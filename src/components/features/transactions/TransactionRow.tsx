@@ -102,6 +102,16 @@ export interface TransactionRowProps {
     resolveMemberName?: (pubkeyHash: string) => MemberDisplayName;
     /** Whether this row is selected */
     isSelected?: boolean;
+    /**
+     * The `data-cell` markers of this row's selected cells, when the row is inside a table that has
+     * cell selection.
+     *
+     * Drives `aria-selected` on the cells that can take part in a range, which is how a grid's cell
+     * selection is expressed to assistive technology — and, being an attribute rather than a paint,
+     * it cannot disturb the cells' resting chrome (UR-005). Absent outside a table, in which case no
+     * cell advertises a selection state it cannot have.
+     */
+    selectedCellMarkers?: ReadonlySet<string>;
     /** Whether the notes row is expanded */
     isExpanded?: boolean;
     /** One-shot request to focus this row's description input as soon as the row mounts. */
@@ -131,6 +141,19 @@ export interface TransactionRowProps {
      * Drives field-level presence; the cell's *value* is never reported.
      */
     onFieldFocus?: (field: string | undefined) => void;
+    /**
+     * Callback when focus lands inside one of THIS row's cells, carrying the raw `data-cell` marker,
+     * or `null` for the row's own chrome.
+     *
+     * Separate from {@link onFieldFocus} for two reasons the grid's cell selection depends on and
+     * presence deliberately does not care about. Presence reports the checkbox as `undefined`, because
+     * ticking a box is selecting rather than editing — but cell selection has to tell "the checkbox
+     * cell, which takes no part in ranges" from "not in a cell at all". And this fires only for a
+     * target inside the row's own DOM: a cell's portaled editor (the date calendar, the tags list, the
+     * account combobox) lives in `document.body` while its focus events still bubble through the React
+     * tree, and opening a cell's own editor is not leaving that cell.
+     */
+    onCellFocus?: (marker: string | null) => void;
     /** Callback when resolving duplicate (keep = clear flag, delete = remove) */
     onResolveDuplicate?: (action: "keep" | "delete") => void;
     /** Callback when deleting the transaction */
@@ -210,6 +233,7 @@ export function TransactionRow({
     presence,
     resolveMemberName,
     isSelected = false,
+    selectedCellMarkers,
     isExpanded = false,
     focusDescriptionRequested = false,
     onFocusDescriptionApplied,
@@ -223,6 +247,7 @@ export function TransactionRow({
     onClick,
     onFocus,
     onFieldFocus,
+    onCellFocus,
     onResolveDuplicate,
     onDelete,
     onFieldUpdate,
@@ -345,8 +370,11 @@ export function TransactionRow({
                 cell?.getAttribute("data-presence-field") ?? cell?.getAttribute("data-cell");
             // The checkbox is selection, not editing, so it reports the row without a field.
             onFieldFocus?.(marker == null || marker === "checkbox" ? undefined : marker);
+            // Portaled editors bubble their focus through the React tree from outside this row's DOM,
+            // and are not focus leaving the row. See `onCellFocus`.
+            if (event.currentTarget.contains(event.target)) onCellFocus?.(marker ?? null);
         },
-        [focusDescriptionRequested, onFieldFocus, onFocus]
+        [focusDescriptionRequested, onCellFocus, onFieldFocus, onFocus]
     );
 
     return (
@@ -410,7 +438,11 @@ export function TransactionRow({
                 </div>
 
                 {/* Date */}
-                <div data-cell="date" role="gridcell">
+                <div
+                    aria-selected={selectedCellMarkers?.has("date")}
+                    data-cell="date"
+                    role="gridcell"
+                >
                     <InlineEditableDate
                         value={effectiveData.date}
                         onSave={(value) => onFieldUpdate?.("date", value)}
@@ -420,6 +452,7 @@ export function TransactionRow({
 
                 {/* Description */}
                 <div
+                    aria-selected={selectedCellMarkers?.has("description")}
                     data-cell="description"
                     className="flex min-w-0 items-center gap-1"
                     role="gridcell"
@@ -453,7 +486,12 @@ export function TransactionRow({
                 </div>
 
                 {/* Account */}
-                <div data-cell="account" className="min-w-0" role="gridcell">
+                <div
+                    aria-selected={selectedCellMarkers?.has("account")}
+                    data-cell="account"
+                    className="min-w-0"
+                    role="gridcell"
+                >
                     <AccountCombobox
                         value={effectiveData.accountId ?? ""}
                         onChange={(accountId) => onFieldUpdate?.("accountId", accountId)}
@@ -472,7 +510,11 @@ export function TransactionRow({
                 </div>
 
                 {/* Tags */}
-                <div data-cell="tags" role="gridcell">
+                <div
+                    aria-selected={selectedCellMarkers?.has("tags")}
+                    data-cell="tags"
+                    role="gridcell"
+                >
                     {renderRuleProposalOrCell(
                         renderRuleProposal,
                         "tags",
@@ -492,7 +534,11 @@ export function TransactionRow({
                 </div>
 
                 {/* Status */}
-                <div data-cell="status" role="gridcell">
+                <div
+                    aria-selected={selectedCellMarkers?.has("status")}
+                    data-cell="status"
+                    role="gridcell"
+                >
                     <InlineEditableStatus
                         value={effectiveData.statusId}
                         statusName={effectiveData.status}
@@ -516,6 +562,7 @@ export function TransactionRow({
                               {allocationColumns.map((column) => (
                                   <div
                                       key={column.personId}
+                                      aria-selected={selectedCellMarkers?.has(column.field)}
                                       data-cell={column.field}
                                       className="min-w-0"
                                       role="gridcell"
@@ -538,7 +585,12 @@ export function TransactionRow({
                     : null}
 
                 {/* Amount */}
-                <div data-cell="amount" className="text-right" role="gridcell">
+                <div
+                    aria-selected={selectedCellMarkers?.has("amount")}
+                    data-cell="amount"
+                    className="text-right"
+                    role="gridcell"
+                >
                     <InlineEditableAmount
                         value={effectiveData.amount}
                         originalValue={effectiveData.originalAmount}
@@ -548,8 +600,14 @@ export function TransactionRow({
                     />
                 </div>
 
-                {/* Actions column */}
-                <div className="flex items-center justify-end gap-1">
+                {/* Actions column.
+                    `role="gridcell"` because this is a cell of the row, and without it the two
+                    buttons below hang directly off `role="row"` — measured in Chrome's accessibility
+                    tree as `row > button "Add notes"`, which breaks grid→row→gridcell containment.
+                    It carries no `data-cell` marker: the column has none (see the model layer's
+                    `cellMarker: null`), and the markers live on the two controls inside it, which is
+                    what arrow-key navigation and the E2E locators address. */}
+                <div className="flex items-center justify-end gap-1" role="gridcell">
                     {/* Duplicate indicator */}
                     {isDuplicate && (
                         <DuplicateBadge
@@ -649,7 +707,10 @@ export function TransactionRow({
                     data-testid="notes-row"
                     role="row"
                 >
-                    <div />
+                    {/* Spacer holding the checkbox column's track. Presentational rather than a
+                        gridcell: it is layout, and a nameless cell in the accessibility tree would
+                        announce an empty column that does not exist. */}
+                    <div role="presentation" />
                     <div style={{ gridColumn: "2 / -1" }} data-cell="notes" role="gridcell">
                         <Textarea
                             ref={notesRef}

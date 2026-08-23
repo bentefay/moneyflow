@@ -15,6 +15,7 @@
 "use client";
 
 import { Loader2, Lock, Unlock } from "lucide-react";
+import Link from "next/link";
 import { type FormEvent, type ReactNode, useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -216,12 +217,12 @@ export function UnlockCircle({
                 {/* New user link */}
                 <p className="text-muted-foreground text-center text-sm">
                     Don&apos;t have an account?{" "}
-                    <a
+                    <Link
                         href="/new-user"
                         className="text-primary font-medium underline-offset-4 hover:underline"
                     >
                         Create one
-                    </a>
+                    </Link>
                 </p>
             </div>
         </div>

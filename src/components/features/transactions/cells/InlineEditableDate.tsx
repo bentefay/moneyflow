@@ -13,8 +13,9 @@
 
 import { format, parse } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
+import { useDateLocale } from "@/components/providers/date-locale-provider";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ import {
     formatTransactionDate,
     parseLocaleDate
 } from "@/lib/utils/date-format";
+import { dayPickerLocalization } from "@/lib/utils/day-picker-locale";
 
 import { RESTING_CELL_CHROME } from "./cell-chrome";
 import { INPUT_CELL_HIT_AREA } from "./cell-hit-area";
@@ -84,6 +86,11 @@ export function InlineEditableDate({
     const [inputValue, setInputValue] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // The viewer's chosen presentation, or undefined to follow the browser. Every format and parse
+    // below takes it, so what the cell displays is always what it will accept back.
+    const locale = useDateLocale();
+    const calendarLocalization = useMemo(() => dayPickerLocalization(locale), [locale]);
+
     // Parse ISO date string to Date object
     const dateValue = fromIsoDate(value);
 
@@ -107,18 +114,18 @@ export function InlineEditableDate({
     }
 
     // Format the display date using the transaction date formatter (abbreviated)
-    const displayDate = value ? formatTransactionDate(value) : "";
+    const displayDate = value ? formatTransactionDate(value, undefined, locale) : "";
 
     // When focused, show the editing presentation: the locale's own field order
-    // and separators, with a two-digit year.
+    // and separators, with the year in full.
     const handleFocus = useCallback(() => {
         setIsFocused(true);
-        setInputValue(value ? formatDateForEditing(value) : "");
+        setInputValue(value ? formatDateForEditing(value, locale) : "");
         // Select all text after state update for spreadsheet-style navigation
         queueMicrotask(() => {
             inputRef.current?.select();
         });
-    }, [value]);
+    }, [value, locale]);
 
     // When blurred, parse input and save if valid
     const handleBlur = useCallback(() => {
@@ -127,28 +134,31 @@ export function InlineEditableDate({
         // If input is empty or unchanged, don't save
         if (!inputValue.trim()) return;
 
-        // Parse in the viewer's own locale, so whatever was displayed can be
+        // Parse in the viewer's own presentation, so whatever was displayed can be
         // typed straight back rather than being read in US field order.
-        const isoDate = parseLocaleDate(inputValue);
+        const isoDate = parseLocaleDate(inputValue, locale);
         if (isoDate && isoDate !== value) {
             onSave(isoDate);
         }
         // Reset input value (will show abbreviated format)
         setInputValue("");
-    }, [inputValue, value, onSave]);
+    }, [inputValue, value, onSave, locale]);
 
     // Handle input changes - parse as user types to update calendar
-    const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = e.target.value;
-        setInputValue(newValue);
+    const handleInputChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            const newValue = e.target.value;
+            setInputValue(newValue);
 
-        // Try to parse and update calendar preview
-        const parsedIso = parseLocaleDate(newValue);
-        const parsed = parsedIso ? fromIsoDate(parsedIso) : undefined;
-        if (parsed) {
-            setMonthOverride(parsed);
-        }
-    }, []);
+            // Try to parse and update calendar preview
+            const parsedIso = parseLocaleDate(newValue, locale);
+            const parsed = parsedIso ? fromIsoDate(parsedIso) : undefined;
+            if (parsed) {
+                setMonthOverride(parsed);
+            }
+        },
+        [locale]
+    );
 
     // Handle keyboard events
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -232,6 +242,11 @@ export function InlineEditableDate({
                         month={month}
                         onMonthChange={setMonthOverride}
                         onSelect={handleCalendarSelect}
+                        // Without these the calendar is en-US whatever the rest of the cell says:
+                        // react-day-picker's own default locale is `enUS`, so the week would start
+                        // on Sunday for a viewer whose every other date reads day-first.
+                        weekStartsOn={calendarLocalization.weekStartsOn}
+                        formatters={calendarLocalization.formatters}
                     />
                 </PopoverContent>
             </Popover>

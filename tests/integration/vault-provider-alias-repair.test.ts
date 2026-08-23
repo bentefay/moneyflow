@@ -57,12 +57,10 @@ function createTrpc(
         sync: {
             getSnapshot: { query: vi.fn(async () => null) },
             getUpdates: {
-                query: vi.fn(
-                    async (): Promise<{ type: "ops"; ops: [] }> => ({
-                        type: "ops",
-                        ops: []
-                    })
-                )
+                query: vi.fn(async (): Promise<{ type: "ops"; ops: [] }> => ({
+                    type: "ops",
+                    ops: []
+                }))
             },
             pushOps,
             pushSnapshot: { mutate: vi.fn(async () => ({ success: true })) }

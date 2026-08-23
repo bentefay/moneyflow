@@ -1,0 +1,25 @@
+arm: A-count
+commit: cd812905b68f23cae118c971112df313c0412ccd
+react-virtual: (unset)  virtual-core: (unset)
+lockfile sha256: (unset)
+harness digest: (unset)
+  measurement core: 39afdd1c53365f92a53d92a67ce2df88b04d3df4e4cc8a16a9fd9c22cde1e2b7  (must match across arms)
+  orchestration:    d7e214738f7461021e108d857227bb25dbbf97e94bb8edbb09f54b350edd04c9
+  seeding path:     a7638fa2a9ed1f8de531a3a2951a762726c03535889b26d31712cc757aa5bc12  (arms may differ)
+fixture: transactions 55ad36c8a81fd67c72887642dfcb11803c93cfb1f18f4e9cd8467e6c0543af90
+         enrichment   9e32ed1e477553bbe447974f7d490cdf332d1ef4b9f697191f6e0d7ee0df4422
+campaign: 1 of 1 sessions x 1 repeats
+
+session 1: seed 0.0s (identity 0.0s, 0 imports s, row access 0.0s in 0 paging steps (0 = no pagination to work around), scrollHeight 0px)
+  notes: 0 rows annotated+expanded in 0.0s; collapsed 0px vs expanded 0px, 0 ARIA rows
+  imports ledger:  = 0 rows in the vault (NOT TRUSTED: ); grid shows -1; duplicates flagged per import ; grid count after each import 
+  fixture on the DOM: 0 allocation columns (); accounts seen ; 0/0 sampled rows tagged, 0 allocated
+  console warnings: none
+
+per-run table
+session  run  route  fps  p95ms  full%  blank  stale  dropped  route s  smplr dfps  load  verdict
+
+variance (within session = repeats; between sessions = per-session means)
+
+
+session 1 — final repeat detail (clean pass then instrumented pass)

@@ -1,0 +1,38 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "plugins": ["typescript", "oxc", "react", "nextjs", "import"],
+    "categories": {
+        "correctness": "error"
+    },
+    "rules": {
+        "react/react-in-jsx-scope": "off",
+        "import/namespace": "off",
+        "react/incompatible-library": "warn"
+    },
+    "overrides": [
+        {
+            "files": ["tests/**"],
+            "rules": {
+                "react/globals": "off",
+                "react/no-children-prop": "off",
+                "react/immutability": "off"
+            }
+        },
+        {
+            "files": ["src/lib/import/file-validation.ts"],
+            "rules": {
+                "no-control-regex": "off"
+            }
+        }
+    ],
+    "ignorePatterns": [
+        ".next/**",
+        "out/**",
+        "build/**",
+        "next-env.d.ts",
+        "playwright-report/**",
+        "test-results/**",
+        "src/components/animate-ui/**",
+        "src/hooks/use-auto-height.tsx"
+    ]
+}

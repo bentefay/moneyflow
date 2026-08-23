@@ -14,6 +14,7 @@
 import { AlertCircle, CheckCircle2, Clock, Copy, Eye, EyeOff } from "lucide-react";
 import { useMemo } from "react";
 
+import { useDateLocale } from "@/components/providers/date-locale-provider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getMinorUnitMultiplier } from "@/lib/domain/currency";
 import type { ImportSummaryStats, PreviewTransaction } from "@/lib/import/types";
@@ -130,6 +131,9 @@ export function ImportTable({
     maxDisplayRows = 100,
     className
 }: ImportTableProps) {
+    // Preview dates read the same way as the transaction grid they are about to become.
+    const locale = useDateLocale();
+
     // Build set of mapped column indices for highlighting
     const mappedIndices = useMemo(() => new Set(Object.values(columnMappings)), [columnMappings]);
 
@@ -353,7 +357,7 @@ export function ImportTable({
                                     </td>
                                     <td className="bg-muted/10 px-2 py-1 whitespace-nowrap tabular-nums">
                                         {preview?.date ? (
-                                            formatTransactionDate(preview.date)
+                                            formatTransactionDate(preview.date, undefined, locale)
                                         ) : (
                                             <span className="text-muted-foreground">—</span>
                                         )}

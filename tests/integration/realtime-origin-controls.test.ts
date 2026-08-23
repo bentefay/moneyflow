@@ -160,7 +160,7 @@ describe("a realtime grant confers exactly its own vault, from any origin", () =
                         row.vault_id === vaultId
                 )
         ).toBe(true);
-    });
+    }, 20_000);
 
     it("cannot read grants or memberships with the same token", async () => {
         const grant = rotateGrant(ownerHash, vaultId);

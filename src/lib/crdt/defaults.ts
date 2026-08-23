@@ -161,6 +161,7 @@ export function getDefaultVaultState(options?: DefaultVaultStateOptions): VaultI
         automationApplications: {},
         fieldRules: {},
         userAutomationPreferences: {},
+        userDisplayPreferences: {},
         preferences: {
             name: DEFAULT_VAULT_NAME,
             automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,

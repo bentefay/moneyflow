@@ -1,0 +1,17 @@
+## Host
+os_release: Ubuntu 26.04 LTS
+kernel: 7.0.0-15-generic
+arch: x86_64
+cpu_model: AMD Ryzen 9 5950X 16-Core Processor
+cpu_threads: 32
+mem_total_kb: 63644752
+governor: performance
+## Display
+## Toolchain
+node: v22.21.1
+pnpm: 11.13.1
+## Git
+commit: cd812905b68f23cae118c971112df313c0412ccd
+branch: faster-grid
+## Lockfile
+pnpm-lock.yaml sha256: 747b21c13d61b683729999bcdd1ef66bd844f3ef9fc2f722e62780fac51f2f88

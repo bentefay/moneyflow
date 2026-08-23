@@ -7,6 +7,18 @@ allowBuilds:
     supabase: true
     unrs-resolver: false
 
+# Mirrors safe-chain's own minimum package age, measured at 2 days: it suppresses releases at 1.84
+# days and allows them at 2.80. Expressed in minutes, so 2880.
+#
+# Keep these two numbers equal. safe-chain gates at DOWNLOAD and pnpm gates at RESOLUTION, so
+# without this pnpm happily locks a version safe-chain then refuses to fetch — which is how a
+# committed lockfile came to fail `pnpm install --frozen-lockfile` with a 403 in a fresh checkout
+# while resolving fine here. Matching them means the lockfile can only hold installable versions.
+#
+# This narrows the gap rather than closing it: the two gates run at different stages and will drift
+# again if safe-chain changes its default. If an install 403s on a fresh clone, re-measure both.
+minimumReleaseAge: 2880
+
 overrides:
     "@babel/core@<7.29.1": 7.29.7
     "@tootallnate/once@<2.0.1": 2.0.1

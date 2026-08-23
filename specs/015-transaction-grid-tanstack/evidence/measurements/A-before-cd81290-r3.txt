@@ -1,0 +1,718 @@
+arm: A-before-cd81290-r3
+commit: cd812905b68f23cae118c971112df313c0412ccd
+react-virtual: 3.14.6  virtual-core: 3.17.4
+lockfile sha256: 747b21c13d61b683729999bcdd1ef66bd844f3ef9fc2f722e62780fac51f2f88
+harness digest: e4509b3e6331c712726c9327bd0d294ee29f4789a6be1ef0a9da1eff4882f6a6
+fixture: transactions 55ad36c8a81fd67c72887642dfcb11803c93cfb1f18f4e9cd8467e6c0543af90
+         enrichment   9e32ed1e477553bbe447974f7d490cdf332d1ef4b9f697191f6e0d7ee0df4422
+campaign: 2 of 2 sessions x 5 repeats
+
+session 1: seed 123.9s (identity 1.2s, 4 imports 2.0/1.5/1.6/1.9s, preload 37.1s in 200 steps, scrollHeight 515873px)
+  notes: 480 rows annotated+expanded in 370.2s; collapsed 57px vs expanded 103px, 2 ARIA rows
+  imports ledger: 2533/2527/2476/2464 = 10000 rows in the vault; grid shows 10000; duplicates flagged per import 0/0/0/0; grid count after each import 2464/4940/7467/10000
+  fixture on the DOM: 3 allocation columns (Alex Rivera %, Me %, Priya Raman %); accounts seen Tokyo Cash, Berlin Savings, Travel Rewards Card, Default; 229/915 sampled rows tagged, 160 allocated
+  console warnings: none
+session 2: seed 116.1s (identity 1.3s, 4 imports 1.4/1.4/1.6/1.7s, preload 34.2s in 200 steps, scrollHeight 515873px)
+  notes: 480 rows annotated+expanded in 362.2s; collapsed 57px vs expanded 103px, 2 ARIA rows
+  imports ledger: 2533/2527/2476/2464 = 10000 rows in the vault; grid shows 10000; duplicates flagged per import 0/0/0/0; grid count after each import 2464/4940/7467/10000
+  fixture on the DOM: 3 allocation columns (Alex Rivera %, Me %, Priya Raman %); accounts seen Tokyo Cash, Berlin Savings, Travel Rewards Card, Default; 229/915 sampled rows tagged, 160 allocated
+  console warnings: none
+
+per-run table
+session  run  route           fps     p95ms    full%   blank  stale  dropped  route s  smplr dfps  load  verdict
+1        1    ordinary        56.557  16.666   72.409  4      0      41       11.984   1.499       1.46  FAIL   
+1        1    fast-reversal   54.455  16.666   87.591  0      0      38       6.683    -0.932      1.49  FAIL   
+1        1    large-movement  24.333  333.320  16.590  0      0      129      5.983    2.242       1.29  FAIL   
+1        1    free-spin       44.876  33.332   63.866  2      0      60       3.984    -1.490      1.30  FAIL   
+1        2    ordinary        54.967  16.666   89.650  4      0      60       11.984   0.105       1.00  FAIL   
+1        2    fast-reversal   54.452  33.332   86.750  0      0      37       6.684    -0.762      1.13  FAIL   
+1        2    large-movement  29.278  333.320  21.687  0      0      85       5.983    3.880       1.09  FAIL   
+1        2    free-spin       51.104  33.332   72.458  2      0      35       3.984    5.160       1.00  FAIL   
+1        3    ordinary        54.995  16.666   89.708  2      0      60       11.983   0.119       0.95  FAIL   
+1        3    fast-reversal   54.123  33.332   87.186  0      0      39       6.683    -0.549      1.09  FAIL   
+1        3    large-movement  25.358  433.316  19.048  0      0      97       5.983    2.459       0.85  FAIL   
+1        3    free-spin       50.045  33.332   72.766  4      0      39       3.984    0.127       1.09  FAIL   
+1        4    ordinary        55.162  16.666   89.847  4      0      58       11.984   0.322       0.93  FAIL   
+1        4    fast-reversal   54.506  33.332   87.786  0      0      36       6.683    -0.163      1.57  FAIL   
+1        4    large-movement  26.775  333.320  17.742  0      0      103      5.984    0.620       1.33  FAIL   
+1        4    free-spin       46.215  33.332   66.383  2      0      54       3.984    -4.341      1.39  FAIL   
+1        5    ordinary        55.155  16.666   89.694  3      0      58       11.984   0.034       1.95  FAIL   
+1        5    fast-reversal   53.806  33.332   86.650  0      0      41       6.683    0.286       1.40  FAIL   
+1        5    large-movement  24.317  399.984  17.368  0      0      113      5.983    0.432       1.48  FAIL   
+1        5    free-spin       51.808  33.332   77.974  6      0      31       3.983    5.556       1.29  FAIL   
+2        1    ordinary        55.771  16.666   65.303  3      0      50       11.983   1.117       2.32  FAIL   
+2        1    fast-reversal   53.025  33.332   83.204  0      0      45       6.683    -0.780      2.70  FAIL   
+2        1    large-movement  24.829  383.318  15.764  0      0      119      5.984    3.113       2.35  FAIL   
+2        1    free-spin       46.527  16.666   64.831  2      0      53       3.983    -2.496      2.59  FAIL   
+2        2    ordinary        52.491  16.666   83.784  4      0      88       11.984   -2.406      3.30  FAIL   
+2        2    fast-reversal   54.215  33.332   86.802  0      0      38       6.683    -0.427      2.12  FAIL   
+2        2    large-movement  28.589  349.986  20.588  0      0      89       5.983    1.961       2.15  FAIL   
+2        2    free-spin       45.825  33.332   64.135  2      0      56       3.984    -2.482      1.97  FAIL   
+2        3    ordinary        55.130  16.666   89.744  3      0      57       11.984   0.338       1.86  FAIL   
+2        3    fast-reversal   53.774  33.332   86.076  0      0      41       6.683    -0.678      1.59  FAIL   
+2        3    large-movement  25.030  449.982  19.429  0      0      102      5.984    1.728       1.62  FAIL   
+2        3    free-spin       49.960  16.666   71.548  4      0      40       3.984    0.799       1.56  FAIL   
+2        4    ordinary        55.023  16.666   89.451  3      0      59       11.984   0.238       1.24  FAIL   
+2        4    fast-reversal   54.310  33.332   86.154  0      0      37       6.683    -0.306      1.45  FAIL   
+2        4    large-movement  26.953  333.320  17.647  0      0      103      5.984    5.776       1.64  FAIL   
+2        4    free-spin       44.876  33.332   63.025  1      0      60       3.984    -4.790      1.62  FAIL   
+2        5    ordinary        54.953  16.666   89.621  3      0      60       11.984   0.084       1.59  FAIL   
+2        5    fast-reversal   54.331  33.332   86.816  0      0      38       6.683    0.149       1.86  FAIL   
+2        5    large-movement  26.251  333.320  17.708  0      0      108      5.983    0.625       2.30  FAIL   
+2        5    free-spin       48.623  33.332   70.259  6      0      44       3.984    3.236       2.44  FAIL   
+
+variance (within session = repeats; between sessions = per-session means)
+route ordinary — 0/10 runs passed  (FAILS: a route passes only if every run passes)
+    presentedFramesPerSecond within: s1 mean 55.367 sd 0.671 [54.967..56.557]   s2 mean 54.674 sd 1.262 [52.491..55.771]
+                             between sessions: mean 55.021 sd 0.490 [54.674..55.367]
+    p95IntervalMilliseconds  within: s1 mean 16.666 sd 0.000 [16.666..16.666]   s2 mean 16.666 sd 0.000 [16.666..16.666]
+                             between sessions: mean 16.666 sd 0.000 [16.666..16.666]
+    fullyPresentedRatio      within: s1 mean 0.863 sd 0.077 [0.724..0.898]   s2 mean 0.836 sd 0.105 [0.653..0.897]
+                             between sessions: mean 0.849 sd 0.019 [0.836..0.863]
+    blankFrames              within: s1 mean 3.4 sd 0.9 [2.0..4.0]   s2 mean 3.2 sd 0.4 [3.0..4.0]
+                             between sessions: mean 3.3 sd 0.1 [3.2..3.4]
+    droppedFrames            within: s1 mean 55.4 sd 8.1 [41.0..60.0]   s2 mean 62.8 sd 14.6 [50.0..88.0]
+                             between sessions: mean 59.1 sd 5.2 [55.4..62.8]
+    achievedRouteSeconds     within: s1 mean 11.984 sd 0.000 [11.983..11.984]   s2 mean 11.984 sd 0.000 [11.983..11.984]
+                             between sessions: mean 11.984 sd 0.000 [11.984..11.984]
+    loadAverageOneMinute     within: s1 mean 1.258 sd 0.444 [0.930..1.950]   s2 mean 2.062 sd 0.797 [1.240..3.300]
+                             between sessions: mean 1.660 sd 0.569 [1.258..2.062]
+    samplerPerturbationFps   within: s1 mean 0.416 sd 0.615 [0.034..1.499]   s2 mean -0.126 sd 1.336 [-2.406..1.117]
+                             between sessions: mean 0.145 sd 0.383 [-0.126..0.416]
+    ! clean: presented fps 56.557 < 59
+    ! clean: fully presented 72.409% < 99%
+    ! instrumented: visibly empty frames 4 > 0
+    ! clean: presented fps 54.967 < 59
+    ! clean: fully presented 89.650% < 99%
+    ! clean: presented fps 54.995 < 59
+    ! clean: fully presented 89.708% < 99%
+    ! instrumented: visibly empty frames 2 > 0
+    ! clean: presented fps 55.162 < 59
+    ! clean: fully presented 89.847% < 99%
+    ! clean: presented fps 55.155 < 59
+    ! clean: fully presented 89.694% < 99%
+    ! instrumented: visibly empty frames 3 > 0
+    ! clean: presented fps 55.771 < 59
+    ! clean: fully presented 65.303% < 99%
+    ! clean: presented fps 52.491 < 59
+    ! clean: fully presented 83.784% < 99%
+    ! clean: BeginFrameSource stalled: observed 726 ticks, span implies 738
+    ! clean: presented fps 55.130 < 59
+    ! clean: fully presented 89.744% < 99%
+    ! clean: presented fps 55.023 < 59
+    ! clean: fully presented 89.451% < 99%
+    ! clean: presented fps 54.953 < 59
+    ! clean: fully presented 89.621% < 99%
+route fast-reversal — 0/10 runs passed  (FAILS: a route passes only if every run passes)
+    presentedFramesPerSecond within: s1 mean 54.268 sd 0.300 [53.806..54.506]   s2 mean 53.931 sd 0.554 [53.025..54.331]
+                             between sessions: mean 54.100 sd 0.238 [53.931..54.268]
+    p95IntervalMilliseconds  within: s1 mean 29.999 sd 7.453 [16.666..33.332]   s2 mean 33.332 sd 0.000 [33.332..33.332]
+                             between sessions: mean 31.665 sd 2.357 [29.999..33.332]
+    fullyPresentedRatio      within: s1 mean 0.872 sd 0.005 [0.866..0.878]   s2 mean 0.858 sd 0.015 [0.832..0.868]
+                             between sessions: mean 0.865 sd 0.010 [0.858..0.872]
+    blankFrames              within: s1 mean 0.0 sd 0.0 [0.0..0.0]   s2 mean 0.0 sd 0.0 [0.0..0.0]
+                             between sessions: mean 0.0 sd 0.0 [0.0..0.0]
+    droppedFrames            within: s1 mean 38.2 sd 1.9 [36.0..41.0]   s2 mean 39.8 sd 3.3 [37.0..45.0]
+                             between sessions: mean 39.0 sd 1.1 [38.2..39.8]
+    achievedRouteSeconds     within: s1 mean 6.683 sd 0.000 [6.683..6.684]   s2 mean 6.683 sd 0.000 [6.683..6.683]
+                             between sessions: mean 6.683 sd 0.000 [6.683..6.683]
+    loadAverageOneMinute     within: s1 mean 1.336 sd 0.215 [1.090..1.570]   s2 mean 1.944 sd 0.495 [1.450..2.700]
+                             between sessions: mean 1.640 sd 0.430 [1.336..1.944]
+    samplerPerturbationFps   within: s1 mean -0.424 sd 0.490 [-0.932..0.286]   s2 mean -0.408 sd 0.365 [-0.780..0.149]
+                             between sessions: mean -0.416 sd 0.011 [-0.424..-0.408]
+    ! clean: presented fps 54.455 < 59
+    ! clean: fully presented 87.591% < 99%
+    ! clean: presented fps 54.452 < 59
+    ! clean: p95 interval 33.332ms > 17ms
+    ! clean: fully presented 86.750% < 99%
+    ! clean: presented fps 54.123 < 59
+    ! clean: fully presented 87.186% < 99%
+    ! clean: presented fps 54.506 < 59
+    ! clean: fully presented 87.786% < 99%
+    ! clean: presented fps 53.806 < 59
+    ! clean: fully presented 86.650% < 99%
+    ! clean: presented fps 53.025 < 59
+    ! clean: fully presented 83.204% < 99%
+    ! clean: presented fps 54.215 < 59
+    ! clean: fully presented 86.802% < 99%
+    ! clean: presented fps 53.774 < 59
+    ! clean: fully presented 86.076% < 99%
+    ! clean: presented fps 54.310 < 59
+    ! clean: fully presented 86.154% < 99%
+    ! clean: presented fps 54.331 < 59
+    ! clean: fully presented 86.816% < 99%
+route large-movement — 0/10 runs passed  (FAILS: a route passes only if every run passes)
+    presentedFramesPerSecond within: s1 mean 26.012 sd 2.084 [24.317..29.278]   s2 mean 26.330 sd 1.537 [24.829..28.589]
+                             between sessions: mean 26.171 sd 0.225 [26.012..26.330]
+    p95IntervalMilliseconds  within: s1 mean 366.652 sd 47.139 [333.320..433.316]   s2 mean 369.985 sd 49.158 [333.320..449.982]
+                             between sessions: mean 368.319 sd 2.357 [366.652..369.985]
+    fullyPresentedRatio      within: s1 mean 0.185 sd 0.020 [0.166..0.217]   s2 mean 0.182 sd 0.019 [0.158..0.206]
+                             between sessions: mean 0.184 sd 0.002 [0.182..0.185]
+    blankFrames              within: s1 mean 0.0 sd 0.0 [0.0..0.0]   s2 mean 0.0 sd 0.0 [0.0..0.0]
+                             between sessions: mean 0.0 sd 0.0 [0.0..0.0]
+    droppedFrames            within: s1 mean 105.4 sd 16.6 [85.0..129.0]   s2 mean 104.2 sd 10.8 [89.0..119.0]
+                             between sessions: mean 104.8 sd 0.8 [104.2..105.4]
+    achievedRouteSeconds     within: s1 mean 5.983 sd 0.000 [5.983..5.984]   s2 mean 5.984 sd 0.000 [5.983..5.984]
+                             between sessions: mean 5.984 sd 0.000 [5.983..5.984]
+    loadAverageOneMinute     within: s1 mean 1.208 sd 0.244 [0.850..1.480]   s2 mean 2.012 sd 0.356 [1.620..2.350]
+                             between sessions: mean 1.610 sd 0.569 [1.208..2.012]
+    samplerPerturbationFps   within: s1 mean 1.927 sd 1.426 [0.432..3.880]   s2 mean 2.641 sd 1.963 [0.625..5.776]
+                             between sessions: mean 2.284 sd 0.505 [1.927..2.641]
+    ! clean: presented fps 24.333 < 59
+    ! clean: p95 interval 333.320ms > 17ms
+    ! clean: fully presented 16.590% < 99%
+    ! instrumented: semantic coverage 85.6% < 90% — too few moving frames carried a sample to certify zero blank frames
+    ! clean: presented fps 29.278 < 59
+    ! clean: fully presented 21.687% < 99%
+    ! instrumented: semantic coverage 84.1% < 90% — too few moving frames carried a sample to certify zero blank frames
+    ! clean: presented fps 25.358 < 59
+    ! clean: p95 interval 433.316ms > 17ms
+    ! clean: fully presented 19.048% < 99%
+    ! clean: BeginFrameSource stalled: observed 377 ticks, span implies 378
+    ! instrumented: semantic coverage 83.6% < 90% — too few moving frames carried a sample to certify zero blank frames
+    ! clean: presented fps 26.775 < 59
+    ! clean: fully presented 17.742% < 99%
+    ! clean: presented fps 24.317 < 59
+    ! clean: p95 interval 399.984ms > 17ms
+    ! clean: fully presented 17.368% < 99%
+    ! instrumented: semantic coverage 83.5% < 90% — too few moving frames carried a sample to certify zero blank frames
+    ! clean: presented fps 24.829 < 59
+    ! clean: p95 interval 383.318ms > 17ms
+    ! clean: fully presented 15.764% < 99%
+    ! instrumented: semantic coverage 86.2% < 90% — too few moving frames carried a sample to certify zero blank frames
+    ! clean: presented fps 28.589 < 59
+    ! clean: p95 interval 349.986ms > 17ms
+    ! clean: fully presented 20.588% < 99%
+    ! instrumented: semantic coverage 85.2% < 90% — too few moving frames carried a sample to certify zero blank frames
+    ! clean: presented fps 25.030 < 59
+    ! clean: p95 interval 449.982ms > 17ms
+    ! clean: fully presented 19.429% < 99%
+    ! instrumented: semantic coverage 82.5% < 90% — too few moving frames carried a sample to certify zero blank frames
+    ! clean: presented fps 26.953 < 59
+    ! clean: fully presented 17.647% < 99%
+    ! instrumented: semantic coverage 88.8% < 90% — too few moving frames carried a sample to certify zero blank frames
+    ! clean: presented fps 26.251 < 59
+    ! clean: fully presented 17.708% < 99%
+    ! instrumented: semantic coverage 82.8% < 90% — too few moving frames carried a sample to certify zero blank frames
+route free-spin — 0/10 runs passed  (FAILS: a route passes only if every run passes)
+    presentedFramesPerSecond within: s1 mean 48.809 sd 3.082 [44.876..51.808]   s2 mean 47.162 sd 2.085 [44.876..49.960]
+                             between sessions: mean 47.986 sd 1.165 [47.162..48.809]
+    p95IntervalMilliseconds  within: s1 mean 33.332 sd 0.000 [33.332..33.332]   s2 mean 26.666 sd 9.128 [16.666..33.332]
+                             between sessions: mean 29.999 sd 4.714 [26.666..33.332]
+    fullyPresentedRatio      within: s1 mean 0.707 sd 0.056 [0.639..0.780]   s2 mean 0.668 sd 0.039 [0.630..0.715]
+                             between sessions: mean 0.687 sd 0.028 [0.668..0.707]
+    blankFrames              within: s1 mean 3.2 sd 1.8 [2.0..6.0]   s2 mean 3.0 sd 2.0 [1.0..6.0]
+                             between sessions: mean 3.1 sd 0.1 [3.0..3.2]
+    droppedFrames            within: s1 mean 43.8 sd 12.6 [31.0..60.0]   s2 mean 50.6 sd 8.4 [40.0..60.0]
+                             between sessions: mean 47.2 sd 4.8 [43.8..50.6]
+    achievedRouteSeconds     within: s1 mean 3.984 sd 0.000 [3.983..3.984]   s2 mean 3.984 sd 0.000 [3.983..3.984]
+                             between sessions: mean 3.984 sd 0.000 [3.984..3.984]
+    loadAverageOneMinute     within: s1 mean 1.214 sd 0.162 [1.000..1.390]   s2 mean 2.036 sd 0.467 [1.560..2.590]
+                             between sessions: mean 1.625 sd 0.581 [1.214..2.036]
+    samplerPerturbationFps   within: s1 mean 1.003 sd 4.288 [-4.341..5.556]   s2 mean -1.147 sd 3.157 [-4.790..3.236]
+                             between sessions: mean -0.072 sd 1.520 [-1.147..1.003]
+    ! clean: presented fps 44.876 < 59
+    ! clean: p95 interval 33.332ms > 17ms
+    ! clean: fully presented 63.866% < 99%
+    ! instrumented: visibly empty frames 2 > 0
+    ! clean: presented fps 51.104 < 59
+    ! clean: fully presented 72.458% < 99%
+    ! clean: presented fps 50.045 < 59
+    ! clean: fully presented 72.766% < 99%
+    ! instrumented: visibly empty frames 4 > 0
+    ! clean: presented fps 46.215 < 59
+    ! clean: fully presented 66.383% < 99%
+    ! clean: presented fps 51.808 < 59
+    ! clean: fully presented 77.974% < 99%
+    ! clean: BeginFrameSource stalled: observed 253 ticks, span implies 258
+    ! instrumented: visibly empty frames 6 > 0
+    ! clean: presented fps 46.527 < 59
+    ! clean: fully presented 64.831% < 99%
+    ! clean: presented fps 45.825 < 59
+    ! clean: fully presented 64.135% < 99%
+    ! clean: presented fps 49.960 < 59
+    ! clean: fully presented 71.548% < 99%
+    ! clean: fully presented 63.025% < 99%
+    ! instrumented: visibly empty frames 1 > 0
+    ! clean: presented fps 48.623 < 59
+    ! clean: fully presented 70.259% < 99%
+
+session 1 — final repeat detail (clean pass then instrumented pass)
+
+  route (clean)               ordinary
+  scored duration (s)         11.966
+  whole route (s)             12.300
+  moving frames scored        718
+  expected frames             725
+  observed BeginFrames        738
+  idle vsyncs (excluded)      13
+  presented FPS               55.155
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            16.666
+  p99 vsync (ms)              33.332
+  max vsync (ms)              466.648
+  p50 wall-clock (ms)         16.666
+  p95 wall-clock (ms)         17.331
+  p99 wall-clock (ms)         45.204
+  max wall-clock (ms)         467.891
+  wall-clock noise floor p95  17.269
+  presented in full           644
+  presented partial           16
+  dropped                     58
+  fully presented             89.694%
+  verdict                     FAIL
+  ! presented fps 55.155 < 59
+  ! fully presented 89.694% < 99%
+
+  route                       ordinary
+  scored duration (s)         11.883
+  whole route (s)             12.300
+  moving frames scored        713
+  expected frames             720
+  observed BeginFrames        738
+  idle vsyncs (excluded)      18
+  presented FPS               55.121
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            16.666
+  p99 vsync (ms)              33.332
+  max vsync (ms)              499.980
+  p50 wall-clock (ms)         16.661
+  p95 wall-clock (ms)         26.366
+  p99 wall-clock (ms)         60.201
+  max wall-clock (ms)         500.683
+  wall-clock noise floor p95  17.269
+  full                        645
+  blank (visibly empty)       3
+  partial                     12
+  stale                       0
+  dropped                     60
+  fully presented (semantic)  89.762%
+  semantic coverage           98.5%
+  verdict                     FAIL
+  reasons (moving frames)   
+    state:STATE_DROPPED       58
+    compositor-partial-update  13
+    no-semantic-sample        11
+    uncovered-viewport        3
+  ! presented fps 55.121 < 59
+  ! fully presented 89.762% < 99%
+  ! visibly empty frames 3 > 0
+
+  route (clean)               fast-reversal
+  scored duration (s)         6.616
+  whole route (s)             7.000
+  moving frames scored        397
+  expected frames             401
+  observed BeginFrames        420
+  idle vsyncs (excluded)      19
+  presented FPS               53.806
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            33.332
+  p99 vsync (ms)              83.330
+  max vsync (ms)              183.326
+  p50 wall-clock (ms)         16.699
+  p95 wall-clock (ms)         39.259
+  p99 wall-clock (ms)         83.272
+  max wall-clock (ms)         183.918
+  wall-clock noise floor p95  17.269
+  presented in full           344
+  presented partial           12
+  dropped                     41
+  fully presented             86.650%
+  verdict                     FAIL
+  ! presented fps 53.806 < 59
+  ! p95 interval 33.332ms > 17ms
+  ! fully presented 86.650% < 99%
+
+  route                       fast-reversal
+  scored duration (s)         6.633
+  whole route (s)             7.000
+  moving frames scored        398
+  expected frames             400
+  observed BeginFrames        420
+  idle vsyncs (excluded)      20
+  presented FPS               53.520
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            33.332
+  p99 vsync (ms)              83.330
+  max vsync (ms)              249.990
+  p50 wall-clock (ms)         16.721
+  p95 wall-clock (ms)         34.404
+  p99 wall-clock (ms)         82.396
+  max wall-clock (ms)         251.913
+  wall-clock noise floor p95  17.269
+  full                        339
+  blank (visibly empty)       0
+  partial                     18
+  stale                       0
+  dropped                     43
+  fully presented (semantic)  84.925%
+  semantic coverage           97.2%
+  verdict                     FAIL
+  reasons (moving frames)   
+    state:STATE_DROPPED       43
+    compositor-partial-update  16
+    no-semantic-sample        11
+  ! presented fps 53.520 < 59
+  ! p95 interval 33.332ms > 17ms
+  ! fully presented 84.925% < 99%
+
+  route (clean)               large-movement
+  scored duration (s)         3.167
+  whole route (s)             6.300
+  moving frames scored        190
+  expected frames             248
+  observed BeginFrames        378
+  idle vsyncs (excluded)      130
+  presented FPS               24.317
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            399.984
+  p99 vsync (ms)              799.968
+  max vsync (ms)              799.968
+  p50 wall-clock (ms)         16.677
+  p95 wall-clock (ms)         402.193
+  p99 wall-clock (ms)         1131.772
+  max wall-clock (ms)         1131.772
+  wall-clock noise floor p95  17.269
+  presented in full           33
+  presented partial           44
+  dropped                     113
+  fully presented             17.368%
+  verdict                     FAIL
+  ! presented fps 24.317 < 59
+  ! p95 interval 399.984ms > 17ms
+  ! fully presented 17.368% < 99%
+
+  route                       large-movement
+  scored duration (s)         3.433
+  whole route (s)             6.300
+  moving frames scored        206
+  expected frames             263
+  observed BeginFrames        378
+  idle vsyncs (excluded)      115
+  presented FPS               23.884
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            333.320
+  p99 vsync (ms)              783.302
+  max vsync (ms)              783.302
+  p50 wall-clock (ms)         16.614
+  p95 wall-clock (ms)         272.894
+  p99 wall-clock (ms)         1112.252
+  max wall-clock (ms)         1112.252
+  wall-clock noise floor p95  17.269
+  full                        90
+  blank (visibly empty)       0
+  partial                     49
+  stale                       0
+  dropped                     124
+  fully presented (semantic)  16.019%
+  semantic coverage           83.5%  LOW COVERAGE
+  verdict                     FAIL
+  reasons (moving frames)   
+    state:STATE_DROPPED       124
+    compositor-partial-update  49
+    no-semantic-sample        34
+  ! presented fps 23.884 < 59
+  ! p95 interval 333.320ms > 17ms
+  ! fully presented 16.019% < 99%
+
+  route (clean)               free-spin
+  scored duration (s)         3.783
+  whole route (s)             4.300
+  moving frames scored        227
+  expected frames             236
+  observed BeginFrames        253
+  idle vsyncs (excluded)      22
+  presented FPS               51.808
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            33.332
+  p99 vsync (ms)              149.994
+  max vsync (ms)              183.326
+  p50 wall-clock (ms)         16.673
+  p95 wall-clock (ms)         34.561
+  p99 wall-clock (ms)         150.976
+  max wall-clock (ms)         184.957
+  wall-clock noise floor p95  17.269
+  presented in full           177
+  presented partial           19
+  dropped                     31
+  fully presented             77.974%
+  verdict                     FAIL
+  ! presented fps 51.808 < 59
+  ! p95 interval 33.332ms > 17ms
+  ! fully presented 77.974% < 99%
+  ! BeginFrameSource stalled: observed 253 ticks, span implies 258
+
+  route                       free-spin
+  scored duration (s)         4.000
+  whole route (s)             4.300
+  moving frames scored        240
+  expected frames             242
+  observed BeginFrames        258
+  idle vsyncs (excluded)      16
+  presented FPS               46.252
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            16.666
+  p99 vsync (ms)              166.660
+  max vsync (ms)              449.982
+  p50 wall-clock (ms)         16.650
+  p95 wall-clock (ms)         30.477
+  p99 wall-clock (ms)         167.972
+  max wall-clock (ms)         452.006
+  wall-clock noise floor p95  17.269
+  full                        154
+  blank (visibly empty)       6
+  partial                     27
+  stale                       0
+  dropped                     55
+  fully presented (semantic)  63.333%
+  semantic coverage           90.0%
+  verdict                     FAIL
+  reasons (moving frames)   
+    state:STATE_DROPPED       55
+    compositor-partial-update  25
+    no-semantic-sample        24
+    uncovered-viewport        6
+  ! presented fps 46.252 < 59
+  ! fully presented 63.333% < 99%
+  ! visibly empty frames 6 > 0
+
+session 2 — final repeat detail (clean pass then instrumented pass)
+
+  route (clean)               ordinary
+  scored duration (s)         11.883
+  whole route (s)             12.300
+  moving frames scored        713
+  expected frames             721
+  observed BeginFrames        738
+  idle vsyncs (excluded)      17
+  presented FPS               54.953
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            16.666
+  p99 vsync (ms)              33.332
+  max vsync (ms)              499.980
+  p50 wall-clock (ms)         16.657
+  p95 wall-clock (ms)         26.841
+  p99 wall-clock (ms)         60.945
+  max wall-clock (ms)         500.886
+  wall-clock noise floor p95  17.269
+  presented in full           639
+  presented partial           14
+  dropped                     60
+  fully presented             89.621%
+  verdict                     FAIL
+  ! presented fps 54.953 < 59
+  ! fully presented 89.621% < 99%
+
+  route                       ordinary
+  scored duration (s)         11.883
+  whole route (s)             12.300
+  moving frames scored        713
+  expected frames             718
+  observed BeginFrames        738
+  idle vsyncs (excluded)      20
+  presented FPS               54.869
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            16.666
+  p99 vsync (ms)              49.998
+  max vsync (ms)              499.980
+  p50 wall-clock (ms)         16.664
+  p95 wall-clock (ms)         17.946
+  p99 wall-clock (ms)         50.148
+  max wall-clock (ms)         501.694
+  wall-clock noise floor p95  17.269
+  full                        639
+  blank (visibly empty)       3
+  partial                     15
+  stale                       0
+  dropped                     61
+  fully presented (semantic)  88.920%
+  semantic coverage           98.2%
+  verdict                     FAIL
+  reasons (moving frames)   
+    state:STATE_DROPPED       61
+    compositor-partial-update  16
+    no-semantic-sample        13
+    uncovered-viewport        3
+  ! presented fps 54.869 < 59
+  ! fully presented 88.920% < 99%
+  ! visibly empty frames 3 > 0
+
+  route (clean)               fast-reversal
+  scored duration (s)         6.700
+  whole route (s)             7.000
+  moving frames scored        402
+  expected frames             406
+  observed BeginFrames        420
+  idle vsyncs (excluded)      14
+  presented FPS               54.331
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            33.332
+  p99 vsync (ms)              83.330
+  max vsync (ms)              199.992
+  p50 wall-clock (ms)         16.712
+  p95 wall-clock (ms)         31.421
+  p99 wall-clock (ms)         88.618
+  max wall-clock (ms)         201.158
+  wall-clock noise floor p95  17.269
+  presented in full           349
+  presented partial           15
+  dropped                     38
+  fully presented             86.816%
+  verdict                     FAIL
+  ! presented fps 54.331 < 59
+  ! p95 interval 33.332ms > 17ms
+  ! fully presented 86.816% < 99%
+
+  route                       fast-reversal
+  scored duration (s)         6.700
+  whole route (s)             6.983
+  moving frames scored        402
+  expected frames             404
+  observed BeginFrames        419
+  idle vsyncs (excluded)      15
+  presented FPS               54.181
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            33.332
+  p99 vsync (ms)              83.330
+  max vsync (ms)              166.660
+  p50 wall-clock (ms)         16.702
+  p95 wall-clock (ms)         33.151
+  p99 wall-clock (ms)         84.302
+  max wall-clock (ms)         167.600
+  wall-clock noise floor p95  17.269
+  full                        352
+  blank (visibly empty)       0
+  partial                     13
+  stale                       0
+  dropped                     39
+  fully presented (semantic)  87.313%
+  semantic coverage           97.5%
+  verdict                     FAIL
+  reasons (moving frames)   
+    state:STATE_DROPPED       39
+    compositor-partial-update  12
+    no-semantic-sample        10
+  ! presented fps 54.181 < 59
+  ! p95 interval 33.332ms > 17ms
+  ! fully presented 87.313% < 99%
+
+  route (clean)               large-movement
+  scored duration (s)         3.200
+  whole route (s)             6.300
+  moving frames scored        192
+  expected frames             249
+  observed BeginFrames        378
+  idle vsyncs (excluded)      129
+  presented FPS               26.251
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            333.320
+  p99 vsync (ms)              783.302
+  max vsync (ms)              783.302
+  p50 wall-clock (ms)         16.698
+  p95 wall-clock (ms)         322.948
+  p99 wall-clock (ms)         1108.879
+  max wall-clock (ms)         1108.879
+  wall-clock noise floor p95  17.269
+  presented in full           34
+  presented partial           50
+  dropped                     108
+  fully presented             17.708%
+  verdict                     FAIL
+  ! presented fps 26.251 < 59
+  ! p95 interval 333.320ms > 17ms
+  ! fully presented 17.708% < 99%
+
+  route                       large-movement
+  scored duration (s)         3.200
+  whole route (s)             6.300
+  moving frames scored        192
+  expected frames             253
+  observed BeginFrames        378
+  idle vsyncs (excluded)      125
+  presented FPS               25.626
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            349.986
+  p99 vsync (ms)              749.970
+  max vsync (ms)              749.970
+  p50 wall-clock (ms)         16.742
+  p95 wall-clock (ms)         302.733
+  p99 wall-clock (ms)         1091.219
+  max wall-clock (ms)         1091.219
+  wall-clock noise floor p95  17.269
+  full                        95
+  blank (visibly empty)       0
+  partial                     48
+  stale                       0
+  dropped                     110
+  fully presented (semantic)  18.229%
+  semantic coverage           82.8%  LOW COVERAGE
+  verdict                     FAIL
+  reasons (moving frames)   
+    state:STATE_DROPPED       110
+    compositor-partial-update  47
+    no-semantic-sample        33
+  ! presented fps 25.626 < 59
+  ! p95 interval 349.986ms > 17ms
+  ! fully presented 18.229% < 99%
+
+  route (clean)               free-spin
+  scored duration (s)         3.867
+  whole route (s)             4.300
+  moving frames scored        232
+  expected frames             235
+  observed BeginFrames        258
+  idle vsyncs (excluded)      23
+  presented FPS               48.623
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            33.332
+  p99 vsync (ms)              166.660
+  max vsync (ms)              449.982
+  p50 wall-clock (ms)         16.668
+  p95 wall-clock (ms)         33.656
+  p99 wall-clock (ms)         167.923
+  max wall-clock (ms)         451.800
+  wall-clock noise floor p95  17.269
+  presented in full           163
+  presented partial           25
+  dropped                     44
+  fully presented             70.259%
+  verdict                     FAIL
+  ! presented fps 48.623 < 59
+  ! p95 interval 33.332ms > 17ms
+  ! fully presented 70.259% < 99%
+
+  route                       free-spin
+  scored duration (s)         3.900
+  whole route (s)             4.300
+  moving frames scored        234
+  expected frames             238
+  observed BeginFrames        258
+  idle vsyncs (excluded)      20
+  presented FPS               45.386
+  p50 vsync (ms)              16.666
+  p95 vsync (ms) *            33.332
+  p99 vsync (ms)              166.660
+  max vsync (ms)              433.316
+  p50 wall-clock (ms)         16.680
+  p95 wall-clock (ms)         49.240
+  p99 wall-clock (ms)         168.152
+  max wall-clock (ms)         434.756
+  wall-clock noise floor p95  17.269
+  full                        145
+  blank (visibly empty)       6
+  partial                     28
+  stale                       0
+  dropped                     59
+  fully presented (semantic)  61.111%
+  semantic coverage           90.6%
+  verdict                     FAIL
+  reasons (moving frames)   
+    state:STATE_DROPPED       57
+    compositor-partial-update  28
+    no-semantic-sample        22
+    uncovered-viewport        6
+  ! presented fps 45.386 < 59
+  ! p95 interval 33.332ms > 17ms
+  ! fully presented 61.111% < 99%
+  ! visibly empty frames 6 > 0

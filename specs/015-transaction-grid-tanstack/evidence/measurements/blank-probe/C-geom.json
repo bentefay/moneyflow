@@ -1,0 +1,761 @@
+{
+    "arm": "C-geom",
+    "commit": "1d57eb8abf37f07ec564b12f685ff7c98e47be12",
+    "fixture": {
+        "accounts": [
+            "Everyday Checking (USD)",
+            "Travel Rewards Card (USD)",
+            "Berlin Savings (EUR)",
+            "Tokyo Cash (JPY)"
+        ],
+        "csvDigest": "519f43abb52b24cc9181639654b91b24fa135368e998732b6c9bdd1100ad259c",
+        "definitionDigest": "55ad36c8a81fd67c72887642dfcb11803c93cfb1f18f4e9cd8467e6c0543af90",
+        "enrichmentDigest": "9e32ed1e477553bbe447974f7d490cdf332d1ef4b9f697191f6e0d7ee0df4422",
+        "expectedEnrichment": {
+            "allocatedRows": 1776,
+            "allocatedRowsByDescription": [
+                ["AMZN Mktp US*2Z4KL", 876],
+                ["SQ *BLUE BOTTLE COFFEE", 900]
+            ],
+            "taggedRows": 2512,
+            "taggedRowsByDescription": [
+                ["SAFEWAY #1234", 833],
+                ["TFL TRAVEL CHARGE", 821],
+                ["Netflix.com", 858]
+            ]
+        },
+        "fieldRules": 5,
+        "notesPlanned": 480,
+        "people": ["Alex Rivera", "Priya Raman"],
+        "tags": ["Groceries", "Transport", "Subscriptions"],
+        "transactionCount": 10000
+    },
+    "diagnosticStartOffsetOverride": null,
+    "harnessDigest": null,
+    "harnessDigests": {
+        "measurementCore": "0572d69b555175df73b0b8a7a7bc0b71fe3b8f7d29b3a6ca070287b525cf06f7",
+        "orchestration": "0213f9fecdf78b2146333318ab5c678a42fb31851e23d347d8cd3cef601fb012",
+        "seedingPath": "a7638fa2a9ed1f8de531a3a2951a762726c03535889b26d31712cc757aa5bc12"
+    },
+    "maximumLoadAverage": 2.5,
+    "lockfileSha256": null,
+    "reactVirtual": null,
+    "repeatsPerSession": 1,
+    "routes": [
+        {
+            "durationSeconds": 12,
+            "id": "ordinary",
+            "inputMode": "wheel",
+            "peakVelocityPixelsPerSecond": 600,
+            "provenance": "specified",
+            "startOffsetPixels": 0,
+            "ticks": 720
+        },
+        {
+            "durationSeconds": 6.700000000000001,
+            "id": "fast-reversal",
+            "inputMode": "wheel",
+            "peakVelocityPixelsPerSecond": 4000,
+            "provenance": "specified",
+            "startOffsetPixels": 100000,
+            "ticks": 402
+        },
+        {
+            "durationSeconds": 6,
+            "id": "large-movement",
+            "inputMode": "wheel",
+            "peakVelocityPixelsPerSecond": 400000,
+            "provenance": "specified",
+            "startOffsetPixels": 250000,
+            "ticks": 360
+        },
+        {
+            "durationSeconds": 4.000000000000001,
+            "id": "free-spin",
+            "inputMode": "wheel",
+            "peakVelocityPixelsPerSecond": 9000,
+            "provenance": "specified",
+            "startOffsetPixels": 0,
+            "ticks": 240
+        }
+    ],
+    "sessions": 1,
+    "virtualCore": null,
+    "sessionsCaptured": [
+        {
+            "consoleWarnings": [],
+            "notes": {
+                "annotatedRows": 480,
+                "expandedAriaRows": 2,
+                "expandedHeight": 103,
+                "seconds": 208.344382684,
+                "unexpandedHeight": 57
+            },
+            "hostLoad": {
+                "atEnd": 9.83,
+                "atStart": 0.87,
+                "maximumAllowed": 2.5
+            },
+            "runs": [
+                [
+                    {
+                        "clean": {
+                            "cadence": {
+                                "droppedFrames": 10,
+                                "durationSeconds": 11.966188,
+                                "expectedFrames": 722,
+                                "failures": ["fully presented 97.493% < 99%"],
+                                "fullyPresentedRatio": 0.9749303621169917,
+                                "idleFrames": 16,
+                                "intervals": {
+                                    "maxMilliseconds": 83.33,
+                                    "p50Milliseconds": 16.666,
+                                    "p95Milliseconds": 16.666,
+                                    "p99Milliseconds": 33.332
+                                },
+                                "intervalsWallClock": {
+                                    "maxMilliseconds": 83.28,
+                                    "p50Milliseconds": 16.665,
+                                    "p95Milliseconds": 17.453,
+                                    "p99Milliseconds": 33.263
+                                },
+                                "movingFrames": 718,
+                                "observedBeginFrames": 738,
+                                "passed": false,
+                                "presentedAllFrames": 700,
+                                "presentedFramesPerSecond": 59.166712072382616,
+                                "presentedPartialFrames": 8,
+                                "routeId": "ordinary",
+                                "wallClockNoiseFloor": {
+                                    "maxMilliseconds": 17.452,
+                                    "p50Milliseconds": 16.663,
+                                    "p95Milliseconds": 17.269,
+                                    "p99Milliseconds": 17.635
+                                },
+                                "wholeRouteSeconds": 12.299508
+                            },
+                            "droppedSampleCount": 0,
+                            "inputMode": "wheel",
+                            "loadAverageOneMinute": 7.63,
+                            "maxScrollTop": 11450,
+                            "minScrollTop": 0,
+                            "mode": "clean",
+                            "sampleCostMaxMilliseconds": 6.40000057220459,
+                            "sampleCostP50Milliseconds": 0,
+                            "sampleCount": 719,
+                            "schedule": {
+                                "achievedDurationMilliseconds": 11983.687831999967,
+                                "dispatchedTicks": 720,
+                                "intendedDurationMilliseconds": 12000,
+                                "requestedAbsoluteDistance": 7200,
+                                "scheduleErrorMaxMilliseconds": 0.30375933327013627,
+                                "scheduleErrorP50Milliseconds": 0.0025063332868739963,
+                                "scheduleErrorP95Milliseconds": 0.005138333304785192
+                            },
+                            "semantic": null,
+                            "stickyMaskDrift": false,
+                            "stimulus": {
+                                "netScrollTravel": 11450,
+                                "observedAbsoluteDistanceRatio": 1,
+                                "requestedAbsoluteDistance": 7200,
+                                "requestedNetDistance": 7200,
+                                "settledStart": true,
+                                "startOffset": 0,
+                                "wheelAbsoluteDeltaObserved": 7200,
+                                "wheelDeltaObserved": 7200,
+                                "wheelEventsObserved": 711
+                            }
+                        },
+                        "cleanMinusInstrumented": {
+                            "droppedFrames": -113,
+                            "fullyPresentedRatio": 0.2185201057067353,
+                            "p95IntervalMilliseconds": -16.666,
+                            "presentedFramesPerSecond": 9.677553018840989
+                        },
+                        "failures": [
+                            "clean: fully presented 97.493% < 99%",
+                            "instrumented: visibly empty frames 1 > 0"
+                        ],
+                        "instrumented": {
+                            "cadence": {
+                                "droppedFrames": 123,
+                                "durationSeconds": 11.699532,
+                                "expectedFrames": 709,
+                                "failures": [
+                                    "presented fps 49.489 < 59",
+                                    "p95 interval 33.332ms > 17ms",
+                                    "fully presented 75.641% < 99%",
+                                    "BeginFrameSource stalled: observed 734 ticks, span implies 738"
+                                ],
+                                "fullyPresentedRatio": 0.7564102564102564,
+                                "idleFrames": 29,
+                                "intervals": {
+                                    "maxMilliseconds": 366.652,
+                                    "p50Milliseconds": 16.666,
+                                    "p95Milliseconds": 33.332,
+                                    "p99Milliseconds": 99.996
+                                },
+                                "intervalsWallClock": {
+                                    "maxMilliseconds": 412.018,
+                                    "p50Milliseconds": 16.674,
+                                    "p95Milliseconds": 45.378,
+                                    "p99Milliseconds": 116.599
+                                },
+                                "movingFrames": 702,
+                                "observedBeginFrames": 734,
+                                "passed": false,
+                                "presentedAllFrames": 531,
+                                "presentedFramesPerSecond": 49.48915905354163,
+                                "presentedPartialFrames": 48,
+                                "routeId": "ordinary",
+                                "wallClockNoiseFloor": {
+                                    "maxMilliseconds": 17.452,
+                                    "p50Milliseconds": 16.663,
+                                    "p95Milliseconds": 17.269,
+                                    "p99Milliseconds": 17.635
+                                },
+                                "wholeRouteSeconds": 12.299508
+                            },
+                            "droppedSampleCount": 0,
+                            "inputMode": "wheel",
+                            "loadAverageOneMinute": 9.83,
+                            "maxScrollTop": 11440,
+                            "minScrollTop": 0,
+                            "mode": "instrumented",
+                            "sampleCostMaxMilliseconds": 35.30000019073486,
+                            "sampleCostP50Milliseconds": 0.3000001907348633,
+                            "sampleCount": 548,
+                            "schedule": {
+                                "achievedDurationMilliseconds": 11983.89506400004,
+                                "dispatchedTicks": 720,
+                                "intendedDurationMilliseconds": 12000,
+                                "requestedAbsoluteDistance": 7200,
+                                "scheduleErrorMaxMilliseconds": 37.195192666724324,
+                                "scheduleErrorP50Milliseconds": 0.002939000027254224,
+                                "scheduleErrorP95Milliseconds": 3.0379590000375174
+                            },
+                            "semantic": {
+                                "blankFrames": [
+                                    {
+                                        "areaRatio": 0.3823953823953824,
+                                        "clientHeight": 693,
+                                        "rowGeometry": [
+                                            {
+                                                "index": 71,
+                                                "offsetHeight": 57,
+                                                "translateY": 4257
+                                            },
+                                            {
+                                                "index": 72,
+                                                "offsetHeight": 57,
+                                                "translateY": 4314
+                                            },
+                                            {
+                                                "index": 73,
+                                                "offsetHeight": 57,
+                                                "translateY": 4371
+                                            },
+                                            {
+                                                "index": 74,
+                                                "offsetHeight": 75,
+                                                "translateY": 4428
+                                            },
+                                            {
+                                                "index": 75,
+                                                "offsetHeight": 57,
+                                                "translateY": 4503
+                                            },
+                                            {
+                                                "index": 76,
+                                                "offsetHeight": 57,
+                                                "translateY": 4560
+                                            },
+                                            {
+                                                "index": 77,
+                                                "offsetHeight": 75,
+                                                "translateY": 4617
+                                            },
+                                            {
+                                                "index": 78,
+                                                "offsetHeight": 57,
+                                                "translateY": 4692
+                                            },
+                                            {
+                                                "index": 79,
+                                                "offsetHeight": 57,
+                                                "translateY": 4749
+                                            },
+                                            {
+                                                "index": 80,
+                                                "offsetHeight": 103,
+                                                "translateY": 4806
+                                            },
+                                            {
+                                                "index": 81,
+                                                "offsetHeight": 57,
+                                                "translateY": 4909
+                                            },
+                                            {
+                                                "index": 82,
+                                                "offsetHeight": 57,
+                                                "translateY": 4966
+                                            },
+                                            {
+                                                "index": 83,
+                                                "offsetHeight": 57,
+                                                "translateY": 5023
+                                            },
+                                            {
+                                                "index": 84,
+                                                "offsetHeight": 75,
+                                                "translateY": 5080
+                                            },
+                                            {
+                                                "index": 85,
+                                                "offsetHeight": 57,
+                                                "translateY": 5155
+                                            },
+                                            {
+                                                "index": 86,
+                                                "offsetHeight": 75,
+                                                "translateY": 5212
+                                            },
+                                            {
+                                                "index": 87,
+                                                "offsetHeight": 57,
+                                                "translateY": 5287
+                                            },
+                                            {
+                                                "index": 88,
+                                                "offsetHeight": 75,
+                                                "translateY": 5344
+                                            },
+                                            {
+                                                "index": 89,
+                                                "offsetHeight": 57,
+                                                "translateY": 5419
+                                            },
+                                            {
+                                                "index": 90,
+                                                "offsetHeight": 103,
+                                                "translateY": 5476
+                                            },
+                                            {
+                                                "index": 91,
+                                                "offsetHeight": 57,
+                                                "translateY": 5579
+                                            }
+                                        ],
+                                        "bandPlacement": ["bottom-edge"],
+                                        "bands": [
+                                            {
+                                                "bottom": 875,
+                                                "height": 265,
+                                                "kind": "trailing",
+                                                "top": 610
+                                            }
+                                        ],
+                                        "frameTimeMicroseconds": 6906626423892,
+                                        "masks": [
+                                            {
+                                                "bottom": 219,
+                                                "height": 37,
+                                                "top": 182
+                                            }
+                                        ],
+                                        "renderedScrollTop": 5245,
+                                        "routeRelativeMicroseconds": 3899844,
+                                        "scrollTop": 5245,
+                                        "sequenceNumber": 19014,
+                                        "viewportHeight": 693,
+                                        "visibleRowCount": 7
+                                    }
+                                ],
+                                "cadenceReasonCounts": {
+                                    "state:STATE_DROPPED": 123,
+                                    "compositor-partial-update": 48,
+                                    "uncovered-viewport": 1,
+                                    "no-semantic-sample": 51
+                                },
+                                "counts": {
+                                    "blank": 1,
+                                    "dropped": 123,
+                                    "full": 520,
+                                    "partial": 61,
+                                    "stale": 0
+                                },
+                                "lowSemanticCoverage": false,
+                                "semanticCoverageRatio": 0.9273504273504274,
+                                "durationSeconds": 11.699532,
+                                "expectedFrames": 709,
+                                "reasonCounts": {
+                                    "state:STATE_DROPPED": 123,
+                                    "compositor-partial-update": 48,
+                                    "uncovered-viewport": 1,
+                                    "no-semantic-sample": 51
+                                },
+                                "idleFrames": 29,
+                                "failures": [
+                                    "presented fps 49.489 < 59",
+                                    "p95 interval 33.332ms > 17ms",
+                                    "fully presented 73.647% < 99%",
+                                    "visibly empty frames 1 > 0",
+                                    "BeginFrameSource stalled: observed 734 ticks, span implies 738"
+                                ],
+                                "fullyPresentedRatio": 0.7364672364672364,
+                                "intervals": {
+                                    "maxMilliseconds": 366.652,
+                                    "p50Milliseconds": 16.666,
+                                    "p95Milliseconds": 33.332,
+                                    "p99Milliseconds": 99.996
+                                },
+                                "intervalsWallClock": {
+                                    "maxMilliseconds": 412.018,
+                                    "p50Milliseconds": 16.674,
+                                    "p95Milliseconds": 45.378,
+                                    "p99Milliseconds": 116.599
+                                },
+                                "movingFrames": 702,
+                                "observedBeginFrames": 734,
+                                "wholeRouteSeconds": 12.299508,
+                                "wallClockNoiseFloor": {
+                                    "maxMilliseconds": 17.452,
+                                    "p50Milliseconds": 16.663,
+                                    "p95Milliseconds": 17.269,
+                                    "p99Milliseconds": 17.635
+                                },
+                                "passed": false,
+                                "presentedFramesPerSecond": 49.48915905354163,
+                                "routeId": "ordinary",
+                                "visiblyEmptyFrames": 1
+                            },
+                            "stickyMaskDrift": false,
+                            "stimulus": {
+                                "netScrollTravel": 11440,
+                                "observedAbsoluteDistanceRatio": 1,
+                                "requestedAbsoluteDistance": 7200,
+                                "requestedNetDistance": 7200,
+                                "settledStart": true,
+                                "startOffset": 0,
+                                "wheelAbsoluteDeltaObserved": 7200,
+                                "wheelDeltaObserved": 7200,
+                                "wheelEventsObserved": 625
+                            }
+                        },
+                        "passed": false,
+                        "routeId": "ordinary"
+                    }
+                ]
+            ],
+            "seed": {
+                "accountsCreated": ["Travel Rewards Card", "Berlin Savings", "Tokyo Cash"],
+                "domEvidence": {
+                    "accountsSeen": [
+                        "Tokyo Cash",
+                        "Berlin Savings",
+                        "Travel Rewards Card",
+                        "Default"
+                    ],
+                    "allocationColumnCount": 3,
+                    "allocationColumnLabels": ["Alex Rivera %", "Me %", "Priya Raman %"],
+                    "allocatedExample": {
+                        "description": "SQ *BLUE BOTTLE COFFEE",
+                        "values": ["50"]
+                    },
+                    "rowsSampled": 908,
+                    "rowsWithAllocations": 147,
+                    "rowsWithRulePercentage": 147,
+                    "rowsWithTags": 255,
+                    "taggedExample": {
+                        "description": "TFL TRAVEL CHARGE",
+                        "tags": "Transport, Subscriptions"
+                    }
+                },
+                "geometry": {
+                    "clientHeight": 693,
+                    "height": 693,
+                    "left": 281,
+                    "maxOffset": 455720,
+                    "scrollHeight": 456413,
+                    "scrollTop": 0,
+                    "top": 182,
+                    "width": 1094
+                },
+                "identitySeconds": 1.2027390329999998,
+                "importLedger": {
+                    "note": null,
+                    "perImport": [2533, 2527, 2476, 2464],
+                    "total": 10000,
+                    "trusted": true
+                },
+                "imports": [
+                    {
+                        "accountName": "Default",
+                        "commitSeconds": 1.378701944999997,
+                        "duplicatesFlagged": 0,
+                        "gridRowCountAfter": 2464,
+                        "rowsImported": 2464
+                    },
+                    {
+                        "accountName": "Travel Rewards Card",
+                        "commitSeconds": 1.3742581250000003,
+                        "duplicatesFlagged": 0,
+                        "gridRowCountAfter": 4940,
+                        "rowsImported": 2476
+                    },
+                    {
+                        "accountName": "Berlin Savings",
+                        "commitSeconds": 1.4742907919999997,
+                        "duplicatesFlagged": 0,
+                        "gridRowCountAfter": 7467,
+                        "rowsImported": 2527
+                    },
+                    {
+                        "accountName": "Tokyo Cash",
+                        "commitSeconds": 1.5649887989999989,
+                        "duplicatesFlagged": 0,
+                        "gridRowCountAfter": 10000,
+                        "rowsImported": 2533
+                    }
+                ],
+                "peopleCreated": ["Alex Rivera", "Priya Raman"],
+                "preload": {
+                    "clientHeight": 693,
+                    "gridRowCount": 10000,
+                    "highestIndex": 9999,
+                    "iterations": 1,
+                    "scrollHeight": 440642,
+                    "settledAtTop": true
+                },
+                "preloadSeconds": 0.33784931200000573,
+                "rowsImported": 10000,
+                "rulesCreated": 5,
+                "seedSeconds": 85.07081792,
+                "tagsCreated": ["Groceries", "Transport", "Subscriptions"]
+            },
+            "sessionIndex": 1
+        }
+    ],
+    "summary": [
+        {
+            "failures": [
+                "clean: fully presented 97.493% < 99%",
+                "instrumented: visibly empty frames 1 > 0"
+            ],
+            "passedEveryRun": false,
+            "passingRuns": 0,
+            "routeId": "ordinary",
+            "runCount": 1,
+            "variance": [
+                {
+                    "betweenSessions": {
+                        "count": 1,
+                        "max": 59.166712072382616,
+                        "mean": 59.166712072382616,
+                        "min": 59.166712072382616,
+                        "standardDeviation": null
+                    },
+                    "metric": "presentedFramesPerSecond",
+                    "pooled": {
+                        "count": 1,
+                        "max": 59.166712072382616,
+                        "mean": 59.166712072382616,
+                        "min": 59.166712072382616,
+                        "standardDeviation": null
+                    },
+                    "withinSession": [
+                        {
+                            "count": 1,
+                            "max": 59.166712072382616,
+                            "mean": 59.166712072382616,
+                            "min": 59.166712072382616,
+                            "standardDeviation": null
+                        }
+                    ]
+                },
+                {
+                    "betweenSessions": {
+                        "count": 1,
+                        "max": 16.666,
+                        "mean": 16.666,
+                        "min": 16.666,
+                        "standardDeviation": null
+                    },
+                    "metric": "p95IntervalMilliseconds",
+                    "pooled": {
+                        "count": 1,
+                        "max": 16.666,
+                        "mean": 16.666,
+                        "min": 16.666,
+                        "standardDeviation": null
+                    },
+                    "withinSession": [
+                        {
+                            "count": 1,
+                            "max": 16.666,
+                            "mean": 16.666,
+                            "min": 16.666,
+                            "standardDeviation": null
+                        }
+                    ]
+                },
+                {
+                    "betweenSessions": {
+                        "count": 1,
+                        "max": 0.9749303621169917,
+                        "mean": 0.9749303621169917,
+                        "min": 0.9749303621169917,
+                        "standardDeviation": null
+                    },
+                    "metric": "fullyPresentedRatio",
+                    "pooled": {
+                        "count": 1,
+                        "max": 0.9749303621169917,
+                        "mean": 0.9749303621169917,
+                        "min": 0.9749303621169917,
+                        "standardDeviation": null
+                    },
+                    "withinSession": [
+                        {
+                            "count": 1,
+                            "max": 0.9749303621169917,
+                            "mean": 0.9749303621169917,
+                            "min": 0.9749303621169917,
+                            "standardDeviation": null
+                        }
+                    ]
+                },
+                {
+                    "betweenSessions": {
+                        "count": 1,
+                        "max": 1,
+                        "mean": 1,
+                        "min": 1,
+                        "standardDeviation": null
+                    },
+                    "metric": "blankFrames",
+                    "pooled": {
+                        "count": 1,
+                        "max": 1,
+                        "mean": 1,
+                        "min": 1,
+                        "standardDeviation": null
+                    },
+                    "withinSession": [
+                        {
+                            "count": 1,
+                            "max": 1,
+                            "mean": 1,
+                            "min": 1,
+                            "standardDeviation": null
+                        }
+                    ]
+                },
+                {
+                    "betweenSessions": {
+                        "count": 1,
+                        "max": 10,
+                        "mean": 10,
+                        "min": 10,
+                        "standardDeviation": null
+                    },
+                    "metric": "droppedFrames",
+                    "pooled": {
+                        "count": 1,
+                        "max": 10,
+                        "mean": 10,
+                        "min": 10,
+                        "standardDeviation": null
+                    },
+                    "withinSession": [
+                        {
+                            "count": 1,
+                            "max": 10,
+                            "mean": 10,
+                            "min": 10,
+                            "standardDeviation": null
+                        }
+                    ]
+                },
+                {
+                    "betweenSessions": {
+                        "count": 1,
+                        "max": 11.983687831999967,
+                        "mean": 11.983687831999967,
+                        "min": 11.983687831999967,
+                        "standardDeviation": null
+                    },
+                    "metric": "achievedRouteSeconds",
+                    "pooled": {
+                        "count": 1,
+                        "max": 11.983687831999967,
+                        "mean": 11.983687831999967,
+                        "min": 11.983687831999967,
+                        "standardDeviation": null
+                    },
+                    "withinSession": [
+                        {
+                            "count": 1,
+                            "max": 11.983687831999967,
+                            "mean": 11.983687831999967,
+                            "min": 11.983687831999967,
+                            "standardDeviation": null
+                        }
+                    ]
+                },
+                {
+                    "betweenSessions": {
+                        "count": 1,
+                        "max": 7.63,
+                        "mean": 7.63,
+                        "min": 7.63,
+                        "standardDeviation": null
+                    },
+                    "metric": "loadAverageOneMinute",
+                    "pooled": {
+                        "count": 1,
+                        "max": 7.63,
+                        "mean": 7.63,
+                        "min": 7.63,
+                        "standardDeviation": null
+                    },
+                    "withinSession": [
+                        {
+                            "count": 1,
+                            "max": 7.63,
+                            "mean": 7.63,
+                            "min": 7.63,
+                            "standardDeviation": null
+                        }
+                    ]
+                },
+                {
+                    "betweenSessions": {
+                        "count": 1,
+                        "max": 9.677553018840989,
+                        "mean": 9.677553018840989,
+                        "min": 9.677553018840989,
+                        "standardDeviation": null
+                    },
+                    "metric": "samplerPerturbationFps",
+                    "pooled": {
+                        "count": 1,
+                        "max": 9.677553018840989,
+                        "mean": 9.677553018840989,
+                        "min": 9.677553018840989,
+                        "standardDeviation": null
+                    },
+                    "withinSession": [
+                        {
+                            "count": 1,
+                            "max": 9.677553018840989,
+                            "mean": 9.677553018840989,
+                            "min": 9.677553018840989,
+                            "standardDeviation": null
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

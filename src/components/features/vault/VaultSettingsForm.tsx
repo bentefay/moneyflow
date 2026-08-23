@@ -3,18 +3,28 @@
 /**
  * VaultSettingsForm Component
  *
- * Form for editing vault-level preferences. Currently supports:
+ * Form for editing settings shown on the settings page. Currently supports:
  * - Vault name
  * - Default currency selection for new accounts
+ * - Date presentation, which is per-viewer rather than vault-wide
  *
  * Settings are persisted immediately to the vault's CRDT state via loro-mirror.
  */
 
+import { useDateFormatPreference } from "@/components/providers/date-locale-provider";
 import { Input } from "@/components/ui/input";
-import { useVaultAction, useVaultEditAction, useVaultPreferences } from "@/lib/crdt/context";
+import { usePubkeyHash } from "@/hooks/use-identity";
+import {
+    usePersistDateFormat,
+    useVaultAction,
+    useVaultEditAction,
+    useVaultPreferences
+} from "@/lib/crdt/context";
 import { DEFAULT_CURRENCY, DEFAULT_VAULT_NAME } from "@/lib/crdt/defaults";
+import { type DateFormatPreference } from "@/lib/domain/date-format-preference";
 
 import { CurrencySelector } from "./CurrencySelector";
+import { DateFormatSelector } from "./DateFormatSelector";
 
 export interface VaultSettingsFormProps {
     /** Additional CSS classes */
@@ -39,6 +49,16 @@ export function VaultSettingsForm({ className }: VaultSettingsFormProps) {
     const setDefaultCurrency = useVaultAction((state, currency: string) => {
         state.preferences.defaultCurrency = currency;
     });
+
+    // Date presentation is stored against the viewer, not the vault, so members in different
+    // countries each read dates their own way.
+    const pubkeyHash = usePubkeyHash();
+    const dateFormat = useDateFormatPreference();
+    const persistDateFormat = usePersistDateFormat();
+    const setDateFormat = (preference: DateFormatPreference) => {
+        if (pubkeyHash == null) return;
+        persistDateFormat({ pubkeyHash, dateFormat: preference });
+    };
 
     return (
         <div className={className}>
@@ -91,6 +111,30 @@ export function VaultSettingsForm({ className }: VaultSettingsFormProps) {
                             <CurrencySelector
                                 value={defaultCurrency}
                                 onChange={setDefaultCurrency}
+                                className="max-w-xs"
+                            />
+                        </div>
+                    </div>
+                </section>
+
+                {/* Date Format Section */}
+                <section>
+                    <h2 className="mb-4 text-lg font-medium">Date Format</h2>
+                    <div className="space-y-4">
+                        <div>
+                            <label htmlFor="date-format" className="text-sm font-medium">
+                                Date Format
+                            </label>
+                            <p className="text-muted-foreground mt-1 mb-2 text-sm">
+                                How dates are shown and typed throughout the app. Automatic follows
+                                your browser, which reports its language rather than your region and
+                                so can be wrong. This choice is yours alone; other members of this
+                                vault keep their own.
+                            </p>
+                            <DateFormatSelector
+                                value={dateFormat}
+                                onChange={setDateFormat}
+                                disabled={pubkeyHash == null}
                                 className="max-w-xs"
                             />
                         </div>

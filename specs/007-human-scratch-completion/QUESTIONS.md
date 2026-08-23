@@ -2020,15 +2020,16 @@ bounce the package; Q-P20B-06 and Q-P20B-08 are root rule-vs-reality decisions.
 
 ## Q-P21-03-01 — P21 rev 03 audit FAIL F-1: post-freeze HIGH dependency advisories on `next@16.2.10`
 
-**Surfaced by:** P21 rev 03 final-audit collector (`evidence/P21/implementation-03.md`), independently
-reproduced by root.
+**Surfaced by:** P21 rev 03 final-audit collector (`evidence/P21/implementation-03.md`),
+independently reproduced by root.
 
-**Finding.** `pnpm audit --prod` at BASE product tip reports **10 advisories (5 HIGH, 5 MODERATE)** —
-`next@16.2.10` is vulnerable (`>=16.0.0 <16.2.11`), patched `>=16.2.11`; HIGH set includes App Router
-middleware/proxy AUTH BYPASS and SSRF in Server Actions/rewrites (e.g. GHSA-4c39-4ccg-62r3). Fixes
-shipped in `next@16.2.11` (2026-07-21) and `16.2.12` (2026-07-25), both BEFORE this audit. Also a
-transitive `sharp` HIGH fixed `>=0.35.0`. Prior P21 collectors rev 01/02 skipped `pnpm audit`; the
-rev-03 charter-required dependency-currency recheck (audit contract item 2) newly surfaced it.
+**Finding.** `pnpm audit --prod` at BASE product tip reports **10 advisories (5 HIGH, 5 MODERATE)**
+— `next@16.2.10` is vulnerable (`>=16.0.0 <16.2.11`), patched `>=16.2.11`; HIGH set includes App
+Router middleware/proxy AUTH BYPASS and SSRF in Server Actions/rewrites (e.g. GHSA-4c39-4ccg-62r3).
+Fixes shipped in `next@16.2.11` (2026-07-21) and `16.2.12` (2026-07-25), both BEFORE this audit.
+Also a transitive `sharp` HIGH fixed `>=0.35.0`. Prior P21 collectors rev 01/02 skipped
+`pnpm audit`; the rev-03 charter-required dependency-currency recheck (audit contract item 2) newly
+surfaced it.
 
 **Disposition (root, no independent adjudicator required).** This is a P21 FAIL: audit contract item
 71 makes a material security finding / failing check a FAIL, and HS-002 mandates the "very latest
@@ -2038,76 +2039,86 @@ Routing the fix (reopen P01/HS-002 to bump `next` to the latest safe-chain that 
 `pnpm audit --prod`, plus `sharp`) is "more work to complete committed scope" and needs no
 adjudicator. The alternative — recording F-1 as a human-accepted post-freeze currency carry-forward
 and passing P21 — would SUPERSEDE the HS-002 mandate = a scope reduction that routes to a DISTINCT
-fresh-context adjudicator DEFAULTING TO BLOCK; so block stands either way. Convergence criterion is a
-CLEAN `pnpm audit --prod` (a terminating condition), not "chase every future release." Per the
+fresh-context adjudicator DEFAULTING TO BLOCK; so block stands either way. Convergence criterion is
+a CLEAN `pnpm audit --prod` (a terminating condition), not "chase every future release." Per the
 no-pause rule root records this proposal and proceeds with the safe reversible choice (do the bump);
 no human halt (halt criteria — frozen-source drift / secret exposure / blocked_external — do not
 apply).
 
 ## Q-P20B-18 — P21 rev 04 audit FAIL F-1: `import.spec.ts:1512` eager `toBeVisible` default-timeout cohort
 
-**Surfaced by:** P21 rev-04 final-audit collector (`evidence/P21/implementation-04.md`, 1/8 full-suite)
-and upheld as a blocker by the DISTINCT reviewer (`reviews/P21-review-04.md`, 0/8 but mechanism + novelty
-independently confirmed). NOT reproduced by the reviewer, but non-reproduction is not exoneration for a
-load-dependent class.
+**Surfaced by:** P21 rev-04 final-audit collector (`evidence/P21/implementation-04.md`, 1/8
+full-suite) and upheld as a blocker by the DISTINCT reviewer (`reviews/P21-review-04.md`, 0/8 but
+mechanism + novelty independently confirmed). NOT reproduced by the reviewer, but non-reproduction
+is not exoneration for a load-dependent class.
 
-**Finding.** `tests/e2e/import.spec.ts:1445` "CSV import creates transactions and auto-saves template on
-first import", step "verify template was auto-saved on first import", assertion `:1512`
-`await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 5000 })` -> element(s) not found under
-4-worker parallel load. NEW: zero prior hits for `1445`/`1512` in QUESTIONS.md / evidence / reviews.
-NOT absorbable into Q-P20B-14 (that ticket is the test declared at `:1527`; F-1 sits inside the test
-declared at `:1445` — different declarations). Mechanism: `loadFile` (`use-import-state.ts:242-445`) is
-async file-read -> parse -> template sort -> `setSession`; `ImportPanel.tsx:262-297` only renders the
-row count after that; `:1512` is the SECOND import in its test so it additionally sorts+applies templates
-= the most load-exposed instance. The `{ timeout: 5000 }` merely pins Playwright's DEFAULT expect
-timeout — it looks like a wait but grants no extra slack.
+**Finding.** `tests/e2e/import.spec.ts:1445` "CSV import creates transactions and auto-saves
+template on first import", step "verify template was auto-saved on first import", assertion `:1512`
+`await expect(page.getByText(/6 rows/i)).toBeVisible({ timeout: 5000 })` -> element(s) not found
+under 4-worker parallel load. NEW: zero prior hits for `1445`/`1512` in QUESTIONS.md / evidence /
+reviews. NOT absorbable into Q-P20B-14 (that ticket is the test declared at `:1527`; F-1 sits inside
+the test declared at `:1445` — different declarations). Mechanism: `loadFile`
+(`use-import-state.ts:242-445`) is async file-read -> parse -> template sort -> `setSession`;
+`ImportPanel.tsx:262-297` only renders the row count after that; `:1512` is the SECOND import in its
+test so it additionally sorts+applies templates = the most load-exposed instance. The
+`{ timeout: 5000 }` merely pins Playwright's DEFAULT expect timeout — it looks like a wait but
+grants no extra slack.
 
 **Cohort (fix the class, not the line).** `toBeVisible({ timeout: 5000 })` appears exactly 13x in 2
-files: 8 in `import.spec.ts` (incl. `:1279 :1412 :1459 :1512 :1539 :1616`), 5 in `transactions.spec.ts`.
-`git log -- tests/e2e/import.spec.ts` shows no prior P20B revision ever touched that file — the one spec
-every sweep skipped.
+files: 8 in `import.spec.ts` (incl. `:1279 :1412 :1459 :1512 :1539 :1616`), 5 in
+`transactions.spec.ts`. `git log -- tests/e2e/import.spec.ts` shows no prior P20B revision ever
+touched that file — the one spec every sweep skipped.
 
 **Disposition (root, no adjudicator).** P21 FAIL (audit contract item 71: unexplained flake = FAIL).
 Routing to P20B to harden the cohort with a deterministic settle signal is "more work to complete
 committed HS-021 scope" and needs no adjudicator. The reviewer granted NO new carry-forward: unlike
-Q-P20B-14 (no identifiable failing line/mechanism, 20/20 isolation), F-1 has a specific line, a specific
-mechanism, and a clean fix. Owner P20B rev 06. Related: [[e2e-load-dependent-flake-validation]].
-- **Impact and risk:** ~1/8 full parallel; import.spec.ts is an established flake hotspot; test-only defect (20/20 isolation, no product implicated).
-- **How to reverse or migrate:** replace default-timeout `toBeVisible` with a deterministic post-parse settle wait sized like the file's existing `{ timeout: 15_000 }` siblings.
-- **Does a human still need to decide after completion?:** No — fix + re-validate under full-suite load.
+Q-P20B-14 (no identifiable failing line/mechanism, 20/20 isolation), F-1 has a specific line, a
+specific mechanism, and a clean fix. Owner P20B rev 06. Related:
+[[e2e-load-dependent-flake-validation]].
+
+- **Impact and risk:** ~1/8 full parallel; import.spec.ts is an established flake hotspot; test-only
+  defect (20/20 isolation, no product implicated).
+- **How to reverse or migrate:** replace default-timeout `toBeVisible` with a deterministic
+  post-parse settle wait sized like the file's existing `{ timeout: 15_000 }` siblings.
+- **Does a human still need to decide after completion?:** No — fix + re-validate under full-suite
+  load.
 
 ## Q-P20B-19 — P21 rev 04 audit FAIL F-2: `identity.spec.ts:282` RE-FLAKE; rev-02 fix cannot prove hydration for a controlled `Input`
 
 **Surfaced by:** P21 rev-04 DISTINCT reviewer (`reviews/P21-review-04.md`): `identity.spec.ts:282`
 FAILED 1 of 8 full-suite runs — the very test P20B rev 02 was dispatched to fix and whose fix was
-accepted. NO accepted-flake ticket exists for it. A failing check on a CLOSED fix is strictly stronger
-than an untracked flake -> contract item 71 FAIL. (The rev-04 collector saw it green 8/8 — honest sample
-difference; the class is environment-dependent, so a single clean environment never proves a fix holds.)
+accepted. NO accepted-flake ticket exists for it. A failing check on a CLOSED fix is strictly
+stronger than an untracked flake -> contract item 71 FAIL. (The rev-04 collector saw it green 8/8 —
+honest sample difference; the class is environment-dependent, so a single clean environment never
+proves a fix holds.)
 
 **Finding.** Step "validate BIP39 words with visual feedback", assertion `:359`
 `expect(firstInput).toHaveClass(/border-green-500/)`, first input observed 14x with `value=""`.
 Mechanism (root INDEPENDENTLY CONFIRMED by reading source): `SeedPhraseInput.tsx:329-332` is a fully
 controlled input (`value={word}` off `useState`). The rev-02 fix guards with `toBeEditable()` ->
 `fill()` -> `toHaveValue()`. But `src/components/ui/button.tsx:50` gates on `useIsHydrated()` while
-`src/components/ui/input.tsx` has NO such gate (confirmed: `grep useIsHydrated` -> button yes, input no).
-So `toBeEditable`/`toBeEnabled` is a genuine hydration proof for a Button and NO proof at all for an
-Input, which is editable from first paint. The pre-hydration `fill` sets the DOM value (so `toHaveValue`
-passes), React never runs `onChange`, and the next commit clobbers it back to `""`. The rev-02
-implementer reused the `helpers/auth.ts:20` idiom that works for gated controls and applied it to an
-ungated one.
+`src/components/ui/input.tsx` has NO such gate (confirmed: `grep useIsHydrated` -> button yes, input
+no). So `toBeEditable`/`toBeEnabled` is a genuine hydration proof for a Button and NO proof at all
+for an Input, which is editable from first paint. The pre-hydration `fill` sets the DOM value (so
+`toHaveValue` passes), React never runs `onChange`, and the next commit clobbers it back to `""`.
+The rev-02 implementer reused the `helpers/auth.ts:20` idiom that works for gated controls and
+applied it to an ungated one.
 
-**Why it got through.** `reviews/P20B-review-02.md:39-45` validated with ISOLATION ONLY ("9/9"), which
-cannot exercise a 4-worker load race — exactly the validation-method error the P21 contract and
-[[e2e-load-dependent-flake-validation]] warn about.
+**Why it got through.** `reviews/P20B-review-02.md:39-45` validated with ISOLATION ONLY ("9/9"),
+which cannot exercise a 4-worker load race — exactly the validation-method error the P21 contract
+and [[e2e-load-dependent-flake-validation]] warn about.
 
 **Disposition (root, no adjudicator).** P21 FAIL. Fix must gate on post-state-propagation evidence
-(onChange applied / value survives a React commit) NOT the raw DOM value — OR close the class at source
-by giving `src/components/ui/input.tsx` the `useIsHydrated` treatment `button.tsx` already has (product
-change, within P20B's remit). MUST be validated under repeated FULL-SUITE `--retries=0` load, never
-isolation. Owner P20B rev 06 (same batch as Q-P20B-18). "More work to complete committed HS-021 scope" —
-no adjudicator.
-- **Impact and risk:** ~1/8 full parallel; a regression of a fix believed closed; test-side (or a small hydration-gate product change).
-- **How to reverse or migrate:** re-run >=8 full-suite `--retries=0` after the fix; isolation is not acceptable validation.
+(onChange applied / value survives a React commit) NOT the raw DOM value — OR close the class at
+source by giving `src/components/ui/input.tsx` the `useIsHydrated` treatment `button.tsx` already
+has (product change, within P20B's remit). MUST be validated under repeated FULL-SUITE `--retries=0`
+load, never isolation. Owner P20B rev 06 (same batch as Q-P20B-18). "More work to complete committed
+HS-021 scope" — no adjudicator.
+
+- **Impact and risk:** ~1/8 full parallel; a regression of a fix believed closed; test-side (or a
+  small hydration-gate product change).
+- **How to reverse or migrate:** re-run >=8 full-suite `--retries=0` after the fix; isolation is not
+  acceptable validation.
 - **Does a human still need to decide after completion?:** No.
 
 ## Q-P21-04-01 — P21 rev 04 non-blocking C-1: upstream registry currency drift after the P01 rev-03 selection
@@ -2119,20 +2130,25 @@ advisories) so this is currency, not security — categorically unlike the rev-0
 **Finding.** Some prod deps have a newer registry `latest` published 2026-07-20..24, AFTER the P01
 rev-03 selection: `react`/`react-dom` 19.2.7->19.2.8, `@tanstack/react-virtual` 3.14.6->3.14.8,
 `loro-crdt` 1.13.7->1.13.8, `radix-ui` 1.6.2->1.6.7, `supabase-js` 2.110.7->2.110.8, `lucide-react`
-1.25.0->1.26.0 (an icon-set minor; the rest patch). `next`, `sharp`, `zod`, `motion` are EXACTLY current.
+1.25.0->1.26.0 (an icon-set minor; the rest patch). `next`, `sharp`, `zod`, `motion` are EXACTLY
+current.
 
-**Disposition (root, no adjudicator — adopts the DISTINCT reviewer's frozen-text ruling).** ACCEPTED as
-an explicit human-visible carry-forward; NOT a blocker and does NOT reopen P01/HS-002. Reasoning: HS-002's
-frozen "very latest safe-chain supported version" is satisfied at the audit instant (the same principle
-already proven by `next` — 16.2.12 exists but is safe-chain age-suppressed, so 16.2.11 IS "latest
-safe-chain supported"); the drift published after selection; `pnpm audit --prod` is clean so there is no
-security exposure; and chasing every post-selection npm publish has no terminating condition (it would
-reopen P01 on every release). This is an interpretation of the frozen phrase's temporal boundary, NOT a
-scope reduction (no committed work is dropped). Reversible: a future P01 revision can bump these patches
-if a human later wants them. Per the no-pause rule root records this and proceeds; no human halt.
-- **Impact and risk:** cosmetic currency only; zero security advisories; all patch bumps except one icon minor.
+**Disposition (root, no adjudicator — adopts the DISTINCT reviewer's frozen-text ruling).** ACCEPTED
+as an explicit human-visible carry-forward; NOT a blocker and does NOT reopen P01/HS-002. Reasoning:
+HS-002's frozen "very latest safe-chain supported version" is satisfied at the audit instant (the
+same principle already proven by `next` — 16.2.12 exists but is safe-chain age-suppressed, so
+16.2.11 IS "latest safe-chain supported"); the drift published after selection; `pnpm audit --prod`
+is clean so there is no security exposure; and chasing every post-selection npm publish has no
+terminating condition (it would reopen P01 on every release). This is an interpretation of the
+frozen phrase's temporal boundary, NOT a scope reduction (no committed work is dropped). Reversible:
+a future P01 revision can bump these patches if a human later wants them. Per the no-pause rule root
+records this and proceeds; no human halt.
+
+- **Impact and risk:** cosmetic currency only; zero security advisories; all patch bumps except one
+  icon minor.
 - **How to reverse or migrate:** a trivial future P01 dependency bump if desired.
-- **Does a human still need to decide after completion?:** Optional — a human may later elect the patch bumps; not required for Goal completion.
+- **Does a human still need to decide after completion?:** Optional — a human may later elect the
+  patch bumps; not required for Goal completion.
 
 ## Q-P20B-20 — `import.spec.ts` cross-worker temp-file collision is a real parallel-safety bug, NOT the eager-assertion class
 
@@ -2142,26 +2158,25 @@ if a human later wants them. Per the no-pause rule root records this and proceed
 failed in its `cleanup` step with `ENOENT: unlink '/tmp/.../test-import-<ms>.csv'` at
 `import.spec.ts:1637` (`fs.unlinkSync(csvPath)`).
 
-**Root cause:** `createTestFile` (`import.spec.ts:74-80`) builds the temp path from
-`Date.now()` (millisecond resolution) into the shared `os.tmpdir()`. Under `fullyParallel` + 4
-workers, two callers entering in the same millisecond get the IDENTICAL path; the second
-`writeFileSync` overwrites the first, and whichever test finishes first unlinks the shared file, so
-the other's cleanup hits ENOENT. Nine call sites funnel through this one helper. This is a genuine
-cross-worker parallel-safety defect — no timeout value can fix it.
+**Root cause:** `createTestFile` (`import.spec.ts:74-80`) builds the temp path from `Date.now()`
+(millisecond resolution) into the shared `os.tmpdir()`. Under `fullyParallel` + 4 workers, two
+callers entering in the same millisecond get the IDENTICAL path; the second `writeFileSync`
+overwrites the first, and whichever test finishes first unlinks the shared file, so the other's
+cleanup hits ENOENT. Nine call sites funnel through this one helper. This is a genuine cross-worker
+parallel-safety defect — no timeout value can fix it.
 
 **Fix (rev 06, inside allowed writes, `import.spec.ts` only):** append a random suffix —
-`const uniqueName = \`test-import-${Date.now()}-${crypto.randomUUID().slice(0, 8)}\``. Root-verified:
-`crypto` is already imported at `import.spec.ts:16` (pre-existing, no new import); the three
-filename assertions (`:1524`, `:1586`, `:1627`) use the UNANCHORED regex `/test-import-\d+/i`, which
-still matches the unchanged `test-import-<digits>` prefix.
+`const uniqueName = \`test-import-${Date.now()}-${crypto.randomUUID().slice(0,
+8)}\``. Root-verified: `crypto`is already imported at`import.spec.ts:16` (pre-existing, no new import); the three filename assertions (`:1524`, `:1586`, `:1627`) use the UNANCHORED regex `/test-import-\d+/i`, which still matches the unchanged `test-import-<digits>`
+prefix.
 
 **Material consequence for the audit trail:** the rev-04 F-1 diagnosis was INCOMPLETE.
 `import.spec.ts:1527` was charted as an eager-assertion cohort member (and it does contain those),
 but at least one of its observed failures was this ENOENT, which a timeout change would never have
-fixed. **If a future audit sees `:1527` fail again, check WHICH error before assuming the
-timeout fix regressed** — ENOENT ⇒ this parallel-safety class (should be closed by rev 06); a
-5s-timeout timeout ⇒ the eager class. This is why 10 back-to-back full-suite runs surface defects a
-single `pnpm test:e2e` never applied enough scheduling pressure to expose.
+fixed. **If a future audit sees `:1527` fail again, check WHICH error before assuming the timeout
+fix regressed** — ENOENT ⇒ this parallel-safety class (should be closed by rev 06); a 5s-timeout
+timeout ⇒ the eager class. This is why 10 back-to-back full-suite runs surface defects a single
+`pnpm test:e2e` never applied enough scheduling pressure to expose.
 
 **Status:** fixed in rev 06 pending DISTINCT-reviewer confirmation under repeated full-suite load.
 Not a scope reduction (completing committed HS-021 code-quality scope); no adjudicator required.
@@ -2202,13 +2217,13 @@ scope reduction. If the reviewer FAILs on M-1, root routes to P20A.
 
 `next.config.ts` has no `headers()` and there is no middleware, so no Content-Security-Policy or
 security response headers are emitted. The collector rules this OUT OF FROZEN SCOPE: HS-015 is
-scoped to websocket/CORS/pubkey-hash vault access, which IS delivered. Non-blocking; owner = a future
-security package. Reviewer to confirm scope classification.
+scoped to websocket/CORS/pubkey-hash vault access, which IS delivered. Non-blocking; owner = a
+future security package. Reviewer to confirm scope classification.
 
 ## Q-P21-05-03 — A-1: R-034 empty-row checkbox accessible-name fallback
 
-**Surfaced by:** `p21-collector-05` (§12.7). **R-034 was explicitly routed to the P21 audit**, so the
-collector adjudicated it. The transaction-row selection checkbox accessible name degrades to
+**Surfaced by:** `p21-collector-05` (§12.7). **R-034 was explicitly routed to the P21 audit**, so
+the collector adjudicated it. The transaction-row selection checkbox accessible name degrades to
 `"Select transaction "` when the description is empty, and HS-001 makes empty rows routine, so two
 added rows yield two identically-named checkboxes. **Status:** OPEN. Collector severity:
 NON-BLOCKING (operable, correctly role-typed, other cells named, pre-existing/P16D-owned). Concrete
@@ -2221,12 +2236,12 @@ DISTINCT `p21-reviewer-05` formal **FAIL** (`reviews/P21-review-05.md`, preserve
 `7cb651d`). Status updates to the rev-05 questions:
 
 - **Q-P21-05-01 (M-1) → CONFIRMED BLOCKING.** The reviewer OVERTURNED the collector's NON-BLOCKING
-  call and independently reproduced the data loss through the real sync merge path, establishing that
-  the loss spans the whole pruned subtree [not just "same day bucket" — the collector's mitigation
-  was factually wrong]. Audit contract `:72` names "false marketing claim" a FAIL trigger.
-  **Owner P20A / HS-016** for the one-line copy correction at `FeaturesSection.tsx:65`. Root: routing
-  the copy fix is more work to complete HS-016's committed "truthful marketing copy" scope, NOT a
-  reduction → no adjudicator for the copy.
+  call and independently reproduced the data loss through the real sync merge path, establishing
+  that the loss spans the whole pruned subtree [not just "same day bucket" — the collector's
+  mitigation was factually wrong]. Audit contract `:72` names "false marketing claim" a FAIL
+  trigger. **Owner P20A / HS-016** for the one-line copy correction at `FeaturesSection.tsx:65`.
+  Root: routing the copy fix is more work to complete HS-016's committed "truthful marketing copy"
+  scope, NOT a reduction → no adjudicator for the copy.
 - **Q-P21-05-02 (O-1) → CONFIRMED out of frozen scope, non-blocking.** HS-015 frozen text is scoped
   to websocket/CORS/pubkey-hash vault access, which IS delivered and enforced; CSP is deployment
   hardening. Future security package.
@@ -2239,8 +2254,8 @@ whether the goal's committed scope REQUIRES the engine fix is a scope call that 
 prior accepted `p20b-reviewer-01 §6.1` deferral and/or reduce the FINAL-AUDIT "converge without lost
 changes" clause. Per PROCESS.md:335-347, root does NOT self-adjudicate [interest in unblocking] and
 does NOT pause for the human. A DISTINCT fresh-context opus-tier **scope adjudicator** — never the
-P21/P20A/P20B implementer or reviewer — is dispatched to rule, from the frozen `sourceTextLines`, the
-binding task, and the decision being superseded, whether the `pruneBuckets` merge-safety fix is
+P21/P20A/P20B implementer or reviewer — is dispatched to rule, from the frozen `sourceTextLines`,
+the binding task, and the decision being superseded, whether the `pruneBuckets` merge-safety fix is
 genuinely required in-goal or is an over-scope, **defaulting to the block standing** unless the
 frozen text plainly does not require it. Its written ruling is the authority; root transcribes it
 here and into DECISIONS and proceeds on the safest reversible path. **Status: OPEN — adjudicator
@@ -2248,19 +2263,32 @@ running.**
 
 ## Q-P20B-00 SCOPE ADJUDICATION — RESOLVED OUT-OF-GOAL (2026-07-30)
 
-**Ruling:** `reviews/P21-scope-adjudication-05.md` (commit `f290246`), independent fresh-context opus-tier scope adjudicator `p21-scope-adjudicator-05` (DISTINCT — never P20A/P20B/P21-05 implementer or reviewer). **VERDICT: ENGINE-FIX-OUT-OF-GOAL.** Transcribed to DECISIONS as **D-019**.
+**Ruling:** `reviews/P21-scope-adjudication-05.md` (commit `f290246`), independent fresh-context
+opus-tier scope adjudicator `p21-scope-adjudicator-05` (DISTINCT — never P20A/P20B/P21-05
+implementer or reviewer). **VERDICT: ENGINE-FIX-OUT-OF-GOAL.** Transcribed to DECISIONS as
+**D-019**.
 
-- No frozen `sourceTextLine` requires transaction-lifecycle merge-safety. `pruneBuckets` (`mutations.ts:327` `delete store[accountId]`) is in the transaction-container lifecycle, triggered by delete/move/duplicate/import — never by an allocation edit.
-- The one frozen concurrency requirement is FS-001 allocation-map scope (`spec.md:451,452,628-629,703`, all "person"-qualified); a different capability, and per the rev-05 reviewer it IS delivered (16/16 gates).
-- `p20b-reviewer-01 §6.1` (deferral) UPHELD, not superseded. `FINAL-AUDIT.md:90` "lost changes" clause does NOT trace to frozen text for the transaction-prune scenario (only anchor is allocation-scoped :703; the broadened reading is an over-scope per PROCESS.md:330-333). The allocation-scoped capability it rests on is met.
-- **Owning package: none in-goal.** Q-P20B-00 stays routed to a future out-of-goal CRDT package. The ONLY in-goal work from rev-05 M-1 is the P20A/HS-016 copy correction at `FeaturesSection.tsx:65`.
-- **Status: RESOLVED.** Root proceeds: execute §275 RB-P21-05 marker rollback of HS-016, then re-implement the truthful copy, re-review, and re-open P21 rev 06.
+- No frozen `sourceTextLine` requires transaction-lifecycle merge-safety. `pruneBuckets`
+  (`mutations.ts:327` `delete store[accountId]`) is in the transaction-container lifecycle,
+  triggered by delete/move/duplicate/import — never by an allocation edit.
+- The one frozen concurrency requirement is FS-001 allocation-map scope
+  (`spec.md:451,452,628-629,703`, all "person"-qualified); a different capability, and per the
+  rev-05 reviewer it IS delivered (16/16 gates).
+- `p20b-reviewer-01 §6.1` (deferral) UPHELD, not superseded. `FINAL-AUDIT.md:90` "lost changes"
+  clause does NOT trace to frozen text for the transaction-prune scenario (only anchor is
+  allocation-scoped :703; the broadened reading is an over-scope per PROCESS.md:330-333). The
+  allocation-scoped capability it rests on is met.
+- **Owning package: none in-goal.** Q-P20B-00 stays routed to a future out-of-goal CRDT package. The
+  ONLY in-goal work from rev-05 M-1 is the P20A/HS-016 copy correction at `FeaturesSection.tsx:65`.
+- **Status: RESOLVED.** Root proceeds: execute §275 RB-P21-05 marker rollback of HS-016, then
+  re-implement the truthful copy, re-review, and re-open P21 rev 06.
 
 ## Q-USER-2026-07-30 — Four user-reported items raised during P21 rev 06
 
-Raised by the human user in-session on 2026-07-30 while `p21-collector-06` was mid-audit against BASE
-`4e6ccee`. Recorded here by root; NONE were implemented at the time of writing (tree-drift discipline:
-a product edit would invalidate the running audit, which is evidence only for the tree it ran on).
+Raised by the human user in-session on 2026-07-30 while `p21-collector-06` was mid-audit against
+BASE `4e6ccee`. Recorded here by root; NONE were implemented at the time of writing (tree-drift
+discipline: a product edit would invalidate the running audit, which is evidence only for the tree
+it ran on).
 
 ### U-1 — Add-transaction button selects the new row; should focus the description instead
 
@@ -2269,21 +2297,23 @@ a product edit would invalidate the running audit, which is evidence only for th
 `handleAddTransaction` (`src/app/(app)/transactions/page.tsx:538-585`) ends with
 `setSelectedIds(new Set([transactionId]))` (`:584`). Discoverability is ALREADY handled without it:
 filters reset (`:542`), `displayCount` bumped so the row is on the rendered page (`:571-579`), and
-`setTransactionIdToReveal` (`:580`) drives the scroll-into-view effect (`:303-321`). The selection is
-therefore not functionally necessary; it is being borrowed as a highlight mechanism.
+`setTransactionIdToReveal` (`:580`) drives the scroll-into-view effect (`:303-321`). The selection
+is therefore not functionally necessary; it is being borrowed as a highlight mechanism.
 
 Three problems with the current behaviour: (a) selection in this table means "target for bulk
-operations" (`handleBulkDelete` `:588`, `BulkEditToolbar`), but a new empty row is an EDIT target, not
-a bulk target — semantic mismatch; (b) `new Set([id])` REPLACES rather than adds, so an in-progress
-multi-row selection is silently destroyed; (c) it does not actually help the user start typing.
+operations" (`handleBulkDelete` `:588`, `BulkEditToolbar`), but a new empty row is an EDIT target,
+not a bulk target — semantic mismatch; (b) `new Set([id])` REPLACES rather than adds, so an
+in-progress multi-row selection is silently destroyed; (c) it does not actually help the user start
+typing.
 
 **Agreed design — focus only:** drop the selection entirely and focus the new row's description
 input. Reuse the EXISTING consume-once reveal channel (`transactionIdToReveal` or a sibling intent)
 rather than adding a parallel mechanism — that effect already runs exactly when the row lands in
-`displayedTransactions`, which is the correct moment to focus because the row is guaranteed rendered.
-Preserve the "consume once and clear" discipline (see the deliberate comment at `:296-297`).
-Precedent for the ref-then-focus idiom already exists in this codebase: `TransactionRow.tsx:254`,
-`PersonAllocationCell.tsx:104`, `InlineEditableTags.tsx:134`, `BulkEditToolbar.tsx:107-110`.
+`displayedTransactions`, which is the correct moment to focus because the row is guaranteed
+rendered. Preserve the "consume once and clear" discipline (see the deliberate comment at
+`:296-297`). Precedent for the ref-then-focus idiom already exists in this codebase:
+`TransactionRow.tsx:254`, `PersonAllocationCell.tsx:104`, `InlineEditableTags.tsx:134`,
+`BulkEditToolbar.tsx:107-110`.
 
 Implementation care: the grid is VIRTUALIZED, so the row must be mounted when `.focus()` is called,
 and the scroll must not immediately unmount/remount it. Rationale for focus-only over keeping the
@@ -2297,7 +2327,8 @@ wanted independently, a transient "recently added" style is a truer fit than sel
 "test", got no results.
 
 **NOT case sensitivity** — `filterTransactions` lowercases both sides correctly
-(`src/lib/crdt/queries.ts:560-567`). The actual cause is that search reads ONLY the raw stored field:
+(`src/lib/crdt/queries.ts:560-567`). The actual cause is that search reads ONLY the raw stored
+field:
 
 ```
 tx.description?.toLowerCase().includes(searchLower) ||
@@ -2306,9 +2337,9 @@ tx.notes?.toLowerCase().includes(searchLower)
 
 When a transaction is aliased, the VISIBLE text is resolved from a different place —
 `descriptionAliasId` via `aliasLookup.resolve(...)` (`page.tsx:337-338`, `:398-399`) — and aliases
-form a one-hop symlink graph (`src/lib/crdt/schema.ts:87-94`). So the user searches what is displayed
-while the filter matches what is stored. Consistent with the repro: manual rows are created with
-`description: ""` (`page.tsx:557`) and then aliased.
+form a one-hop symlink graph (`src/lib/crdt/schema.ts:87-94`). So the user searches what is
+displayed while the filter matches what is stored. Consistent with the repro: manual rows are
+created with `description: ""` (`page.tsx:557`) and then aliased.
 
 **Open design question (decide before implementing):** should search match the resolved alias, the
 raw description, or BOTH? Root's recommendation is BOTH — matching raw text preserves finding
@@ -2319,16 +2350,16 @@ real design choice, not a one-line fix.
 
 ### U-3 — Presence avatar shows pubkey-hash initials, not the member name (CONFIRMED DEFECT)
 
-**User repro:** a pink circle labelled "AD" next to "Saved"; hovering shows a long id; the user's name
-is the default "Me".
+**User repro:** a pink circle labelled "AD" next to "Saved"; hovering shows a long id; the user's
+name is the default "Me".
 
 "AD" is the first two hex characters of the user's PUBKEY HASH, not their name.
 `src/app/(app)/layout.tsx:218-224` (and the second render site at `:343`) build presence users as
 `{ userId, isOnline: true }` and **never pass `name`**. `PresenceAvatar.tsx:48` then does
 `const displayName = name || userId`, falling back to the hash; `getInitials`
 (`src/lib/utils/color.ts`) takes its hash branch (`/^[a-f0-9]+$/i` → first 2 chars uppercased) and
-yields "AD". The tooltip is the same hash because `title={displayName…}` (`:56`) shares the fallback.
-The pink is `hashToColor(userId)` — deterministic, hence stable but arbitrary.
+yields "AD". The tooltip is the same hash because `title={displayName…}` (`:56`) shares the
+fallback. The pink is `hashToColor(userId)` — deterministic, hence stable but arbitrary.
 
 Two distinct defects: (1) the display name is never plumbed through to presence avatars — it should
 resolve from vault membership/people data; (2) a raw 64-char hex hash is not an acceptable
@@ -2339,10 +2370,10 @@ that it is reached at all in the ordinary single-user case.
 this is a UX defect, NOT a secret-safety breach. No key, seed or recovery material is involved.
 
 **Scope routing (root does NOT self-decide):** presence is HS-003 (scratch `:161-163`, package P10,
-`passed`). Whether "presence avatar renders a hash instead of a name" is a defect IN delivered HS-003
-scope — rather than new scope — determines routing. If in-scope it is a P10 defect and fixing it
-COMPLETES committed scope (no adjudicator needed, per the rule that requiring more work to complete
-committed scope is not a reduction). The FINAL-AUDIT checklist already covers presence and
+`passed`). Whether "presence avatar renders a hash instead of a name" is a defect IN delivered
+HS-003 scope — rather than new scope — determines routing. If in-scope it is a P10 defect and fixing
+it COMPLETES committed scope (no adjudicator needed, per the rule that requiring more work to
+complete committed scope is not a reduction). The FINAL-AUDIT checklist already covers presence and
 deterministic accessible role/name/state snapshots, so `p21-collector-06` may surface it
 independently; a P21 FAIL would route it in cleanly. Root will let the audit finding determine
 routing rather than pre-empting it.
@@ -2356,21 +2387,21 @@ discussed in design history.
 
 (a) **It is already implemented — but by LOCALE, not timezone.** `src/lib/domain/detect-currency.ts`
 resolves `navigator.languages[0]` → BCP 47 region subtag → `REGION_TO_CURRENCY` (~70 countries,
-`:170-260`), falling back to USD. Its header (`:4-6`) explicitly argues locale is "more reliable than
-timezone because locale directly encodes cultural/regional preferences" — the OPPOSITE conclusion to
-the scratch note's guess. Switching to timezone is therefore a deliberate BEHAVIOUR CHANGE reversing
-a prior decision, not missing work, and deserves an explicit recorded decision rather than a silent
-flip.
+`:170-260`), falling back to USD. Its header (`:4-6`) explicitly argues locale is "more reliable
+than timezone because locale directly encodes cultural/regional preferences" — the OPPOSITE
+conclusion to the scratch note's guess. Switching to timezone is therefore a deliberate BEHAVIOUR
+CHANGE reversing a prior decision, not missing work, and deserves an explicit recorded decision
+rather than a silent flip.
 
-(b) **It is outside the frozen SCOPE selection.** The scratch note lives at `specs/human-scratch.md:33`
-("When creating a vault the default currency should be inferred from time zone or culture … I'm
-guessing time zone is probably a better indicator of country?"). SCOPE's 21 frozen top-level blocks
-span lines **151-350** only (HS-001 `151-155` … HS-020 `348-350`). Line 33 is in an earlier region
-never selected into this goal; it carries an `[x]` that was NOT set by this campaign's marker
-mechanic and is not in the authorized checked-ID set. `SCOPE.json#sources[SRC-HUMAN-SCRATCH]` freezes
-the file at `b91ca932…` with the leading-marker flip as the ONLY permitted edit, so root cannot
-retroactively pull line 33 into SCOPE without breaking the freeze all 22 requirements validate
-against.
+(b) **It is outside the frozen SCOPE selection.** The scratch note lives at
+`specs/human-scratch.md:33` ("When creating a vault the default currency should be inferred from
+time zone or culture … I'm guessing time zone is probably a better indicator of country?"). SCOPE's
+21 frozen top-level blocks span lines **151-350** only (HS-001 `151-155` … HS-020 `348-350`). Line
+33 is in an earlier region never selected into this goal; it carries an `[x]` that was NOT set by
+this campaign's marker mechanic and is not in the authorized checked-ID set.
+`SCOPE.json#sources[SRC-HUMAN-SCRATCH]` freezes the file at `b91ca932…` with the leading-marker flip
+as the ONLY permitted edit, so root cannot retroactively pull line 33 into SCOPE without breaking
+the freeze all 22 requirements validate against.
 
 **Disposition:** recorded as future work. Pulling it into this goal would be a scope EXPANSION; per
 PROCESS.md root must not self-decide it — it would require dispatching the independent fresh-context
@@ -2384,8 +2415,8 @@ derived from their display name**, not pubkey-hash characters.
 **Locked design:** plumb the member's display name through to `PresenceAvatar` at BOTH render sites
 (`src/app/(app)/layout.tsx:218-224` desktop/mobile and `:343`), resolving the name from vault
 membership/people data instead of passing only `userId`. No change is required to `getInitials`
-(`src/lib/utils/color.ts`): its ordinary word-initials branch already produces the desired result once
-fed a real name — default name "Me" -> "M", "Ben Tefay" -> "BT". The existing hash branch
+(`src/lib/utils/color.ts`): its ordinary word-initials branch already produces the desired result
+once fed a real name — default name "Me" -> "M", "Ben Tefay" -> "BT". The existing hash branch
 (`/^[a-f0-9]+$/i` -> first 2 chars) is retained ONLY as a genuine last-resort fallback for the case
 where no name can be resolved; the defect is that it is currently reached in the ordinary case.
 
@@ -2407,21 +2438,21 @@ audit finding (see U-3 above).
 The user reported the app inferred **USD** for them and asked whether their locale is wrong. Root
 measured the actual environment:
 
-| Signal | Value | Implied currency |
-| --- | --- | --- |
-| Locale (`LANG` -> `navigator.language`) | `en-US` | **USD** (wrong) |
+| Signal                                                        | Value                | Implied currency  |
+| ------------------------------------------------------------- | -------------------- | ----------------- |
+| Locale (`LANG` -> `navigator.language`)                       | `en-US`              | **USD** (wrong)   |
 | Timezone (`Intl.DateTimeFormat().resolvedOptions().timeZone`) | `Australia/Brisbane` | **AUD** (correct) |
 
-The user's locale is not misconfigured in any unusual sense: `LANG=en_US.UTF-8` is the default on most
-Linux installs, Docker images and dev environments, and it only visibly affects date/number
+The user's locale is not misconfigured in any unusual sense: `LANG=en_US.UTF-8` is the default on
+most Linux installs, Docker images and dev environments, and it only visibly affects date/number
 formatting, so it is commonly left untouched. This is the systematic failure mode of the implemented
-approach: **`en-US` is the world's default locale string, so region-from-locale silently collapses to
-`US` for a large population who are not in the US**, biasing detection toward USD with no signal to
-the user that it is wrong.
+approach: **`en-US` is the world's default locale string, so region-from-locale silently collapses
+to `US` for a large population who are not in the US**, biasing detection toward USD with no signal
+to the user that it is wrong.
 
-Timezone lacks that failure mode: it is set from a map at install time and is almost always genuinely
-correct, because an incorrect timezone visibly breaks clocks and calendars. There is no equivalent
-"default nobody changes".
+Timezone lacks that failure mode: it is set from a map at install time and is almost always
+genuinely correct, because an incorrect timezone visibly breaks clocks and calendars. There is no
+equivalent "default nobody changes".
 
 **This is a direct empirical counterexample to the rationale currently asserted in
 `src/lib/domain/detect-currency.ts:4-6`** ("more reliable than timezone because locale directly
@@ -2432,14 +2463,14 @@ implemented decision.
 
 **Revised recommendation for the future-work item:** timezone PRIMARY, locale FALLBACK. Timezone
 answers "where am I"; locale answers "how do I like things formatted"; currency follows location. A
-fallback is still required because timezone can be `UTC` in containers/VMs, which maps to no country.
-The detected value should remain a DEFAULT the user can override at vault creation, never a silent
-lock-in.
+fallback is still required because timezone can be `UTC` in containers/VMs, which maps to no
+country. The detected value should remain a DEFAULT the user can override at vault creation, never a
+silent lock-in.
 
-**Implementation constraint:** there is NO IANA-zone -> ISO-3166 mapping in the dependency tree today,
-and `Intl` does not expose one directly. Per CLAUDE.md ("use established libraries for algorithms;
-custom implementations are bugs waiting to happen"), this must use a maintained tz->country package
-rather than a hand-rolled table. The existing `REGION_TO_CURRENCY` map
+**Implementation constraint:** there is NO IANA-zone -> ISO-3166 mapping in the dependency tree
+today, and `Intl` does not expose one directly. Per CLAUDE.md ("use established libraries for
+algorithms; custom implementations are bugs waiting to happen"), this must use a maintained
+tz->country package rather than a hand-rolled table. The existing `REGION_TO_CURRENCY` map
 (`detect-currency.ts:170-260`, ~70 countries) can be reused for the country -> currency half.
 
 Disposition is UNCHANGED: still future work, still outside the frozen SCOPE selection (scratch `:33`
@@ -2463,8 +2494,8 @@ taken, so implementation can proceed and be corrected cheaply if the principal s
 The principal's report said "it said I think 22 rows were errored" and later quoted the summary as
 `561 old, 46 duplicates and 15 errors`. Root measured the actual file: EXACTLY 15 rows carry an
 amount with a leading `+` (`+69.00`, `+5000.00`, …), and `parseAmount`
-(`src/lib/import/csv.ts:165-190`) handles `-`, accounting parentheses and currency symbols but has NO
-branch for a leading `+`, so those rows fail magnitude validation. 15 measured == 15 reported.
+(`src/lib/import/csv.ts:165-190`) handles `-`, accounting parentheses and currency symbols but has
+NO branch for a leading `+`, so those rows fail magnitude validation. 15 measured == 15 reported.
 
 **Safest reversible choice taken:** frozen text requires that EVERY row reported as an error be
 genuinely unparseable, rather than fixing a specific count. That wording holds whether the true
@@ -2507,8 +2538,8 @@ posture, not a preference.
 about 22." This matches root's independent measurement exactly: 15 rows in the reported CSV carry an
 amount with a leading `+`, and `parseAmount` (`src/lib/import/csv.ts:165-190`) has no branch for a
 leading plus. There is NO second error class to hunt. The frozen text is unchanged and remains
-correct — it requires that every row reported as an error be genuinely unparseable, which this single
-defect satisfies once fixed.
+correct — it requires that every row reported as an error be genuinely unparseable, which this
+single defect satisfies once fixed.
 
 **Q-UR008-02 CLOSED — the principal specified the exact summary breakdown.** Requested categories,
 verbatim:
@@ -2529,16 +2560,16 @@ Duplicates, Old New, or Old Duplicates, and those sum to Total Rows.
 
 **Effect on frozen scope: NONE — this is a refinement WITHIN the frozen requirement, not an
 expansion.** `specs/010-user-reported-refinements-2/spec.md:78-80` already mandates the semantic:
-"The import summary distinguishes rows excluded for being older than the cutoff from rows excluded as
-duplicates, and names separately those rows that are both old and duplicates, so no count is
+"The import summary distinguishes rows excluded for being older than the cutoff from rows excluded
+as duplicates, and names separately those rows that are both old and duplicates, so no count is
 ambiguous about why a row was excluded or whether it will be imported." The principal's list is a
 concrete instance of exactly that. Root deliberately kept label STRINGS out of the frozen text so
-wording could be settled without a scope change; this is that path working as intended. No new frozen
-source, no SCOPE edit, no adjudicator.
+wording could be settled without a scope change; this is that path working as intended. No new
+frozen source, no SCOPE edit, no adjudicator.
 
 **Binding instruction to the P29 implementer:** implement precisely these six categories with these
-labels, preserving the parenthetical qualifiers, and assert in tests that the five outcome categories
-partition Total Rows with no row counted twice and none omitted.
+labels, preserving the parenthetical qualifiers, and assert in tests that the five outcome
+categories partition Total Rows with no row counted twice and none omitted.
 
 **Q-UR008-03 remains OPEN and unchanged** — treated as a labelling defect only. The requested
 breakdown is expected to resolve the confusion the principal reported about `561 old`, since that
@@ -2557,8 +2588,8 @@ with two matched elements. The package's unit tests could not have caught it, be
 Testing Library where the same name matches exactly.
 
 **Measured exposure, not asserted.** The implementer counted rather than warned: **469** `getByRole`
-calls in `tests/e2e/` pass a `name`, of which only **33** pass `exact`. Pairwise containment over the
-distinct short literal names surfaces collisions ALREADY PRESENT in the suite:
+calls in `tests/e2e/` pass a `name`, of which only **33** pass `exact`. Pairwise containment over
+the distinct short literal names surfaces collisions ALREADY PRESENT in the suite:
 
 - `"Add"` is contained in `"Add owner"`, `"Add Person"`, `"Add Tag"`
 - `"Coffee"` is contained in `"Coffee Shop"`
@@ -2580,32 +2611,32 @@ as its own package or accept the residual risk with reasons.
 ## Q-P24-02 — A required leaf prop does not make a state unrepresentable if an upstream prop is optional
 
 Proposed by `p24-reviewer-01` during P24, generalised from its advisory finding A-1 and demonstrated
-empirically rather than asserted. Transcribed by root because `QUESTIONS.md` is root-owned.
-**Carry forward to P21.**
+empirically rather than asserted. Transcribed by root because `QUESTIONS.md` is root-owned. **Carry
+forward to P21.**
 
 **The pattern.** P24 made `displayName` a REQUIRED prop on `PresenceAvatar` carrying a discriminated
 union, so the component cannot be handed a raw pubkey hash. Root endorsed that as making the illegal
-state unrepresentable, per `.claude/rules/typescript-style.md`. The guarantee is real AT THE LEAF and
-does not hold along the whole path: `resolveMemberName?` is OPTIONAL on both
+state unrepresentable, per `.claude/rules/typescript-style.md`. The guarantee is real AT THE LEAF
+and does not hold along the whole path: `resolveMemberName?` is OPTIONAL on both
 `TransactionTable.tsx:51` and `TransactionRow.tsx:100`, and `TransactionRow.tsx:225` supplies
 `?? { kind: "unnamed" }`. So the row avatar's correctness rests on ONE unguarded call site,
 `TransactionTable.tsx:496`, and the type system will not defend it.
 
 **Demonstrated, not inferred.** In a throwaway `git archive` tree the reviewer deleted that single
-plumbing line and observed **tsc exit 0 and 1810 unit tests passing** — a silent regression that both
-the compiler and the unit suite accept. Root independently verified the optional props and the `??`
-default. The probe tree was deleted and the shared checkout verified untouched.
+plumbing line and observed **tsc exit 0 and 1810 unit tests passing** — a silent regression that
+both the compiler and the unit suite accept. Root independently verified the optional props and the
+`??` default. The probe tree was deleted and the shared checkout verified untouched.
 
-**Why it is advisory and not blocking for P24.** The worst case is silent degradation to
-"Unnamed member", never a pubkey hash, so shipped behaviour on the reviewed tree is correct and UR-003
-is satisfied. The finding is about the DURABILITY of the guarantee, not its present truth.
+**Why it is advisory and not blocking for P24.** The worst case is silent degradation to "Unnamed
+member", never a pubkey hash, so shipped behaviour on the reviewed tree is correct and UR-003 is
+satisfied. The finding is about the DURABILITY of the guarantee, not its present truth.
 
 **The general lesson for P21 and future packages.** "Made illegal states unrepresentable" is a claim
 about a PATH, not a component. A required prop at the leaf combined with an optional prop plus a
 default upstream reintroduces exactly the state the leaf forbids, and does so invisibly. When a
 package claims this rule, the audit should check every hop between the data source and the leaf, or
-require the intermediate props be non-optional too. Related: A-2, that the row presence surface has no
-direct test coverage at all, so nothing would catch such a regression at runtime either.
+require the intermediate props be non-optional too. Related: A-2, that the row presence surface has
+no direct test coverage at all, so nothing would catch such a regression at runtime either.
 
 ### Q-P24-01 CORRECTION — the three named collisions do NOT hold; the mechanism does
 
@@ -2613,51 +2644,53 @@ direct test coverage at all, so nothing would catch such a regression at runtime
 independently rather than accepting the refutation. **The entry's totals and mechanism stand; its
 three named collisions are withdrawn.**
 
-**What survives.** The totals reproduce exactly: 469 name-carrying `getByRole` calls in `tests/e2e/`,
-33 with `exact`, 436 residual. The MECHANISM is real and P24 holds a live demonstration of it — the
-run-1 strict-mode violation where a locator for `"Me"` also matched `"Unnamed member"`.
+**What survives.** The totals reproduce exactly: 469 name-carrying `getByRole` calls in
+`tests/e2e/`, 33 with `exact`, 436 residual. The MECHANISM is real and P24 holds a live
+demonstration of it — the run-1 strict-mode violation where a locator for `"Me"` also matched
+`"Unnamed member"`.
 
 **What is withdrawn — none of the three is a live collision, each for a different reason:**
 
 - **`"Add"`** — already guarded before P24 began. Both occurrences pass `exact: true`:
   `tests/e2e/helpers/settlement.ts:38` and `tests/e2e/transactions.spec.ts:125`.
-- **`"Coffee"` / `"Coffee Shop"`** — different ROLES and different FILES. `"Coffee"` appears only as a
-  `button` (`field-rule-parity.spec.ts:116,138,204`); `"Coffee Shop"` appears once as an `option`
-  (`description-aliases.spec.ts:233`), in a file carrying no `"Coffee"` locator. Playwright scopes name
-  matching within a role.
-- **`"Status"` / `"Statuses"`** — different ROLES. `"Status"` is a `button` (`transactions.spec.ts:433`);
-  `"Statuses"` is a `heading` with `level: 1` (`helpers/nav.ts:31`).
+- **`"Coffee"` / `"Coffee Shop"`** — different ROLES and different FILES. `"Coffee"` appears only as
+  a `button` (`field-rule-parity.spec.ts:116,138,204`); `"Coffee Shop"` appears once as an `option`
+  (`description-aliases.spec.ts:233`), in a file carrying no `"Coffee"` locator. Playwright scopes
+  name matching within a role.
+- **`"Status"` / `"Statuses"`** — different ROLES. `"Status"` is a `button`
+  (`transactions.spec.ts:433`); `"Statuses"` is a `heading` with `level: 1` (`helpers/nav.ts:31`).
 
 **Root's error in transcribing this.** Root lifted the implementer's measured examples into
-`QUESTIONS.md` as established fact because they were presented as measurements rather than assertions.
-They WERE measurements — of a text comparison that did not filter by role, container or file, and did
-not exclude names already carrying `exact`. A measurement of the wrong thing is not more reliable than
-an assertion, and root did not ask what was measured. This is the same recorded root pattern in a new
-form: accepting a narrower check as an answer to a broader question.
+`QUESTIONS.md` as established fact because they were presented as measurements rather than
+assertions. They WERE measurements — of a text comparison that did not filter by role, container or
+file, and did not exclude names already carrying `exact`. A measurement of the wrong thing is not
+more reliable than an assertion, and root did not ask what was measured. This is the same recorded
+root pattern in a new form: accepting a narrower check as an answer to a broader question.
 
 **Actionable correction for whoever picks up the sweep:** filter on ROLE and CONTAINER and exclude
 locators already passing `exact`, or the comparison will mostly yield false positives. An unfiltered
-substring sweep would have added `exact: true` to locators that did not need it, in files the package
-had no business touching, chasing three hazards that do not exist.
+substring sweep would have added `exact: true` to locators that did not need it, in files the
+package had no business touching, chasing three hazards that do not exist.
 
-**This strengthens rather than weakens the decision to flag rather than sweep.** That the implementer's
-own measurement does not fully survive scrutiny is the best argument that declining to act on it was
-correct. The reviewer reached the same scope conclusion independently and for a different reason:
-P24's own three name locators all pass `exact: true`, and it checked every other `aria-label` in the
-`aside` they are scoped to — only "Open menu" and "Expand/Collapse sidebar", neither colliding. P24's
-exposure is closed; the rest of the suite was equally open before this package and is not worsened by
-it.
+**This strengthens rather than weakens the decision to flag rather than sweep.** That the
+implementer's own measurement does not fully survive scrutiny is the best argument that declining to
+act on it was correct. The reviewer reached the same scope conclusion independently and for a
+different reason: P24's own three name locators all pass `exact: true`, and it checked every other
+`aria-label` in the `aside` they are scoped to — only "Open menu" and "Expand/Collapse sidebar",
+neither colliding. P24's exposure is closed; the rest of the suite was equally open before this
+package and is not worsened by it.
 
 ## Q-P25-01 — A comment that paraphrases frozen text can assert a flow the code does not implement
 
 Proposed by `p25-reviewer-01` during P25, generalised from its advisory finding P25-01. Transcribed
 by root because `QUESTIONS.md` is root-owned. **Carry forward to P21.**
 
-**The instance.** `src/lib/domain/detect-currency.ts:24-25` states the inferred currency "is presented
-in the vault creation flow and the user can change it before and after creation." Root verified that
-`grep -rniE 'currenc' 'src/app/(onboarding)/'` returns NOTHING: there is no pre-creation currency
-prompt. The vault is created headlessly and the currency is first presented on `/settings`
-immediately afterwards, so the "before creation" clause describes a flow that does not exist.
+**The instance.** `src/lib/domain/detect-currency.ts:24-25` states the inferred currency "is
+presented in the vault creation flow and the user can change it before and after creation." Root
+verified that `grep -rniE 'currenc' 'src/app/(onboarding)/'` returns NOTHING: there is no
+pre-creation currency prompt. The vault is created headlessly and the currency is first presented on
+`/settings` immediately afterwards, so the "before creation" clause describes a flow that does not
+exist.
 
 **Why it is advisory and not a defect.** The clause is lifted near-verbatim from frozen
 `specs/009-user-reported-refinements/spec.md:97-98`, so the implementer was faithfully tracking the
@@ -2667,16 +2700,17 @@ inferred value is only a default, that a returning user's unlock never re-runs d
 vault's currency cannot be reset by a later time-zone change. The implementer's own comment at
 `ensure-default.ts:141-142` is precisely accurate about what the code does.
 
-**The general failure mode.** Where a code comment paraphrases frozen requirement text, and the frozen
-text describes a flow more loosely than the implementation realises it, the comment reads as VERIFIED
-FACT while actually being an unverified restatement of a requirement. A later reader cannot tell the
-difference. The rule this suggests: **a comment should describe what the code does and CITE the
-requirement, rather than restating the requirement as though it were a description of the code.**
+**The general failure mode.** Where a code comment paraphrases frozen requirement text, and the
+frozen text describes a flow more loosely than the implementation realises it, the comment reads as
+VERIFIED FACT while actually being an unverified restatement of a requirement. A later reader cannot
+tell the difference. The rule this suggests: **a comment should describe what the code does and CITE
+the requirement, rather than restating the requirement as though it were a description of the
+code.**
 
-**Root's disposition.** Root will route the reword rather than have a worker edit wording derived from
-frozen text — the frozen source itself is immutable, so only the COMMENT can change, and it should
-move to the `ensure-default.ts:141-142` style. Recorded here so P21 can decide whether to charter the
-reword, sweep for the same pattern elsewhere, or accept it with reasons.
+**Root's disposition.** Root will route the reword rather than have a worker edit wording derived
+from frozen text — the frozen source itself is immutable, so only the COMMENT can change, and it
+should move to the `ensure-default.ts:141-142` style. Recorded here so P21 can decide whether to
+charter the reword, sweep for the same pattern elsewhere, or accept it with reasons.
 
 ## Q-P26-01 — A test that hand-copies a dependency's source cannot constrain that dependency
 
@@ -2684,65 +2718,66 @@ Proposed by `p26-reviewer-01` during P26 as advisory finding F-1, demonstrated e
 verified it independently. Transcribed here because `QUESTIONS.md` is root-owned. **Carry forward to
 P21.**
 
-**The instance, and note it lands on a check ROOT asked for.** Root's P26 dispatch required the fix's
-blast radius be "PROVEN bounded, not assumed" — the concern being that a transaction-table styling fix
-must not leak into the shared shadcn primitives that back every input in the product. The implementer
-wrote `tests/unit/transactions/cell-resting-chrome.test.ts:82-87`, whose comment reads "Blast radius,
-asserted rather than assumed". Root confirmed the test asserts against `SHARED_PRIMITIVE_BASES.input`,
-a string literal declared in the SAME test file, and that the file contains no import of
-`@/components/ui/input` at all.
+**The instance, and note it lands on a check ROOT asked for.** Root's P26 dispatch required the
+fix's blast radius be "PROVEN bounded, not assumed" — the concern being that a transaction-table
+styling fix must not leak into the shared shadcn primitives that back every input in the product.
+The implementer wrote `tests/unit/transactions/cell-resting-chrome.test.ts:82-87`, whose comment
+reads "Blast radius, asserted rather than assumed". Root confirmed the test asserts against
+`SHARED_PRIMITIVE_BASES.input`, a string literal declared in the SAME test file, and that the file
+contains no import of `@/components/ui/input` at all.
 
 **Demonstrated, not argued.** The reviewer leaked the fix's chrome into the real
 `src/components/ui/input.tsx` product-wide and **both full suites stayed green: 2186 unit tests and
 168 E2E.** A regression the test exists to catch would have shipped.
 
 **Why it was advisory rather than blocking.** The blast radius genuinely IS bounded on the reviewed
-tree — `git diff -- src/components/ui/` is empty and `RESTING_CELL_CHROME` is imported only by the five
-cell sites — so shipped behaviour is correct and UR-005 is satisfied. What fails is the ASSURANCE the
-test advertises. The reviewer validated a one-file fix in both directions, using the existing
-`@testing-library/react` and `tests/unit/components/*.tsx` precedent, before proposing it.
+tree — `git diff -- src/components/ui/` is empty and `RESTING_CELL_CHROME` is imported only by the
+five cell sites — so shipped behaviour is correct and UR-005 is satisfied. What fails is the
+ASSURANCE the test advertises. The reviewer validated a one-file fix in both directions, using the
+existing `@testing-library/react` and `tests/unit/components/*.tsx` precedent, before proposing it.
 
 **The general failure mode.** A test that hand-copies a dependency's source into a local fixture is
-testing its own copy, not the dependency. It will pass forever regardless of what the dependency does,
-while reading like a guarantee about it. **Recommended sweep for P21:** look for local fixtures that
-duplicate production constants, and for test names containing "blast radius", "outside", "unchanged"
-or "does not disturb" — those phrases advertise a claim about code the test may never touch.
+testing its own copy, not the dependency. It will pass forever regardless of what the dependency
+does, while reading like a guarantee about it. **Recommended sweep for P21:** look for local
+fixtures that duplicate production constants, and for test names containing "blast radius",
+"outside", "unchanged" or "does not disturb" — those phrases advertise a claim about code the test
+may never touch.
 
 ## Q-P26-02 — A `bg-transparent` without a `dark:` counterpart is a latent instance of the UR-005 defect
 
 Proposed by `p26-reviewer-01` during P26. **Carry forward to P21.**
 
 The UR-005 defect existed because `twMerge` does not treat a bare utility as conflicting with a
-variant-prefixed one: `bg-transparent` and `dark:bg-input/30` target different states, so BOTH survive
-the merge and the dark-mode fill remains. This is invisible in source review — the cell's own classes
-read as clean.
+variant-prefixed one: `bg-transparent` and `dark:bg-input/30` target different states, so BOTH
+survive the merge and the dark-mode fill remains. This is invisible in source review — the cell's
+own classes read as clean.
 
-So any hand-written `bg-transparent` WITHOUT a `dark:bg-transparent` counterpart, on an element backed
-by a shadcn primitive that carries `dark:bg-input/30`, is a latent instance of the same defect. Root
-confirmed at least three primitives carry it: `input.tsx:11`, `select.tsx:34` and the outline Button
-variant `button.tsx:17`, the last also carrying `dark:border-input`, the only source of a resting
-border. `textarea.tsx:10` carries it too and is the subject of P26's advisory F-2.
+So any hand-written `bg-transparent` WITHOUT a `dark:bg-transparent` counterpart, on an element
+backed by a shadcn primitive that carries `dark:bg-input/30`, is a latent instance of the same
+defect. Root confirmed at least three primitives carry it: `input.tsx:11`, `select.tsx:34` and the
+outline Button variant `button.tsx:17`, the last also carrying `dark:border-input`, the only source
+of a resting border. `textarea.tsx:10` carries it too and is the subject of P26's advisory F-2.
 
-**Recommended for P21:** sweep for the asymmetric pattern rather than for visible symptoms, since the
-symptom only appears in one theme and only where the primitive is used. P26's fix pairs every utility
-with its `dark:` variant in `RESTING_CELL_CHROME` precisely to remove the asymmetry rather than mask
-the symptom.
+**Recommended for P21:** sweep for the asymmetric pattern rather than for visible symptoms, since
+the symptom only appears in one theme and only where the primitive is used. P26's fix pairs every
+utility with its `dark:` variant in `RESTING_CELL_CHROME` precisely to remove the asymmetry rather
+than mask the symptom.
 
 ## Q-P26-F2 — The notes Textarea is the last unfixed instance of the UR-005 pattern
 
-Advisory F-2 from `p26-reviewer-01`, ruled OUT of UR-005 scope by that reviewer and recorded here so it
-is not lost. **Carry forward to P21.**
+Advisory F-2 from `p26-reviewer-01`, ruled OUT of UR-005 scope by that reviewer and recorded here so
+it is not lost. **Carry forward to P21.**
 
-`TransactionRow.tsx:583`, the expanded-row notes Textarea, carries the same dark-mode resting fill via
-`textarea.tsx:10`, measured at `oklab(0.999998 … / 0.045)`. It is now the ONLY remaining instance of
-the pattern P26 exists to eliminate, sitting one line from five fixed sites.
+`TransactionRow.tsx:583`, the expanded-row notes Textarea, carries the same dark-mode resting fill
+via `textarea.tsx:10`, measured at `oklab(0.999998 … / 0.045)`. It is now the ONLY remaining
+instance of the pattern P26 exists to eliminate, sitting one line from five fixed sites.
 
 The reviewer ruled it outside UR-005 on the frozen text: `spec.md:11-24` names six cells as a CLOSED
-list and states its subject as the RESTING state twice, and the expanded row is not present at rest. It
-confirmed both measurements itself before ruling. That is a decision, not an oversight.
+list and states its subject as the RESTING state twice, and the expanded row is not present at rest.
+It confirmed both measurements itself before ruling. That is a decision, not an oversight.
 
-Fixing it is a one-line follow-up using the existing `RESTING_CELL_CHROME` constant. P21 should decide
-whether to charter it, fold it into another package, or accept it with reasons.
+Fixing it is a one-line follow-up using the existing `RESTING_CELL_CHROME` constant. P21 should
+decide whether to charter it, fold it into another package, or accept it with reasons.
 
 ## Q-P27-01 — An unresolvable import makes Playwright SKIP a spec file silently, not fail it
 
@@ -2752,34 +2787,36 @@ style point.**
 
 **The instance.** `reviews/P24-review-01.md` §4 advised importing `UNNAMED_MEMBER_LABEL` from
 `@/lib/crdt/person` into an E2E spec, so that renaming the label would break at compile time rather
-than silently un-matching a hardcoded string. Sound reasoning; it does not work here. The import chain
-is `person.ts:19 -> defaults.ts:12 -> @/types -> temporal-polyfill`, and root confirmed
+than silently un-matching a hardcoded string. Sound reasoning; it does not work here. The import
+chain is `person.ts:19 -> defaults.ts:12 -> @/types -> temporal-polyfill`, and root confirmed
 `temporal-polyfill`'s package exports publish ONLY an `import` condition:
 `{".": {"import": {"types": "./index.d.ts", "default": "./index.js"}}}`. Playwright's resolver fails
 with `No "exports" main defined`.
 
 **Why it is dangerous rather than merely inconvenient.** Playwright does not report a failure. It
-reports **"No tests found"** and SKIPS THE ENTIRE SPEC FILE. On a campaign that surfaces as a reduced
-test count, not a red run — and a reviewer comparing "3/3 green" across runs would see three green
-campaigns while an entire spec silently contributed nothing. Every prior campaign in this goal that
-asserted a count did so precisely because of a related hazard; this is the mechanism that makes that
-discipline load-bearing rather than ceremonial.
+reports **"No tests found"** and SKIPS THE ENTIRE SPEC FILE. On a campaign that surfaces as a
+reduced test count, not a red run — and a reviewer comparing "3/3 green" across runs would see three
+green campaigns while an entire spec silently contributed nothing. Every prior campaign in this goal
+that asserted a count did so precisely because of a related hazard; this is the mechanism that makes
+that discipline load-bearing rather than ceremonial.
 
 **Why the cited precedents mislead.** The P24 advisory pointed at `helpers/settlement.ts:14` as
 precedent for importing from `@/`. That works only because `@/lib/crypto/*` never reaches `@/types`.
-The precedent is real but does not generalise, and nothing in the file signals which imports are safe.
+The precedent is real but does not generalise, and nothing in the file signals which imports are
+safe.
 
 **Mitigations for P21 to consider.** Always verify the expected test COUNT with
 `playwright test --list` before and after a change, rather than trusting a green campaign — P27 did
-exactly this and confirmed 168 at BASE and 170 at HEAD. Treat any unexplained drop in collected tests
-as a failure. And note that the underlying advisory's GOAL — making a label rename break loudly rather
-than silently — remains unmet; a different mechanism would be needed.
+exactly this and confirmed 168 at BASE and 170 at HEAD. Treat any unexplained drop in collected
+tests as a failure. And note that the underlying advisory's GOAL — making a label rename break
+loudly rather than silently — remains unmet; a different mechanism would be needed.
 
 ## Q-P23-01 EXTENSION — a SECOND wall-clock assertion exists, in the E2E suite
 
-`Q-P23-01` recorded that `tests/unit/import/duplicates.test.ts:749` asserts a wall-clock RATIO and is
-therefore load-sensitive by construction. `p27-reviewer-01` surfaced a second instance, in a different
-suite, and root verified both. **Carry forward to P21 as an extension of `Q-P23-01`, not a duplicate.**
+`Q-P23-01` recorded that `tests/unit/import/duplicates.test.ts:749` asserts a wall-clock RATIO and
+is therefore load-sensitive by construction. `p27-reviewer-01` surfaced a second instance, in a
+different suite, and root verified both. **Carry forward to P21 as an extension of `Q-P23-01`, not a
+duplicate.**
 
 **Instance 1, already recorded — unit.** `duplicates.test.ts:724` "scales linearly with input size
 (O(n+m) complexity)", asserting `expect(ratio1).toBeLessThan(4)` at `:749-750` on ratios of
@@ -2790,53 +2827,54 @@ suite, and root verified both. **Carry forward to P21 as an extension of `Q-P23-
 `:804`. Root verified the assertion exists. A 10-second budget is generous, but it is still an
 absolute wall-clock bound and it WILL fail under enough concurrent load.
 
-**Both were observed failing under load in this goal, by different agents.** `p27-implementer-01` hit
-instance 1 once in five runs and honestly reported it as an unattributed red run, having lost the test
-name to a grep. `p27-reviewer-01` then NAMED it on its third run — confirming the implementer's
-labelled-as-unconfirmed inference was correct. The same reviewer hit instance 2 by running unit suites
-concurrently with an E2E campaign, and correctly killed and restarted the campaign rather than
-reasoning about whether the failure was real.
+**Both were observed failing under load in this goal, by different agents.** `p27-implementer-01`
+hit instance 1 once in five runs and honestly reported it as an unattributed red run, having lost
+the test name to a grep. `p27-reviewer-01` then NAMED it on its third run — confirming the
+implementer's labelled-as-unconfirmed inference was correct. The same reviewer hit instance 2 by
+running unit suites concurrently with an E2E campaign, and correctly killed and restarted the
+campaign rather than reasoning about whether the failure was real.
 
 **The rule this establishes, and it is the important part.** Once a campaign's load is uncontrolled,
-a wall-clock failure is UNPROVABLE in either direction — it cannot be shown to be a real defect, and it
-cannot be shown not to be. The only sound response is to discard the campaign and re-run in a quiet
-window, which is what the reviewer did. Do NOT reason from "it is probably the known flake" to a green
-verdict.
+a wall-clock failure is UNPROVABLE in either direction — it cannot be shown to be a real defect, and
+it cannot be shown not to be. The only sound response is to discard the campaign and re-run in a
+quiet window, which is what the reviewer did. Do NOT reason from "it is probably the known flake" to
+a green verdict.
 
-**Recommended for P21:** replace both assertions with load-independent measures — an operation count,
-a complexity assertion over instrumented call counts, or a comparison against a same-run baseline
-rather than absolute time. Until then, every campaign in this goal must be run with nothing else heavy
-on the machine, and any agent running unit suites alongside an E2E campaign is contaminating its own
-evidence.
+**Recommended for P21:** replace both assertions with load-independent measures — an operation
+count, a complexity assertion over instrumented call counts, or a comparison against a same-run
+baseline rather than absolute time. Until then, every campaign in this goal must be run with nothing
+else heavy on the machine, and any agent running unit suites alongside an E2E campaign is
+contaminating its own evidence.
 
 ## Q-P27-02 — A campaign is evidence only for the LOAD it ran under, not only for the tree
 
-Proposed by `p27-reviewer-01` during P27, from an error it made and disclosed itself. **Carry forward
-to P21.**
+Proposed by `p27-reviewer-01` during P27, from an error it made and disclosed itself. **Carry
+forward to P21.**
 
-**The established rule this extends.** This goal already enforces that a campaign is evidence only for
-the TREE it ran on: any mid-campaign tree change voids it and the campaign restarts from run 1. That
-rule has been applied repeatedly — P22 rev 03, P25 and P26 all restarted campaigns rather than report a
-mixed one.
+**The established rule this extends.** This goal already enforces that a campaign is evidence only
+for the TREE it ran on: any mid-campaign tree change voids it and the campaign restarts from run 1.
+That rule has been applied repeatedly — P22 rev 03, P25 and P26 all restarted campaigns rather than
+report a mixed one.
 
-**The new axis.** `p27-reviewer-01` ran full `pnpm test` passes CONCURRENTLY with E2E run 1 of its own
-campaign. That run came back `1 failed | 169 passed` on `transactions.spec.ts:725`, the virtualization
-test that asserts a 10-second expansion budget (see the `Q-P23-01` extension). Under 117 concurrent
-vitest files that is almost certainly self-inflicted load rather than a tree defect — **but once the
-load is uncontrolled the failure is UNPROVABLE IN EITHER DIRECTION.** It cannot be shown to be a real
-defect and it cannot be shown not to be. The reviewer killed the campaign and restarted with nothing
-else running; its clean run 1 then passed the very test that had gone red, settling it as an artifact.
+**The new axis.** `p27-reviewer-01` ran full `pnpm test` passes CONCURRENTLY with E2E run 1 of its
+own campaign. That run came back `1 failed | 169 passed` on `transactions.spec.ts:725`, the
+virtualization test that asserts a 10-second expansion budget (see the `Q-P23-01` extension). Under
+117 concurrent vitest files that is almost certainly self-inflicted load rather than a tree defect —
+**but once the load is uncontrolled the failure is UNPROVABLE IN EITHER DIRECTION.** It cannot be
+shown to be a real defect and it cannot be shown not to be. The reviewer killed the campaign and
+restarted with nothing else running; its clean run 1 then passed the very test that had gone red,
+settling it as an artifact.
 
-**Why this is easy to violate by accident, and worth a rule.** Running unit suites "while waiting" for
-an E2E campaign feels productive and costs nothing visible. The contamination is invisible until a
-wall-clock assertion trips, and by then the campaign's evidentiary value is already gone. Two agents in
-this goal have now hit load-sensitive assertions, in two different suites.
+**Why this is easy to violate by accident, and worth a rule.** Running unit suites "while waiting"
+for an E2E campaign feels productive and costs nothing visible. The contamination is invisible until
+a wall-clock assertion trips, and by then the campaign's evidentiary value is already gone. Two
+agents in this goal have now hit load-sensitive assertions, in two different suites.
 
 **Recommended rule for P21:** a campaign must run with nothing else heavy on the machine, and the
-evidence should state that explicitly rather than leave it assumed. If a wall-clock assertion fails and
-the load was uncontrolled, the only sound response is to discard the campaign and re-run in a quiet
-window — never to reason from "it is probably the known flake" to a green verdict. Root applied exactly
-this reasoning when accepting the reviewer's restart.
+evidence should state that explicitly rather than leave it assumed. If a wall-clock assertion fails
+and the load was uncontrolled, the only sound response is to discard the campaign and re-run in a
+quiet window — never to reason from "it is probably the known flake" to a green verdict. Root
+applied exactly this reasoning when accepting the reviewer's restart.
 
 **Operational note also from this reviewer, worth keeping.** Killing a contaminated campaign needs
 care: the Playwright CLI parent has a RELATIVE cmdline, so a `/tmp/mf-*` scan misses it, and an
@@ -2849,12 +2887,12 @@ cleaning up a campaign must use that, or it risks killing the human's server.
 Proposed by `p28-reviewer-01` during P28, found in static audit. Root reproduced it independently.
 **Carry forward to P21.**
 
-**The instance.** P28 correctly fixed a positional leading-zero strip that corrupted `ja-JP` dates, and
-in doing so rewrote the strip as `String(Number(part.value))`. `Intl` emits day and month in the
-LOCALE'S OWN NUMERALS, so for any locale whose resolved numbering system is not `latn` this produces the
-literal string `"NaN"`. Root verified: `fa-IR` `formatToParts` yields `month="۵" day="۱۲"`, and
-`String(Number("۱۲"))` is `NaN`. Confirmed across `fa-IR`, `bn-BD`, `my-MM`, `ne-NP`, `ar-SA`, `ar-EG`
-and `ps-AF`.
+**The instance.** P28 correctly fixed a positional leading-zero strip that corrupted `ja-JP` dates,
+and in doing so rewrote the strip as `String(Number(part.value))`. `Intl` emits day and month in the
+LOCALE'S OWN NUMERALS, so for any locale whose resolved numbering system is not `latn` this produces
+the literal string `"NaN"`. Root verified: `fa-IR` `formatToParts` yields `month="۵" day="۱۲"`, and
+`String(Number("۱۲"))` is `NaN`. Confirmed across `fa-IR`, `bn-BD`, `my-MM`, `ne-NP`, `ar-SA`,
+`ar-EG` and `ps-AF`.
 
 **Why the package's own tests could not catch it.** All five locales the tests cover — `en-AU`,
 `en-GB`, `en-US`, `de-DE`, `ja-JP` — use Latin digits. The regression is invisible to every one of
@@ -2862,10 +2900,10 @@ them, and invisible to the principal, whose browser is `en-US`. A package can th
 comprehensively tested against its named cases and still regress an entire unnamed class.
 
 **How the reviewer caught it, which is the transferable part.** It imported the REAL product module
-rather than reimplementing the expression, swept inputs OFF the tested path, and diffed the behaviour
-against base `c9be708` to separate a regression from a pre-existing gap. That last step is what turned
-"this output looks wrong" into "this package introduced it": base rendered `"۵/۱۲"`, a real date, so the
-defect is unambiguously new.
+rather than reimplementing the expression, swept inputs OFF the tested path, and diffed the
+behaviour against base `c9be708` to separate a regression from a pre-existing gap. That last step is
+what turned "this output looks wrong" into "this package introduced it": base rendered `"۵/۱۲"`, a
+real date, so the defect is unambiguously new.
 
 **Recommended for P21.** When a package REWRITES a formatter, parser or normaliser rather than
 extending one, the review should (a) import the real module, not a copy — see `Q-P26-01`, where a
@@ -2882,36 +2920,38 @@ Proposed by `p28-reviewer-01` during P28, from a root sequencing failure. **Carr
 committed `d514d47` to `main` at 15:48 — one minute later — and continued running full E2E campaigns
 from `/tmp/mf-p28`, holding port 3000 and driving load from 6.15 to 9.16. Because
 `playwright.config.ts` pins `:3000` with `reuseExistingServer: false`, exactly one campaign runs
-repo-wide, so the reviewer was blocked from its own campaign for the entire review. It did the static
-half instead and found the blocking defect there, which is the only reason this cost little.
+repo-wide, so the reviewer was blocked from its own campaign for the entire review. It did the
+static half instead and found the blocking defect there, which is the only reason this cost little.
 
-**Two distinct harms.** The tree moved under the reviewer, so its BASE was stale within a minute; and
-the port was unavailable, so the authoritative campaign could not run at all. Compounding it, the
-implementer's own recorded campaign no longer covered HEAD once `d514d47` changed tests — so at the
-moment of review, NO campaign covered the tree that would ship.
+**Two distinct harms.** The tree moved under the reviewer, so its BASE was stale within a minute;
+and the port was unavailable, so the authoritative campaign could not run at all. Compounding it,
+the implementer's own recorded campaign no longer covered HEAD once `d514d47` changed tests — so at
+the moment of review, NO campaign covered the tree that would ship.
 
-**The rule.** Handing a package to review must be a genuine handoff: from that moment the implementer
-stops committing to `main` for that package and releases the port, and root confirms the tree is FINAL
-before the reviewer starts. Root should verify both — HEAD unchanged and port free — as part of
-dispatch rather than assuming, exactly as it verifies the scratch SHA and FS-001 metadata.
+**The rule.** Handing a package to review must be a genuine handoff: from that moment the
+implementer stops committing to `main` for that package and releases the port, and root confirms the
+tree is FINAL before the reviewer starts. Root should verify both — HEAD unchanged and port free —
+as part of dispatch rather than assuming, exactly as it verifies the scratch SHA and FS-001
+metadata.
 
 **Root's error, recorded as such.** Root dispatched without confirming the implementer had finished,
 and did not notice the port was still held. The reviewer caught it, blocked rather than reviewing a
-moving target, and asked for a ruling instead of absorbing the problem. That is the correct behaviour
-and it should not have been necessary.
+moving target, and asked for a ruling instead of absorbing the problem. That is the correct
+behaviour and it should not have been necessary.
 
 ## Q-P29-01 — A THIRD load-sensitive test, and an ESLint hazard from worktree placement
 
 Two findings from P29, both verified by root. **Carry forward to P21.**
 
-**(a) A third load-sensitive test, extending `Q-P23-01`.** `tests/integration/vault-maintenance.test.tsx`
-("sanitizes generic action and edit callbacks") failed once under load with
-`expected undefined to be 'before'`. It drives a MOCKED `requestAnimationFrame` — root confirmed the
-`vi.spyOn(window, "requestAnimationFrame")` calls at `:447` and `:501` — so it is frame-timing
-dependent rather than wall-clock dependent, a different mechanism from the two already recorded. It
-passed in isolation and in both subsequent full runs.
+**(a) A third load-sensitive test, extending `Q-P23-01`.**
+`tests/integration/vault-maintenance.test.tsx` ("sanitizes generic action and edit callbacks")
+failed once under load with `expected undefined to be 'before'`. It drives a MOCKED
+`requestAnimationFrame` — root confirmed the `vi.spyOn(window, "requestAnimationFrame")` calls at
+`:447` and `:501` — so it is frame-timing dependent rather than wall-clock dependent, a different
+mechanism from the two already recorded. It passed in isolation and in both subsequent full runs.
 
 The register of load-sensitive assertions in this goal is now:
+
 1. `tests/unit/import/duplicates.test.ts:749` — a wall-clock RATIO. Observed failing at 4.098 and
    4.671 against a bound of 4, always under load, always passing on a quiet machine.
 2. `tests/e2e/transactions.spec.ts:804` — an absolute 10-second expansion budget.
@@ -2921,28 +2961,28 @@ Three tests, three different mechanisms, three different suites. That is enough 
 sensitivity as a property of the suite rather than a quirk of one assertion, and it is why
 `Q-P27-02`'s rule — a campaign is evidence only for the load it ran under — is load-bearing rather
 than pedantic. P21 should either make these load-independent or state explicitly that every campaign
-must run on a quiet machine and that any wall-clock or frame-timing failure under uncontrolled load is
-unprovable in both directions.
+must run on a quiet machine and that any wall-clock or frame-timing failure under uncontrolled load
+is unprovable in both directions.
 
-**(b) A worktree inside the repo silently breaks `pnpm lint` for EVERY package.** `p29-implementer-01`
-placed its worktree at `.claude/worktrees/p29-ur008`. `.git/info/exclude` hides it from git, but ESLint
-does not read that file and walked it, so a bare `pnpm lint` reported **591 errors and 18,773 warnings
-across 219 files**. Attribution by path gave **217 worktree files** plus **2 entries that were the same
-single pre-existing `TransactionTable.tsx:426` warning**. Every error was ESLint re-linting one
-package's working copy through a second path.
+**(b) A worktree inside the repo silently breaks `pnpm lint` for EVERY package.**
+`p29-implementer-01` placed its worktree at `.claude/worktrees/p29-ur008`. `.git/info/exclude` hides
+it from git, but ESLint does not read that file and walked it, so a bare `pnpm lint` reported **591
+errors and 18,773 warnings across 219 files**. Attribution by path gave **217 worktree files** plus
+**2 entries that were the same single pre-existing `TransactionTable.tsx:426` warning**. Every error
+was ESLint re-linting one package's working copy through a second path.
 
-It was diagnosed by `p28-implementer-01`, which correctly attributed it to another package rather than
-to a repo defect and deliberately did NOT "fix" the offending files — which would have edited another
-package's in-flight work. `p29-implementer-01` then verified the diagnosis independently before acting
-on it, and relocated to `/tmp/mf-p29`. Root confirmed the worktree is gone from the repo and that a
-bare `pnpm lint` now exits **0** with one pre-existing warning.
+It was diagnosed by `p28-implementer-01`, which correctly attributed it to another package rather
+than to a repo defect and deliberately did NOT "fix" the offending files — which would have edited
+another package's in-flight work. `p29-implementer-01` then verified the diagnosis independently
+before acting on it, and relocated to `/tmp/mf-p29`. Root confirmed the worktree is gone from the
+repo and that a bare `pnpm lint` now exits **0** with one pre-existing warning.
 
-**Rule for P21 and for every future dispatch:** worktrees must live OUTSIDE the repository directory.
-`/tmp/mf-<package>` is the convention every other package here followed. Note `git worktree move` fails
-across filesystems with `Invalid cross-device link`, so relocation means commit, remove, re-create from
-the branch — the implementer verified that was lossless by comparing tree digests before and after.
-Worth stating in dispatches, since nothing in the repo enforces it and the failure mode is a
-catastrophic-looking number that belongs to nobody.
+**Rule for P21 and for every future dispatch:** worktrees must live OUTSIDE the repository
+directory. `/tmp/mf-<package>` is the convention every other package here followed. Note
+`git worktree move` fails across filesystems with `Invalid cross-device link`, so relocation means
+commit, remove, re-create from the branch — the implementer verified that was lossless by comparing
+tree digests before and after. Worth stating in dispatches, since nothing in the repo enforces it
+and the failure mode is a catastrophic-looking number that belongs to nobody.
 
 ## Q-P29-02 — Unblocking an inert code path makes everything downstream newly reachable and never-run
 
@@ -2950,26 +2990,27 @@ Generalised by `p29-implementer-01` from two defects it caught in its own packag
 own fix would otherwise have converted from harmless into destructive. **Carry forward to P21 — this
 is a review heuristic, not a one-off.**
 
-**The mechanism.** When a fix unblocks a code path that was previously inert, everything downstream of
-it becomes newly reachable and **has never actually run**. Latent defects below the blockage are
-harmless precisely BECAUSE the path above them always failed, so they are invisible in the bug report,
-invisible in the existing tests, and invisible to anyone reasoning about the reported symptom.
+**The mechanism.** When a fix unblocks a code path that was previously inert, everything downstream
+of it becomes newly reachable and **has never actually run**. Latent defects below the blockage are
+harmless precisely BECAUSE the path above them always failed, so they are invisible in the bug
+report, invisible in the existing tests, and invisible to anyone reasoning about the reported
+symptom.
 
 **Two instances, same package, same shape:**
 
-| defect | at BASE | after a detection-only fix | user-visible result |
-| --- | --- | --- | --- |
-| `parseRawRows` computed `detectHeaders` and DISCARDED it, leaving `hasHeaders` true | harmless — nothing parses anyway | first data row silently dropped as a header that is not there | 621 of 622 rows import, and it **looks like success** |
-| `MappingTab`'s Auto-detect button matched header NAMES and returned `{}` on a headerless file | merely useless | `onMappingsChange` overwrites wholesale, so clicking it WIPES the mappings the load path just resolved correctly | the working preview is destroyed by the button meant to repair it |
+| defect                                                                                        | at BASE                          | after a detection-only fix                                                                                       | user-visible result                                               |
+| --------------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `parseRawRows` computed `detectHeaders` and DISCARDED it, leaving `hasHeaders` true           | harmless — nothing parses anyway | first data row silently dropped as a header that is not there                                                    | 621 of 622 rows import, and it **looks like success**             |
+| `MappingTab`'s Auto-detect button matched header NAMES and returned `{}` on a headerless file | merely useless                   | `onMappingsChange` overwrites wholesale, so clicking it WIPES the mappings the load path just resolved correctly | the working preview is destroyed by the button meant to repair it |
 
 Both would have been introduced BY the fix, not found by it. Root's dispatch had independently
 cautioned about the second — that the button-driven and on-load paths could now disagree — but the
 observed behaviour was worse than disagreement: it was destruction of correct state.
 
 **Why it matters more than an ordinary regression.** In both cases the post-fix failure is
-*plausible-looking*. A silently dropped first row and a wiped mapping both present as ordinary results
-rather than as errors, so neither would necessarily be caught by a reviewer checking that the reported
-symptom is gone.
+_plausible-looking_. A silently dropped first row and a wiped mapping both present as ordinary
+results rather than as errors, so neither would necessarily be caught by a reviewer checking that
+the reported symptom is gone.
 
 **Recommended for P21, and for any package that unblocks a previously-failing path:** enumerate what
 becomes reachable for the first time, and test THOSE paths rather than only the fix. Ask "what has
@@ -2981,87 +3022,92 @@ construction — it passed while the path was dead.
 Self-caught by `p29-implementer-01` and recorded in its evidence §4.3. **Carry forward to P21.**
 
 Writing a test for the `MappingTab` parity fix, the implementer first wrote an assertion comparing
-`detectColumnMappingsFromValues(rows)` to `detectColumnMappingsFromValues(rows)` — both sides calling
-the same function. It passes for ANY implementation of the button, including the broken one. **The tell
-that caught it: it went green immediately, before the fix was applied.** It was replaced with a test
-that renders the real component and clicks the real button via `fireEvent`, which fails at BASE with
-`expected "vi.fn()" to be called with arguments: [ Array(1) ]`.
+`detectColumnMappingsFromValues(rows)` to `detectColumnMappingsFromValues(rows)` — both sides
+calling the same function. It passes for ANY implementation of the button, including the broken one.
+**The tell that caught it: it went green immediately, before the fix was applied.** It was replaced
+with a test that renders the real component and clicks the real button via `fireEvent`, which fails
+at BASE with `expected "vi.fn()" to be called with arguments: [ Array(1) ]`.
 
-The implementer's framing is the right one and worth carrying verbatim: **a green test that cannot fail
-is worse than no test, because it discharges the obligation to check without doing the checking.**
+The implementer's framing is the right one and worth carrying verbatim: **a green test that cannot
+fail is worse than no test, because it discharges the obligation to check without doing the
+checking.**
 
 **This is the third shape of the same family in this goal**, and they should be swept for together:
+
 - `Q-P26-01` — a test hand-copying a dependency's source into a local fixture, which can never
   constrain that dependency.
 - `Q-P27-01` — an unresolvable import making Playwright or vitest report zero tests rather than
   failing, so a whole spec silently contributes nothing.
 - `Q-P29-03` — a tautological assertion that passes for every implementation.
 
-All three produce a PASSING-LOOKING result that proves nothing, and none is visible in a green summary
-line. **Recommended detection for P21: run every new or changed test against the pre-fix tree and
-require it to FAIL by name.** Every one of these three shapes is caught by that single check, and
-several packages in this goal already adopted it voluntarily.
+All three produce a PASSING-LOOKING result that proves nothing, and none is visible in a green
+summary line. **Recommended detection for P21: run every new or changed test against the pre-fix
+tree and require it to FAIL by name.** Every one of these three shapes is caught by that single
+check, and several packages in this goal already adopted it voluntarily.
 
 ## Q-P28-03/04/05 — Three review-method findings from the P28 rev 02 re-review
 
 Proposed by `p28-reviewer-02`. Root verified the mechanism behind Q-P28-03 directly. **Carry forward
 to P21.**
 
-**Q-P28-03 — a correctly-shaped round-trip table can still miss a defect if no member of it exercises
-the axis.** P28's locale table was extended from 5 to 9 with coverage strictly up, deliberately naming
-input CLASSES rather than adding arbitrary locales — non-Latin numerals, non-Gregorian calendar,
-year-first order. It was a good table and it still missed F-4, because **all nine locales happen to
-agree between the `numeric` and `2-digit` skeletons.** The axis that mattered — *the editing skeleton
-is not the parsing skeleton* — was not represented by any member. Root confirmed the divergence
-exists: `mt-MT` is `month/day/year` numeric but `day/month/year` 2-digit; `ug-CN` is `year/day/month`
-against `year/month/day`. So "name the input classes" (`Q-P28-01`) is necessary and not sufficient: a
-class is only covered if some member actually differs along it. Recommended check: for any table-driven
-locale or format test, verify that at least one row DISAGREES on each axis the code branches over,
-rather than assuming diversity of names implies diversity of behaviour.
+**Q-P28-03 — a correctly-shaped round-trip table can still miss a defect if no member of it
+exercises the axis.** P28's locale table was extended from 5 to 9 with coverage strictly up,
+deliberately naming input CLASSES rather than adding arbitrary locales — non-Latin numerals,
+non-Gregorian calendar, year-first order. It was a good table and it still missed F-4, because **all
+nine locales happen to agree between the `numeric` and `2-digit` skeletons.** The axis that mattered
+— _the editing skeleton is not the parsing skeleton_ — was not represented by any member. Root
+confirmed the divergence exists: `mt-MT` is `month/day/year` numeric but `day/month/year` 2-digit;
+`ug-CN` is `year/day/month` against `year/month/day`. So "name the input classes" (`Q-P28-01`) is
+necessary and not sufficient: a class is only covered if some member actually differs along it.
+Recommended check: for any table-driven locale or format test, verify that at least one row
+DISAGREES on each axis the code branches over, rather than assuming diversity of names implies
+diversity of behaviour.
 
-**Q-P28-04 — Node ICU and browser ICU disagree, so census both.** The same F-4 census gave **9 of 114
-locales, 52 cases** under Node ICU 76.1 and **4 of 112 locales** in Chromium. Neither number is wrong;
-they are different ICU builds with different locale data. A defect censused only in Node may
+**Q-P28-04 — Node ICU and browser ICU disagree, so census both.** The same F-4 census gave **9 of
+114 locales, 52 cases** under Node ICU 76.1 and **4 of 112 locales** in Chromium. Neither number is
+wrong; they are different ICU builds with different locale data. A defect censused only in Node may
 under- or over-state what ships to a browser, and a fix verified only in Node is not verified for
-users. The reviewer confirmed F-4 end to end in a real browser (`te-IN` displayed `15-06-25`, retyped
-verbatim, stored `25-06-15`) rather than resting on the Node census — which is what made the finding
-unarguable.
+users. The reviewer confirmed F-4 end to end in a real browser (`te-IN` displayed `15-06-25`,
+retyped verbatim, stored `25-06-15`) rather than resting on the Node census — which is what made the
+finding unarguable.
 
 **Q-P28-05 — a reviewer's own probe can manufacture a defect, so re-run before reporting.** The
 reviewer's first manual probe showed `th-TH` rendering `03/08/69` and it initially read this as F-2
 unfixed. It did not survive scrutiny: the cause was its own scratch spec leaving the cell in a stale
-state, and 12 of 12 clean re-runs were correct, with an in-page probe confirming Chromium honours the
-Gregorian pin. **F-2 is genuinely fixed.** It recorded the false alarm in the review rather than
-dropping it silently. That is the right disposition — an abandoned reviewer result should be visible,
-because a reader who later finds the same artefact needs to know it was investigated and rejected
-rather than never seen. Compare `Q-P24-01`, where an implementer's measured collisions did not survive
-review and the totals stood while the named examples were withdrawn.
+state, and 12 of 12 clean re-runs were correct, with an in-page probe confirming Chromium honours
+the Gregorian pin. **F-2 is genuinely fixed.** It recorded the false alarm in the review rather than
+dropping it silently. That is the right disposition — an abandoned reviewer result should be
+visible, because a reader who later finds the same artefact needs to know it was investigated and
+rejected rather than never seen. Compare `Q-P24-01`, where an implementer's measured collisions did
+not survive review and the totals stood while the named examples were withdrawn.
 
 ## Q-P28-06 — A coordinator's cleanup of a shared checkout can destroy an agent's uncommitted work
 
 **Root's own error, recorded as such. Carry forward to P21.**
 
-**What happened.** `p28-implementer-01` had ~145 uncommitted lines of F-4 work in the shared checkout
-`/home/ben-agents/Code/moneyflow`. That blocked `p29-reviewer-01`, because `src/lib/utils/date-format.ts`
-is imported by `ImportTable.tsx` inside P29's file set, so the reviewer could not distinguish the tree
-under review from another package's work in progress. After asking three times for the work to be
-moved, **root ran `git checkout -- src tests`** in the shared checkout.
+**What happened.** `p28-implementer-01` had ~145 uncommitted lines of F-4 work in the shared
+checkout `/home/ben-agents/Code/moneyflow`. That blocked `p29-reviewer-01`, because
+`src/lib/utils/date-format.ts` is imported by `ImportTable.tsx` inside P29's file set, so the
+reviewer could not distinguish the tree under review from another package's work in progress. After
+asking three times for the work to be moved, **root ran `git checkout -- src tests`** in the shared
+checkout.
 
 Root saved a patch (`/tmp/p28-f4-wip.patch`) and a `git stash` first, and told the implementer where
-they were. **But root did not announce the discard before doing it, and did not confirm recovery before
-letting a dependent review proceed.** The implementer experienced its work vanishing mid-session,
-recovered from its own copy, rewrote its tests, and — reasonably — attributed the reversion to a
-concurrent P29 operation, because nothing told it otherwise. Root later verified the stash and the
-committed work were the same change, so nothing substantive was lost, but that was luck rather than
-design.
+they were. **But root did not announce the discard before doing it, and did not confirm recovery
+before letting a dependent review proceed.** The implementer experienced its work vanishing
+mid-session, recovered from its own copy, rewrote its tests, and — reasonably — attributed the
+reversion to a concurrent P29 operation, because nothing told it otherwise. Root later verified the
+stash and the committed work were the same change, so nothing substantive was lost, but that was
+luck rather than design.
 
 **The general failure.** The shared-checkout hazard runs in BOTH directions. `Q-P29-01` and the P29
-incident record one agent's edits landing in the shared tree and endangering others. This records the
-converse: **a coordinator's cleanup destroying an agent's uncommitted work.** The second is worse in one
-respect — the agent has no way to attribute it, so it will look like corruption or another agent's
-fault, which is exactly what happened.
+incident record one agent's edits landing in the shared tree and endangering others. This records
+the converse: **a coordinator's cleanup destroying an agent's uncommitted work.** The second is
+worse in one respect — the agent has no way to attribute it, so it will look like corruption or
+another agent's fault, which is exactly what happened.
 
 **The rules this implies:**
+
 1. Never discard a shared working tree without first telling the owner explicitly that a discard is
    about to happen, and confirming they have recovered.
 2. A blocked dependent package is a reason to sequence, not a licence to destroy. Root should have
@@ -3079,44 +3125,47 @@ Found by `p28-implementer-01` while implementing the fix its own reviewer propos
 
 `p28-reviewer-02` diagnosed F-4 correctly: `parseLocaleDate` derived candidates from the `numeric`
 skeleton while `formatDateForEditing` renders the `2-digit` one, and for 9 of 114 locales those
-disagree. It proposed adding the editing skeleton to `candidateFormats` and reported the census going
-**52 failures → 0**.
+disagree. It proposed adding the editing skeleton to `candidateFormats` and reported the census
+going **52 failures → 0**.
 
 **That fix is necessary but NOT sufficient, and the shortfall is in the worst cases.** Root verified
 the mechanism:
+
 ```
 parse('03/08/26', 'M/d/yy') -> Sun Mar 08 2026
 parse('03/08/26', 'd/M/yy') -> Mon Aug 03 2026
 ```
-Where two skeletons differ only in field ORDER, both parse the same digits SUCCESSFULLY, so the first
-candidate in the list wins and the added format changes nothing. Reordering only moves the failure.
-The implementer observed `mt-MT` and `ug-CN` still storing `2026-03-08` for a displayed 3 August after
-applying the reviewed fix — **precisely the two locales that store silently rather than rejecting.**
 
-**Why the review's figure did not catch it:** a wrong parse that FAILS is visible in a census; a wrong
-parse that SUCCEEDS is not. The reviewer's harness most plausibly counted null-rejections and missed
-transpositions. So a verified "N → 0" figure can be sound in method and still blind to the worse half
-of a defect class.
+Where two skeletons differ only in field ORDER, both parse the same digits SUCCESSFULLY, so the
+first candidate in the list wins and the added format changes nothing. Reordering only moves the
+failure. The implementer observed `mt-MT` and `ug-CN` still storing `2026-03-08` for a displayed 3
+August after applying the reviewed fix — **precisely the two locales that store silently rather than
+rejecting.**
+
+**Why the review's figure did not catch it:** a wrong parse that FAILS is visible in a census; a
+wrong parse that SUCCEEDS is not. The reviewer's harness most plausibly counted null-rejections and
+missed transpositions. So a verified "N → 0" figure can be sound in method and still blind to the
+worse half of a defect class.
 
 **The resolution, which generalises:** where several interpretations parse, prefer the one whose own
 RE-RENDERING reproduces exactly what was typed. Round-trip verification is decisive precisely in the
-ambiguous case and inert otherwise. Recommended for P21: any parser offering multiple candidate formats
-over the same input should disambiguate by round-trip rather than by candidate order, and any census of
-parse defects should separately count silent-wrong-value from loud-rejection.
+ambiguous case and inert otherwise. Recommended for P21: any parser offering multiple candidate
+formats over the same input should disambiguate by round-trip rather than by candidate order, and
+any census of parse defects should separately count silent-wrong-value from loud-rejection.
 
 ## Q-PROPOSAL-P30-07-01 — a unit case's grading is load-dependent
 
 **Raised by:** `p30-reviewer-04`, P30 rev 07 review. **Severity: LOW, advisory — not blocking.**
 
-`rule-proposal-auto-apply.test.tsx:140` ("applies when the edit began with focus in the row…") grades
-**10/20 red** against rev 06 when run inside its own file, but **20/20 red** in isolation. MEASURED.
-Cause: a single `advanceTimersByTimeAsync(10)` coupled to the real clock via `shouldAdvanceTime:
-true`, so whether rev 06's third deferred flush lands is load-dependent.
+`rule-proposal-auto-apply.test.tsx:140` ("applies when the edit began with focus in the row…")
+grades **10/20 red** against rev 06 when run inside its own file, but **20/20 red** in isolation.
+MEASURED. Cause: a single `advanceTimersByTimeAsync(10)` coupled to the real clock via
+`shouldAdvanceTime: true`, so whether rev 06's third deferred flush lands is load-dependent.
 
 **Rev 07 itself grades 20/20 green — there is no flake in the shipped direction**, and the E2E suite
 grades the same regression deterministically, which is why this is advisory.
 
-**Why it matters beyond this case:** a test used as a *grading instrument* — run against a reverted
+**Why it matters beyond this case:** a test used as a _grading instrument_ — run against a reverted
 fix to prove it discriminates — needs its own timing to be load-independent, or the grade is a
 measurement of machine load. **Recommended for P21:** where a revert-check is cited as evidence,
 confirm the grading run was deterministic rather than a single sample.
@@ -3125,27 +3174,28 @@ confirm the grading run was deterministic rather than a single sample.
 
 **Raised by:** `p30-reviewer-04`, P30 rev 07 review. **Severity: LOW, advisory — not blocking.**
 
-Removing `isAutomatic` from `TransactionRuleProposal.tsx:202` — which makes the manual "Update" modes
-auto-apply, a direct violation of frozen `human-scratch.md:263-266` — leaves the **entire unit and
-integration suite green**. MEASURED. Cause: the test file's mock hard-codes `updatingAll`, so no unit
-case ever exercises a manual mode through the component's decision.
+Removing `isAutomatic` from `TransactionRuleProposal.tsx:202` — which makes the manual "Update"
+modes auto-apply, a direct violation of frozen `human-scratch.md:263-266` — leaves the **entire unit
+and integration suite green**. MEASURED. Cause: the test file's mock hard-codes `updatingAll`, so no
+unit case ever exercises a manual mode through the component's decision.
 
 **The clause is covered**, at E2E (6 of 11 journeys redden) and by `applyModeIsAutomatic`'s own unit
 tests — but **not at the layer where the component decides**. A follow-up `updateAll` case in the
 component's own file would close it.
 
 **Generalises:** a mock that hard-codes one value of a discriminating input makes every case in that
-file blind to the discrimination, however many cases there are. Same shape as the F-1 and F-2 fixture
-gaps in P33: correct assertions over inputs that cannot express the failure.
+file blind to the discrimination, however many cases there are. Same shape as the F-1 and F-2
+fixture gaps in P33: correct assertions over inputs that cannot express the failure.
 
 ## Q-P20B-21 — Should `expect.timeout: 15_000` be paired with a raised per-test `timeout`?
 
 - **Source:** `evidence/P20B/implementation-08.md` §9 (`Q-P20B-07-01`), endorsed by
   `reviews/P20B-review-07.md` §9.
 - **Context:** `playwright.config.ts` now sets a 15 s `expect` budget inside a 30 s test budget.
-  MEASURED by the implementer: **156 tests remain on the 30 s default**, and **113 of 115 `toHaveCount(0)`
-  absence assertions carry no explicit timeout**. Two failing bare assertions in one test can
-  therefore exhaust the test budget and report a less precise error than the assertion itself would.
+  MEASURED by the implementer: **156 tests remain on the 30 s default**, and **113 of 115
+  `toHaveCount(0)` absence assertions carry no explicit timeout**. Two failing bare assertions in
+  one test can therefore exhaust the test budget and report a less precise error than the assertion
+  itself would.
 - **Reversible default selected:** leave the pairing unmade. The alternative — leaving `expect` at
   the 5 s Playwright default — is measurably worse and was the defect this revision closed.
 - **Basis:** hierarchy 4 (smallest reversible change).
@@ -3159,9 +3209,9 @@ gaps in P33: correct assertions over inputs that cannot express the failure.
 - **Reviewer correction root carries across rather than transcribing verbatim
   (`reviews/P20B-review-07.md` §9):** the proposal's premise is **narrower than it reads**. The
   implementer measured "the vault is already selected when the h1 resolves" **on an idle machine**.
-  The **structural** gap is real — `people/page.tsx` renders the h1 unconditionally and `PeopleTable`
-  only when `activeVault?.id`. **The wait is therefore worth keeping on its own merits**, and this
-  entry must not be read as a licence to remove it.
+  The **structural** gap is real — `people/page.tsx` renders the h1 unconditionally and
+  `PeopleTable` only when `activeVault?.id`. **The wait is therefore worth keeping on its own
+  merits**, and this entry must not be read as a licence to remove it.
 - **Status:** OPEN, non-blocking, retain-as-is.
 
 ## Q-P20B-23 — `setAllocation`'s old substring barrier: real in principle, REFUTED as the observed cause
@@ -3203,17 +3253,16 @@ gaps in P33: correct assertions over inputs that cannot express the failure.
 - **Source:** `reviews/P20B-review-07.md` §9 (`Q-PROPOSAL-P20B-07-1`), raised by `p20b-reviewer-07`.
 - **Context and evidence:** P21 rev 06 routed this class to P20B as a **test-instrument** defect
   (F-1). Three independent lines of evidence now contradict that classification:
-  1. the failing pages render the **terminal `settled`** state, which `settlement-view.ts:186-193`
-     reaches only when `obligations.length === 0` **and** `qualifyingTransactionCount !== 0`, a
-     counter incremented at `settlement.ts:1227` **after** `commitCalculation` — so the page has
-     **already hydrated and run the settlement engine**. It is a terminal answer, not a transient,
-     and **no timeout can fix it**;
-  2. the arithmetic discriminates a **missing explicit allocation** from every rival explanation;
-  3. the pre-hydration transient rev 06 posited is **≤10 ms wide** against failures that hold for
-     **15,000 ms**.
-  Both instrument defects the routing named are now fixed and **the class persists at 1.10/run
-  (root's 10-run campaign, `/tmp/p20b07-c2/`) and 2.25/run (the reviewer's 4-run campaign,
-  `/tmp/rev07-campaign/`) on the identical tree.**
+    1. the failing pages render the **terminal `settled`** state, which `settlement-view.ts:186-193`
+       reaches only when `obligations.length === 0` **and** `qualifyingTransactionCount !== 0`, a
+       counter incremented at `settlement.ts:1227` **after** `commitCalculation` — so the page has
+       **already hydrated and run the settlement engine**. It is a terminal answer, not a transient,
+       and **no timeout can fix it**;
+    2. the arithmetic discriminates a **missing explicit allocation** from every rival explanation;
+    3. the pre-hydration transient rev 06 posited is **≤10 ms wide** against failures that hold for
+       **15,000 ms**. Both instrument defects the routing named are now fixed and **the class
+       persists at 1.10/run (root's 10-run campaign, `/tmp/p20b07-c2/`) and 2.25/run (the reviewer's
+       4-run campaign, `/tmp/rev07-campaign/`) on the identical tree.**
 - **Why existing authority does not decide it:** `PROCESS.md:130` routes allocation/settlement
   ownership to P16A–E, or P17A–D for the automation path, and cross-cutting **style** defects to
   P20B. It gives no rule for a class routed to P20B on a diagnosis that the P20B revision then
@@ -3234,11 +3283,11 @@ gaps in P33: correct assertions over inputs that cannot express the failure.
 ## Q-P20B-27 — Should an evidence artifact be forbidden from being frozen before the campaign it reports?
 
 - **Source:** `reviews/P20B-review-07.md` §9 (`Q-PROPOSAL-P20B-07-2`), raised by `p20b-reviewer-07`.
-- **Context:** finding F-A. `implementation-08.md` was last written at **10:17:27**, inside **run 1**
-  of a campaign that ended at **10:59:09**, leaving §4 as the literal token `PLACEHOLDER-CAMPAIGN`,
-  two dangling `§4.2b` references and a "FINAL tree" line that a later section of the same file
-  discards. `PROCESS.md:58` persists the file **unchanged**, and `PROCESS.md:359` makes artifacts —
-  not chat — the recovery source, so the defect is durable.
+- **Context:** finding F-A. `implementation-08.md` was last written at **10:17:27**, inside **run
+  1** of a campaign that ended at **10:59:09**, leaving §4 as the literal token
+  `PLACEHOLDER-CAMPAIGN`, two dangling `§4.2b` references and a "FINAL tree" line that a later
+  section of the same file discards. `PROCESS.md:58` persists the file **unchanged**, and
+  `PROCESS.md:359` makes artifacts — not chat — the recovery source, so the defect is durable.
 - **Why existing authority does not decide it:** `PROCESS.md:153-159` lists what evidence must
   record but sets **no ordering constraint** between handback and the campaign the evidence depends
   on.
@@ -3258,8 +3307,8 @@ gaps in P33: correct assertions over inputs that cannot express the failure.
   finding" a FAIL for **P21**; it gives no calibration for a normal package revision where a claim
   is wrong but its conclusion is independently verifiable from the same section.
 - **Reversible default selected:** **PASS with the correction stated exactly and recorded by root**,
-  rather than a further revision. Root already has the mechanism — `be50232` recorded a
-  post-handoff correction to a persisted review without opening a revision.
+  rather than a further revision. Root already has the mechanism — `be50232` recorded a post-handoff
+  correction to a persisted review without opening a revision.
 - **Basis:** hierarchy 4 (smallest reversible step). **Status:** OPEN, applied.
 
 ## Q-P20B-29 — Should a campaign directory be identified by its recorded `head=`, never by a completeness marker?
@@ -3268,9 +3317,9 @@ gaps in P33: correct assertions over inputs that cannot express the failure.
 - **Context:** F-D's substance. **MEASURED and re-verified by root:** of the four candidate
   directories, **two** end `CAMPAIGN_COMPLETE`, not one — `/tmp/p20b07-c2/` **and**
   `/tmp/p20b07-final/`. `-final` is a **complete ten-run campaign** (10 `run<N>.log` files) at
-  **`head=6061ef7`**, the **pre-fix** tree whose `:281` step 11 failed in **10 of 10** runs. A future
-  reader applying the completeness rule as written gets two candidates and can select the campaign
-  the goal already paid to discard.
+  **`head=6061ef7`**, the **pre-fix** tree whose `:281` step 11 failed in **10 of 10** runs. A
+  future reader applying the completeness rule as written gets two candidates and can select the
+  campaign the goal already paid to discard.
 - **Reversible default selected:** identify a campaign by the `head=` recorded in its own START/END
   lines. `/tmp/p20b07-c2/` is the campaign whose twenty lines all read **`head=c515173`**, the
   handback commit. A completeness marker says a loop finished; it says nothing about which tree ran.
@@ -3279,17 +3328,18 @@ gaps in P33: correct assertions over inputs that cannot express the failure.
 ### Q-P20B-26 — CLOSED as ROUTED 2026-08-03 (D-025)
 
 The discriminating experiment this question named **was run and answered**: the entry is **ABSENT**
-from persisted IndexedDB (195 runs, 50 losses, **no op row ever created**, zero counterexamples) —
-a genuine **lost write**, not a rehydration gap. Evidence
-`evidence/P21/diagnostic-Q-P20B-26.md`. Independent ruling `adjudications/P21-scope-02.md` → D-025:
-the **E2E harness component is IN-GOAL to P20B (HS-021)**; **product
-durability-at-acknowledgement is OUT-OF-GOAL**, tracked at `RISKS.md#R-LOSTWRITE-01`. The concern
-this question was raised to guard against — leaving the class on P20B merely to avoid invalidating a
-prior PASS — is answered: **the adjudicator found the P20B routing correct on the merits.**
+from persisted IndexedDB (195 runs, 50 losses, **no op row ever created**, zero counterexamples) — a
+genuine **lost write**, not a rehydration gap. Evidence `evidence/P21/diagnostic-Q-P20B-26.md`.
+Independent ruling `adjudications/P21-scope-02.md` → D-025: the **E2E harness component is IN-GOAL
+to P20B (HS-021)**; **product durability-at-acknowledgement is OUT-OF-GOAL**, tracked at
+`RISKS.md#R-LOSTWRITE-01`. The concern this question was raised to guard against — leaving the class
+on P20B merely to avoid invalidating a prior PASS — is answered: **the adjudicator found the P20B
+routing correct on the merits.**
 
 ## Q-P20B-30 — Should the remaining in-vault raw `page.goto` teardowns be barriered, or raw teardowns forbidden in specs?
 
-- **Source:** `reviews/P20B-review-09.md` §12 (`Q-PROPOSAL-P20B-09-1`), raised by `p20b-reviewer-09`.
+- **Source:** `reviews/P20B-review-09.md` §12 (`Q-PROPOSAL-P20B-09-1`), raised by
+  `p20b-reviewer-09`.
 - **Context:** finding F-3. Raw `page.goto` teardowns remain unbarriered after rev 09, a handful of
   them with a vault mounted, so they sit in the measured lost-write window. **Count caveat, recorded
   rather than resolved:** the reviewer reports **52** unbarriered raw `page.goto` (five in-vault);
@@ -3313,27 +3363,26 @@ this entry already asks, now with a measurement behind it.
 **The new grounds, MEASURED, and they change the character of the problem.** At
 `passkey.spec.ts:180` the reviewer measured **3/3 `no-active-vault`** where
 `reviews/P20B-review-10.md` §4.4 had measured **`persisted`** at the same site. **So the in-vault
-predicate is not merely partly *unmeasured* — it is partly *load-dependent*.** The consequence for
+predicate is not merely partly _unmeasured_ — it is partly _load-dependent_.** The consequence for
 the ledger: **the "at least fifteen; the sweep is not complete" bound is a bound on a quantity that
 partly varies with load**, and no static enumeration can be complete for it.
 
 **Why this strengthens the case for the lint-rule option (b) over per-site classification (a):** a
 rule that forbids raw teardowns needs no predicate at all, whereas any per-site sweep is chasing a
 value that moves. **A `no-active-vault` barrier is a no-op**, so unconditional barriering is cheap
-where it is unnecessary — the cost is confined to sites where the seam is *absent*, which is the
+where it is unnecessary — the cost is confined to sites where the seam is _absent_, which is the
 15-second-hang risk `evidence/P20B/implementation-11.md` §4.3 identifies and which the helper's
 retry branch exists to absorb.
 
-**Reversible default unchanged:** the narrow per-site fixes have landed; the lint rule stays OPEN and
-out of scope for the current revisions.
-
+**Reversible default unchanged:** the narrow per-site fixes have landed; the lint rule stays OPEN
+and out of scope for the current revisions.
 
 ## Q-P20B-31 — Should the harness gain a client-side navigation helper?
 
 - **Source:** `reviews/P20B-review-09.md` §12 (`Q-PROPOSAL-P20B-09-2`).
 - **Context:** `nav.ts` is **deliberately** staying on full document loads — converting it would
   weaken assertions that currently re-derive state across a document boundary, which condition 1 of
-  D-025 exists to prevent. The consequence is that no *helper* offers a client-side navigation, so a
+  D-025 exists to prevent. The consequence is that no _helper_ offers a client-side navigation, so a
   test author who wants one hand-rolls it.
 - **Why this is a convenience matter and not a coverage hole:** MEASURED by the reviewer, the suite
   already performs **16 in-app client-side link navigations across six spec files**, including
@@ -3346,7 +3395,8 @@ out of scope for the current revisions.
 
 ## Q-P20B-32 — Should the barrier's route guard key on where `VaultProvider` mounts rather than on the `src/app/(app)/` directories?
 
-- **Source:** `reviews/P20B-review-10.md` §10 (`Q-PROPOSAL-P20B-10-1`), raised by `p20b-reviewer-10`.
+- **Source:** `reviews/P20B-review-10.md` §10 (`Q-PROPOSAL-P20B-10-1`), raised by
+  `p20b-reviewer-10`.
 - **Context:** MEASURED — `tests/unit/e2e-harness/vault-route-segments.test.ts` reads
   `src/app/(app)/` from disk and holds `VAULT_ROUTE_SEGMENTS` in step with it, so it is **a genuine
   guard and not a restatement**. But the invariant the barrier depends on is "the routes where
@@ -3375,11 +3425,11 @@ out of scope for the current revisions.
   entries obtain no durability guarantee at all** — the barrier returns because the page left the
   vault routes, **not because anything was flushed.** `reviews/P20B-review-11.md` §6 independently
   measured the same class at **4 of 12**.
-- **The question:** at a site whose caller **deliberately destroys the session immediately before the
-  barrier** (`passkey.spec.ts:152`, `:176`, `:219`, `:263`), is a barrier a redirect can win serving
-  its purpose, or **recording a guarantee it did not obtain?** **This is the silently-vacuous-check
-  class this goal has failed packages for elsewhere** — and it is exactly the shape of the vacuous
-  zero-write barrier recorded at `Q-P20B-28`'s revision.
+- **The question:** at a site whose caller **deliberately destroys the session immediately before
+  the barrier** (`passkey.spec.ts:152`, `:176`, `:219`, `:263`), is a barrier a redirect can win
+  serving its purpose, or **recording a guarantee it did not obtain?** **This is the
+  silently-vacuous-check class this goal has failed packages for elsewhere** — and it is exactly the
+  shape of the vacuous zero-write barrier recorded at `Q-P20B-28`'s revision.
 - **Explicitly NOT a defect in revision 12:** barrier placement is outside that revision's scope and
   the reviewer proposes no change to it.
 - **It does bear on the sweep:** it affects **how barriered sites should be counted**, which is the
@@ -3403,13 +3453,14 @@ out of scope for the current revisions.
   **safety** — a reader over-estimates the helper's patience rather than under-estimating its
   danger; **F12-1's harm model is fully blocked** (nobody reading this clause now believes the
   absent case is free, which was the whole risk); **exit-completeness was not among the fix criteria
-  in `reviews/P20B-review-12.md` §7**; and **§7's own suggested wording likewise omitted the throw.**
-  Failing rev 13 on a criterion the failing review did not state, and did not itself satisfy, would
-  be moving the target.
-- **Minimal close if ever wanted:** append *"and it fails loudly if neither happens before the budget
-  expires."* **Better folded into a future edit than made a fourteenth revision.**
+  in `reviews/P20B-review-12.md` §7**; and **§7's own suggested wording likewise omitted the
+  throw.** Failing rev 13 on a criterion the failing review did not state, and did not itself
+  satisfy, would be moving the target.
+- **Minimal close if ever wanted:** append _"and it fails loudly if neither happens before the
+  budget expires."_ **Better folded into a future edit than made a fourteenth revision.**
 - **The question proper:** should a call-site comment own a helper's failure contract at all, or
   should the helper's own docstring own it? **Settling it once stops the next revision re-deciding
   it.** The reviewer proposes the former, weakly.
-- **Status:** OPEN, non-blocking, **not assigned to a revision.** It and `Q-P20B-33` bear on the same
-  three helper lines; whoever picks either up should read `reviews/P20B-review-13.md` §7.2 first.
+- **Status:** OPEN, non-blocking, **not assigned to a revision.** It and `Q-P20B-33` bear on the
+  same three helper lines; whoever picks either up should read `reviews/P20B-review-13.md` §7.2
+  first.

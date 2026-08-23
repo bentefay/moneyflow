@@ -40,6 +40,30 @@ export interface RealtimeSubscriptionCounts {
     liveExactGrant: number;
 }
 
+export interface RealtimeRuntimeProblemCounts {
+    consoleErrors: number;
+    nonTransportProblems: number;
+    pageErrors: number;
+    transportProblems: number;
+}
+
+export type RealtimeCatchUpEvent = "completed" | "failed" | "requested";
+
+export interface RealtimeCatchUpCounts {
+    completed: number;
+    events: readonly RealtimeCatchUpEvent[];
+    failed: number;
+    inFlight: number;
+    requested: number;
+}
+
+export interface LivePushSuppression {
+    /** Starts dropping server-to-page `vault_ops` pushes while leaving the channel joined. */
+    start(): void;
+    /** Number of pushes withheld so far, proving the update really was missed. */
+    suppressedCount(): number;
+}
+
 export type RealtimeGrantAggregates = Record<RealtimePurpose, RealtimeGrantCounts>;
 
 function emptyLifecycleCounts(): RealtimeLifecycleCounts {
@@ -78,6 +102,57 @@ export function observeRealtimeLifecycle(page: Page): {
             revoke: { ...counts.revoke }
         }),
         stop: () => page.off("request", listener)
+    };
+}
+
+function isSyncGetUpdatesRequest(request: Request): boolean {
+    return /\/api\/trpc\/sync\.getUpdates(?:\?|$)/.test(request.url());
+}
+
+/** Records only aggregate request lifecycle counts for durable sync catch-up. */
+export function observeRealtimeCatchUp(page: Page): {
+    snapshot: () => RealtimeCatchUpCounts;
+    stop: () => void;
+} {
+    let requested = 0;
+    let completed = 0;
+    let failed = 0;
+    const events: RealtimeCatchUpEvent[] = [];
+    const activeRequests = new Set<Request>();
+    const requestListener = (request: Request) => {
+        if (!isSyncGetUpdatesRequest(request)) return;
+        requested += 1;
+        events.push("requested");
+        activeRequests.add(request);
+    };
+    const finishedListener = (request: Request) => {
+        if (!activeRequests.delete(request)) return;
+        completed += 1;
+        events.push("completed");
+    };
+    const failedListener = (request: Request) => {
+        if (!activeRequests.delete(request)) return;
+        failed += 1;
+        events.push("failed");
+    };
+    page.on("request", requestListener);
+    page.on("requestfinished", finishedListener);
+    page.on("requestfailed", failedListener);
+
+    return {
+        snapshot: () => ({
+            completed,
+            events: [...events],
+            failed,
+            inFlight: activeRequests.size,
+            requested
+        }),
+        stop: () => {
+            page.off("request", requestListener);
+            page.off("requestfinished", finishedListener);
+            page.off("requestfailed", failedListener);
+            activeRequests.clear();
+        }
     };
 }
 
@@ -143,6 +218,84 @@ export function observeRealtimeFrames(page: Page): {
             }
             socketListeners.clear();
         }
+    };
+}
+
+function isTransportProblem(problem: string): boolean {
+    return /websocket|realtime|presence|fetch|network|disconnected|connection|Failed to (load|fetch)/i.test(
+        problem
+    );
+}
+
+/** Collects runtime errors while exposing only aggregate counts to serialised evidence. */
+export function observeRealtimeRuntimeProblems(page: Page): {
+    nonTransportMessages: () => readonly string[];
+    snapshot: () => RealtimeRuntimeProblemCounts;
+    stop: () => void;
+} {
+    const problems: Array<{ readonly kind: "console" | "pageerror"; readonly message: string }> =
+        [];
+    const consoleListener = (message: import("@playwright/test").ConsoleMessage) => {
+        if (message.type() === "error") problems.push({ kind: "console", message: message.text() });
+    };
+    const pageErrorListener = (error: Error) => {
+        problems.push({ kind: "pageerror", message: error.message });
+    };
+    page.on("console", consoleListener);
+    page.on("pageerror", pageErrorListener);
+
+    return {
+        nonTransportMessages: () =>
+            problems.flatMap((problem) =>
+                isTransportProblem(problem.message) ? [] : [problem.message]
+            ),
+        snapshot: () => {
+            const transportProblems = problems.filter((problem) =>
+                isTransportProblem(problem.message)
+            ).length;
+            return {
+                consoleErrors: problems.filter((problem) => problem.kind === "console").length,
+                nonTransportProblems: problems.length - transportProblems,
+                pageErrors: problems.filter((problem) => problem.kind === "pageerror").length,
+                transportProblems
+            };
+        },
+        stop: () => {
+            page.off("console", consoleListener);
+            page.off("pageerror", pageErrorListener);
+        }
+    };
+}
+
+/**
+ * Routes Realtime before navigation so selected live `vault_ops` pushes can be withheld on demand.
+ * Frame bodies are never returned to callers; suppression tests must disable Playwright tracing so
+ * the browser runner cannot retain them in retry artifacts.
+ */
+export async function suppressLiveVaultOpsPushes(page: Page): Promise<LivePushSuppression> {
+    let suppressing = false;
+    let suppressed = 0;
+
+    await page.routeWebSocket(/\/realtime\/v1\/websocket/, (route) => {
+        const server = route.connectToServer();
+        route.onMessage((message) => server.send(message));
+        server.onMessage((message) => {
+            const text = typeof message === "string" ? message : message.toString("utf8");
+            const isVaultOpsPush =
+                text.includes('"postgres_changes"') && text.includes('"table":"vault_ops"');
+            if (suppressing && isVaultOpsPush) {
+                suppressed += 1;
+                return;
+            }
+            route.send(message);
+        });
+    });
+
+    return {
+        start: () => {
+            suppressing = true;
+        },
+        suppressedCount: () => suppressed
     };
 }
 

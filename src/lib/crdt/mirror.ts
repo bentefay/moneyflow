@@ -62,6 +62,7 @@ export const DEFAULT_VAULT_STATE = {
     automations: {},
     fieldRules: {},
     userAutomationPreferences: {},
+    userDisplayPreferences: {},
     preferences: {
         name: DEFAULT_VAULT_NAME,
         automationCreationPreference: DEFAULT_AUTOMATION_CREATION_PREFERENCE,

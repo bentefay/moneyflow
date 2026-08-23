@@ -36,8 +36,8 @@ product BIP39 visual-feedback styling is correct.
   write is this evidence file. I ran NO `git add/commit/checkout/reset/branch/rebase/stash`.
 - `git diff --stat 5576175..HEAD` touches ONLY `specs/**` (6 files: `HANDOFF.md`, `PROGRESS.md`,
   `QUESTIONS.md`, `evidence/P20B/implementation-04.md`, `reviews/P20B-review-02.md`, and
-  `specs/human-scratch.md` — the authorized HS-021 forward marker at `:159`). **NO
-  `src/**`, NO `tests/**`.** Scope gate PASSES.
+  `specs/human-scratch.md` — the authorized HS-021 forward marker at `:159`). **NO `src/**`, NO
+  `tests/**`.** Scope gate PASSES.
 - `git log --format="%h %an %s" 5576175..HEAD` = 5 root-owned `docs`/`docs(P20B)` control-plane
   commits (`453e984`, `8a0631a`, `daf80ff`, `da60981`, `5ce72e4`), all `Ben Tefay`. No collector
   commit.

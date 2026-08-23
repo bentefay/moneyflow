@@ -47,9 +47,16 @@ Required behaviour:
   Australian-English viewer, `03/08` is the third of August, not the eighth of March.
 - A date in the current year displays as day and month only.
 - A date in a different year, and any date shown while editing, includes the year.
-- The year is rendered as two digits in the editing and different-year presentations.
+- The year is rendered in full in the editing and different-year presentations, so a viewer can tell
+  one century from another.
 - Date entry accepts what the same locale displays, so a value can be typed back in the form it was
   shown.
+- The browser reports its LANGUAGE, not the viewer's regional format, and no web API exposes the
+  latter, so an `en_US` desktop in Australia is reported as `en-US` and renders month-first
+  correctly-as-written but wrongly-for-the-viewer. A setting must therefore let a viewer override
+  the presentation, choosing between following the browser, day first, month first and year first.
+  The choice is per viewer: members of a shared vault in different countries each keep their own.
+- The calendar picker follows the same choice, including which day the week starts on.
 - Stored values remain unchanged: this is a presentation and parsing concern only. Dates are stored
   and compared as calendar dates, and no displayed value shifts because of a time zone.
 

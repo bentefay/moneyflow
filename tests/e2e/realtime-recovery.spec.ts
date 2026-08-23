@@ -1,7 +1,19 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
-import { createNewIdentity, goToTags, goToTransactions } from "./helpers";
-import { shareActiveVaultWithMember } from "./helpers/realtime";
+import {
+    createNewIdentity,
+    dispatchVisibleStateCatchUp,
+    goToTags,
+    goToTransactions
+} from "./helpers";
+import {
+    observeRealtimeCatchUp,
+    observeRealtimeFrames,
+    observeRealtimeLifecycle,
+    observeRealtimeRuntimeProblems,
+    shareActiveVaultWithMember,
+    suppressLiveVaultOpsPushes
+} from "./helpers/realtime";
 import { installVisibilityControl, setDocumentVisibility } from "./helpers/visibility";
 
 /**
@@ -19,6 +31,9 @@ import { installVisibilityControl, setDocumentVisibility } from "./helpers/visib
  * found CDP `Emulation.setVisibilityState` absent from the bundled Chromium; raw CDP is not used.)
  */
 
+// These tests route Realtime frames; retry tracing would retain payloads the assertions never need.
+test.use({ trace: "off" });
+
 const missedWhileHidden = "Tag created while receiver was hidden";
 const missedWhileOffline = "Tag created while receiver was offline";
 
@@ -33,76 +48,13 @@ async function createTag(page: Page, name: string): Promise<void> {
     await expect(tagLabel(page, name)).toBeVisible();
 }
 
-/** Collects console/page errors so a "converged" state can also be shown to be a healthy one. */
-function collectRuntimeProblems(pages: readonly Page[]): string[] {
-    const problems: string[] = [];
-    for (const page of pages) {
-        page.on("console", (message) => {
-            if (message.type() === "error") problems.push(message.text());
-        });
-        page.on("pageerror", (error) => problems.push(error.message));
+async function becomesVisibleWithin(locator: Locator, timeout: number): Promise<boolean> {
+    try {
+        await expect(locator).toBeVisible({ timeout });
+        return true;
+    } catch {
+        return false;
     }
-    return problems;
-}
-
-/**
- * Drops transport-layer noise so the assertion is about application health.
- *
- * These tests deliberately sever or suppress the connection, and the full suite runs several
- * browsers against one dev server, so a dropped socket or a failed fetch is an expected condition
- * the client is supposed to absorb — not a defect. Anything else still fails the test. Data
- * exposure is never judged by this filter; it is asserted directly on the rendered state.
- */
-function nonTransportProblems(problems: readonly string[]): string[] {
-    return problems.filter(
-        (problem) =>
-            !/websocket|realtime|presence|fetch|network|disconnected|connection|Failed to (load|fetch)/i.test(
-                problem
-            )
-    );
-}
-
-interface LivePushSuppression {
-    /** Starts dropping server -> page `vault_ops` pushes. The channel stays joined. */
-    start(): void;
-    /** Number of pushes withheld so far, proving the update really was missed. */
-    suppressedCount(): number;
-}
-
-/**
- * Routes the Realtime socket so live `vault_ops` pushes can be withheld on demand.
- *
- * Must be installed BEFORE the page navigates: `routeWebSocket` only applies to sockets opened
- * after the route exists, so installing it later would silently suppress nothing. Withholding the
- * push is a deterministic stand-in for a delivery the client never received; it is not a timing
- * measurement and does not slow the socket.
- */
-async function suppressLiveVaultOpsPushes(page: Page): Promise<LivePushSuppression> {
-    let suppressing = false;
-    let suppressed = 0;
-
-    await page.routeWebSocket(/\/realtime\/v1\/websocket/, (route) => {
-        const server = route.connectToServer();
-        route.onMessage((message) => server.send(message));
-        server.onMessage((message) => {
-            const text = typeof message === "string" ? message : message.toString("utf8");
-            // Realtime frames are arrays: [join_ref, ref, topic, event, payload].
-            const isVaultOpsPush =
-                text.includes('"postgres_changes"') && text.includes('"table":"vault_ops"');
-            if (suppressing && isVaultOpsPush) {
-                suppressed += 1;
-                return;
-            }
-            route.send(message);
-        });
-    });
-
-    return {
-        start: () => {
-            suppressing = true;
-        },
-        suppressedCount: () => suppressed
-    };
 }
 
 test("a hidden receiver re-syncs missed vault_ops when it becomes visible", async ({ browser }) => {
@@ -111,7 +63,10 @@ test("a hidden receiver re-syncs missed vault_ops when it becomes visible", asyn
     const receiverContext = await browser.newContext({ baseURL: "http://localhost:3000" });
     const owner = await ownerContext.newPage();
     const receiver = await receiverContext.newPage();
-    const runtimeProblems = collectRuntimeProblems([owner, receiver]);
+    const runtimeProblemObservers = [
+        observeRealtimeRuntimeProblems(owner),
+        observeRealtimeRuntimeProblems(receiver)
+    ] as const;
 
     try {
         const suppression =
@@ -165,9 +120,95 @@ test("a hidden receiver re-syncs missed vault_ops when it becomes visible", asyn
             });
             await expect(receiver.getByRole("status", { name: "Syncing..." })).toHaveCount(0);
 
-            expect(nonTransportProblems(runtimeProblems)).toEqual([]);
+            expect(
+                runtimeProblemObservers.flatMap((observer) => observer.nonTransportMessages())
+            ).toEqual([]);
         });
     } finally {
+        for (const observer of runtimeProblemObservers) observer.stop();
+        await ownerContext.close();
+        await receiverContext.close();
+    }
+});
+
+test("a visible receiver catches up only after an explicit visible-state barrier", async ({
+    browser
+}) => {
+    test.setTimeout(120_000);
+    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const receiverContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const owner = await ownerContext.newPage();
+    const receiver = await receiverContext.newPage();
+    const runtimeProblemObservers = [
+        observeRealtimeRuntimeProblems(owner),
+        observeRealtimeRuntimeProblems(receiver)
+    ] as const;
+    const receiverCatchUp = observeRealtimeCatchUp(receiver);
+    const receiverFrames = observeRealtimeFrames(receiver);
+    const receiverLifecycle = observeRealtimeLifecycle(receiver);
+
+    try {
+        const suppression = await suppressLiveVaultOpsPushes(receiver);
+        await createNewIdentity(owner);
+        await createNewIdentity(receiver);
+        await shareActiveVaultWithMember(owner, receiver);
+        await goToTags(owner);
+        await goToTags(receiver);
+        expect(await receiver.evaluate(() => document.visibilityState)).toBe("visible");
+
+        suppression.start();
+        const noBarrierTag = "Visible catch-up no-barrier control";
+        const noBarrierSuppressedBefore = suppression.suppressedCount();
+        await createTag(owner, noBarrierTag);
+        await expect
+            .poll(() => suppression.suppressedCount(), { timeout: 20_000 })
+            .toBeGreaterThan(noBarrierSuppressedBefore);
+        expect(await becomesVisibleWithin(tagLabel(receiver, noBarrierTag), 3_000)).toBe(false);
+        await dispatchVisibleStateCatchUp(receiver);
+        await expect(tagLabel(receiver, noBarrierTag)).toBeVisible({ timeout: 20_000 });
+        await expect.poll(() => receiverCatchUp.snapshot().inFlight).toBe(0);
+
+        const correctedBoundary = {
+            catchUp: receiverCatchUp.snapshot(),
+            joins: receiverFrames.snapshot().postgresChangeJoins,
+            lifecycle: receiverLifecycle.snapshot()
+        };
+        const correctedTag = "Visible catch-up corrected control";
+        const correctedSuppressedBefore = suppression.suppressedCount();
+        await createTag(owner, correctedTag);
+        await expect
+            .poll(() => suppression.suppressedCount(), { timeout: 20_000 })
+            .toBeGreaterThan(correctedSuppressedBefore);
+        await expect(tagLabel(receiver, correctedTag)).toHaveCount(0);
+        expect(receiverCatchUp.snapshot()).toEqual(correctedBoundary.catchUp);
+        expect(receiverFrames.snapshot().postgresChangeJoins).toBe(correctedBoundary.joins);
+        expect(receiverLifecycle.snapshot()).toEqual(correctedBoundary.lifecycle);
+
+        await dispatchVisibleStateCatchUp(receiver);
+        await expect
+            .poll(() => receiverCatchUp.snapshot().requested, { timeout: 20_000 })
+            .toBe(correctedBoundary.catchUp.requested + 1);
+        await expect
+            .poll(() => receiverCatchUp.snapshot().completed, { timeout: 20_000 })
+            .toBe(correctedBoundary.catchUp.completed + 1);
+        await expect.poll(() => receiverCatchUp.snapshot().inFlight).toBe(0);
+        const correctedCatchUp = receiverCatchUp.snapshot();
+        expect(correctedCatchUp.failed).toBe(correctedBoundary.catchUp.failed);
+        expect(correctedCatchUp.events.slice(correctedBoundary.catchUp.events.length)).toEqual([
+            "requested",
+            "completed"
+        ]);
+        expect(receiverFrames.snapshot().postgresChangeJoins).toBe(correctedBoundary.joins);
+        expect(receiverLifecycle.snapshot()).toEqual(correctedBoundary.lifecycle);
+        await expect(tagLabel(receiver, correctedTag)).toBeVisible({ timeout: 20_000 });
+        expect(
+            runtimeProblemObservers.flatMap((observer) => observer.nonTransportMessages())
+        ).toEqual([]);
+    } finally {
+        receiverCatchUp.stop();
+        receiverFrames.stop();
+        receiverLifecycle.stop();
+        for (const observer of runtimeProblemObservers) observer.stop();
         await ownerContext.close();
         await receiverContext.close();
     }
@@ -181,7 +222,10 @@ test("a receiver that goes offline catches up on durable ops after reconnecting"
     const receiverContext = await browser.newContext({ baseURL: "http://localhost:3000" });
     const owner = await ownerContext.newPage();
     const receiver = await receiverContext.newPage();
-    const runtimeProblems = collectRuntimeProblems([owner, receiver]);
+    const runtimeProblemObservers = [
+        observeRealtimeRuntimeProblems(owner),
+        observeRealtimeRuntimeProblems(receiver)
+    ] as const;
 
     try {
         await test.step("create two identities sharing one encrypted vault", async () => {
@@ -214,9 +258,12 @@ test("a receiver that goes offline catches up on durable ops after reconnecting"
                 timeout: 20_000
             });
 
-            expect(nonTransportProblems(runtimeProblems)).toEqual([]);
+            expect(
+                runtimeProblemObservers.flatMap((observer) => observer.nonTransportMessages())
+            ).toEqual([]);
         });
     } finally {
+        for (const observer of runtimeProblemObservers) observer.stop();
         await receiverContext.setOffline(false);
         await ownerContext.close();
         await receiverContext.close();
@@ -231,7 +278,7 @@ test("a hidden client that was never entitled to a vault still sees nothing afte
     const outsiderContext = await browser.newContext({ baseURL: "http://localhost:3000" });
     const owner = await ownerContext.newPage();
     const outsider = await outsiderContext.newPage();
-    const runtimeProblems = collectRuntimeProblems([outsider]);
+    const runtimeProblemObservers = [observeRealtimeRuntimeProblems(outsider)] as const;
 
     try {
         await test.step("install the visibility control before any application script runs", () =>
@@ -261,9 +308,12 @@ test("a hidden client that was never entitled to a vault still sees nothing afte
 
             // The leak assertion above is the security claim and stays strict.
             await expect(tagLabel(outsider, secret)).toHaveCount(0);
-            expect(nonTransportProblems(runtimeProblems)).toEqual([]);
+            expect(
+                runtimeProblemObservers.flatMap((observer) => observer.nonTransportMessages())
+            ).toEqual([]);
         });
     } finally {
+        for (const observer of runtimeProblemObservers) observer.stop();
         await ownerContext.close();
         await outsiderContext.close();
     }

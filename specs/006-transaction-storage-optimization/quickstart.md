@@ -96,9 +96,7 @@ insertTransaction({
 
 // Insert as suspected duplicate
 insertTransaction({
-    transaction: {
-        /* ... */
-    },
+    transaction: {/* ... */},
     suspectedDuplicateOf: {
         accountId: "acc-123",
         date: "2024-01-15",

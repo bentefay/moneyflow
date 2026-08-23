@@ -115,6 +115,36 @@ export async function waitForUnlockHydration(page: Page): Promise<void> {
 }
 
 /**
+ * Fill the unlock page's single credential field — the path a password manager fills.
+ *
+ * Gated on {@link waitForUnlockHydration}, which does two jobs here rather than one.
+ *
+ * The first is the reason given above: a fill landing before hydration sets the DOM value without
+ * ever running `onChange`.
+ *
+ * The second is the race that made `passkey.spec.ts` flaky. `UnlockCircle` passes `autoFocus`, so
+ * `SeedPhraseInput` calls `inputRefs.current[0].focus()` from a **mount-once** effect. Playwright's
+ * `fill` focuses its target and then writes through `insertText`, which goes to whatever is focused
+ * *at that moment* — so an autofocus landing between those two steps sends the whole phrase into
+ * word 1, where `handleWordChange` strips its spaces. The form then reads "1 of 12 words entered"
+ * and correctly leaves the unlock button disabled, and the test times out against a product that did
+ * nothing wrong. That is measured, not supposed: it is exactly what the failure artifact for this
+ * test showed — a 64-character token in word 1, marked invalid, every other box empty.
+ *
+ * Waiting for the passkey branch to be visible *and* enabled requires a post-mount effect and a
+ * second render, so every mount effect — the autofocus among them — has already run. The effect
+ * fires once, so it cannot fire again later: the race is removed rather than narrowed.
+ *
+ * Deliberately **not** asserting that word 1 holds focus. That was the first attempt and it was
+ * wrong: two callers reach this after clicking the passkey button, so focus has legitimately moved
+ * and the assertion failed 3 out of 3 under load. The gate has to be focus-agnostic.
+ */
+export async function fillRecoveryPhraseCredential(page: Page, phrase: string): Promise<void> {
+    await waitForUnlockHydration(page);
+    await page.getByTestId("recovery-phrase-credential").fill(phrase);
+}
+
+/**
  * Enter seed phrase into the unlock inputs.
  * Clears all inputs first and then fills each word.
  *

@@ -75,7 +75,7 @@ describe("date entry follows the viewer's locale", () => {
         // must not move the date.
         fireEvent.focus(input);
         const shown = input.value;
-        expect(shown).toBe("03/08/26");
+        expect(shown).toBe("3/8/2026");
 
         fireEvent.change(input, { target: { value: shown } });
         fireEvent.blur(input);
@@ -103,12 +103,12 @@ describe("date entry follows the viewer's locale", () => {
     });
 });
 
-describe("the editing presentation carries a two-digit year", () => {
+describe("the editing presentation carries a four-digit year", () => {
     const testCases = [
-        { locale: "en-AU", value: "2026-08-03", expected: "03/08/26" },
-        { locale: "en-US", value: "2026-08-03", expected: "08/03/26" },
-        { locale: "en-GB", value: "2025-06-15", expected: "15/06/25" },
-        { locale: "de-DE", value: "2026-08-03", expected: "03.08.26" }
+        { locale: "en-AU", value: "2026-08-03", expected: "3/8/2026" },
+        { locale: "en-US", value: "2026-08-03", expected: "8/3/2026" },
+        { locale: "en-GB", value: "2025-06-15", expected: "15/6/2025" },
+        { locale: "de-DE", value: "2026-08-03", expected: "3.8.2026" }
     ] as const;
 
     it.each(testCases)("shows $expected for $value in $locale", ({ locale, value, expected }) => {
@@ -118,8 +118,9 @@ describe("the editing presentation carries a two-digit year", () => {
         fireEvent.focus(input);
 
         expect(input.value).toBe(expected);
-        // The defect: the editing form rendered a four-digit year.
-        expect(input.value).not.toMatch(/\d{4}/);
+        // A two-digit year cannot say which century it means, and editing is
+        // where that matters: what the field shows is what gets typed back.
+        expect(input.value).toContain(value.slice(0, 4));
     });
 });
 
@@ -137,14 +138,14 @@ describe("the resting presentation follows the locale", () => {
         }
     });
 
-    it("includes a two-digit year for a different-year date", () => {
+    it("includes a four-digit year for a different-year date", () => {
         withLocale("en-AU");
         vi.useFakeTimers();
         vi.setSystemTime(new Date(2026, 7, 2, 9, 0, 0));
 
         try {
             const { input } = renderCell("2025-06-15");
-            expect(input.value).toBe("15/6/25");
+            expect(input.value).toBe("15/6/2025");
         } finally {
             vi.useRealTimers();
         }

@@ -15,7 +15,7 @@
 import type { Browser, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-import { createNewIdentity, goToTransactions } from "./helpers";
+import { createNewIdentity, goToSettings, goToTransactions } from "./helpers";
 import { addEmptyTransaction } from "./helpers/settlement";
 
 /** The date cell of a freshly added transaction row. */
@@ -61,7 +61,7 @@ test.describe("UR-007: dates display and parse in the browser's locale", () => {
 
             // Re-focusing shows the editing presentation of what was stored.
             await dateCell.click();
-            await expect(dateCell).toHaveValue("03/08/26");
+            await expect(dateCell).toHaveValue("3/8/2026");
         });
     });
 
@@ -74,7 +74,7 @@ test.describe("UR-007: dates display and parse in the browser's locale", () => {
             await dateCell.press("Tab");
 
             await dateCell.click();
-            await expect(dateCell).toHaveValue("03/08/26");
+            await expect(dateCell).toHaveValue("3/8/2026");
 
             // Same text, but it denotes 8 March, so the resting compact form
             // orders month first and shows no year for a current-year date.
@@ -83,7 +83,7 @@ test.describe("UR-007: dates display and parse in the browser's locale", () => {
         });
     });
 
-    test("the editing presentation carries a two-digit year", async ({ browser }) => {
+    test("the editing presentation carries the year in full", async ({ browser }) => {
         await withLocale(browser, "en-AU", async (page) => {
             const dateCell = await addRowDateCell(page);
 
@@ -94,13 +94,13 @@ test.describe("UR-007: dates display and parse in the browser's locale", () => {
             await dateCell.click();
             const editing = await dateCell.inputValue();
 
-            expect(editing).toBe("15/06/25");
-            // The defect: editing rendered a four-digit year.
-            expect(editing).not.toMatch(/\d{4}/);
+            // A two-digit year cannot say which century it means, and editing is
+            // where that matters: what the field shows is what gets typed back.
+            expect(editing).toBe("15/6/2025");
         });
     });
 
-    test("a different-year date rests with a two-digit year, a same-year date without one", async ({
+    test("a different-year date rests with the full year, a same-year date without one", async ({
         browser
     }) => {
         await withLocale(browser, "en-AU", async (page) => {
@@ -109,7 +109,7 @@ test.describe("UR-007: dates display and parse in the browser's locale", () => {
             await dateCell.click();
             await dateCell.fill("15/06/25");
             await dateCell.press("Tab");
-            await expect(dateCell).toHaveValue("15/6/25");
+            await expect(dateCell).toHaveValue("15/6/2025");
 
             // A date in the current year drops the year entirely.
             const currentYear = new Date().getFullYear() % 100;
@@ -132,7 +132,80 @@ test.describe("UR-007: dates display and parse in the browser's locale", () => {
             await dateCell.fill("25 December 2023");
             await dateCell.press("Tab");
 
-            await expect(dateCell).toHaveValue("25/12/23");
+            await expect(dateCell).toHaveValue("25/12/2023");
         });
+    });
+});
+
+test.describe("UR-007: a chosen date format overrides the browser", () => {
+    /**
+     * Choose a presentation on the settings page.
+     *
+     * The option's accessible name carries both its label and its example, so the pattern matches
+     * the label alone rather than the whole string.
+     */
+    async function chooseDateFormat(page: Page, label: RegExp): Promise<void> {
+        await page.getByRole("combobox", { name: /date format/i }).click();
+        await page.getByRole("option", { name: label }).click();
+    }
+
+    test("a day-first choice beats a month-first browser", async ({ browser }) => {
+        // The reported environment, reproduced: the browser reports United States English while
+        // the viewer is in Brisbane. Nothing the browser exposes knows that, which is why the
+        // setting exists.
+        const context = await browser.newContext({
+            locale: "en-US",
+            timezoneId: "Australia/Brisbane"
+        });
+        const page = await context.newPage();
+
+        try {
+            await createNewIdentity(page);
+            await goToTransactions(page);
+
+            // Before choosing, the browser's own order is what shows.
+            const beforeCell = await addRowDateCell(page);
+            await beforeCell.click();
+            await beforeCell.fill("1988-01-27");
+            await beforeCell.press("Tab");
+            await expect(beforeCell).toHaveValue("1/27/1988");
+
+            await goToSettings(page);
+            await chooseDateFormat(page, /day first/i);
+
+            await goToTransactions(page);
+            const afterCell = page.getByTestId("date-editable").first();
+            await expect(afterCell).toHaveValue("27/1/1988");
+        } finally {
+            await context.close();
+        }
+    });
+
+    test("the choice survives a reload", async ({ browser }) => {
+        const context = await browser.newContext({
+            locale: "en-US",
+            timezoneId: "Australia/Brisbane"
+        });
+        const page = await context.newPage();
+
+        try {
+            await createNewIdentity(page);
+            await chooseDateFormat(page, /year first/i);
+
+            await goToTransactions(page);
+            const dateCell = await addRowDateCell(page);
+            await dateCell.click();
+            await dateCell.fill("1988-01-27");
+            await dateCell.press("Tab");
+            await expect(dateCell).toHaveValue("1988-01-27");
+
+            await page.reload();
+
+            // Stored against the viewer in the vault, so it is still in force after a cold load
+            // rather than living only in this tab.
+            await expect(page.getByTestId("date-editable").first()).toHaveValue("1988-01-27");
+        } finally {
+            await context.close();
+        }
     });
 });

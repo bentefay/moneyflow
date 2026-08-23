@@ -23,6 +23,7 @@ import { Temporal } from "temporal-polyfill";
 
 import { type RememberedRuleChoice } from "@/lib/domain/automation/preferences";
 import { type FieldRule } from "@/lib/domain/automation/rules";
+import { type DateFormatPreference } from "@/lib/domain/date-format-preference";
 import {
     getActiveDescriptionAliases,
     toDescriptionAliasCollection,
@@ -33,6 +34,11 @@ import {
     applyFieldRulesToSingleTransaction,
     type ApplyFieldRulesToTransactionResult
 } from "./apply-field-rule-to-transaction";
+import {
+    persistUserDateFormat,
+    type PersistUserDateFormatInput,
+    readUserDateFormat
+} from "./display-preferences";
 import {
     type CreateFieldRuleInput,
     createFieldRule,
@@ -69,6 +75,7 @@ import type {
     VaultState,
     YearBucket
 } from "./schema";
+import { buildTransactionIndex, type TransactionIndex } from "./transaction-cursor";
 import type { VaultEditSession, VaultUserActionKind } from "./undo";
 import { useVaultUndoCoordinator } from "./undo";
 
@@ -882,6 +889,23 @@ export function useActiveTransactions() {
 }
 
 /**
+ * Hook for the document-scoped transaction index the grid's cursor is built over.
+ *
+ * This is the transaction grid's source, and it is deliberately *not* a list. `useActiveTransactions`
+ * flattens the whole hierarchy into a fresh array and sorts it on every vault change, so a keystroke
+ * in one row costs an allocation and a sort proportional to every transaction in the vault. The index
+ * walks the hierarchy once to resolve canonical copies and group day buckets by calendar date; a
+ * cursor over it then answers counts, windows and positions without a matching list ever existing.
+ *
+ * Memoised on the store's identity, so the walk happens once per document change rather than once per
+ * render. Filtering belongs to `createTransactionCursor`, not here — one index serves every filter.
+ */
+export function useTransactionIndex(): TransactionIndex {
+    const transactions = useVaultSelector((state) => state.transactions);
+    return useMemo(() => buildTransactionIndex(transactions), [transactions]);
+}
+
+/**
  * Hook for active canonical parent and nested logical transaction identities.
  *
  * This broader identity projection is intentionally separate from the parent-only transaction-grid
@@ -1225,6 +1249,19 @@ export function usePersistAutomationPreference(): (
     return useInternalVaultAction(
         (state, input: PersistUserAutomationPreferenceInput) =>
             persistUserAutomationPreference(state, input),
+        []
+    );
+}
+
+/** Read a user's chosen date presentation, defaulting to "follow the browser". */
+export function useUserDateFormat(pubkeyHash: string | null): DateFormatPreference {
+    return useInternalVaultSelector((state) => readUserDateFormat(state, pubkeyHash));
+}
+
+/** Persist a user's chosen date presentation for `pubkeyHash`. */
+export function usePersistDateFormat(): (input: PersistUserDateFormatInput) => void {
+    return useInternalVaultAction(
+        (state, input: PersistUserDateFormatInput) => persistUserDateFormat(state, input),
         []
     );
 }

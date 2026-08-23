@@ -3,278 +3,80 @@
  * including rows that are not rendered and rows beyond the currently loaded page", and "Bulk actions
  * taken after selecting all apply to every selected transaction, including rows never rendered."
  *
- * `selection.test.ts` proves the hook's own contract. The clause guarded here spans the whole page:
- * the table is virtualized *and* paginated, and it was the page — not the hook — that narrowed the
- * set to `filteredTransactions.slice(0, PAGE_SIZE)` before handing it over, and narrowed the
- * selection again before handing it to the bulk handlers. A hook-level test cannot see either
- * narrowing.
+ * `selection.test.ts` proves the model's own contract. The clause guarded here spans the whole page:
+ * the table is virtualized *and* holds only a bounded window of the matching set, and it was the page
+ * — not the model — that narrowed the set before handing it over, and narrowed the selection again
+ * before handing it to the bulk handlers. A model-level test cannot see either narrowing.
  *
- * So the real page is mounted over a fake vault holding far more rows than one page, the *real*
- * header checkbox is clicked, and a *real* bulk status change is applied. The assertions name rows
- * that were never rendered and rows past the loaded page: an implementation that covers only what is
- * on screen fails them, while asserting "the visible rows were updated" would pass either way.
+ * So the real page is mounted over a fake vault holding far more rows than the grid can hold, the
+ * *real* header checkbox is clicked, and a *real* bulk status change is applied. The assertions name
+ * rows that were never rendered and rows outside the window: an implementation that covers only what
+ * the grid holds fails them, while asserting "the visible rows were updated" would pass either way.
+ *
+ * The row count is chosen against `TRANSACTION_ROW_WINDOW_ROWS`, not against a page size. That is the
+ * premise of the whole file, and it is asserted rather than assumed: a fixture that fits inside the
+ * window would make every test here pass for the wrong reason.
  */
 
-import type { Range } from "@tanstack/react-virtual";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { Temporal } from "temporal-polyfill";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { asMinorUnits } from "@/lib/domain/currency";
+import { TRANSACTION_ROW_WINDOW_ROWS } from "@/components/features/transactions/row-window";
 
-const ACCOUNT_ID = "account-cheque";
-const STATUS_ID = "status-for-review";
-const PAID_STATUS_ID = "status-paid";
+import {
+    applyBulkPaidStatus,
+    clickHeaderCheckbox,
+    createCrdtContextMock,
+    importMock,
+    PAID_STATUS_ID,
+    presenceMock,
+    renderedRowIds,
+    renderTransactionsPage,
+    routerMock,
+    seedVault,
+    statusUpdates
+} from "./transactions-page-harness";
+import { installVirtualGridLayout } from "./virtual-grid-harness";
 
-/** Comfortably more than the page's PAGE_SIZE of 50, and more than any virtual window. */
-const TOTAL_TRANSACTIONS = 400;
+/**
+ * Comfortably more than the grid can hold, and more than any virtual window, so that "matching" and
+ * "loaded" cannot coincide. Halving it with the search filter must also leave more than the window.
+ */
+const TOTAL_TRANSACTIONS = 1_600;
 
-/** How many rows the fake virtualizer mounts, mirroring a real viewport's small window. */
-const MOUNTED_ROW_COUNT = 8;
-
-/** Every `updateTransaction` the page issued, so a bulk action's true reach can be measured. */
-const statusUpdates = vi.hoisted(() => [] as Array<{ id: string; statusId: string }>);
-
-const vault = vi.hoisted(() => ({
-    transactions: [] as unknown[],
-    listeners: new Set<() => void>()
-}));
-
-vi.mock("next/navigation", () => ({
-    useRouter: () => ({ replace: () => {}, push: () => {} }),
-    usePathname: () => "/transactions",
-    useSearchParams: () => new URLSearchParams()
-}));
-
-// jsdom gives the scroll container no height, so the real virtualizer mounts nothing at all. This
-// fake mounts a small fixed window instead — which is the point: the rows outside it have no
-// rendered element, exactly as they would not on a real screen, and the assertions below are about
-// those rows.
-vi.mock("@tanstack/react-virtual", () => ({
-    defaultRangeExtractor: (range: Range) => {
-        const start = Math.max(range.startIndex - range.overscan, 0);
-        const end = Math.min(range.endIndex + range.overscan, range.count - 1);
-        return Array.from({ length: end - start + 1 }, (_, index) => start + index);
-    },
-    useVirtualizer: (options: {
-        readonly count: number;
-        readonly estimateSize: () => number;
-        readonly overscan: number;
-        readonly rangeExtractor: (range: Range) => number[];
-    }) => ({
-        getVirtualItems: () =>
-            options
-                .rangeExtractor({
-                    startIndex: 0,
-                    endIndex: Math.min(MOUNTED_ROW_COUNT - 1, options.count - 1),
-                    overscan: 0,
-                    count: options.count
-                })
-                .map((index) => ({
-                    index,
-                    key: index,
-                    start: index * options.estimateSize(),
-                    end: (index + 1) * options.estimateSize(),
-                    size: options.estimateSize(),
-                    lane: 0
-                })),
-        getTotalSize: () => options.count * options.estimateSize(),
-        measureElement: () => {}
-    })
-}));
-
-vi.mock("@/lib/crdt/context", async () => {
-    const { useCallback, useSyncExternalStore } = await import("react");
-
-    const subscribe = (listener: () => void) => {
-        vault.listeners.add(listener);
-        return () => {
-            vault.listeners.delete(listener);
-        };
-    };
-    const readTransactions = () => vault.transactions;
-
-    return {
-        useActiveTransactions: () =>
-            useSyncExternalStore(subscribe, readTransactions, readTransactions),
-        useActiveAccounts: () => accounts,
-        useActiveTags: () => empty,
-        useDescriptionAliases: () => empty,
-        useStatuses: () => statuses,
-        useActivePeople: () => empty,
-        usePeople: () => empty,
-        useActiveFieldRules: () => noRules,
-        useTransactionActions: () => ({
-            insertTransaction: noop,
-            updateTransaction: useCallback(
-                ({
-                    location,
-                    updates
-                }: {
-                    readonly location: { readonly transactionId: string };
-                    readonly updates: { readonly statusId?: string };
-                }) => {
-                    if (updates.statusId == null) return;
-                    statusUpdates.push({
-                        id: location.transactionId,
-                        statusId: updates.statusId
-                    });
-                },
-                []
-            ),
-            setTransactionAllocation: noop,
-            moveTransaction: noop,
-            deleteTransaction: noop,
-            unnestDuplicate: noop
-        }),
-        useDescriptionAliasActions: () => aliasActions,
-        useVaultAction: () => noop,
-        useApplyFieldRulesToTransaction: () => noop,
-        useUserAutomationChoice: () => empty,
-        usePersistAutomationPreference: () => noop,
-        // The inline rule-proposal workflow reads these through `@/lib/crdt`, which re-exports this
-        // module. They are unrelated to selection but must exist, or the page throws on render.
-        useActiveDescriptionAliases: () => noRules,
-        useVaultPreferences: () => empty,
-        useFieldRuleActions: () => fieldRuleActions,
-        useApplyFieldRules: () => applyFieldRules
-    };
-});
-
-vi.mock("@/hooks/use-identity", () => ({
-    usePubkeyHash: () => null
-}));
-
+vi.mock("next/navigation", () => routerMock);
+vi.mock("@/lib/crdt/context", () => createCrdtContextMock());
+vi.mock("@/hooks/use-identity", () => ({ usePubkeyHash: () => null }));
 vi.mock("@/components/providers/vault-presence-provider", () => ({
-    useVaultPresenceContext: () => presence
+    useVaultPresenceContext: () => presenceMock
 }));
-
-vi.mock("@/components/features/import", () => ({
-    ImportDropTarget: ({
-        children,
-        containerRef,
-        className
-    }: {
-        readonly children: React.ReactNode;
-        readonly containerRef?: React.Ref<HTMLDivElement>;
-        readonly className?: string;
-    }) => (
-        <div ref={containerRef} className={className}>
-            {children}
-        </div>
-    ),
-    useImportFileTransfer: () => ({ stageImportFile: noop })
-}));
-
+vi.mock("@/components/features/import", () => importMock);
 vi.mock("@/components/features/accounts", () => ({
     AccountCombobox: () => <button type="button">Account</button>
 }));
 
-const noop = () => {};
-const empty = {};
-const noRules: readonly never[] = [];
-const accounts = {
-    [ACCOUNT_ID]: {
-        id: ACCOUNT_ID,
-        name: "Cheque",
-        currency: "USD",
-        accountType: "checking",
-        balance: 0,
-        ownerships: {}
-    }
-};
-const statuses = {
-    [STATUS_ID]: { id: STATUS_ID, name: "For review", isDefault: true },
-    [PAID_STATUS_ID]: { id: PAID_STATUS_ID, name: "Paid", isDefault: false }
-};
-const fieldRuleActions = { create: noop, update: noop };
-const applyFieldRules = { applyAll: noop, applyNewerThan: noop };
-const aliasActions = {
-    assignDescriptionAlias: noop,
-    assignDescriptionAliasByExactName: noop,
-    changeAllDescriptionAliases: noop,
-    changeOneDescriptionAlias: noop,
-    removeAllDescriptionAliases: noop,
-    removeOneDescriptionAlias: noop,
-    renameDescriptionAlias: noop
-};
-const presence = {
-    snapshot: { byTransactionId: {}, byIdentity: {} },
-    onlineIdentities: [],
-    presentIdentities: [],
-    isConnected: false,
-    setPresenceState: noop,
-    clearPresenceFocus: noop,
-    disconnect: async () => {}
-};
-
-/**
- * Rows dated so that index 0 is newest, matching the store's own newest-first order. Half carry
- * "Groceries" in the description so a search filter can split the set.
- */
-function createTransaction(index: number) {
-    const day = Temporal.PlainDate.from("2026-01-01").add({ days: TOTAL_TRANSACTIONS - index });
-    return {
-        id: `tx-${index.toString().padStart(4, "0")}`,
-        date: day,
-        description: index % 2 === 0 ? `Groceries ${index}` : `Fuel ${index}`,
-        descriptionAliasId: undefined,
-        notes: "",
-        amount: asMinorUnits(-(index + 1) * 100),
-        originalAmount: undefined,
-        accountId: ACCOUNT_ID,
-        tagIds: [],
-        statusId: STATUS_ID,
-        importId: "import-1",
-        allocations: {},
-        creationInstant: Temporal.Instant.from("2026-01-01T09:00:00Z"),
-        importRowIndex: index,
-        suspectedDuplicates: [],
-        deletedAt: undefined
-    };
-}
-
-async function renderTransactionsPage(): Promise<void> {
-    const { default: TransactionsPage } = await import("@/app/(app)/transactions/page");
-    const { ToastProvider } = await import("@/components/ui/toast");
-    render(
-        <ToastProvider>
-            <TransactionsPage />
-        </ToastProvider>
-    );
-}
-
-/** The transaction IDs that actually have a rendered row right now. */
-function renderedRowIds(): string[] {
-    return screen
-        .getAllByTestId("transaction-row")
-        .map((row) => row.getAttribute("data-transaction-id") ?? "");
-}
-
-function clickHeaderCheckbox(): void {
-    const header = screen.getByTestId("header-checkbox").querySelector("button");
-    if (header == null) throw new Error("Expected the header checkbox to render");
-    fireEvent.click(header);
-}
-
-/** Applies the "Paid" status through the real bulk toolbar. */
-function applyBulkPaidStatus(): void {
-    fireEvent.click(screen.getByTestId("bulk-edit-status-button"));
-    fireEvent.click(screen.getByRole("button", { name: "Paid" }));
-}
-
-describe("UR-011: the header checkbox covers rows beyond the rendered page", () => {
-    // Mounting the whole page with several hundred rows is slower under a saturated full-suite run
+describe("UR-011: the header checkbox covers rows beyond the window the grid holds", () => {
+    // Mounting the whole page with over a thousand rows is slower under a saturated full-suite run
     // than the 5s default allows. This is a ceiling, not a wait: every assertion settles on its own
     // condition.
-    vi.setConfig({ testTimeout: 30_000 });
+    vi.setConfig({ testTimeout: 60_000 });
+
+    let restoreLayout: () => void;
 
     beforeEach(() => {
-        vault.transactions = Array.from({ length: TOTAL_TRANSACTIONS }, (_, index) =>
-            createTransaction(index)
-        );
-        vault.listeners.clear();
-        statusUpdates.length = 0;
+        // The real virtualizer, given real element sizes. The rows outside its window have no
+        // element at all — which is the premise every assertion below rests on.
+        restoreLayout = installVirtualGridLayout();
+        seedVault(TOTAL_TRANSACTIONS);
+    });
+
+    afterEach(() => restoreLayout());
+
+    it("holds a fixture the grid cannot fit, before and after filtering", () => {
+        // Not decoration. Every assertion below distinguishes "matching" from "loaded", and both
+        // halves of the fixture have to be bigger than the window for that distinction to exist.
+        expect(TOTAL_TRANSACTIONS).toBeGreaterThan(TRANSACTION_ROW_WINDOW_ROWS);
+        expect(TOTAL_TRANSACTIONS / 2).toBeGreaterThan(TRANSACTION_ROW_WINDOW_ROWS);
     });
 
     it("selects every matching transaction, not merely the rows with a rendered element", async () => {
@@ -291,11 +93,11 @@ describe("UR-011: the header checkbox covers rows beyond the rendered page", () 
 
         // The count is over the matching set, so it names the unrendered rows too.
         await waitFor(() =>
-            expect(screen.getByText(`Edit ${TOTAL_TRANSACTIONS}`)).toBeInTheDocument()
+            expect(screen.getByText(`Edit ${String(TOTAL_TRANSACTIONS)}`)).toBeInTheDocument()
         );
     });
 
-    it("applies a bulk action to rows that were never rendered and lie beyond the loaded page", async () => {
+    it("applies a bulk action to rows that were never rendered and lie outside the window", async () => {
         await renderTransactionsPage();
         await waitFor(() =>
             expect(screen.getAllByTestId("transaction-row").length).toBeGreaterThan(0)
@@ -305,7 +107,7 @@ describe("UR-011: the header checkbox covers rows beyond the rendered page", () 
 
         clickHeaderCheckbox();
         await waitFor(() =>
-            expect(screen.getByText(`Edit ${TOTAL_TRANSACTIONS}`)).toBeInTheDocument()
+            expect(screen.getByText(`Edit ${String(TOTAL_TRANSACTIONS)}`)).toBeInTheDocument()
         );
 
         applyBulkPaidStatus();
@@ -313,16 +115,18 @@ describe("UR-011: the header checkbox covers rows beyond the rendered page", () 
         await waitFor(() => expect(statusUpdates.length).toBe(TOTAL_TRANSACTIONS));
         const updatedIds = new Set(statusUpdates.map((update) => update.id));
 
-        // The last row in the vault is neither rendered nor within the first page of 50; the old
-        // behaviour reached neither it nor anything else past the page boundary.
+        // The last row in the vault is neither rendered nor inside the window the grid holds; the
+        // old behaviour reached neither it nor anything else past the loaded page.
         const lastRowId = `tx-${(TOTAL_TRANSACTIONS - 1).toString().padStart(4, "0")}`;
         expect(rendered.has(lastRowId)).toBe(false);
         expect(updatedIds.has(lastRowId)).toBe(true);
 
-        // A row just past the 50-row page boundary, likewise never rendered.
-        const justPastFirstPageId = "tx-0060";
-        expect(rendered.has(justPastFirstPageId)).toBe(false);
-        expect(updatedIds.has(justPastFirstPageId)).toBe(true);
+        // A row just past the window's trailing edge, likewise never rendered.
+        const justPastWindowId = `tx-${(TRANSACTION_ROW_WINDOW_ROWS + 10)
+            .toString()
+            .padStart(4, "0")}`;
+        expect(rendered.has(justPastWindowId)).toBe(false);
+        expect(updatedIds.has(justPastWindowId)).toBe(true);
 
         expect(updatedIds.size).toBe(TOTAL_TRANSACTIONS);
         expect(statusUpdates.every((update) => update.statusId === PAID_STATUS_ID)).toBe(true);
@@ -343,24 +147,26 @@ describe("UR-011: the header checkbox covers rows beyond the rendered page", () 
         const matchingCount = TOTAL_TRANSACTIONS / 2;
         await waitFor(() =>
             expect(screen.getByTestId("transaction-table-toolbar")).toHaveTextContent(
-                `${matchingCount} transactions (filtered)`
+                `${String(matchingCount)} transactions (filtered)`
             )
         );
 
         clickHeaderCheckbox();
-        await waitFor(() => expect(screen.getByText(`Edit ${matchingCount}`)).toBeInTheDocument());
+        await waitFor(() =>
+            expect(screen.getByText(`Edit ${String(matchingCount)}`)).toBeInTheDocument()
+        );
 
         applyBulkPaidStatus();
 
         await waitFor(() => expect(statusUpdates.length).toBe(matchingCount));
         const updatedIds = new Set(statusUpdates.map((update) => update.id));
 
-        // Every even-indexed row matches and must be updated, including unrendered ones; every
-        // odd-indexed row does not match and must be untouched.
-        expect(updatedIds.has("tx-0398")).toBe(true);
-        expect(updatedIds.has("tx-0200")).toBe(true);
-        expect(updatedIds.has("tx-0399")).toBe(false);
-        expect(updatedIds.has("tx-0201")).toBe(false);
+        // Every even-indexed row matches and must be updated, including unrendered ones outside the
+        // window; every odd-indexed row does not match and must be untouched.
+        expect(updatedIds.has("tx-1598")).toBe(true);
+        expect(updatedIds.has("tx-0800")).toBe(true);
+        expect(updatedIds.has("tx-1599")).toBe(false);
+        expect(updatedIds.has("tx-0801")).toBe(false);
         expect(updatedIds.size).toBe(matchingCount);
     });
 
@@ -376,12 +182,14 @@ describe("UR-011: the header checkbox covers rows beyond the rendered page", () 
         const matchingCount = TOTAL_TRANSACTIONS / 2;
         await waitFor(() =>
             expect(screen.getByTestId("transaction-table-toolbar")).toHaveTextContent(
-                `${matchingCount} transactions (filtered)`
+                `${String(matchingCount)} transactions (filtered)`
             )
         );
 
         clickHeaderCheckbox();
-        await waitFor(() => expect(screen.getByText(`Edit ${matchingCount}`)).toBeInTheDocument());
+        await waitFor(() =>
+            expect(screen.getByText(`Edit ${String(matchingCount)}`)).toBeInTheDocument()
+        );
 
         // Relaxing the filter doubles the matching set. "Every matching row is selected" must not
         // silently come to mean the wider set — the Fuel rows were never selected, and a bulk
@@ -389,19 +197,19 @@ describe("UR-011: the header checkbox covers rows beyond the rendered page", () 
         fireEvent.change(search, { target: { value: "" } });
         await waitFor(() =>
             expect(screen.getByTestId("transaction-table-toolbar")).toHaveTextContent(
-                `${TOTAL_TRANSACTIONS} transactions`
+                `${String(TOTAL_TRANSACTIONS)} transactions`
             )
         );
 
-        expect(screen.getByText(`Edit ${matchingCount}`)).toBeInTheDocument();
+        expect(screen.getByText(`Edit ${String(matchingCount)}`)).toBeInTheDocument();
         const header = screen.getByTestId("header-checkbox").querySelector("button");
         expect(header?.getAttribute("aria-checked")).toBe("mixed");
 
         applyBulkPaidStatus();
         await waitFor(() => expect(statusUpdates.length).toBe(matchingCount));
         const updatedIds = new Set(statusUpdates.map((update) => update.id));
-        expect(updatedIds.has("tx-0201")).toBe(false);
-        expect(updatedIds.has("tx-0200")).toBe(true);
+        expect(updatedIds.has("tx-0801")).toBe(false);
+        expect(updatedIds.has("tx-0800")).toBe(true);
     });
 
     it("clears the whole matching set, leaving no unrendered row selected", async () => {
@@ -412,7 +220,7 @@ describe("UR-011: the header checkbox covers rows beyond the rendered page", () 
 
         clickHeaderCheckbox();
         await waitFor(() =>
-            expect(screen.getByText(`Edit ${TOTAL_TRANSACTIONS}`)).toBeInTheDocument()
+            expect(screen.getByText(`Edit ${String(TOTAL_TRANSACTIONS)}`)).toBeInTheDocument()
         );
 
         clickHeaderCheckbox();
@@ -432,7 +240,7 @@ describe("UR-011: the header checkbox covers rows beyond the rendered page", () 
 
         clickHeaderCheckbox();
         await waitFor(() =>
-            expect(screen.getByText(`Edit ${TOTAL_TRANSACTIONS}`)).toBeInTheDocument()
+            expect(screen.getByText(`Edit ${String(TOTAL_TRANSACTIONS)}`)).toBeInTheDocument()
         );
 
         // Deselecting one rendered row must leave the header mixed over the whole matching set,
@@ -444,7 +252,7 @@ describe("UR-011: the header checkbox covers rows beyond the rendered page", () 
         fireEvent.click(firstRowCheckbox);
 
         await waitFor(() =>
-            expect(screen.getByText(`Edit ${TOTAL_TRANSACTIONS - 1}`)).toBeInTheDocument()
+            expect(screen.getByText(`Edit ${String(TOTAL_TRANSACTIONS - 1)}`)).toBeInTheDocument()
         );
         const header = screen.getByTestId("header-checkbox").querySelector("button");
         expect(header?.getAttribute("aria-checked")).toBe("mixed");

@@ -59,3 +59,15 @@ export async function setDocumentVisibility(page: Page, state: DocumentVisibilit
         if (nextState === "visible") window.dispatchEvent(new Event("focus"));
     }, state);
 }
+
+/**
+ * Exercises the product's visible-state durable catch-up path without pretending the tab was hidden.
+ */
+export async function dispatchVisibleStateCatchUp(page: Page): Promise<void> {
+    await page.evaluate(() => {
+        if (document.visibilityState !== "visible" || document.hidden) {
+            throw new Error("Visible-state catch-up requires a foreground document");
+        }
+        document.dispatchEvent(new Event("visibilitychange"));
+    });
+}

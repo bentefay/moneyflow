@@ -99,10 +99,11 @@ do.**
    discharges the clause.
 2. **Complete manual product journey (Q-P21-06-06).** The campaign held `:3000` all session. **The
    port is free now** — this is discharge-able if you take it.
-3. **Strict `format:check` reading (Q-P21-06-02).** Exits 1 on 27 files, **all under
-   `specs/**`, zero under `src/`or`tests/`**. The collector established the frozen `specs/human-scratch.md`was **already format-dirty at the P00 baseline`0ea864f`**
-   — so this is pre-existing and identical in kind to what rev 04 and rev 05 both accepted at 15
-   files. **This needs a ruling, not a measurement.\*\*
+3. **Strict `format:check` reading (Q-P21-06-02).** Exits 1 on 27 files, **all under `specs/**`,
+   zero under `src/`or`tests/`**. The collector established the frozen `specs/human-scratch.md`was
+   **already format-dirty at the P00 baseline`0ea864f`** — so this is pre-existing and identical in
+   kind to what rev 04 and rev 05 both accepted at 15 files. **This needs a ruling, not a
+   measurement.\*\*
 
 ## Carry-forward Q-proposals the audit must confirm are surfaced
 

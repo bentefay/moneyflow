@@ -77,3 +77,53 @@
 - [Suggested wording is not verified wording](feedback_suggested-wording-is-not-verified-wording.md)
   — a reviewer's literal replacement text can contradict that same review's own table; grade it
   against the measurement, and prefer a clause derivable from source.
+- [Invisible control chars in written source](invisible-control-chars-in-written-source.md) — a
+  Write can emit a literal NUL that renders as a space; grep then reports the whole file as
+  containing nothing, and a green test is green for a reason you cannot read.
+- [Derivation failure is the normal state](derivation-failure-is-the-normal-state.md) —
+  `deriveEffectiveAllocations` returns `ok:false` on empty ownership; gating a displayed value on
+  `.ok` blanks the common case, not the broken one.
+- [React Compiler does not bail on useTable](react-compiler-does-not-bail-on-usetable.md) — the
+  bail-out is keyed on `useReactTable`; v9 reads get cached on table identity, safe only with the
+  default `useTable` subscription.
+- [autoReset needs a render then a flush](autoreset-needs-a-render-then-a-flush.md) — v9
+  `autoReset*` only queues once the row model is read and lands async; a sync assertion passes with
+  the option on or off.
+- [The grid has two different counts](grid-has-two-different-counts.md) — virtualizer gets the
+  windowed count, `matchingRowCount` gets the cursor's full count; one number for both kills either
+  progressive loading or select-all, invisibly in small fixtures.
+- [A hook in a child reads a null ancestor ref](hook-in-a-child-reads-a-null-ancestor-ref.md) — refs
+  attach child-first, so extracting a hook to please the compiler broke measurement on mount and
+  nothing retried; pass the element, not the ref.
+- [An opaque call in the render body defeats the compiler](opaque-call-in-render-body-defeats-the-compiler.md)
+  — it unsticks every `useState` setter and reports at five unrelated `useCallback` sites that never
+  name the cause.
+- [Check for a perf capture, not just a port](check-for-a-perf-capture-not-just-a-port.md) — a
+  frame-timing campaign binds no port you watch; contaminating the BEFORE arm flatters the port.
+- [Instrumentation in a render body masks the defect](instrumentation-in-a-render-body-masks-the-defect.md)
+  — a diagnostic `console.log` made the mutated-away fix pass; log in handlers only, never in
+  render.
+- [A stopped agent may have already fixed it](a-stopped-agent-may-have-already-fixed-it.md) —
+  compare source mtimes against the failure artifact's timestamp before accepting "reproduces
+  deterministically".
+- [jsdom fireEvent does not move focus](jsdom-fireevent-does-not-move-focus.md) — `fireEvent.click`
+  and `.focus` leave `activeElement` unmoved, so focus-dependent assertions test nothing; twice now.
+- [Class without cause leaves the defect](class-without-cause-leaves-the-defect.md) — "it's a flake"
+  is a claim about statistics, not blast radius; find the mechanism, then enumerate every call site
+  and report a count. This repo has shipped the same race three times.
+- [No ResizeObserver disables all measurement](no-resizeobserver-disables-all-measurement.md) — a
+  row mounted DURING a scroll is measured only by the observer jsdom lacks, so `resizeItem`, size
+  correction and every scroll adjustment are unreachable; a uniform stub height hides it completely.
+- [jsdom clamps programmatic scroll to zero](jsdom-clamps-programmatic-scroll-to-zero.md) —
+  `scrollToIndex` clamps to `scrollHeight - clientHeight`, both 0 without layout, so the assertion
+  passes on a scroll that never happened.
+- [A harness artefact can mimic the product's failure signature](harness-artefact-mimics-product-failure-signature.md)
+  — a synchronous `scroll` stand-in emitted the exact `flushSync` string the E2E fails the run on;
+  copy an API's timing, not just its effect.
+- [Virtualizer measurement space is DOM space](virtualizer-measurement-space-is-dom-space.md) — an
+  UNDER-estimate mounts more rows and overlaps them; a trailing gap needs measurements too LARGE,
+  and a mount count below 2x overscan is not an estimate problem at all.
+- [The obvious assertion passes on the design it rejects](obvious-assertion-passes-on-the-design-it-rejects.md)
+  — "row 9,999 is reachable" stayed green against the pagination it replaced; assert the BOUND.
+- [Portal tests need a ResizeObserver stub](portal-tests-need-a-resizeobserver-stub.md) — the cmdk
+  tags chooser throws while MOUNTING in jsdom, so the portal never opens and the case is untestable.

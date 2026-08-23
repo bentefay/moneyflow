@@ -300,13 +300,15 @@ the requirement asks for and is masked visually.
 
 All commands run from a clean tree at GREEN HEAD `4cda92d`.
 
-| Check     | Command             | Result                                                                                                                              |
-| --------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| Typecheck | `pnpm typecheck`    | **PASS** — no output, exit 0                                                                                                        |
-| Lint      | `pnpm lint`         | **PASS** — `10 problems (0 errors, 10 warnings)`; all 10 pre-existing `no-unused-vars` warnings in files this package did not touch |
-| Format    | `pnpm format:check` | **FAIL (pre-existing, not this package)** — see below                                                                               |
-| Unit      | `pnpm test`         | **PASS** — `68 files, 1550 passed                                                                                                   | 2 skipped (1552)` |
-| E2E       | `pnpm test:e2e`     | **PASS** — `107 passed (2.2m)`                                                                                                      |
+| Check | Command | Result | | --------- | ------------------- |
+-----------------------------------------------------------------------------------------------------------------------------------
+
+| ----------------- | | Typecheck | `pnpm typecheck` | **PASS** — no output, exit 0 | | Lint |
+`pnpm lint` | **PASS** — `10 problems (0 errors, 10 warnings)`; all 10 pre-existing `no-unused-vars`
+warnings in files this package did not touch | | Format | `pnpm format:check` | **FAIL
+(pre-existing, not this package)** — see below | | Unit | `pnpm test` | **PASS** —
+`68 files, 1550 passed                                                                                                   | 2 skipped (1552)`
+| | E2E | `pnpm test:e2e` | **PASS** — `107 passed (2.2m)` |
 
 **Format detail.** `pnpm format:check` reports 15 files, every one a root-owned markdown ledger or
 spec (`QUESTIONS.md`, `RISKS.md`, `human-scratch.md`, prior `evidence/`/`reviews/` artifacts, …) —

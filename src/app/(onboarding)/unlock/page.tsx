@@ -81,6 +81,7 @@ export default function UnlockPage() {
             // A passkey unlock installs the same identity a recovery phrase would, so the
             // destination is identical. A full navigation keeps React Query from serving another
             // identity's cached vault list.
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full document navigation is the point: client-side routing would keep the previous identity's in-memory state and React Query cache alive across an identity change.
             window.location.assign("/transactions");
         } catch {
             // Surfaced through the passkey hook's error state.

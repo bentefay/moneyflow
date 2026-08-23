@@ -9,6 +9,7 @@ export {
     createNewIdentity,
     enterSeedPhrase,
     extractSeedPhrase,
+    fillRecoveryPhraseCredential,
     waitForUnlockHydration
 } from "./auth";
 export {
@@ -41,3 +42,9 @@ export {
     goToTxDescriptions
 } from "./nav";
 export { createTag, type TagSpec } from "./tags";
+export {
+    dispatchVisibleStateCatchUp,
+    installVisibilityControl,
+    setDocumentVisibility,
+    type DocumentVisibility
+} from "./visibility";

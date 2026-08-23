@@ -153,10 +153,9 @@ reader who finds it should not have to guess.
 - `pnpm lint` — **0 errors, 1 warning**. The warning is the pre-existing
   `react-hooks/incompatible-library` on `TransactionTable.tsx:459` (TanStack Virtual), in a file I
   did not touch. MEASURED.
-- `pnpm format:check` — 31 files reported, **all under
-  `specs/**`**, none in `src/`or`tests/`. MEASURED: `pnpm format:check 2>&1 | grep -vE
-  "^specs/"`lists no file. I did not run a bare`pnpm format`; I ran `pnpm exec oxfmt` against my own
-  17 files only.
+- `pnpm format:check` — 31 files reported, **all under `specs/**`**, none in `src/`or`tests/`.
+  MEASURED: `pnpm format:check 2>&1 | grep -vE "^specs/"`lists no file. I did not run a
+  bare`pnpm format`; I ran `pnpm exec oxfmt` against my own 17 files only.
 - `pnpm build` — **succeeded**, all routes emitted. MEASURED (run before the commit, on identical
   file content).
 - `pnpm test` — **6 runs at this HEAD: 4 green at 2487 passed / 2 skipped / 130 files, 2 with a

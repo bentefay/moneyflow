@@ -330,6 +330,38 @@ describe("initializeVaultDefaults", () => {
         expect(state.statuses[DEFAULT_STATUS_IDS.PAID]).toBeDefined();
     });
 
+    it("round-trips a per-viewer date presentation through a real document", () => {
+        // The preference is per-VIEWER, keyed by pubkeyHash, rather than a field on the vault-wide
+        // preferences map: members of a shared vault in different countries must not overwrite one
+        // another's date format the way they would share a default currency.
+        const doc = new LoroDoc();
+        const mirror = new Mirror({
+            doc,
+            schema: vaultSchema,
+            initialState: getDefaultVaultState(),
+            validateUpdates: true
+        });
+
+        // A vault nobody has expressed a preference in starts empty, which is what "follow the
+        // browser" is represented by.
+        expect(mirror.getState().userDisplayPreferences).toEqual({});
+
+        mirror.setState((draft: VaultInput) => {
+            draft.userDisplayPreferences["viewer-a"] = {
+                pubkeyHash: "viewer-a",
+                dateFormat: "dayFirst"
+            };
+            draft.userDisplayPreferences["viewer-b"] = {
+                pubkeyHash: "viewer-b",
+                dateFormat: "monthFirst"
+            };
+        });
+
+        const state = mirror.getState();
+        expect(state.userDisplayPreferences["viewer-a"]?.dateFormat).toBe("dayFirst");
+        expect(state.userDisplayPreferences["viewer-b"]?.dateFormat).toBe("monthFirst");
+    });
+
     it("does not overwrite existing preferences", () => {
         // initializeVaultDefaults only sets preferences if the object doesn't exist
         // In practice, loro-mirror always creates the preferences object

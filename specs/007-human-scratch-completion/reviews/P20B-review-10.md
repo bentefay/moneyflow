@@ -475,9 +475,8 @@ Recorded so nobody re-litigates them, and so it is clear they were examined rath
   silently fixed out-of-scope code nor quietly ignored a red test.
 - **`tests/unit/import/duplicates.test.ts`.** Wall-clock ratio assertion; failed once in my two
   serial runs. No claim made. I ran no unit tests beside my E2E campaign.
-- **`format:check` under
-  `specs/**`.** Pre-existing, `Q-P20B-25`. I scoped the formatter to `src`and`tests`and never ran bare`pnpm
-  format`.
+- **`format:check` under `specs/**`.** Pre-existing, `Q-P20B-25`. I scoped the formatter to
+  `src`and`tests`and never ran bare`pnpm format`.
 - **The 1 lint warning.** Pre-existing, `TransactionTable.tsx:459`, untouched by this commit.
 - **`transactions.spec.ts:573`.** §5 — a flake, and MEASURED not a lost write.
 - **The 15 s retry budget and the retry-on-absence branch.** Considered against
