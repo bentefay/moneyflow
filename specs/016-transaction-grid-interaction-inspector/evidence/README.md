@@ -6,16 +6,22 @@ is retained rather than overwritten.
 
 ## Source gate
 
-| Artifact                           | Purpose                                                                             | Status                                              |
-| ---------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `../goal.md`                       | Authoritative outcomes and approval decisions                                       | Approved 2026-08-24; frozen by containing commit    |
-| `../interaction-contract.md`       | Acceptance-keyed state, command, focus, inspector, failure, and preference contract | Approved 2026-08-24; frozen by containing commit    |
-| `../source-disposition.md`         | Preserve/Replace/Not-applicable reconciliation                                      | Approved 2026-08-24; frozen by containing commit    |
-| `../replacement-coverage.md`       | Exhaustive current-path/test/perf replacement and negative-proof map                | Approved 2026-08-24; frozen by containing commit    |
-| `source-freeze/freeze-manifest.md` | Source identities, current-HEAD disclosures, and approval record                    | Approval recorded; post-commit verification pending |
+| Artifact                                   | Purpose                                                                             | Status                                                |
+| ------------------------------------------ | ----------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `../goal.md`                               | Authoritative outcomes and approval decisions                                       | Approved 2026-08-24; frozen by containing commit      |
+| `../interaction-contract.md`               | Acceptance-keyed state, command, focus, inspector, failure, and preference contract | Approved 2026-08-24; frozen by containing commit      |
+| `../source-disposition.md`                 | Preserve/Replace/Not-applicable reconciliation                                      | Approved 2026-08-24; frozen by containing commit      |
+| `../replacement-coverage.md`               | Exhaustive current-path/test/perf replacement and negative-proof map                | Approved 2026-08-24; frozen by containing commit      |
+| `../amendments/001-idle-reconciliation.md` | Idle and pending-activation reconciliation precedence                               | Approved 2026-08-24; post-commit verification pending |
+| `source-freeze/freeze-manifest.md`         | Source identities, current-HEAD disclosures, and approval record                    | Base commit verified; amendment commit pending        |
 
-The user approved the exact manifest identities through the source-gate prompt in this session.
-Product work and implementation evidence remain blocked until post-commit reviewer verification.
+The user approved the four exact base source identities through the source-gate prompt. Independent
+post-commit verification of `67227d06de0545ea5f95e7ba827b670f8b0aa97a` passed without changing those
+bytes. Product slice 2A review then found an authority conflict. Independent amendment review cycle
+4 returned `APPROVE`, and the user selected “Approve and commit” for exact amendment SHA-256
+`bfe997646884ae2b12dcce58af38cafa00e2db79770aa27872832e00a7ee68d0` on 2026-08-24. The dedicated
+source-amendment commit is authorized; post-commit amendment verification remains pending, and
+product correction remains paused until that verification passes.
 
 ## Executable acceptance-key registry
 
@@ -53,6 +59,17 @@ TGI-VIRT-001..004
 TGI-VERIFY-001..004
 ```
 
+This block expands to exactly 146 base records and remains unchanged. `TGI-AMD-001` is executable
+amendment evidence, not a 147th base-registry key. The final package has the closed top-level shape
+`{ baseRecords: AcceptanceRecord[]; amendmentRecords: [TgiAmendment001Record] }`. The exact
+schema-version-2 amendment record, command, case, mutation execution, independent review,
+literal-ID, digest, path, count, and cross-record validation schema is normative in
+`amendments/001-idle-reconciliation.md`. A runtime parser must reject unapplied or unrelated
+mutations, unrelated command failures, restoration without a passing rerun, non-matching review
+attestations, and any unknown or missing field. Mixing an amendment key into the base set, omitting
+or duplicating the separate record, or relying on TypeScript types without runtime validation fails
+the package before verdicts are read.
+
 The manifest generator must implement range expansion as a pure function and test:
 
 - first/last inclusive expansion;
@@ -61,7 +78,7 @@ The manifest generator must implement range expansion as a pure function and tes
 - exact equality between expanded expected keys and manifest record keys;
 - rejection of unknown, missing, duplicate, or malformed keys.
 
-Each manifest record has these required fields:
+Each base manifest record has these required fields:
 
 ```text
 acceptanceId
@@ -88,19 +105,21 @@ verification command.
 
 Future implementation artifacts use two-digit immutable revisions.
 
-| Stage          | Required path                          | Minimum content                                                                         |
-| -------------- | -------------------------------------- | --------------------------------------------------------------------------------------- |
-| controller     | `implementation/controller-01.md`      | state/reducer/projection APIs, acceptance keys, tests, negative mutations, commands     |
-| grid surface   | `implementation/grid-surface-01.md`    | gestures, roving focus, paint, copy, ARIA, browser checks                               |
-| editors        | `implementation/editors-01.md`         | each lifecycle, IME, outside-pointer ordering, validation, portals, replacement mapping |
-| inspector      | `implementation/inspector-01.md`       | engagement, DOM identity, preferences, notes, automation, presence, responsive focus    |
-| virtualization | `implementation/virtualization-01.md`  | 57px geometry, held window, pins, mounted bounds, compiler boundaries                   |
-| deletion       | `implementation/superseded-code-01.md` | every deleted path plus green replacement oracle and negative proof                     |
-| final          | `final/acceptance-manifest-01.json`    | exact registry record set with hashes, commands, reviews, and verdicts                  |
+| Stage          | Required path                          | Minimum content                                                                          |
+| -------------- | -------------------------------------- | ---------------------------------------------------------------------------------------- |
+| amendment      | `implementation/amendment-001-01.md`   | idle-neutrality and engaged-reconciliation tests, mutations, commands, acceptance record |
+| controller     | `implementation/controller-01.md`      | state/reducer/projection APIs, acceptance keys, tests, negative mutations, commands      |
+| grid surface   | `implementation/grid-surface-01.md`    | gestures, roving focus, paint, copy, ARIA, browser checks                                |
+| editors        | `implementation/editors-01.md`         | each lifecycle, IME, outside-pointer ordering, validation, portals, replacement mapping  |
+| inspector      | `implementation/inspector-01.md`       | engagement, DOM identity, preferences, notes, automation, presence, responsive focus     |
+| virtualization | `implementation/virtualization-01.md`  | 57px geometry, held window, pins, mounted bounds, compiler boundaries                    |
+| deletion       | `implementation/superseded-code-01.md` | every deleted path plus green replacement oracle and negative proof                      |
+| final          | `final/acceptance-manifest-01.json`    | exact registry record set with hashes, commands, reviews, and verdicts                   |
 
 ## Required reviews
 
-- `reviews/source-review-01.md` — human approval plus independent consistency review.
+- `reviews/source-review-01.md` — approved base source plus post-commit verification.
+- `reviews/amendment-001-review-01.md` — conflict, precedence, accounting, and human approval.
 - `reviews/controller-review-01.md`
 - `reviews/grid-surface-review-01.md`
 - `reviews/editors-review-01.md`

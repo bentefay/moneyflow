@@ -124,11 +124,16 @@ approval.
 - [x] Task 5.2: Correct source-review cycle 2 owner-changing inspector focus and virtual/performance
       harness inventory findings; regenerate proposal identities and rerun source checks.
 - [x] Task 6: Obtain human approval and commit the immutable source revision before product changes.
+- [x] Task 6.1: Independently review, obtain human approval for, and commit `TGI-AMD-001` before any
+      slice-2A product correction.
+- [ ] Task 6.2: Complete independent post-commit verification of `TGI-AMD-001` before resuming any
+      slice-2A product correction.
 
 ### Controller and key state
 
-- [ ] Task 7: Add pure interaction, key-intent, navigation, reconciliation, and drag/autoscroll
-      modules with table-driven/property tests.
+- [x] Task 7: Add pure interaction, key-intent, navigation, and reconciliation modules with
+      table-driven/property tests. Drag/autoscroll remains deferred because it is not a dependency
+      of the pure slice.
 - [ ] Task 8: Add `TransactionGridWorkspace` and `useTransactionGridController` as the sole effect
       coordinator while retaining one-shot added-row focus.
 
@@ -136,7 +141,7 @@ approval.
 
 - [ ] Task 9: Prove a supported external TanStack atom constructor without importing a transitive
       package; request approval before any dependency change.
-- [ ] Task 10: Add the branded workspace-owned projection generation and generation-checked cursor
+- [x] Task 10: Add the branded workspace-owned projection generation and generation-checked cursor
       adapter operations without duplicating `TransactionCursor.indexOf`.
 - [ ] Task 11: Wire one canonical external selection atom, projection geometry, transactional
       materialisation/focus, and reconciliation with unit/property coverage.
@@ -226,14 +231,78 @@ approval.
    classifier, and threshold behavior; retire variable measurement/ResizeObserver and expanded-note
    geometry; require new revisioned source 016 performance evidence rather than writes to spec 015.
 
-### Source review cycle 3 — human approved, post-commit verification pending
+### Source review cycle 3 — human approved, post-commit verification passed
 
-The user selected “Approve and commit” through the source-gate prompt in this session on 2026-08-24.
-The approved manifest identities are frozen by the containing dedicated source-only commit. Product
-work remains blocked until the reviewer verifies that commit; no product review cycle has started.
+The user selected “Approve and commit” through the source-gate prompt on 2026-08-24. Commit
+`67227d06de0545ea5f95e7ba827b670f8b0aa97a` and tree `b91833201f005554622d3658cff1a58abf3de578`
+freeze the approved source identities. Independent post-commit verification passed.
+
+### Product slice 2A review cycle 1 — rejected; source amendment required
+
+Review found a frozen-authority conflict: pre-focus `idle` neutrality under `TGI-STATE-001` and
+`TGI-INSP-005` conflicts with an unconditional reading of `TGI-RECON-002` and `TGI-RECON-003` that
+would synthesize a first cell during structural projection changes. Product-code correction is
+paused. `TGI-AMD-001` must be independently reviewed, human-approved, and committed before code work
+resumes. A consolidated list of slice-2A implementation corrections follows after that authority
+gate; it is intentionally not recorded piecemeal here.
+
+### Amendment review cycle 1 — deferred before semantic grading; canonical tree identity corrected
+
+Review stopped before semantic grading because the recorded source-tree identity had one extra
+trailing character. Plan, progress, and both manifest occurrences now use the canonical 40-character
+tree `b91833201f005554622d3658cff1a58abf3de578`. Cycle 1 therefore records an accounting correction,
+not acceptance or rejection of the amendment substance.
+
+### Amendment review cycle 2 — rejected; three medium findings corrected
+
+Review rejected the proposal on three separate Medium findings:
+
+1. `idle` was incorrectly conditioned on no prior activation, so later idle reconciliation remained
+   history-dependent;
+2. pending explicit activation and Add/reveal had no exact `G+1` target re-resolution,
+   bounded-materialization, abort, or reveal-pin lifecycle; and
+3. amendment accounting listed coarse fields but did not define a closed executable schema or
+   machine-checkable cross-record validation.
+
+The cycle-3 proposal makes idle history-independent, separates ordinary idle reconciliation from the
+pending-command rebase branch, forbids fallback-cell synthesis, and defines the exact
+runtime-validated amendment record. Product correction remains paused pending independent amendment
+review and human approval.
+
+### Amendment correction cycle 4 — user-authorized focused revision
+
+On 2026-08-24 the user authorized one focused fourth correction cycle without approving the
+amendment. The revision must:
+
+1. represent `pending-activation` as a state distinct from neutral idle and engaged interaction,
+   with exact target, command, generation, phase, pin, and neutral or canonical engaged origin;
+2. reconcile and return neutral-origin and engaged-origin pending transitions differently, including
+   origin-scoped pin bounds and atomic fulfillment/cancellation clearing;
+3. add named cases and mutations for fulfilled-record, fulfilled-pin, cancelled-record, and
+   cancelled-pin clearing;
+4. bind every negative proof to baseline HEAD/tree, applied patch and derived mutated tree, a named
+   nonzero failure, exact restoration, and a zero-exit passing rerun; and
+5. require a closed matching independent review attestation before amendment `PASS`.
+
+This correction cycle did not itself grant approval. Product correction remained paused through
+review.
+
+### Amendment cycle 4 — reviewer approved and user approved commit
+
+Independent amendment review cycle 4 returned `APPROVE`. On 2026-08-24 the user selected “Approve
+and commit” for exact amendment identity
+`bfe997646884ae2b12dcce58af38cafa00e2db79770aa27872832e00a7ee68d0`, 416 lines, and 21,350 bytes. The
+dedicated five-document source-amendment commit is authorized. Post-commit amendment verification
+remains pending, and product correction must not resume until that verification passes.
 
 ## Notes
 
+- Product slice 2A implements only the pure typed interaction/projection foundation. It deliberately
+  leaves the external TanStack atom, workspace/effect coordinator, rendered table, cells, editors,
+  inspector, automation, virtual-row DOM, copy materialisation, and drag/autoscroll unwired.
+- The projection adapter wraps the production cursor's existing `indexOf` and bounded `slice`; it
+  adds generation-checked `idAt`, `readRowAt`, and lazy re-iterable `rowsBetween` without making the
+  sparse held Table model canonical.
 - Current HEAD at source-freeze preparation: `3bc789cee63d85d966c7c395e73f1bcd0bad04be`.
 - `specs/014-transaction-grid-v9/goal.md` is absent from current HEAD. Its historical content is
   read only from commit `2ac5a3f73e2bf576d548e036d2de4560261613f9`, blob

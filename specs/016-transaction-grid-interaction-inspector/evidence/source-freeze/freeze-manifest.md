@@ -5,10 +5,13 @@
 - Source status: `APPROVED; IMMUTABLE IN THE CONTAINING SOURCE-ONLY COMMIT`
 - Source review cycle 1: `REJECTED; CORRECTIONS APPLIED`
 - Source review cycle 2: `REJECTED; CORRECTIONS APPLIED`
-- Source review cycle 3: `HUMAN APPROVED; POST-COMMIT VERIFICATION PENDING`
+- Source review cycle 3: `HUMAN APPROVED; POST-COMMIT VERIFICATION PASSED`
 - Human approval: `APPROVED 2026-08-24`
-- Source-only commit: `THE COMMIT CONTAINING THIS MANIFEST`
-- Product implementation authority: `BLOCKED UNTIL POST-COMMIT REVIEWER VERIFICATION`
+- Source-only commit: `67227d06de0545ea5f95e7ba827b670f8b0aa97a`
+- Source amendment 001:
+  `APPROVED BY CYCLE-4 INDEPENDENT REVIEW AND HUMAN APPROVAL; DEDICATED COMMIT COMPLETE`
+- Product implementation authority:
+  `BLOCKED ONLY ON INDEPENDENT POST-COMMIT VERIFICATION OF THE AMENDMENT COMMIT`
 
 No product, test, package-manifest, dependency, configuration, prior frozen-spec, or agent-rule
 change is admitted by this proposal manifest.
@@ -36,6 +39,23 @@ is immutable; a change requires a new source revision and manifest.
 | `replacement-coverage.md` | `81d99e6b74943221e04dab7b26df5c2b89665bc8c1774bb2bc687f94610c3212` |   158 | 37,857 |
 
 Paths are relative to `specs/016-transaction-grid-interaction-inspector/`.
+
+## Source amendment 001
+
+Product slice 2A review found that the frozen source permits conflicting outcomes whenever there is
+no current engagement: neutrality under `TGI-STATE-001` and `TGI-INSP-005`, or synthesized one-cell
+engagement under an unconditional reading of `TGI-RECON-002` and `TGI-RECON-003`. The original
+source is not rewritten.
+
+| Amendment artifact                      | Acceptance ID | SHA-256                                                            | Lines |  Bytes | Status                                     |
+| --------------------------------------- | ------------- | ------------------------------------------------------------------ | ----: | -----: | ------------------------------------------ |
+| `amendments/001-idle-reconciliation.md` | `TGI-AMD-001` | `bfe997646884ae2b12dcce58af38cafa00e2db79770aa27872832e00a7ee68d0` |   416 | 21,350 | APPROVED; post-commit verification pending |
+
+Independent amendment review cycle 4 returned `APPROVE`, and the user approved this exact identity
+on 2026-08-24 through the source-gate prompt. The dedicated source-amendment commit is complete in
+the containing commit. Only independent post-commit amendment verification remains pending; product
+authority is blocked only on that verification. The amendment acceptance record remains separate
+from the unchanged 146-key base registry.
 
 ## Mutable accounting files
 
@@ -99,21 +119,69 @@ The source-review-cycle-2 corrected proposal was checked with:
 - protected-path checks proving no `src/`, `tests/`, package/dependency/configuration, prior frozen
   spec, or agent-configuration tracked path changed.
 
-The user approved these exact identities on 2026-08-24 through the source-gate prompt in this
-session. The containing source-only commit freezes them; product work remains blocked until
-post-commit reviewer verification.
+The user approved these exact identities on 2026-08-24 through the source-gate prompt. Commit
+`67227d06de0545ea5f95e7ba827b670f8b0aa97a` freezes them.
 
-## Human approval record
+## Post-commit verification and amendment block
+
+Independent post-commit verification passed for source commit `67227d06` and tree
+`b91833201f005554622d3658cff1a58abf3de578`. The four SHA-256 identities above remain exact and the
+commit contains the approved eight source/accounting paths.
+
+Product slice 2A review cycle 1 was then rejected. It found an authority conflict, not merely an
+implementation defect: neutral `idle` under `TGI-STATE-001` and `TGI-INSP-005` conflicts with an
+unconditional reading of the one-cell/focus rules in `TGI-RECON-002` and `TGI-RECON-003`. Code
+correction is paused. A consolidated implementation correction list follows only after `TGI-AMD-001`
+is independently reviewed, human-approved, and committed as a source-only amendment.
+
+Amendment review cycle 1 stopped before semantic grading because the recorded source-tree identity
+had one extra trailing character. The accounting now uses canonical tree
+`b91833201f005554622d3658cff1a58abf3de578`; cycle 1 did not accept or reject amendment substance.
+
+Amendment review cycle 2 rejected three separate Medium findings: history-dependent idle semantics,
+no generation-safe pending explicit-activation/Add reveal branch, and no closed executable amendment
+evidence schema. The cycle-3 proposal makes idle history-independent, re-resolves only the explicit
+stable-ID target across `G+1` with bounded materialization and neutral abort, bounds and atomically
+clears or replaces its reveal pin, forbids fallback-cell synthesis, and requires runtime validation
+of exact case, mutation, command, path, digest, and count records.
+
+On 2026-08-24 the user authorized one focused amendment correction cycle 4 without approving the
+amendment at that stage. The revised proposal adds an explicit `pending-activation` workspace state
+with neutral or canonical engaged origin, origin-scoped `G+1` reconciliation and failure return,
+exact pin bounds, and atomic fulfillment and cancellation. It adds separate clearing cases and
+mutations, binds every negative proof to baseline, applied patch, derived mutated tree, named
+failure, restoration, and passing rerun, and requires a matching independent `APPROVE` attestation
+before amendment `PASS`. Independent review cycle 4 later returned `APPROVE`, the user approved the
+exact amendment identity, and the dedicated commit completed. Product authority is now blocked only
+on independent post-commit amendment verification.
+
+## Amendment review and human approval record
+
+- Amendment acceptance ID: `TGI-AMD-001`
+- Independent amendment review cycle 4: `APPROVE`
+- Approver: `User`
+- Approval decision: `APPROVED — selected “Approve and commit” in the source-gate prompt`
+- Approval date: `2026-08-24`
+- Approval provenance: `This Claude Code session's source-gate prompt`
+- Approved amendment SHA-256: `bfe997646884ae2b12dcce58af38cafa00e2db79770aa27872832e00a7ee68d0`
+- Approved amendment lines: `416`
+- Approved amendment bytes: `21,350`
+- Dedicated amendment commit: `COMPLETE — containing commit`
+- Post-commit amendment verification: `PENDING`
+
+Approval is recorded only in mutable accounting and does not change the approved amendment bytes.
+Product correction remains paused until post-commit amendment verification passes.
+
+## Base source human approval record
 
 - Approver: `User`
 - Approval decision: `APPROVED — selected “Approve and commit” in the source-gate prompt`
 - Approval date: `2026-08-24`
 - Approval provenance: `This Claude Code session's source-gate prompt`
-- Approved source-only commit: `The commit containing this manifest and the exact identities above`
-- Approved commit/tree hashes:
-  `Reported from Git after creation; not embedded because a commit cannot contain its own hash`
-- Independent source review: `POST-COMMIT REVIEWER VERIFICATION PENDING`
-- Limitations or amendments: `No product work before post-commit reviewer verification`
+- Approved source-only commit: `67227d06de0545ea5f95e7ba827b670f8b0aa97a`
+- Approved source tree: `b91833201f005554622d3658cff1a58abf3de578`
+- Independent source review: `POST-COMMIT VERIFICATION PASSED`
+- Limitations or amendments: `TGI-AMD-001 approved; post-commit amendment verification pending`
 
-Human approval is recorded without changing any identity-bound source artifact. The containing
-source-only commit must include exactly the approved source identities and eight authorized paths.
+Base-source human approval and post-commit verification remain recorded without changing any
+identity-bound source artifact.
