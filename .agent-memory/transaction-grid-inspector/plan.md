@@ -1,0 +1,244 @@
+# Transaction Grid Interaction and Inspector
+
+## Status: in-progress
+
+## Plan
+
+Replace the transaction table's always-live controls and split focus state with one selection-first
+interaction domain, canonical external TanStack cell-selection state, display-first grid cells, a
+stable responsive inspector, and fixed-height virtualization. Preserve financial calculations, Loro
+mutation semantics, row-checkbox selection, filters, sync, presence identity, and existing
+automation business rules.
+
+Implementation is gated by the proposed authoritative source package at
+`specs/016-transaction-grid-interaction-inspector/`. No product behavior may change until a human
+approves that package and its source identities are committed.
+
+### Vertical slices
+
+1. **Source freeze** — freeze the goal, interaction contract, source-disposition map, replacement
+   coverage, evidence index, and source manifest. Record that
+   `specs/014-transaction-grid-v9/goal.md` is absent from current HEAD; historical commit
+   `2ac5a3f73e2bf576d548e036d2de4560261613f9` is context only. Resolve current-path drift and list
+   investigations before product work.
+2. **Controller and key state** — add the pure engagement union, key-intent reducer, navigation and
+   reconciliation results, drag/autoscroll model, workspace boundary, and the sole effect
+   coordinator. Derive active identity from the latest canonical range anchor and keep row selection
+   orthogonal.
+3. **Canonical external TanStack selection and projection** — own one external `CellSelectionState`
+   atom, add a branded workspace-owned projection generation, extend cursor access without
+   duplicating the existing `TransactionCursor.indexOf`, and make offscreen materialisation/focus
+   transactional and generation checked. The atom-construction API remains an implementation
+   investigation because `@tanstack/store` is transitive, not a direct dependency, and
+   `@tanstack/table-core` does not re-export `createAtom`.
+4. **Grid surface, gestures, copy, and accessibility** — add the shared roving-focus gridcell
+   surface, display-first rendering, pointer and keyboard ranges, direct activation cells,
+   all-or-nothing active-operation copy, non-layout-changing paint, live status, and complete grid
+   semantics.
+5. **Editor family migration** — migrate amount/allocation, date, account/status/tags,
+   description/alias, then checkbox/actions to one typed draft lifecycle. Preserve existing domain
+   commands and CRDT draft-style mutations; remove immediate writes from cancellable drafts.
+6. **Inspector, preferences, notes, automation, and presence** — add one non-remounting responsive
+   inspector subtree, encrypted per-user open state, notes, rule/proposal controls, stable owner
+   metadata, and presence derived from the controller. Keep automation controllers mounted when the
+   panel is closed.
+7. **Fixed virtualization and performance** — make 57px the transaction-row geometry contract,
+   remove note-driven measurement, retain the 600-row held window and two named pins, and re-run the
+   admitted correctness/performance scenarios with fixed-row inspector replacements.
+8. **Superseded-code deletion** — remove live-input navigation, row-local editing booleans, inline
+   notes rows, dynamic-note measurement, and automation popover geometry only after replacement
+   coverage is green.
+9. **Verification campaign** — complete unit/property, DOM/accessibility, E2E, negative-mutation,
+   production-build manual, repeated full-suite, Chrome presentation, and iOS Safari campaigns with
+   tree-state attestations and independently reviewed evidence.
+
+### Conventions
+
+- Favor pure functions, immutable values, branded IDs, and discriminated unions/results.
+- Unit tests are table-driven and property-based for pure logic; E2E tests assert user flows.
+- Use established libraries rather than custom algorithms.
+- Money remains integer minor units. Loro writes use loro-mirror draft-style mutation in place.
+- Never edit frozen prior specs. Stage exact authored paths only; never stash, reset, or stage a
+  shared directory broadly.
+- Format authored paths only. Bare `pnpm format` can rewrite frozen specs and is forbidden for this
+  epic.
+- Do not add dependencies unless a later, separately approved investigation proves a direct package
+  is required.
+- Do not edit `.claude/CLAUDE.md`, `.claude/rules/`, skills, or commands in this implementation. Any
+  durable rule change is a follow-up for the human owner.
+
+### Verification criteria
+
+Each product slice must add tests before retiring its mapped predecessor and pass targeted checks.
+Final completion requires, serially and on unchanged committed bytes:
+
+1. scoped oxfmt over authored files, then `pnpm format:check`;
+2. `pnpm typecheck`;
+3. `pnpm lint`;
+4. `pnpm build`;
+5. `pnpm test`;
+6. `pnpm test:e2e`;
+7. at least five complete four-worker retry-free E2E repetitions, or six when shared E2E sync
+   helpers change;
+8. production-build headless Chromium manual journeys;
+9. revised Chrome presentation-trace and iOS Safari correctness campaigns.
+
+The source-freeze slice changes Markdown only. Its gate is scoped oxfmt, source hash/count checks,
+link/path checks, and narrow git-status inspection; product/build/test gates begin only after human
+approval.
+
+### Risks and assumptions
+
+- TanStack's sparse current row model cannot be canonical geometry for offscreen ranges.
+- A transitive `@tanstack/store` package is not a supported application import. The supported
+  external atom construction path must be proven before controller implementation; no dependency is
+  added in the source phase.
+- Responsive rendering can accidentally remount the inspector and lose focus unless one DOM subtree
+  is preserved.
+- Cursor and row-window terminology has drifted: `row-window.ts` is currently
+  `src/components/features/transactions/row-window.ts`, not under `table-model/`, and
+  `TransactionCursor.indexOf` already exists.
+- Selection's anchor is the active DOM cell; the range extent endpoint is geometry only. Confusing
+  the endpoint with DOM focus would break editing and announcements.
+- Fixed rows require all validation, presence, help, and automation surfaces to avoid changing row
+  height.
+- The numeric copy limits and typed quick-entry resolution rules in source 016 require explicit
+  human approval before implementation.
+
+## Tasks
+
+### Source freeze
+
+- [x] Task 1: Create the source 016 goal, contract, source-disposition map, replacement-coverage
+      map, evidence index, and proposal freeze manifest.
+- [x] Task 2: Record the absent current-HEAD spec 014 path and exact non-authoritative historical
+      source commit/blob.
+- [x] Task 3: Resolve `row-window.ts`, existing `TransactionCursor.indexOf`, projection-generation
+      ownership, and external TanStack atom-construction drift.
+- [x] Task 4: Freeze responsive inspector semantics, anchor/extent semantics, typed picker quick
+      entry, selection/action/copy rules, stale/focus failures, and per-user preference merging.
+- [x] Task 5: Run source-only formatting, path/hash checks, and narrow shared-tree inspection.
+- [x] Task 5.1: Correct source-review cycle 1 state, generation, inspector, inventory, atomic tag,
+      acceptance-key, popup, and IME findings; regenerate proposal identities and rerun source
+      checks.
+- [x] Task 5.2: Correct source-review cycle 2 owner-changing inspector focus and virtual/performance
+      harness inventory findings; regenerate proposal identities and rerun source checks.
+- [x] Task 6: Obtain human approval and commit the immutable source revision before product changes.
+
+### Controller and key state
+
+- [ ] Task 7: Add pure interaction, key-intent, navigation, reconciliation, and drag/autoscroll
+      modules with table-driven/property tests.
+- [ ] Task 8: Add `TransactionGridWorkspace` and `useTransactionGridController` as the sole effect
+      coordinator while retaining one-shot added-row focus.
+
+### Canonical external TanStack selection and projection
+
+- [ ] Task 9: Prove a supported external TanStack atom constructor without importing a transitive
+      package; request approval before any dependency change.
+- [ ] Task 10: Add the branded workspace-owned projection generation and generation-checked cursor
+      adapter operations without duplicating `TransactionCursor.indexOf`.
+- [ ] Task 11: Wire one canonical external selection atom, projection geometry, transactional
+      materialisation/focus, and reconciliation with unit/property coverage.
+
+### Grid surface, gestures, copy, and accessibility
+
+- [ ] Task 12: Add `TransactionGridCell`, roving tabindex, display-first rows, selection paint, and
+      concise status semantics.
+- [ ] Task 13: Add click, double-click, modifier, drag/autoscroll, activation-cell, and range
+      gesture coverage.
+- [ ] Task 14: Add bounded all-or-nothing active-operation copy and native editor-copy precedence.
+
+### Editor family migration
+
+- [ ] Task 15: Migrate amount and allocation editors with typed validation and commit-once behavior.
+- [ ] Task 16: Migrate date editing and calendar focus ownership.
+- [ ] Task 17: Migrate account, status, and tags drafts and owned portals.
+- [ ] Task 18: Migrate description/alias and modal precedence.
+- [ ] Task 19: Migrate checkbox/actions activation and remove conflicting printable shortcuts.
+
+### Inspector, preferences, notes, automation, and presence
+
+- [ ] Task 20: Add one responsive non-remounting inspector and encrypted per-user open preference.
+- [ ] Task 21: Move notes into the inspector without changing immediate CRDT persistence or search.
+- [ ] Task 22: Move proposal/rule/drift UI into headless inspector controllers and preserve rule
+      semantics.
+- [ ] Task 23: Derive presence and ownership-exit behavior from controller state across row,
+      inspector, and portals.
+
+### Fixed virtualization and performance
+
+- [ ] Task 24: Freeze 57px row geometry in code/tests and remove note-driven measurement.
+- [ ] Task 25: Preserve held-window, stable-key, pin, reveal, scroll, and compiler boundaries.
+
+### Superseded-code deletion
+
+- [ ] Task 26: Delete old navigation/edit/notes/automation geometry only after mapped replacement
+      coverage passes.
+- [ ] Task 27: Record any desired agent-rule update as a human-owned follow-up; do not edit agent
+      configuration.
+
+### Verification campaign
+
+- [ ] Task 28: Pass scoped format, typecheck, lint, build, unit, integration, and E2E gates.
+- [ ] Task 29: Complete production manual accessibility and interaction journeys.
+- [ ] Task 30: Complete repeated retry-free E2E, negative-mutation, Chrome performance, and iOS
+      Safari evidence with independent review.
+
+## Review Findings
+
+### Source review cycle 1 — rejected, corrected proposal submitted for re-review
+
+1. **High — unrepresentable structural reconciliation:** corrected by atomically replacing old
+   operations with one canonical one-cell include at the surviving/replacement address, or empty
+   selection plus `idle`; engagement and focus outcomes are explicit.
+2. **High — stale restoration over a newer generation:** corrected with conditional same-generation
+   rollback; a newer structural generation wins and only resources validated in it survive.
+3. **High — inspector ownership absent from engagement:** added explicit `inspecting` state and
+   inspector-owned interaction return, muted selection, transitions, Escape/close, focus return,
+   presence, and continuous-intent semantics.
+4. **Medium — replacement inventory incomplete:** swept production, unit/DOM/integration, E2E, and
+   performance paths; added each named omission plus other current superseded hooks/components and
+   an oracle/fault requirement.
+5. **Medium — tag create/assign split:** specified one typed atomic loro-mirror create-and-singleton
+   assignment action with one undo item and one final automation transition; all failures write
+   nothing.
+6. **Medium — evidence keys not executable:** added immutable acceptance keys, IDs on all command
+   rows, deterministic inclusive range expansion, exact expected registry, record fields, and
+   manifest-set validation.
+7. **Medium — outside-pointer popup behavior unspecified:** froze capture, validation,
+   commit/cancel, popup close, focus, destination activation, and write ordering for
+   date/account/status/tags.
+8. **Medium — IME lifecycle incomplete:** froze compositionstart/beforeinput/update/end,
+   exactly-once final grapheme insertion, deduplication fallback, cancellation, and the
+   command-resume boundary.
+
+### Source review cycle 2 — rejected, corrected proposal submitted for final re-review
+
+1. **High — owner-changing inspector focus could mutate the replacement transaction:** freeze a
+   retention predicate requiring the same transaction owner and unchanged field/action binding.
+   Owner change/disappearance invalidates every transaction-bound editable/actionable descendant;
+   deterministic fallback is the stable inspector heading while open, otherwise the reconciled
+   gridcell, with the empty result using heading or after-grid control.
+2. **Medium — virtual/performance support inventory incomplete:** inventory
+   `tests/unit/transactions/virtual-grid-harness.ts`, `tests/perf/baseline.measure.ts`, and their
+   immediate support boundaries. Preserve real fixed-row virtualizer, campaign, provenance,
+   classifier, and threshold behavior; retire variable measurement/ResizeObserver and expanded-note
+   geometry; require new revisioned source 016 performance evidence rather than writes to spec 015.
+
+### Source review cycle 3 — human approved, post-commit verification pending
+
+The user selected “Approve and commit” through the source-gate prompt in this session on 2026-08-24.
+The approved manifest identities are frozen by the containing dedicated source-only commit. Product
+work remains blocked until the reviewer verifies that commit; no product review cycle has started.
+
+## Notes
+
+- Current HEAD at source-freeze preparation: `3bc789cee63d85d966c7c395e73f1bcd0bad04be`.
+- `specs/014-transaction-grid-v9/goal.md` is absent from current HEAD. Its historical content is
+  read only from commit `2ac5a3f73e2bf576d548e036d2de4560261613f9`, blob
+  `f04243b6e75e2ca5f865320ae621a545864277b5`; that commit is not an ancestor of current HEAD.
+- Source 015 contains performance artifacts but no top-level goal in current HEAD. It remains
+  immutable.
+- Follow-up for the human owner after implementation: consider a transaction-grid rule and root
+  rule-loading reference. This epic does not modify agent configuration.
