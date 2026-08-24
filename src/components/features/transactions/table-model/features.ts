@@ -27,9 +27,9 @@
  *   the feature is here for the ordering guarantee, and it leaves the integration pass a supported
  *   way to hide a column later.
  *
- * - **`columnMeta`** — a type-only slot, carrying the per-column presentation contract the grid
- *   already has: its `grid-template-columns` track, its alignment, whether it is editable, and how
- *   its value serialises to the clipboard.
+ * - **`columnMeta`** — a type-only slot, carrying the per-column presentation contract: its
+ *   `grid-template-columns` track, alignment, current editability, clipboard serialization, and the
+ *   new controller's declarative interaction capabilities during migration.
  *
  * ## What is deliberately absent
  *
@@ -59,6 +59,8 @@ import {
     tableFeatures
 } from "@tanstack/table-core";
 
+import type { RuleField } from "@/lib/domain/automation/rules";
+
 import type { TransactionRowData } from "../TransactionRow";
 import type { TransactionCellMarker } from "./ids";
 import { rowSelectionBaselineFeature } from "./row-selection-baseline-feature";
@@ -74,6 +76,30 @@ export type TransactionTableRow = TransactionRowData;
 
 /** How a column's cells sit in their track. Matches the existing `COLUMN_CONFIG.align`. */
 export type TransactionColumnAlign = "left" | "center" | "right";
+
+export type TransactionColumnEditKind =
+    | "none"
+    | "date"
+    | "description"
+    | "account"
+    | "tags"
+    | "status"
+    | "allocation"
+    | "amount";
+
+export type TransactionColumnActivationKind = "none" | "checkbox" | "inspector";
+export type TransactionColumnPopupOwner = "none" | "grid-editor";
+
+/** Declarative interaction capabilities consumed by the new controller rather than row-local flags. */
+export interface TransactionColumnInteractionMeta {
+    readonly focusable: boolean;
+    readonly selectable: boolean;
+    readonly copyable: boolean;
+    readonly editKind: TransactionColumnEditKind;
+    readonly activationKind: TransactionColumnActivationKind;
+    readonly popupOwner: TransactionColumnPopupOwner;
+    readonly automationField: RuleField | null;
+}
 
 /**
  * The per-column presentation contract.
@@ -92,8 +118,13 @@ export interface TransactionColumnMeta {
      */
     readonly gridTemplate: string;
     readonly align: TransactionColumnAlign;
-    /** Whether this column's cells can be edited in place. Drives keyboard-navigable columns. */
+    /** Whether this column's cells can be edited in place. Drives current live-product navigation. */
     readonly editable: boolean;
+    /**
+     * Controller capabilities. Optional only while the old live-input renderer remains authoritative;
+     * the migration slice makes it required when every column moves to the new surface.
+     */
+    readonly interaction?: TransactionColumnInteractionMeta;
     /**
      * The stable `data-cell` marker the row markup already carries for this column, or `null` for
      * a column that carries none.

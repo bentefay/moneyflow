@@ -27,6 +27,32 @@ export function asTransactionId(value: string): TransactionId {
 }
 
 /**
+ * The workspace-owned revision of canonical row and selectable-column identity and order.
+ *
+ * A number keeps monotonic comparison cheap; the brand prevents a row index, render counter, or
+ * virtualizer version from being accepted as structural authority.
+ */
+declare const TransactionProjectionGenerationBrand: unique symbol;
+export type TransactionProjectionGeneration = number & {
+    readonly [TransactionProjectionGenerationBrand]: true;
+};
+
+/** Tags a finite non-negative workspace generation. */
+export function asTransactionProjectionGeneration(value: number): TransactionProjectionGeneration {
+    if (!Number.isSafeInteger(value) || value < 0) {
+        throw new Error("transaction projection generation must be a non-negative safe integer");
+    }
+    return value as TransactionProjectionGeneration;
+}
+
+/** The next structural generation. Value-only writes and held-window movement must not call this. */
+export function nextTransactionProjectionGeneration(
+    current: TransactionProjectionGeneration
+): TransactionProjectionGeneration {
+    return asTransactionProjectionGeneration(current + 1);
+}
+
+/**
  * The grid's fixed columns, in render order.
  *
  * This order is the grid's contract: it is the order the header renders, the order

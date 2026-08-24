@@ -8,10 +8,8 @@
 - Source review cycle 3: `HUMAN APPROVED; POST-COMMIT VERIFICATION PASSED`
 - Human approval: `APPROVED 2026-08-24`
 - Source-only commit: `67227d06de0545ea5f95e7ba827b670f8b0aa97a`
-- Source amendment 001:
-  `APPROVED BY CYCLE-4 INDEPENDENT REVIEW AND HUMAN APPROVAL; DEDICATED COMMIT COMPLETE`
-- Product implementation authority:
-  `BLOCKED ONLY ON INDEPENDENT POST-COMMIT VERIFICATION OF THE AMENDMENT COMMIT`
+- Source amendment 001: `APPROVED; DEDICATED COMMIT COMPLETE; POST-COMMIT VERIFICATION PASSED`
+- Product implementation authority: `ACTIVE FROM BASE SOURCE PLUS TGI-AMD-001`
 
 No product, test, package-manifest, dependency, configuration, prior frozen-spec, or agent-rule
 change is admitted by this proposal manifest.
@@ -47,15 +45,16 @@ no current engagement: neutrality under `TGI-STATE-001` and `TGI-INSP-005`, or s
 engagement under an unconditional reading of `TGI-RECON-002` and `TGI-RECON-003`. The original
 source is not rewritten.
 
-| Amendment artifact                      | Acceptance ID | SHA-256                                                            | Lines |  Bytes | Status                                     |
-| --------------------------------------- | ------------- | ------------------------------------------------------------------ | ----: | -----: | ------------------------------------------ |
-| `amendments/001-idle-reconciliation.md` | `TGI-AMD-001` | `bfe997646884ae2b12dcce58af38cafa00e2db79770aa27872832e00a7ee68d0` |   416 | 21,350 | APPROVED; post-commit verification pending |
+| Amendment artifact                      | Acceptance ID | SHA-256                                                            | Lines |  Bytes | Status                                    |
+| --------------------------------------- | ------------- | ------------------------------------------------------------------ | ----: | -----: | ----------------------------------------- |
+| `amendments/001-idle-reconciliation.md` | `TGI-AMD-001` | `bfe997646884ae2b12dcce58af38cafa00e2db79770aa27872832e00a7ee68d0` |   416 | 21,350 | APPROVED; post-commit verification passed |
 
 Independent amendment review cycle 4 returned `APPROVE`, and the user approved this exact identity
-on 2026-08-24 through the source-gate prompt. The dedicated source-amendment commit is complete in
-the containing commit. Only independent post-commit amendment verification remains pending; product
-authority is blocked only on that verification. The amendment acceptance record remains separate
-from the unchanged 146-key base registry.
+on 2026-08-24 through the source-gate prompt. Dedicated commit
+`417e103def4e2a2b07caf7171a8e467de9e3bfab`, tree `72f583fbcdcf6539fbeb438bdfebc287a4cd20bd`,
+contains the approved amendment identity and exactly the five authorized amendment/accounting paths.
+Independent post-commit verification passed, so product authority is active. The amendment
+acceptance record remains separate from the unchanged 146-key base registry.
 
 ## Mutable accounting files
 
@@ -152,8 +151,8 @@ exact pin bounds, and atomic fulfillment and cancellation. It adds separate clea
 mutations, binds every negative proof to baseline, applied patch, derived mutated tree, named
 failure, restoration, and passing rerun, and requires a matching independent `APPROVE` attestation
 before amendment `PASS`. Independent review cycle 4 later returned `APPROVE`, the user approved the
-exact amendment identity, and the dedicated commit completed. Product authority is now blocked only
-on independent post-commit amendment verification.
+exact amendment identity, and the dedicated commit completed. Independent post-commit verification
+passed for the committed amendment identity and containing path set; product authority is active.
 
 ## Amendment review and human approval record
 
@@ -166,11 +165,34 @@ on independent post-commit amendment verification.
 - Approved amendment SHA-256: `bfe997646884ae2b12dcce58af38cafa00e2db79770aa27872832e00a7ee68d0`
 - Approved amendment lines: `416`
 - Approved amendment bytes: `21,350`
-- Dedicated amendment commit: `COMPLETE — containing commit`
-- Post-commit amendment verification: `PENDING`
+- Dedicated amendment commit: `417e103def4e2a2b07caf7171a8e467de9e3bfab`
+- Approved amendment tree: `72f583fbcdcf6539fbeb438bdfebc287a4cd20bd`
+- Post-commit amendment verification: `PASSED`
 
-Approval is recorded only in mutable accounting and does not change the approved amendment bytes.
-Product correction remains paused until post-commit amendment verification passes.
+Approval and verification are recorded only in mutable accounting and do not change the approved
+amendment bytes. Product correction is authorized within the combined source and amendment scope.
+
+## Product slice 2A corrected-core review record
+
+Bounded corrected-core review initially rejected the uncommitted pure implementation on five
+verified findings. The focused correction:
+
+1. requires a live current-generation callback for every projection snapshot and live read, checks
+   caller, snapshot, and current generations, and reserves a separate private historical-position
+   seam for reconciliation;
+2. validates fulfill, cancel, and abort against current pending state plus exact command and
+   generation identity, returning typed `stale-operation` for late work;
+3. stores continuous quick/full intent canonically in navigating state and limits clearing to the
+   five contract-approved stopping transitions;
+4. makes inspector control and inspector-popup survival depend on row owner plus stable binding
+   while preserving row-and-column validity for grid-editor draft and popup ownership; and
+5. makes editable and activation key contexts mutually exclusive, with defensive printable and IME
+   guards.
+
+This correction does not change any approved source or amendment identity. It remains limited to the
+unwired pure product/test slice and these mutable accounting records. Complete stable-tree
+verification passed and bounded re-review returned `APPROVE`. Slice 2A is complete and authorized
+for its exact reviewed commit.
 
 ## Base source human approval record
 
@@ -181,7 +203,7 @@ Product correction remains paused until post-commit amendment verification passe
 - Approved source-only commit: `67227d06de0545ea5f95e7ba827b670f8b0aa97a`
 - Approved source tree: `b91833201f005554622d3658cff1a58abf3de578`
 - Independent source review: `POST-COMMIT VERIFICATION PASSED`
-- Limitations or amendments: `TGI-AMD-001 approved; post-commit amendment verification pending`
+- Limitations or amendments: `TGI-AMD-001 approved; post-commit amendment verification passed`
 
 Base-source human approval and post-commit verification remain recorded without changing any
 identity-bound source artifact.

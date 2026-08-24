@@ -10,9 +10,9 @@ stable responsive inspector, and fixed-height virtualization. Preserve financial
 mutation semantics, row-checkbox selection, filters, sync, presence identity, and existing
 automation business rules.
 
-Implementation is gated by the proposed authoritative source package at
-`specs/016-transaction-grid-interaction-inspector/`. No product behavior may change until a human
-approves that package and its source identities are committed.
+Implementation authority is active from source commit `67227d06de0545ea5f95e7ba827b670f8b0aa97a`
+plus approved amendment commit `417e103def4e2a2b07caf7171a8e467de9e3bfab`. Independent post-commit
+verification passed for both source identities; product slices must remain within that authority.
 
 ### Vertical slices
 
@@ -126,7 +126,7 @@ approval.
 - [x] Task 6: Obtain human approval and commit the immutable source revision before product changes.
 - [x] Task 6.1: Independently review, obtain human approval for, and commit `TGI-AMD-001` before any
       slice-2A product correction.
-- [ ] Task 6.2: Complete independent post-commit verification of `TGI-AMD-001` before resuming any
+- [x] Task 6.2: Complete independent post-commit verification of `TGI-AMD-001` before resuming any
       slice-2A product correction.
 
 ### Controller and key state
@@ -287,13 +287,42 @@ amendment. The revision must:
 This correction cycle did not itself grant approval. Product correction remained paused through
 review.
 
-### Amendment cycle 4 — reviewer approved and user approved commit
+### Amendment cycle 4 — reviewer approved, user approved, post-commit verification passed
 
 Independent amendment review cycle 4 returned `APPROVE`. On 2026-08-24 the user selected “Approve
 and commit” for exact amendment identity
-`bfe997646884ae2b12dcce58af38cafa00e2db79770aa27872832e00a7ee68d0`, 416 lines, and 21,350 bytes. The
-dedicated five-document source-amendment commit is authorized. Post-commit amendment verification
-remains pending, and product correction must not resume until that verification passes.
+`bfe997646884ae2b12dcce58af38cafa00e2db79770aa27872832e00a7ee68d0`, 416 lines, and 21,350 bytes.
+Commit `417e103def4e2a2b07caf7171a8e467de9e3bfab`, tree `72f583fbcdcf6539fbeb438bdfebc287a4cd20bd`,
+contains exactly the approved five paths, descends from the base source commit, and preserves all
+four frozen base-source identities. Independent post-commit verification passed; source plus
+amendment product authority is active.
+
+### Product slice 2A corrected-core review — approved; slice complete
+
+Bounded review rejected the corrected pure core on five verified findings:
+
+1. **Live projection authority was optional in effect:** every interactive projection read now
+   requires a live generation authority and validates caller-expected, snapshot, and current
+   generations. Reconciliation uses a separate private historical-position seam for the prior
+   projection, so `G -> G+N` can reconcile without authorizing stale interactive reads.
+2. **Pending completion trusted stale objects:** fulfill, cancel, and abort now consume the current
+   controller state plus exact expected command ID and generation and return typed `stale-operation`
+   for late completion after command replacement.
+3. **Continuous intent was not canonical:** navigating state now owns retained quick/full intent;
+   movement across activation cells preserves it, editable movement exposes the resume entry, and
+   only pointer selection, inspector entry, Escape, grid-boundary Tab, or external blur can clear
+   it.
+4. **Inspector survival was coupled to the active grid column:** inspector control and popup
+   survival now require row-owner survival plus unchanged registered binding, independent of
+   active-column survival. Grid-editor draft and popup validity remains row-and-column based.
+5. **Editable activation contexts were representable:** key-cell context is now a mutually exclusive
+   union with typed constructors. Printable and composition paths also defensively require
+   `activation: "none"`.
+
+The correction remains pure and unwired. No runtime page, cell, editor, inspector, automation, E2E,
+performance, dependency, frozen source, or amendment change is admitted. The complete stable-tree
+verification campaign passed, bounded re-review returned `APPROVE`, and slice 2A is complete. The
+next pending slice is workspace/effect and external-selection integration.
 
 ## Notes
 
@@ -301,8 +330,8 @@ remains pending, and product correction must not resume until that verification 
   leaves the external TanStack atom, workspace/effect coordinator, rendered table, cells, editors,
   inspector, automation, virtual-row DOM, copy materialisation, and drag/autoscroll unwired.
 - The projection adapter wraps the production cursor's existing `indexOf` and bounded `slice`; it
-  adds generation-checked `idAt`, `readRowAt`, and lazy re-iterable `rowsBetween` without making the
-  sparse held Table model canonical.
+  adds generation-checked `idAt`, `readRowAt`, and all-or-nothing bounded `rowsBetween` materialized
+  as a readonly re-iterable array without making the sparse held Table model canonical.
 - Current HEAD at source-freeze preparation: `3bc789cee63d85d966c7c395e73f1bcd0bad04be`.
 - `specs/014-transaction-grid-v9/goal.md` is absent from current HEAD. Its historical content is
   read only from commit `2ac5a3f73e2bf576d548e036d2de4560261613f9`, blob
