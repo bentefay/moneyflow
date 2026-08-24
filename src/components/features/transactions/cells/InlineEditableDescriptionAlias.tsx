@@ -38,10 +38,8 @@ export interface InlineEditableDescriptionAliasProps {
     onSelectAlias: (aliasId: string, origin: DescriptionAliasEditOrigin) => void;
     /** Notify the container when the field gains (`true`) or loses (`false`) edit focus. */
     onEditingChange?: (editing: boolean) => void;
-    /** One-shot request from the container to take keyboard focus as soon as this input mounts. */
-    focusRequested?: boolean;
-    /** Reports that a {@link focusRequested} request landed, so the container can clear it. */
-    onFocusRequestApplied?: () => void;
+    /** Registers the stable input element with the workspace focus coordinator. */
+    onInputElementChange?: (element: HTMLInputElement | null) => void;
     className?: string;
     inputClassName?: string;
     placeholder?: string;
@@ -92,8 +90,7 @@ export function InlineEditableDescriptionAlias({
     onCommitText,
     onSelectAlias,
     onEditingChange,
-    focusRequested = false,
-    onFocusRequestApplied,
+    onInputElementChange,
     className,
     inputClassName,
     placeholder = "",
@@ -110,6 +107,13 @@ export function InlineEditableDescriptionAlias({
     const containerRef = useRef<HTMLDivElement>(null);
     const submittedRef = useRef(false);
     const listboxId = useId();
+    const registerInput = useCallback(
+        (element: HTMLInputElement | null) => {
+            inputRef.current = element;
+            onInputElementChange?.(element);
+        },
+        [onInputElementChange]
+    );
 
     const displayedValue = isFocused ? localValue : value;
     const filteredAliases = useMemo(() => {
@@ -141,17 +145,6 @@ export function InlineEditableDescriptionAlias({
             window.removeEventListener("scroll", updatePosition, true);
         };
     }, [isAutocompleteOpen]);
-
-    // A container may ask this input to take focus the moment it mounts, which is how a newly
-    // created row becomes typeable without being selected. The effect only runs once the input is
-    // actually in the DOM, so a virtualized row that has not mounted yet simply does not focus, and
-    // the request is reported as applied so the container can retire it rather than re-asserting it.
-    useEffect(() => {
-        const input = inputRef.current;
-        if (!focusRequested || !input) return;
-        input.focus();
-        onFocusRequestApplied?.();
-    }, [focusRequested, onFocusRequestApplied]);
 
     const commitOnce = useCallback(() => {
         const input = inputRef.current;
@@ -229,7 +222,7 @@ export function InlineEditableDescriptionAlias({
 
     const inputElement = (
         <Input
-            ref={inputRef}
+            ref={registerInput}
             type="text"
             aria-label="Transaction description"
             aria-autocomplete="list"

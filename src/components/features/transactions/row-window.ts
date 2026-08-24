@@ -90,33 +90,46 @@ export function advanceTransactionRowWindowStart(
 }
 
 /**
- * The window with one extra row merged in at its own position, when the window does not already
- * hold it.
+ * The window with each available pinned row merged at its own matching-order position.
  *
- * `readRow` is a callback rather than a value because reading a row outside the block costs the
- * cursor a lookup, and the pinned row is inside the block in almost every state — a pin is only
- * needed once scrolling has carried the caret's row out of view.
+ * Active-origin and pending-target pins are applied in one operation. Applying one single-row helper
+ * after another would make the second call inspect a no-longer-contiguous window and could silently
+ * drop or misorder the second pin. Deduplication also bounds the result at the base window plus two
+ * rows when both controller pins name the same transaction.
  *
- * Assumes `window.indexes` is contiguous, which the block always is, so "inside" is decided by its
- * two ends rather than by a scan.
+ * `readRow` stays lazy because pins are ordinarily already inside the loaded block. Only indexes not
+ * present in the window trigger cursor reads.
  */
+export function withPinnedTransactionRows<TRow>(
+    window: TransactionRowWindow<TRow>,
+    pinnedIndexes: readonly number[],
+    readRow: (index: number) => TRow | undefined
+): TransactionRowWindow<TRow> {
+    const missingIndexes = [...new Set(pinnedIndexes)]
+        .filter((index) => index >= 0 && !window.indexes.includes(index))
+        .sort((left, right) => left - right);
+    if (missingIndexes.length === 0) return window;
+
+    const indexes = [...window.indexes];
+    const rows = [...window.rows];
+    let inserted = false;
+    for (const pinnedIndex of missingIndexes) {
+        const pinnedRow = readRow(pinnedIndex);
+        if (pinnedRow === undefined) continue;
+        const nextIndex = indexes.findIndex((index) => index > pinnedIndex);
+        const insertionIndex = nextIndex < 0 ? indexes.length : nextIndex;
+        indexes.splice(insertionIndex, 0, pinnedIndex);
+        rows.splice(insertionIndex, 0, pinnedRow);
+        inserted = true;
+    }
+    return inserted ? { indexes, rows } : window;
+}
+
+/** Compatibility helper for callers that own only one pin. */
 export function withPinnedTransactionRow<TRow>(
     window: TransactionRowWindow<TRow>,
     pinnedIndex: number,
     readRow: (index: number) => TRow | undefined
 ): TransactionRowWindow<TRow> {
-    if (pinnedIndex < 0) return window;
-
-    const firstIndex = window.indexes[0];
-    const lastIndex = window.indexes[window.indexes.length - 1];
-    if (firstIndex != null && lastIndex != null) {
-        if (pinnedIndex >= firstIndex && pinnedIndex <= lastIndex) return window;
-    }
-
-    const pinnedRow = readRow(pinnedIndex);
-    if (pinnedRow === undefined) return window;
-
-    return firstIndex == null || pinnedIndex < firstIndex
-        ? { indexes: [pinnedIndex, ...window.indexes], rows: [pinnedRow, ...window.rows] }
-        : { indexes: [...window.indexes, pinnedIndex], rows: [...window.rows, pinnedRow] };
+    return withPinnedTransactionRows(window, [pinnedIndex], readRow);
 }

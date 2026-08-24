@@ -25,7 +25,11 @@ import {
 import type { TransactionRowData } from "@/components/features/transactions/TransactionRow";
 import { TransactionTable } from "@/components/features/transactions/TransactionTable";
 
-import { contiguousRowWindow, installVirtualGridLayout } from "./virtual-grid-harness";
+import {
+    contiguousRowWindow,
+    createTestTransactionGridController,
+    installVirtualGridLayout
+} from "./virtual-grid-harness";
 
 vi.mock("@/components/features/accounts", () => ({
     AccountCombobox: () => <button type="button">Account</button>
@@ -57,17 +61,19 @@ function createTransactions(): TransactionRowData[] {
     }));
 }
 
-function renderGrid() {
+function renderGrid(onTransactionDelete: (transactionId: string) => void = () => undefined) {
+    const transactions = createTransactions();
     return render(
         <TransactionTable
-            rowWindow={contiguousRowWindow(createTransactions())}
+            controller={createTestTransactionGridController(transactions)}
+            rowWindow={contiguousRowWindow(transactions)}
             matchingRowCount={ROW_COUNT}
             rowOrder={transactionRowOrderFromIds([])}
             rowSelection={NO_TRANSACTION_ROWS_SELECTED}
             onRowSelectionChange={() => undefined}
             matchingRowsChange={null}
             onMatchingSetReconciled={() => undefined}
-            onTransactionDelete={() => undefined}
+            onTransactionDelete={onTransactionDelete}
         />
     );
 }
@@ -151,6 +157,24 @@ describe("cell selection gestures", () => {
         act(() => checkbox.focus());
 
         expect(selectedCells()).toEqual([]);
+    });
+
+    it("targets the row whose non-rangeable checkbox holds focus for delete shortcuts", () => {
+        const onTransactionDelete = vi.fn();
+        renderGrid(onTransactionDelete);
+        const row = screen.getAllByTestId("transaction-row")[2];
+        const checkbox = row.querySelector<HTMLElement>('[data-cell="checkbox"] button');
+        if (checkbox == null) throw new Error("the row checkbox is not mounted");
+
+        act(() => checkbox.focus());
+        expect(document.activeElement).toBe(checkbox);
+        expect(row).toHaveAttribute("aria-selected", "false");
+        expect(selectedCells()).toEqual([]);
+
+        fireEvent.keyDown(checkbox, { key: "d" });
+
+        expect(onTransactionDelete).toHaveBeenCalledTimes(1);
+        expect(onTransactionDelete).toHaveBeenCalledWith("transaction-2");
     });
 
     it("extends the range with Shift+ArrowDown once the caret is at the end of its text", () => {

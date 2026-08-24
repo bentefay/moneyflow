@@ -15,6 +15,11 @@ export {
     type TransactionRowPresence,
     type TransactionRowProps
 } from "./TransactionRow";
+export {
+    TransactionGridWorkspace,
+    type TransactionGridWorkspaceProps,
+    useTransactionGridWorkspace
+} from "./TransactionGridWorkspace";
 export { TransactionTable, type TransactionTableProps } from "./TransactionTable";
 export {
     pendingFocusDescriptionId,

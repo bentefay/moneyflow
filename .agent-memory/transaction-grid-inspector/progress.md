@@ -293,3 +293,129 @@
   further product changes.
 - Remaining: Commit the exact reviewed 16-path slice, obtain post-commit reviewer verification, then
   begin the separately authorized workspace/effect and external-selection integration slice.
+
+## Session 2026-08-24 — product slice 2B workspace and external selection integration
+
+- Direct API gate: Follow-up API review found that `@tanstack/table-core` and
+  `@tanstack/react-table` expose the external atom supply/type but no supported React atom
+  constructor; the earlier use of the internal reactivity binding was rejected. Frozen `TGI-CUR-004`
+  explicitly permits a separately approved direct dependency, and the team lead authorized exact
+  `@tanstack/react-store@0.11.1`. Package and lock now record it directly; the workspace uses
+  `useCreateAtom<CellSelectionState>([])` once per mount with no transitive import or React state
+  mirror.
+- Workspace ownership: Added one `TransactionGridWorkspace` controller holding the canonical
+  external TanStack cell-selection atom, live structural generation, exact pending
+  command/generation/phase, active-origin and pending-target pins, focus registration, typed
+  operation failure, and narrow external-store snapshots.
+- Runtime wiring: Wrapped the transactions route, configured the controller from the full Loro
+  cursor and canonical column IDs, supplied the atom exactly once through `atoms.cellSelection`, and
+  removed `TransactionTable`'s writable `focusedId`. Row-checkbox selection, filters, full count,
+  cursor order, CRDT mutations, existing editors, aliases, and deep-link scroll remain independently
+  owned.
+- Add sequencing: Add accepts a full-edit Description activation before CRDT insertion. Structural
+  publication rebases its exact target, the 600-row window atomically holds up to active and pending
+  pins, the virtualizer scrolls the stable row position, Description registration wakes the focus
+  coordinator, verified focus fulfills the same command, and stale/register/focus failures reconcile
+  or restore the exact origin.
+- Compatibility boundary: The Description editor keeps its draft, alias, popup, blur, Enter, and
+  Escape behavior. Its old imperative focus prop/effect was replaced only by a stable input
+  registration callback; programmatic Add focus remains suppressed from presence publication.
+- Coverage: Real TanStack Table/Virtual fixtures cover the external atom write path, one stable
+  `useCreateAtom` atom per workspace mount, structural versus value-only generations, active
+  projection reconciliation, stale reveal, delayed registration, verified focus, focus-failure and
+  timeout restoration, active-plus-pending pin order and 600+2 bound, exact full Description Add
+  target, once-only focus, and row-selection orthogonality.
+- Checks: scoped oxfmt and oxlint pass on the 19 product/test paths; targeted Vitest passes 58/58 in
+  seven files; `pnpm typecheck` passes; full `pnpm lint` passes with only the existing React
+  Compiler advisory at `TransactionVirtualRows.tsx:99`; `pnpm format:check` passes across 1,086
+  files; full `pnpm test` passes 2,956 tests with 2 skipped in 164 files; and `pnpm build` completes
+  all 17 routes.
+- E2E blocker: Retry-free target `tests/e2e/transactions.spec.ts` case
+  `Add focuses the new row's description and preserves a multi-row selection` was not run. Port 3000
+  is free, but `pnpm exec supabase status` reports the local auth, inbucket, storage, imgproxy,
+  edge-runtime, and pooler services stopped; the authenticated prerequisite is unavailable. No
+  server was started or shared service state changed.
+- Scope: The exact direct `@tanstack/react-store@0.11.1` dependency and corresponding
+  `package.json`/`pnpm-lock.yaml` changes are the only admitted dependency changes, making 23 paths
+  the expected slice scope. The earlier 21-path handback was stale and incomplete because it
+  preceded the supported-constructor correction and omitted those two authorized dependency files.
+  No editor-family key-contract migration, inspector, notes, automation, fixed-row DOM, E2E
+  scenario, frozen source, amendment, or agent-configuration change. Generated `next-env.d.ts` build
+  drift was inspected and restored. No commit has been created; slice 2B remains uncommitted pending
+  bounded review.
+
+## Session 2026-08-24 — slice 2B review rejection and focused correction
+
+- Review result: Bounded review rejected slice 2B on eight effect-boundary findings: prior state was
+  read against next columns; reconciliation focus intents were dropped; focus/scroll/window
+  resources were not restored; legacy live-control focus lost its row pin; reveal could wait
+  forever; stale Add could steal newer user focus; pending quick/full entry was discarded; and
+  historical allocation columns could first appear only when their row entered the held window.
+- Reconciliation correction: Capture previous cursor/projection/interaction before publishing next
+  selectable columns, publish generation-correlated gridcell or after-grid focus, register row
+  subtrees and the explicit after-grid fallback, and retry from the sole registration/effect
+  coordinator using `focus({ preventScroll: true })`.
+- Pending correction: Snapshot accepted generation, current DOM focus, scroll offsets, held-window
+  start/restorer, and legacy focused transaction. Restore only when that generation remains current;
+  begin reveal timeout at acceptance; retain exact command/generation identity; cancel pending work
+  on explicit focus/clear; and fulfill into editing state with the accepted quick/full entry.
+- Pin and column correction: Derive at most one controller-owned focus-retention pin for
+  non-rangeable checkbox/action focus plus one pending target. Reuse the existing filter-scoped
+  `nextRetainedHistoricalPeople.personIds` cache as the allocation-column model's sole historical
+  membership input; neither the full cursor nor held rows are passed into the final model.
+  Equivalent discoveries preserve the exact retained object, so ordinary window movement and nonzero
+  value edits do not rebuild selectable columns.
+- Coverage added: Removed active allocation-column reconciliation; replacement-row and after-grid
+  DOM focus; full-entry fulfillment; once-only `preventScroll` focus; explicit pending
+  replacement/clear; same-generation focus/scroll/window restoration; acceptance-time reveal
+  timeout; legacy live-control virtual retention without cell selection; fresh selectable-array
+  stability; retained-cache identity under equal membership; final column construction without held
+  rows; and a real-page scroll that drops the historical source row while preserving the column,
+  structural generation, and canonical selection.
+- Course correction: The cursor-level allocation census and its direct tests were removed completely
+  after review directed reuse of the existing retained cache. The prior 27-path digest and
+  verification are superseded. The corrected scope is now 25 paths: the original 23 plus the pure
+  historical-cache and full-page historical-window tests.
+- Checks after course correction: Scoped oxfmt passes; full `pnpm format:check` passes across 1,086
+  files; full `pnpm lint` passes with only the existing React Compiler advisory at
+  `TransactionVirtualRows.tsx:99`; `pnpm typecheck` passes; targeted Vitest passes 77/77 across nine
+  controller, TanStack/Virtual, retained-cache, and full-page integration files; full `pnpm test`
+  passes 2,963 tests with 2 skipped in 164 files; and `pnpm build` completes all 17 routes.
+  Generated `AGENTS.md` and `next-env.d.ts` dev/build churn was inspected and restored to tracked
+  formatting and HEAD blob `c4b7818fbb2c2c34c24feb1b627ee824507c5600` respectively.
+- E2E: Local Supabase Auth health returned 200 after its non-destructive restoration. The first
+  invocation correctly refused the explicitly started app because Playwright requires ownership of
+  port 3000 with `reuseExistingServer: false`; after releasing that server, the exact retry-free
+  one-worker Add/selection and beyond-initial-window virtualization cases passed 2/2 in 13.6
+  seconds. Plain `supabase start` was never invoked, and the manually restored Auth container
+  remains running.
+- Scope constraints: Exact `@tanstack/react-store@0.11.1` remains the only authorized dependency
+  change. Production still has no `storeReactivityBindings`, `state.cellSelection`, or
+  `onCellSelectionChange`; protected `.claude/**`, frozen specs, and source/amendment identities
+  remain untouched. No commit has been created.
+
+## Session 2026-08-24 — slice 2B shortcut-target review correction
+
+- Review result: Rejected on one Medium regression. Row shortcuts read only canonical
+  `activeTransactionId`, but focus on non-rangeable checkbox/action/row chrome deliberately clears
+  canonical cell selection and survives only as a focus-retention pin. Consequently `d`, Delete,
+  Backspace, or `k` could resolve no row or fall through to an unrelated selected row.
+- Correction: Expose typed `focusRetentionTransactionId` in the controller snapshot, derived only
+  from the distinct focus-retention pin and included in snapshot equality. TransactionTable now
+  prefers that actual legacy-control focus for shortcuts, then canonical `activeTransactionId`, then
+  the existing exactly-one-selected-row fallback. Canonical active-origin state remains unchanged.
+- Coverage: The controller test proves canonical cell focus has no retention ID and legacy focus has
+  no active ID but does expose its retained transaction. A real TransactionTable DOM test focuses an
+  unselected row checkbox, confirms no row/cell selection, presses `d`, and proves deletion targets
+  that exact row.
+- Checks: Scoped oxfmt and `git diff --check` pass; targeted controller and DOM Vitest passes 28/28
+  across two files; full `pnpm format:check` passes across 1,086 files; full `pnpm lint` passes with
+  only the existing React Compiler advisory at `TransactionVirtualRows.tsx:99`; `pnpm typecheck`
+  passes; full `pnpm test` passes 2,964 tests with 2 skipped in 164 files; and `pnpm build`
+  completes all 17 routes. The exact retry-free one-worker Add/selection and beyond-initial-window
+  virtualization E2E cases pass 2/2 in 13.3 seconds. E2E-generated `AGENTS.md` reflow and both
+  E2E/build-generated `next-env.d.ts` imports were inspected and precisely restored to their HEAD
+  blobs without altering product bytes.
+- Scope: Four existing product/test paths plus plan/progress changed relative to the prior stable
+  25-path handback; no dependency, cursor, generated, E2E source, frozen spec, or agent
+  configuration file changed. No commit has been created.

@@ -7,12 +7,10 @@
  * that has only just entered it stays unselected. That is an intersection, and it is expressible
  * against a cursor because it only visits the exceptions and the arrivals.
  *
- * **Cell selection is dropped.** A cell range is stored as two corner ids, and v9 recomputes what
- * lies between them on every change to the row and column order — so a range survives a filter
- * change by *widening onto cells the user never selected* (flagged [HIGH] in the official guide).
- * In a grid whose only consumer of a cell range is a clipboard copy, silently growing the rectangle
- * means copying data the user did not ask for. Dropping is the honest answer, and it is also the
- * one consistent with row selection refusing to acquire newly-matching rows.
+ * **Cell selection is reconciled by the workspace.** A range is stable-ID geometry over the full
+ * cursor projection, so the table-local matching-set adapter must not reset it. The workspace advances
+ * its structural generation and atomically publishes the reconciled external atom before the new
+ * projection becomes interactive.
  *
  * Neither answer can be left to `autoResetCellSelection`, which is why
  * {@link TRANSACTION_CELL_SELECTION_OPTIONS} turns it off. That option keys on the `data` option
@@ -31,28 +29,25 @@ import type { MatchingTransactionRows } from "./row-selection-baseline-feature";
  * selection. See the module docstring.
  */
 export const TRANSACTION_CELL_SELECTION_OPTIONS = {
-    /** Selection lifetime is decided by {@link applyTransactionMatchingSetChange}, not by `data`. */
-    autoResetCellSelection: false
+    /** Selection lifetime is decided by workspace reconciliation, not by `data`. */
+    autoResetCellSelection: false,
+    /** Pointer ranges write directly to the one workspace-owned external selection atom. */
+    enableCellSelectionDrag: true
 } as const;
 
 /**
- * Applies a change in the matching result set to both selections.
+ * Applies a change in the matching result set to row-checkbox selection.
  *
- * One entry point rather than two calls at the call site, because the two selections have to move
- * together: a cell range left standing over a reconciled row selection is a rectangle describing
- * rows that are no longer the ones the header counts.
+ * Cell selection is owned by the workspace's external atom and structural reconciliation. Keeping
+ * this adapter row-only prevents the table from becoming a second cell-selection authority.
  *
  * Call this **only when the matching set has actually changed** — not when the cursor pages more of
  * the same set into view. Row-selection reconciliation carries the same precondition and the same
- * reason: it is cheap, but it is not free, and a redundant call also throws away a cell selection
- * the user is still building.
+ * reason: it is cheap, but it is not free, and newly matching rows must be classified only once.
  */
 export function applyTransactionMatchingSetChange(
     table: TransactionTable,
     matching: MatchingTransactionRows
 ): void {
     table.reconcileRowSelectionToMatching(matching);
-    // `true` resets to empty rather than to `initialState.cellSelection`, which would restore a
-    // seeded selection over rows that may no longer match.
-    table.resetCellSelection(true);
 }

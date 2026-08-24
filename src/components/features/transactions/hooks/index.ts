@@ -9,3 +9,16 @@ export {
     type UseGridCellNavigationReturn,
     useGridCellNavigation
 } from "./useGridCellNavigation";
+export {
+    createTransactionCellSelectionAtom,
+    createTransactionGridWorkspaceController,
+    type TransactionCellSelectionAtom,
+    type TransactionGridActivationOptions,
+    type TransactionGridControllerSnapshot,
+    type TransactionGridFocusElement,
+    type TransactionGridPendingRequest,
+    type TransactionGridWorkspaceController,
+    type UseTransactionGridControllerOptions,
+    useTransactionGridController,
+    useTransactionGridControllerSnapshot
+} from "./useTransactionGridController";

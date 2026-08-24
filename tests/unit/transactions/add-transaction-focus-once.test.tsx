@@ -40,6 +40,7 @@ const descriptionFocusCalls = vi.hoisted(() => [] as string[]);
 
 /** What the page publishes to the table each render, so retirement can be traced across renders. */
 const focusRequestRenders = vi.hoisted(() => [] as Array<string | null>);
+const pendingActivationRenders = vi.hoisted(() => [] as string[]);
 
 /** Mutable vault contents, reassigned by the fake `insertTransaction` and read through a store. */
 const vault = vi.hoisted(() => ({
@@ -141,8 +142,8 @@ vi.mock("@/components/features/accounts", () => ({
     AccountCombobox: () => <button type="button">Account</button>
 }));
 
-// Record what the page publishes each render, then delegate to the real table untouched: the focus
-// effect under test stays the production one.
+// Record the workspace's pending Description target on each table render, then delegate to the real
+// table untouched so registration, focus verification and fulfillment remain production behavior.
 vi.mock("@/components/features/transactions", async () => {
     const actual = await vi.importActual<typeof import("@/components/features/transactions")>(
         "@/components/features/transactions"
@@ -150,7 +151,17 @@ vi.mock("@/components/features/transactions", async () => {
     return {
         ...actual,
         TransactionTable: (props: React.ComponentProps<typeof TransactionTableComponent>) => {
-            focusRequestRenders.push(props.focusDescriptionTransactionId ?? null);
+            const pending = props.controller.getPendingRequest();
+            focusRequestRenders.push(
+                pending?.state.target.columnId === "description"
+                    ? pending.state.target.transactionId
+                    : null
+            );
+            if (pending != null) {
+                pendingActivationRenders.push(
+                    `${pending.entry}:${pending.state.target.columnId}:${pending.state.target.transactionId}`
+                );
+            }
             return <actual.TransactionTable {...props} />;
         }
     };
@@ -272,6 +283,7 @@ describe("add transaction consumes the focus intent exactly once", () => {
         vault.listeners.clear();
         descriptionFocusCalls.length = 0;
         focusRequestRenders.length = 0;
+        pendingActivationRenders.length = 0;
         countDescriptionFocusCalls();
     });
 
@@ -283,6 +295,7 @@ describe("add transaction consumes the focus intent exactly once", () => {
 
         fireEvent.click(screen.getByTestId("add-transaction-button"));
         const createdRowId = await waitForCreatedRow(["existing-newer", "existing-older"]);
+        expect(pendingActivationRenders).toContain(`full:description:${createdRowId}`);
 
         // Exactly one application, on the created row. Two would mean a retirement was overwritten
         // by a stale-closure write and the request survived a render it should not have.

@@ -114,10 +114,15 @@ export interface TransactionRowProps {
     selectedCellMarkers?: ReadonlySet<string>;
     /** Whether the notes row is expanded */
     isExpanded?: boolean;
-    /** One-shot request to focus this row's description input as soon as the row mounts. */
-    focusDescriptionRequested?: boolean;
-    /** Reports that a {@link focusDescriptionRequested} request landed. */
-    onFocusDescriptionApplied?: () => void;
+    /** Suppresses presence publication while the workspace applies programmatic description focus. */
+    suppressDescriptionFocusPresence?: boolean;
+    /** Registers this row's description input with the workspace focus coordinator. */
+    onDescriptionInputElementChange?: (
+        transactionId: string,
+        element: HTMLInputElement | null
+    ) => void;
+    /** Registers the rendered row subtree for generation-correlated focus reconciliation. */
+    onRowElementChange?: (transactionId: string, element: HTMLElement | null) => void;
     /** Available accounts for inline editing */
     availableAccounts?: AccountOption[];
     /** Available statuses for inline editing */
@@ -235,8 +240,9 @@ export function TransactionRow({
     isSelected = false,
     selectedCellMarkers,
     isExpanded = false,
-    focusDescriptionRequested = false,
-    onFocusDescriptionApplied,
+    suppressDescriptionFocusPresence = false,
+    onDescriptionInputElementChange,
+    onRowElementChange,
     availableAccounts = [],
     availableStatuses = [],
     availableTags = [],
@@ -262,6 +268,15 @@ export function TransactionRow({
     className
 }: TransactionRowProps) {
     const notesRef = useRef<HTMLTextAreaElement>(null);
+    const registerDescriptionInput = useCallback(
+        (element: HTMLInputElement | null) =>
+            onDescriptionInputElementChange?.(transaction.id, element),
+        [onDescriptionInputElementChange, transaction.id]
+    );
+    const registerRowElement = useCallback(
+        (element: HTMLElement | null) => onRowElementChange?.(transaction.id, element),
+        [onRowElementChange, transaction.id]
+    );
 
     const {
         isActive: showDeleteConfirm,
@@ -363,7 +378,7 @@ export function TransactionRow({
     const handleRowFocus = useCallback(
         (event: React.FocusEvent<HTMLDivElement>) => {
             onFocus?.();
-            if (focusDescriptionRequested) return;
+            if (suppressDescriptionFocusPresence) return;
 
             const cell = event.target.closest("[data-presence-field], [data-cell]");
             const marker =
@@ -374,11 +389,11 @@ export function TransactionRow({
             // and are not focus leaving the row. See `onCellFocus`.
             if (event.currentTarget.contains(event.target)) onCellFocus?.(marker ?? null);
         },
-        [focusDescriptionRequested, onCellFocus, onFieldFocus, onFocus]
+        [suppressDescriptionFocusPresence, onCellFocus, onFieldFocus, onFocus]
     );
 
     return (
-        <div className="flex flex-col" role="presentation">
+        <div ref={registerRowElement} className="flex flex-col" role="presentation">
             {/* Main row */}
             <div
                 onClick={() => onClick?.()}
@@ -474,8 +489,7 @@ export function TransactionRow({
                                 onDescriptionSelectAlias?.(aliasId, origin);
                             }}
                             onEditingChange={setIsEditingDescription}
-                            focusRequested={focusDescriptionRequested}
-                            onFocusRequestApplied={onFocusDescriptionApplied}
+                            onInputElementChange={registerDescriptionInput}
                             className="truncate font-medium"
                             inputClassName="font-medium"
                             placeholder="No description"

@@ -134,16 +134,16 @@ approval.
 - [x] Task 7: Add pure interaction, key-intent, navigation, and reconciliation modules with
       table-driven/property tests. Drag/autoscroll remains deferred because it is not a dependency
       of the pure slice.
-- [ ] Task 8: Add `TransactionGridWorkspace` and `useTransactionGridController` as the sole effect
+- [x] Task 8: Add `TransactionGridWorkspace` and `useTransactionGridController` as the sole effect
       coordinator while retaining one-shot added-row focus.
 
 ### Canonical external TanStack selection and projection
 
-- [ ] Task 9: Prove a supported external TanStack atom constructor without importing a transitive
+- [x] Task 9: Prove a supported external TanStack atom constructor without importing a transitive
       package; request approval before any dependency change.
 - [x] Task 10: Add the branded workspace-owned projection generation and generation-checked cursor
       adapter operations without duplicating `TransactionCursor.indexOf`.
-- [ ] Task 11: Wire one canonical external selection atom, projection geometry, transactional
+- [x] Task 11: Wire one canonical external selection atom, projection geometry, transactional
       materialisation/focus, and reconciliation with unit/property coverage.
 
 ### Grid surface, gestures, copy, and accessibility
@@ -323,6 +323,40 @@ The correction remains pure and unwired. No runtime page, cell, editor, inspecto
 performance, dependency, frozen source, or amendment change is admitted. The complete stable-tree
 verification campaign passed, bounded re-review returned `APPROVE`, and slice 2A is complete. The
 next pending slice is workspace/effect and external-selection integration.
+
+### Product slice 2B review cycle 1 — rejected; focused correction under verification
+
+The route retains one workspace controller and one writable cell-selection atom created once per
+workspace mount with `useCreateAtom<CellSelectionState>([])` from the separately approved exact
+direct dependency `@tanstack/react-store@0.11.1`. The rejected internal reactivity binding remains
+absent, as do `state.cellSelection`, `onCellSelectionChange`, and any second React writable
+selection mirror.
+
+Bounded review rejected eight effect-boundary details. The focused correction now captures prior
+interaction against prior columns, consumes generation-correlated gridcell/after-grid reconciliation
+focus, preserves current legacy-control focus as a controller-owned non-selection pin, snapshots and
+same-generation restores DOM focus/scroll/held-window resources with `preventScroll`, times out
+reveal from command acceptance, lets explicit user focus/clear replace stale pending activation,
+preserves quick/full entry through fulfillment, and makes the existing filter-scoped retained
+historical-person cache the sole historical-membership input to the allocation-column model.
+
+Controller, real TanStack Table/Virtual, pure allocation-cache, and full-page sliding-window tests
+cover the new directions, including removed allocation-column fallback, after-grid focus,
+same-generation resource restoration, acceptance-time reveal timeout, stale replacement/clear,
+full-edit state, legacy checkbox/action retention, retained-column identity across window movement
+and value-only membership stability, stable structural generation, and preserved selection. The
+corrected slice is 25 paths, remains uncommitted, and is in the full verification campaign. Local
+Supabase Auth and Realtime have been restored non-destructively, so the exact retry-free targeted
+E2E must run without invoking plain `supabase start`.
+
+### Product slice 2B review cycle 2 — shortcut target correction under verification
+
+Review found that row shortcuts consulted only canonical `activeTransactionId`, while focused legacy
+checkbox/action chrome is intentionally represented by a distinct focus-retention pin. The
+controller snapshot now exposes that typed focus-retention transaction ID without promoting it to
+canonical active-origin state. TransactionTable gives actual retained DOM focus precedence for row
+shortcuts, then canonical active-cell authority, then the existing exactly-one-selected-row
+fallback. A real DOM regression focuses an unselected row checkbox and proves `d` deletes that row.
 
 ## Notes
 

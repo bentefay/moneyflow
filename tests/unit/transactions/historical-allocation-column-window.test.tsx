@@ -12,9 +12,12 @@
  */
 
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { Temporal } from "temporal-polyfill";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { TransactionTable as TransactionTableComponent } from "@/components/features/transactions";
+import type { TransactionGridWorkspaceController } from "@/components/features/transactions/hooks/useTransactionGridController";
 import { TRANSACTION_ROW_WINDOW_ROWS } from "@/components/features/transactions/row-window";
 import type { TransactionInput } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -39,8 +42,12 @@ const TOTAL_TRANSACTIONS = 800;
 const ADA = { id: "person-ada", name: "Ada" };
 const DEE = { id: "person-dee", name: "Dee", deletedAt: "2026-01-01T00:00:00Z" };
 
-/** The only row that allocates to the deleted person, and it sits at the very front. */
+/** The only row that allocates to the deleted person, at the front of the initial held window. */
 const ROW_WITH_HISTORICAL_ALLOCATION = 0;
+
+const controllerCapture = vi.hoisted<{
+    current: TransactionGridWorkspaceController | null;
+}>(() => ({ current: null }));
 
 vi.mock("next/navigation", () => routerMock);
 vi.mock("@/lib/crdt/context", () => createCrdtContextMock());
@@ -52,6 +59,18 @@ vi.mock("@/components/features/import", () => importMock);
 vi.mock("@/components/features/accounts", () => ({
     AccountCombobox: () => <button type="button">Account</button>
 }));
+vi.mock("@/components/features/transactions", async () => {
+    const actual = await vi.importActual<typeof import("@/components/features/transactions")>(
+        "@/components/features/transactions"
+    );
+    return {
+        ...actual,
+        TransactionTable: (props: ComponentProps<typeof TransactionTableComponent>) => {
+            controllerCapture.current = props.controller;
+            return <actual.TransactionTable {...props} />;
+        }
+    };
+});
 
 /** Index 0 is newest, so the matching order is index order. Even rows carry "Groceries". */
 function createTransaction(index: number): TransactionInput {
@@ -97,6 +116,7 @@ describe("a deleted person's allocation column under a sliding window", () => {
 
     beforeEach(() => {
         restoreLayout = installVirtualGridLayout();
+        controllerCapture.current = null;
         seedVaultWith(
             Array.from({ length: TOTAL_TRANSACTIONS }, (unused, index) => createTransaction(index))
         );
@@ -112,24 +132,32 @@ describe("a deleted person's allocation column under a sliding window", () => {
         expect(TOTAL_TRANSACTIONS).toBeGreaterThan(TRANSACTION_ROW_WINDOW_ROWS);
     });
 
-    it("keeps the column after scrolling far past the only row that references the person", async () => {
+    it("keeps the retained column stable after its source row leaves the held window", async () => {
         await renderTransactionsPage();
         await waitFor(() => expect(rowIsRendered(ROW_WITH_HISTORICAL_ALLOCATION)).toBe(true));
         expect(allocationColumnLabels()).toEqual(["Ada %", "Dee (deleted) %"]);
 
-        scrollGridTo((TOTAL_TRANSACTIONS - 1) * HARNESS_ROW_HEIGHT);
+        const controller = controllerCapture.current;
+        if (controller == null) throw new Error("Expected the page grid controller");
+        controller.setFocusedCell("tx-0001", "description");
+        const generationBeforeScroll = controller.getSnapshot().generation;
+        const selectionBeforeScroll = controller.cellSelectionAtom.get();
 
-        // The premise: the row that earned the column is no longer one the grid holds.
+        scrollGridTo((TOTAL_TRANSACTIONS - 1) * HARNESS_ROW_HEIGHT);
+        await waitFor(() => expect(rowIsRendered(TOTAL_TRANSACTIONS - 1)).toBe(true));
+
         expect(rowIsRendered(ROW_WITH_HISTORICAL_ALLOCATION)).toBe(false);
         expect(allocationColumnLabels()).toEqual(["Ada %", "Dee (deleted) %"]);
+        expect(controller.getSnapshot().generation).toBe(generationBeforeScroll);
+        expect(controller.cellSelectionAtom.get()).toEqual(selectionBeforeScroll);
     });
 
     it("drops the column when the filters exclude every row that references the person", async () => {
         await renderTransactionsPage();
-        await waitFor(() => expect(rowIsRendered(ROW_WITH_HISTORICAL_ALLOCATION)).toBe(true));
+        await waitFor(() => expect(rowIsRendered(0)).toBe(true));
         expect(allocationColumnLabels()).toEqual(["Ada %", "Dee (deleted) %"]);
 
-        // "Fuel" matches the odd rows only, so the one row allocating to Dee leaves the matching set.
+        // "Fuel" matches the odd rows only, so the one even row allocating to Dee leaves the set.
         fireEvent.change(screen.getByTestId("search-filter"), { target: { value: "Fuel" } });
         await waitFor(() =>
             expect(screen.getByTestId("transaction-table-toolbar")).toHaveTextContent(

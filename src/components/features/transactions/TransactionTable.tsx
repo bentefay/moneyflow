@@ -43,6 +43,10 @@ import type { StatusOption, TagOption } from "./cells";
 import { CheckboxCell } from "./cells/CheckboxCell";
 import type { DescriptionAliasEditOrigin } from "./cells/InlineEditableDescriptionAlias";
 import { useGridCellNavigation } from "./hooks/useGridCellNavigation";
+import {
+    useTransactionGridControllerSnapshot,
+    type TransactionGridWorkspaceController
+} from "./hooks/useTransactionGridController";
 import type { TransactionRowWindow, TransactionVisibleRange } from "./row-window";
 import {
     applyTransactionCellKeyIntent,
@@ -79,6 +83,8 @@ import { TransactionVirtualRows } from "./TransactionVirtualRows";
 export const TRANSACTION_GRID_TEMPLATE = buildTransactionGridTemplate(0);
 
 export interface TransactionTableProps {
+    /** Workspace authority for interaction state, projection generation and cell selection. */
+    controller: TransactionGridWorkspaceController;
     /**
      * The rows the grid holds, each with its absolute position in the matching order.
      *
@@ -118,8 +124,8 @@ export interface TransactionTableProps {
     /**
      * The new matching result set, when it has changed since the last reconciliation, else `null`.
      *
-     * Row selection is re-derived against it and cell selection is dropped; see
-     * `table-model/matching-set.ts` for why the two answers differ.
+     * Row selection is re-derived against it. Cell selection is reconciled separately by the
+     * workspace's structural projection authority; see `table-model/matching-set.ts`.
      */
     matchingRowsChange: MatchingTransactionRows | null;
     /** Reports that {@link TransactionTableProps.matchingRowsChange} has been applied. */
@@ -150,14 +156,6 @@ export interface TransactionTableProps {
         aliasId: string,
         origin: DescriptionAliasEditOrigin
     ) => void;
-    /**
-     * Stable ID of a transaction whose description input should take keyboard focus as soon as its
-     * row mounts. The table pins that row into the virtual range so a row outside the visible
-     * window still mounts and can be focused, rather than the request being silently dropped.
-     */
-    focusDescriptionTransactionId?: string | null;
-    /** Reports that the {@link focusDescriptionTransactionId} request landed, so it can be cleared. */
-    onFocusDescriptionApplied?: () => void;
     /** Callback when a transaction is clicked */
     onTransactionClick?: (id: string) => void;
     /** Callback when a transaction row receives focus */
@@ -311,6 +309,7 @@ function EmptyState() {
  * Transaction Table component with virtualization over the whole matching set.
  */
 export function TransactionTable({
+    controller,
     rowWindow,
     matchingRowCount,
     onVisibleRowRangeChange,
@@ -330,8 +329,6 @@ export function TransactionTable({
     availableAliases = [],
     onDescriptionCommitText,
     onDescriptionSelectAlias,
-    focusDescriptionTransactionId = null,
-    onFocusDescriptionApplied,
     onTransactionClick,
     onTransactionFocus,
     onTransactionFieldFocus,
@@ -350,8 +347,19 @@ export function TransactionTable({
     // its `scrollElement` prop. A `useState`-backed callback ref costs one extra render on mount and
     // gets the virtualizer a real viewport to measure.
     const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
-    const [focusedId, setFocusedId] = useState<string | null>(null);
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+    const controllerSnapshot = useTransactionGridControllerSnapshot(controller);
+    const handleScrollElementChange = useCallback(
+        (element: HTMLDivElement | null) => {
+            setScrollElement(element);
+            controller.registerScrollElement(element);
+        },
+        [controller]
+    );
+    const handleAfterGridElementChange = useCallback(
+        (element: HTMLButtonElement | null) => controller.registerAfterGridElement(element),
+        [controller]
+    );
 
     // Grid cell navigation for arrow up/down between cells
     const { handleGridKeyDown } = useGridCellNavigation();
@@ -369,27 +377,8 @@ export function TransactionTable({
     const tableOptions = useMemo(
         () => ({
             ...TRANSACTION_CELL_SELECTION_OPTIONS,
+            atoms: { cellSelection: controller.cellSelectionAtom },
             columns,
-            // Cell ranges are keyboard-only here, because mousedown in a rangeable cell is already
-            // claimed by a control — a drag-to-select range would fight the gesture it shares.
-            //
-            // Stated accurately, because the shorter version of this claim ("every cell is a live
-            // input, so mousedown places a caret") is overstated and was corrected: of the eight
-            // rangeable columns only date, description and amount are text inputs where mousedown
-            // places a caret. Account is a combobox, tags and allocation are buttons, and status is
-            // a Radix `SelectTrigger` — there mousedown opens a popover instead. Either way the
-            // gesture belongs to the control, which is why the conclusion holds for all of them;
-            // it just does not hold for the reason originally given.
-            //
-            // Drag and disjoint Ctrl/Cmd ranges are **not wired in this port**, which is a different
-            // statement from "omitted" and the accurate one: multi-cell selection is entirely new
-            // here. At the pre-port commit `git grep -iE 'cellSelection|selectedCells|anchorCell|
-            // onMouseDown'` across `src` returns nothing, so there was no cell-range behaviour to
-            // preserve and nothing regressed. The honest residue is that the capability's APIs *are*
-            // installed — `selectAllCells`, `getSelectionStartHandler` and `getSelectionExtendHandler`
-            // all exist on the table — and are deliberately left unbound, so the feature is partly
-            // wired rather than absent.
-            enableCellSelectionDrag: false,
             data: rowWindow.rows,
             features: transactionTableFeatures,
             getRowId: transactionTableRowId,
@@ -397,7 +386,14 @@ export function TransactionTable({
             onRowSelectionBaselineChange: onRowSelectionChange,
             state: { rowSelectionBaseline: rowSelection }
         }),
-        [columns, matchingRowCount, onRowSelectionChange, rowSelection, rowWindow]
+        [
+            controller.cellSelectionAtom,
+            columns,
+            matchingRowCount,
+            onRowSelectionChange,
+            rowSelection,
+            rowWindow
+        ]
     );
 
     // The default, unnarrowed subscription, deliberately. A narrowed selector stops `useTable` from
@@ -466,13 +462,12 @@ export function TransactionTable({
      */
     const applyFocusedCell = useCallback(
         (transactionId: string, marker: string | null) => {
-            if (marker != null && rangeableColumnIds.has(marker)) {
-                table.setFocusedCell(transactionId, marker);
-                return;
-            }
-            table.resetCellSelection(true);
+            controller.setFocusedCell(
+                transactionId,
+                marker != null && rangeableColumnIds.has(marker) ? marker : null
+            );
         },
-        [rangeableColumnIds, table]
+        [controller, rangeableColumnIds]
     );
 
     /**
@@ -503,7 +498,7 @@ export function TransactionTable({
             const control = event.target instanceof Element ? event.target : null;
             const intent = transactionCellKeyIntent(event, readFocusedControlBoundary(control));
             const claimed = intent.kind === "move" ? ({ kind: "ignore" } as const) : intent;
-            if (applyTransactionCellKeyIntent(table, claimed, () => setFocusedId(null))) {
+            if (applyTransactionCellKeyIntent(table, claimed, controller.clearCellSelection)) {
                 event.preventDefault();
                 return;
             }
@@ -520,7 +515,7 @@ export function TransactionTable({
 
             handleGridKeyDown(event);
         },
-        [handleGridKeyDown, table]
+        [controller.clearCellSelection, handleGridKeyDown, table]
     );
 
     /**
@@ -555,26 +550,28 @@ export function TransactionTable({
         [onTransactionBlur]
     );
 
-    const focusedIndex = focusedId == null ? undefined : rowIndexById.get(focusedId);
-    const focusDescriptionIndex =
-        focusDescriptionTransactionId == null
-            ? undefined
-            : rowIndexById.get(focusDescriptionTransactionId);
-    // Both the row that currently holds focus and the row that has been asked to take focus must
-    // stay mounted regardless of scroll position: unmounting the former loses the caret, and
-    // unmounting the latter means the focus request never lands at all.
+    const controllerPinnedIndexes = useMemo(
+        () =>
+            controllerSnapshot.pins.flatMap((pin) => {
+                const index = rowIndexById.get(pin.transactionId);
+                return index == null ? [] : [index];
+            }),
+        [controllerSnapshot.pins, rowIndexById]
+    );
+    // Active-origin and pending-target rows stay mounted regardless of scroll position: unmounting
+    // the former loses the caret, while unmounting the latter prevents registration and fulfillment.
     const extractVirtualRange = useCallback(
         (range: Range) => {
             const visibleIndexes = defaultRangeExtractor(range);
-            const pinnedIndexes = [focusedIndex, focusDescriptionIndex].filter(
-                (index): index is number => index != null && !visibleIndexes.includes(index)
+            const pinnedIndexes = controllerPinnedIndexes.filter(
+                (index) => !visibleIndexes.includes(index)
             );
             if (pinnedIndexes.length === 0) return visibleIndexes;
             return [...new Set([...visibleIndexes, ...pinnedIndexes])].sort(
                 (left, right) => left - right
             );
         },
-        [focusDescriptionIndex, focusedIndex]
+        [controllerPinnedIndexes]
     );
 
     // Keyboard shortcuts for duplicate resolution and deletion
@@ -618,11 +615,13 @@ export function TransactionTable({
                 return;
             }
 
-            // Exactly one selected row, resolved from the selection itself and the matching order
-            // rather than from the rows the grid happens to hold. The count was always over the
-            // whole matching set while the lookup was over the loaded rows, so a selected row
-            // scrolled out of the window simply stopped resolving and the keystroke did nothing.
-            const targetId = focusedId ?? resolveSingleSelectedRowId();
+            // Actual DOM focus on legacy row chrome wins, without making that row canonical cell
+            // authority. Otherwise use the canonical active cell, then exactly one selected row
+            // resolved from the matching order rather than only the rows the grid currently holds.
+            const targetId =
+                controllerSnapshot.focusRetentionTransactionId ??
+                controllerSnapshot.activeTransactionId ??
+                resolveSingleSelectedRowId();
             if (targetId == null) return;
 
             const transaction = table
@@ -664,7 +663,8 @@ export function TransactionTable({
         document.addEventListener("keydown", handleRowShortcutKeyDown);
         return () => document.removeEventListener("keydown", handleRowShortcutKeyDown);
     }, [
-        focusedId,
+        controllerSnapshot.activeTransactionId,
+        controllerSnapshot.focusRetentionTransactionId,
         matchingRowCount,
         onResolveDuplicate,
         onTransactionDelete,
@@ -782,6 +782,20 @@ export function TransactionTable({
         [displayIndexByRowIndex, rowWindow]
     );
 
+    const handleDescriptionInputElementChange = useCallback(
+        (transactionId: string, element: HTMLInputElement | null) =>
+            controller.registerCell(
+                { columnId: "description", transactionId: asTransactionId(transactionId) },
+                element
+            ),
+        [controller]
+    );
+    const handleRowElementChange = useCallback(
+        (transactionId: string, element: HTMLElement | null) =>
+            controller.registerRow(asTransactionId(transactionId), element),
+        [controller]
+    );
+
     /**
      * Renders one transaction row for the virtualizer, addressed by absolute matching-order index.
      *
@@ -803,8 +817,12 @@ export function TransactionTable({
                     resolveMemberName={resolveMemberName}
                     isSelected={row.getIsSelected()}
                     isExpanded={expandedIds.has(transaction.id)}
-                    focusDescriptionRequested={focusDescriptionTransactionId === transaction.id}
-                    onFocusDescriptionApplied={onFocusDescriptionApplied}
+                    suppressDescriptionFocusPresence={
+                        controllerSnapshot.pending?.state.target.transactionId === transaction.id &&
+                        controllerSnapshot.pending.state.target.columnId === "description"
+                    }
+                    onDescriptionInputElementChange={handleDescriptionInputElementChange}
+                    onRowElementChange={handleRowElementChange}
                     availableAccounts={availableAccounts}
                     availableStatuses={availableStatuses}
                     availableTags={availableTags}
@@ -843,10 +861,7 @@ export function TransactionTable({
                             : undefined
                     }
                     onClick={() => handleRowClick(transaction.id)}
-                    onFocus={() => {
-                        setFocusedId(transaction.id);
-                        onTransactionFocus?.(transaction.id);
-                    }}
+                    onFocus={() => onTransactionFocus?.(transaction.id)}
                     onFieldFocus={(field) => onTransactionFieldFocus?.(transaction.id, field)}
                     onCellFocus={(marker) => applyFocusedCell(transaction.id, marker)}
                     onFieldUpdate={
@@ -895,18 +910,19 @@ export function TransactionTable({
             availableAliases,
             availableStatuses,
             availableTags,
+            controllerSnapshot.pending,
             displayIndexByRowIndex,
             expandedIds,
-            focusDescriptionTransactionId,
             gridTemplateColumns,
             handleCheckboxChange,
             handleCheckboxShiftClick,
+            handleDescriptionInputElementChange,
+            handleRowElementChange,
             handleRowClick,
             handleToggleExpand,
             onCreateTag,
             onDescriptionCommitText,
             onDescriptionSelectAlias,
-            onFocusDescriptionApplied,
             onResolveDuplicate,
             onTransactionAllocationUpdate,
             onTransactionDelete,
@@ -924,44 +940,57 @@ export function TransactionTable({
 
     // After every hook, so a filter that matches nothing still reconciles the selections above.
     // Keyed on the matching count rather than on the rows the grid holds: those are a window, and an
-    // empty window over a non-empty result set is a scroll position, not an empty grid.
-    if (matchingRowCount === 0) {
-        return <EmptyState />;
-    }
-
+    // empty window over a non-empty result set is a scroll position, not an empty grid. The explicit
+    // after-grid fallback remains mounted in both branches so empty reconciliation can move focus
+    // somewhere deterministic rather than leaving it on a removed row or document.body.
     return (
         <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
-            <div ref={setScrollElement} className="flex min-h-0 flex-1 flex-col overflow-auto">
+            {matchingRowCount === 0 ? (
+                <EmptyState />
+            ) : (
                 <div
-                    className="relative min-w-fit flex-1"
-                    role="grid"
-                    aria-label="Transactions"
-                    data-testid="transaction-table"
-                    onKeyDown={handleKeyDown}
-                    onBlur={handleGridBlur}
+                    ref={handleScrollElementChange}
+                    className="flex min-h-0 flex-1 flex-col overflow-auto"
                 >
-                    <TransactionTableHeader
-                        allocationColumns={allocationColumns}
-                        gridTemplateColumns={gridTemplateColumns}
-                        isAllSelected={headerState === "all"}
-                        isSomeSelected={headerState === "some"}
-                        onSelectAll={handleSelectAll}
-                    />
+                    <div
+                        className="relative min-w-fit flex-1"
+                        role="grid"
+                        aria-label="Transactions"
+                        data-testid="transaction-table"
+                        onKeyDown={handleKeyDown}
+                        onBlur={handleGridBlur}
+                    >
+                        <TransactionTableHeader
+                            allocationColumns={allocationColumns}
+                            gridTemplateColumns={gridTemplateColumns}
+                            isAllSelected={headerState === "all"}
+                            isSomeSelected={headerState === "some"}
+                            onSelectAll={handleSelectAll}
+                        />
 
-                    <TransactionVirtualRows
-                        count={matchingRowCount}
-                        scrollElement={scrollElement}
-                        estimatedRowHeight={ROW_HEIGHT}
-                        overscan={OVERSCAN}
-                        rangeExtractor={extractVirtualRange}
-                        getRowKey={getRowKey}
-                        onVisibleRangeChange={handleVisibleRangeChange}
-                        scrollToRowIndex={scrollToRowIndex}
-                        onScrollToRowIndexApplied={handleScrollToRowIndexApplied}
-                        renderRow={renderRow}
-                    />
+                        <TransactionVirtualRows
+                            count={matchingRowCount}
+                            scrollElement={scrollElement}
+                            estimatedRowHeight={ROW_HEIGHT}
+                            overscan={OVERSCAN}
+                            rangeExtractor={extractVirtualRange}
+                            getRowKey={getRowKey}
+                            onVisibleRangeChange={handleVisibleRangeChange}
+                            scrollToRowIndex={scrollToRowIndex}
+                            onScrollToRowIndexApplied={handleScrollToRowIndexApplied}
+                            renderRow={renderRow}
+                        />
+                    </div>
                 </div>
-            </div>
+            )}
+            <button
+                ref={handleAfterGridElementChange}
+                type="button"
+                tabIndex={-1}
+                className="sr-only"
+            >
+                After transactions
+            </button>
         </div>
     );
 }

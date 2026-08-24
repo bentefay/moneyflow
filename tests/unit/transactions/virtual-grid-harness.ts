@@ -15,10 +15,20 @@
  */
 
 import { act } from "@testing-library/react";
+import { Temporal } from "temporal-polyfill";
 
+import {
+    createTransactionCellSelectionAtom,
+    createTransactionGridWorkspaceController,
+    type TransactionGridWorkspaceController
+} from "@/components/features/transactions/hooks/useTransactionGridController";
 import type { TransactionRowWindow } from "@/components/features/transactions/row-window";
+import { transactionColumnIds } from "@/components/features/transactions/table-model";
+import type { TransactionRowData } from "@/components/features/transactions/TransactionRow";
 import { insertTransaction } from "@/lib/crdt/mutations";
 import type { TransactionInput, TransactionStore } from "@/lib/crdt/schema";
+import { buildTransactionIndex, createTransactionCursor } from "@/lib/crdt/transaction-cursor";
+import { asMinorUnits } from "@/lib/domain/currency";
 
 /**
  * The row height `TransactionTable` estimates with, which is also a collapsed row's real height.
@@ -262,6 +272,45 @@ export function insertIntoFakeStore(
     const next = { ...store } as TransactionStore;
     insertTransaction(next, { transaction });
     return next;
+}
+
+function testTransactionCursor(rows: readonly TransactionRowData[]) {
+    const transactions = rows.map((row, index): TransactionInput => ({
+        accountId: row.accountId ?? "account-test",
+        allocations: {},
+        amount: asMinorUnits(row.amount),
+        creationInstant: Temporal.Instant.fromEpochMilliseconds(1_700_000_000_000 + index),
+        date: Temporal.PlainDate.from(row.date),
+        deletedAt: undefined,
+        description: row.description,
+        descriptionAliasId: row.descriptionAliasId,
+        id: row.id,
+        importId: "",
+        importRowIndex: index,
+        notes: row.notes ?? "",
+        originalAmount: undefined,
+        statusId: row.statusId ?? "status-test",
+        suspectedDuplicates: [],
+        tagIds: row.tags?.map((tag) => tag.id) ?? []
+    }));
+    return createTransactionCursor(buildTransactionIndex(buildFakeTransactionStore(transactions)));
+}
+
+/** Publishes a new real cursor projection into an existing direct-table test controller. */
+export function updateTestTransactionGridController(
+    controller: TransactionGridWorkspaceController,
+    rows: readonly TransactionRowData[]
+): void {
+    controller.updateProjection(testTransactionCursor(rows), transactionColumnIds([]));
+}
+
+/** A real controller and cursor projection for direct TransactionTable component tests. */
+export function createTestTransactionGridController(rows: readonly TransactionRowData[]) {
+    const controller = createTransactionGridWorkspaceController(
+        createTransactionCellSelectionAtom()
+    );
+    updateTestTransactionGridController(controller, rows);
+    return controller;
 }
 
 /**

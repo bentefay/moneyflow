@@ -18,6 +18,10 @@ import {
 import { storeReactivityBindings } from "@tanstack/table-core/store-reactivity-bindings";
 
 import {
+    createTransactionCellSelectionAtom,
+    type TransactionCellSelectionAtom
+} from "@/components/features/transactions/hooks/useTransactionGridController";
+import {
     buildTransactionTableColumns,
     type TransactionAllocationColumn
 } from "@/components/features/transactions/table-model/columns";
@@ -63,6 +67,8 @@ export interface TestTransactionTableOptions {
      */
     readonly matchingRowCount?: number;
     readonly allocationColumns?: readonly TransactionAllocationColumn[];
+    /** App-owned external atom supplied during table construction. */
+    readonly cellSelectionAtom?: TransactionCellSelectionAtom;
     /** Counts every `getRowId` call, for the tests that assert nothing enumerated. */
     readonly onGetRowId?: () => void;
 }
@@ -115,7 +121,12 @@ function isSameRowSelectionBaseline(
 export function createTestTransactionTable(
     options: TestTransactionTableOptions
 ): TestTransactionTable {
-    const { allocationColumns = [], onGetRowId, transactions } = options;
+    const {
+        allocationColumns = [],
+        cellSelectionAtom = createTransactionCellSelectionAtom(),
+        onGetRowId,
+        transactions
+    } = options;
     // The handler needs the table, and the table needs the handler, so the reference is filled in
     // immediately after construction. No handler can fire before then: they run only from the
     // table's own APIs, which do not exist until `constructTable` returns.
@@ -123,6 +134,7 @@ export function createTestTransactionTable(
 
     built.table = constructTable({
         ...TRANSACTION_CELL_SELECTION_OPTIONS,
+        atoms: { cellSelection: cellSelectionAtom },
         columns: buildTransactionTableColumns(allocationColumns),
         data: transactions,
         features: testTransactionTableFeatures,
@@ -180,6 +192,7 @@ export function createTableWithBothSelectionFeatures(
     });
     const helper = createColumnHelper<typeof features, TransactionTableRow>();
     return constructTable({
+        atoms: { cellSelection: createTransactionCellSelectionAtom() },
         columns: helper.columns([helper.accessor("id", { id: "id" })]),
         data: rows,
         features,
