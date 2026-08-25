@@ -1,7 +1,11 @@
 import type { CellSelectionDirection } from "@tanstack/table-core";
 
-import type { TransactionColumnActivationKind } from "./features";
-import type { TransactionCompositionState, TransactionEditEntry } from "./grid-interaction-state";
+import type { TransactionColumnActivationKind, TransactionColumnInteractionMeta } from "./features";
+import type {
+    TransactionCompositionState,
+    TransactionEditEntry,
+    TransactionGridInteractionState
+} from "./grid-interaction-state";
 
 export type TransactionGridKeyMode =
     | "idle"
@@ -53,6 +57,46 @@ export interface TransactionGridKeyContext {
     readonly mode: TransactionGridKeyMode;
     readonly composition?: TransactionCompositionState;
     readonly cell: TransactionGridKeyCellContext;
+}
+
+function keyCellContext(
+    interaction: TransactionColumnInteractionMeta
+): TransactionGridKeyCellContext {
+    if (interaction.activationKind !== "none") {
+        return activationTransactionGridKeyCell(interaction.activationKind);
+    }
+    if (interaction.editKind === "none") return NONEDITABLE_TRANSACTION_GRID_KEY_CELL;
+    return editableTransactionGridKeyCell(
+        interaction.editKind === "date" ? "open-calendar" : undefined
+    );
+}
+
+/**
+ * Adapts canonical controller state plus immutable column capabilities to the pure key reducer.
+ * Pending activation has no DOM-key owner: its generation-checked reveal/focus command must finish
+ * or abort before another grid command can be accepted.
+ */
+export function transactionGridKeyContext(
+    state: TransactionGridInteractionState<unknown>,
+    interaction: TransactionColumnInteractionMeta
+): TransactionGridKeyContext | null {
+    const cell = keyCellContext(interaction);
+    if (state.kind === "pending-activation") return null;
+    if (state.kind === "idle" || state.kind === "parked" || state.kind === "navigating") {
+        return { cell, mode: state.kind };
+    }
+    if (state.kind === "editing") {
+        return {
+            cell,
+            composition: state.editor.composition,
+            mode: state.editor.entry === "quick" ? "editing-quick" : "editing-full"
+        };
+    }
+    if (state.kind === "inspecting") return { cell, mode: "inspecting" };
+    return {
+        cell,
+        mode: state.owner === "grid-editor" ? "interacting-grid-editor" : "interacting-inspector"
+    };
 }
 
 export interface TransactionGridKeyEvent {

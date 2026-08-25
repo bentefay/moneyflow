@@ -300,6 +300,7 @@ export function InlineEditableTags({
             {/* Display area */}
             <div
                 tabIndex={disabled ? -1 : 0}
+                data-legacy-edit-activation
                 onKeyDown={handleDisplayKeyDown}
                 className={cn(
                     "flex min-h-[28px] cursor-pointer flex-wrap items-center gap-1 rounded-md px-1 py-0.5",

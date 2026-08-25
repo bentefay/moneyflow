@@ -20,3 +20,13 @@
  */
 export const RESTING_CELL_CHROME =
     "border-transparent bg-transparent shadow-none dark:border-transparent dark:bg-transparent";
+
+/**
+ * Layout-neutral chrome owned by the shared gridcell surface.
+ *
+ * Both focus and selection are painted with inset rings/shadows rather than borders, padding or
+ * transforms, so the 57px row geometry and every grid track remain unchanged in all interaction
+ * states.
+ */
+export const TRANSACTION_GRIDCELL_CHROME =
+    "relative outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset aria-selected:bg-primary/10 aria-selected:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--primary)_45%,transparent)] dark:aria-selected:bg-primary/15";

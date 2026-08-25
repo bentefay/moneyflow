@@ -1,0 +1,48 @@
+$ oxfmt --check
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 3261ms on 1088 files using 32 threads.
+$ oxlint
+src/components/features/transactions/TransactionVirtualRows.tsx:107:25: warning react(incompatible-library): Use of incompatible library help: This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized
+$ tsc --noEmit
+$ next build
+▲ Next.js 16.3.1 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 19ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 3.9s
+  Running TypeScript ...
+  Finished TypeScript in 612ms ...
+  Collecting page data using 20 workers ...
+  Generating static pages using 20 workers (0/17) ...
+  Generating static pages using 20 workers (4/17) 
+  Generating static pages using 20 workers (8/17) 
+  Generating static pages using 20 workers (12/17) 
+✓ Generating static pages using 20 workers (17/17) in 720ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /accounts
+├ ƒ /api/trpc/[trpc]
+├ ○ /automations
+├ ○ /dashboard
+├ ○ /imports
+├ ○ /imports/new
+├ ƒ /invite/[token]
+├ ○ /new-user
+├ ○ /people
+├ ○ /settings
+├ ○ /statuses
+├ ○ /tags
+├ ○ /transactions
+├ ○ /tx-descriptions
+└ ○ /unlock
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

@@ -29,6 +29,7 @@ import {
 } from "@/components/features/transactions/table-model";
 import type { TransactionRowData } from "@/components/features/transactions/TransactionRow";
 import { TransactionTable } from "@/components/features/transactions/TransactionTable";
+import { transactionViewportRowDistance } from "@/components/features/transactions/TransactionVirtualRows";
 
 import {
     contiguousRowWindow,
@@ -47,13 +48,13 @@ vi.mock("@/components/features/transactions/TransactionRow", () => ({
     TransactionRow: ({
         transaction,
         onFocus,
-        onCellFocus,
+        onActivationDescendantFocus,
         allocationColumns,
         gridTemplateColumns
     }: {
         transaction?: TransactionRowData;
         onFocus?: () => void;
-        onCellFocus?: (marker: string | null) => void;
+        onActivationDescendantFocus?: () => void;
         allocationColumns?: ReadonlyArray<{ personId: string }>;
         gridTemplateColumns?: string;
     }) => (
@@ -66,10 +67,10 @@ vi.mock("@/components/features/transactions/TransactionRow", () => ({
             onFocus={onFocus}
         >
             {transaction?.description}
-            <button type="button" onFocus={() => onCellFocus?.("checkbox")}>
+            <button type="button" onFocus={onActivationDescendantFocus}>
                 Checkbox control
             </button>
-            <button type="button" onFocus={() => onCellFocus?.("delete")}>
+            <button type="button" onFocus={onActivationDescendantFocus}>
                 Action control
             </button>
         </div>
@@ -140,6 +141,16 @@ function gridElement(props: GridProps) {
 function renderGrid(props: GridProps = {}) {
     return render(gridElement(props));
 }
+
+describe("transactionViewportRowDistance", () => {
+    it.each([
+        [null, 1],
+        [{ endIndex: 10, startIndex: 3 }, 7],
+        [{ endIndex: 3, startIndex: 3 }, 1]
+    ] as const)("derives the current visible-row distance from %j", (range, expected) => {
+        expect(transactionViewportRowDistance(range)).toBe(expected);
+    });
+});
 
 describe("TransactionTable virtualization", () => {
     let restoreLayout: () => void;
@@ -310,6 +321,36 @@ describe("TransactionTable virtualization", () => {
 
         const indexes = mountedRowIndexes();
         expect(indexes).toContain(0);
+        expect(indexes).toContain(400);
+        expect(document.activeElement).toBe(action);
+    });
+
+    it("pins a focused activation row alongside a retained range anchored in another row", () => {
+        const transactions = createTransactions(TOTAL_ROWS);
+        const controller = createTestTransactionGridController(transactions);
+        controller.setFocusedCell("transaction-1", "description");
+        renderGrid({ controller, transactions });
+        const action = screen.getAllByRole("button", { name: "Action control" })[0];
+        if (action == null) throw new Error("first transaction action is missing");
+
+        act(() => action.focus());
+
+        expect(controller.getSnapshot()).toMatchObject({
+            focusRetentionTransactionId: "transaction-0",
+            pins: [
+                { kind: "focus-retention", transactionId: "transaction-0" },
+                { kind: "active-origin", transactionId: "transaction-1" }
+            ]
+        });
+        expect(controller.cellSelectionAtom.get()).toMatchObject([
+            { anchorRowId: "transaction-1", focusRowId: "transaction-1" }
+        ]);
+
+        scrollGridTo(400 * HARNESS_ROW_HEIGHT);
+
+        const indexes = mountedRowIndexes();
+        expect(indexes).toContain(0);
+        expect(indexes).toContain(1);
         expect(indexes).toContain(400);
         expect(document.activeElement).toBe(action);
     });

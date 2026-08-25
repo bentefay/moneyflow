@@ -23,11 +23,9 @@ export interface CheckboxCellProps {
     /**
      * Which row this checkbox is mounted in (UR-012).
      *
-     * Required, and deliberately has no default. The full-cell activation area is a negative inset,
-     * so a reach larger than the row it sits in lands on the NEXT row: the header's overlay, sized
-     * for a 57px data row, covered the first 8px of the first transaction's checkbox cell and made
-     * clicking one row's checkbox select the whole table. A default would let a third mount inherit
-     * whichever geometry happened to be written first and reintroduce that silently.
+     * Required, and deliberately has no default. The header owns a full-cell select-all target while
+     * a transaction row owns only the centred control target, leaving its gridcell background to cell
+     * selection. A default would let a third mount inherit the wrong interaction geometry silently.
      */
     rowGeometry: CheckboxRowGeometry;
     /** Additional class names */
@@ -87,10 +85,8 @@ export function CheckboxCell({
                 aria-label={ariaLabel}
                 className={cn(
                     disabled && "opacity-50",
-                    // UR-012: the box keeps its drawn 16px size while a click anywhere in the cell
-                    // toggles it. The reach comes from the caller because this component mounts in
-                    // two row heights, and an overlay sized for the taller one reaches out of the
-                    // shorter one into the row below.
+                    // UR-012: the box keeps its drawn 16px size while the required mount geometry
+                    // supplies either the row's centred control target or the header's full-cell target.
                     CHECKBOX_HIT_AREA[rowGeometry]
                 )}
             />

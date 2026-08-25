@@ -1,0 +1,194 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: tab-duplication.spec.ts >> a browser-duplicated tab hydrates onboarding and an authenticated vault
+- Location: tests/e2e/tab-duplication.spec.ts:50:5
+
+# Error details
+
+```
+Error: page.evaluate: Execution context was destroyed, most likely because of a navigation
+```
+
+# Test source
+
+```ts
+  1   | import { execFileSync } from "node:child_process";
+  2   | import { mkdtemp, rm } from "node:fs/promises";
+  3   | import { tmpdir } from "node:os";
+  4   | import path from "node:path";
+  5   | 
+  6   | import { expect, chromium, test } from "@playwright/test";
+  7   | 
+  8   | import { awaitVaultPersistence, readActiveVaultId } from "./helpers";
+  9   | import { addEmptyTransaction } from "./helpers/settlement";
+  10  | 
+  11  | function countFixtureVaultOps(vaultId: string): number {
+  12  |     if (
+  13  |         !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+  14  |             vaultId
+  15  |         )
+  16  |     ) {
+  17  |         throw new Error("Duplicate-tab fixture vault ID is invalid");
+  18  |     }
+  19  |     let output: string;
+  20  |     try {
+  21  |         output = execFileSync(
+  22  |             "docker",
+  23  |             [
+  24  |                 "exec",
+  25  |                 "supabase_db_moneyflow",
+  26  |                 "psql",
+  27  |                 "-U",
+  28  |                 "postgres",
+  29  |                 "-d",
+  30  |                 "postgres",
+  31  |                 "-X",
+  32  |                 "-q",
+  33  |                 "-A",
+  34  |                 "-t",
+  35  |                 "-c",
+  36  |                 `SELECT count(*)::integer FROM public.vault_ops WHERE vault_id = '${vaultId}'::uuid;`
+  37  |             ],
+  38  |             { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
+  39  |         );
+  40  |     } catch {
+  41  |         throw new Error("Duplicate-tab fixture operation query failed");
+  42  |     }
+  43  |     const count = Number(output.trim());
+  44  |     if (!Number.isInteger(count)) {
+  45  |         throw new Error("Duplicate-tab fixture operation count is invalid");
+  46  |     }
+  47  |     return count;
+  48  | }
+  49  | 
+  50  | test("a browser-duplicated tab hydrates onboarding and an authenticated vault", async () => {
+  51  |     test.setTimeout(60000);
+  52  | 
+  53  |     const profilePath = await mkdtemp(path.join(tmpdir(), "moneyflow-tab-duplication-"));
+  54  |     const extensionPath = path.resolve("tests/fixtures/tab-duplicator");
+  55  |     const context = await chromium.launchPersistentContext(profilePath, {
+  56  |         headless: true,
+  57  |         channel: "chromium",
+  58  |         args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`]
+  59  |     });
+  60  | 
+  61  |     const duplicateTab = async (source: import("@playwright/test").Page) => {
+  62  |         const opened = context.waitForEvent("page");
+  63  |         await source.evaluate(() => window.postMessage({ type: "moneyflow:duplicate-tab" }, "*"));
+  64  |         const duplicate = await opened;
+  65  |         await duplicate.waitForLoadState("load");
+  66  |         return duplicate;
+  67  |     };
+  68  | 
+  69  |     const expectCachedDuplicate = async (page: import("@playwright/test").Page) => {
+  70  |         await expect
+  71  |             .poll(() =>
+> 72  |                 page.evaluate(() => {
+      |                      ^ Error: page.evaluate: Execution context was destroyed, most likely because of a navigation
+  73  |                     const navigation = performance.getEntriesByType(
+  74  |                         "navigation"
+  75  |                     )[0] as PerformanceNavigationTiming & { deliveryType: string };
+  76  |                     return {
+  77  |                         type: navigation.type,
+  78  |                         deliveryType: navigation.deliveryType,
+  79  |                         transferSize: navigation.transferSize
+  80  |                     };
+  81  |                 })
+  82  |             )
+  83  |             .toEqual({ type: "back_forward", deliveryType: "cache", transferSize: 0 });
+  84  |     };
+  85  | 
+  86  |     try {
+  87  |         const original = context.pages()[0] ?? (await context.newPage());
+  88  |         await original.goto("http://localhost:3000/new-user");
+  89  |         await expect(original.getByTestId("generate-button")).toBeEnabled();
+  90  | 
+  91  |         // This invokes chrome.tabs.duplicate(), the same browser operation as Duplicate Tab.
+  92  |         // window.open() is not equivalent: it performs a fresh navigation and did not reproduce
+  93  |         // the cached Next.js development bootstrap that originally lost hydration.
+  94  |         const onboardingDuplicate = await duplicateTab(original);
+  95  |         await expectCachedDuplicate(onboardingDuplicate);
+  96  |         await expect(onboardingDuplicate.getByTestId("generate-button")).toBeEnabled();
+  97  | 
+  98  |         await onboardingDuplicate.getByTestId("generate-button").click();
+  99  |         await expect(onboardingDuplicate.getByTestId("seed-phrase-word").first()).toBeVisible();
+  100 |         await onboardingDuplicate.getByTestId("confirm-checkbox").check();
+  101 |         await onboardingDuplicate.getByTestId("continue-button").click();
+  102 |         await onboardingDuplicate.waitForURL("**/settings", { timeout: 15000 });
+  103 |         await expect(
+  104 |             onboardingDuplicate.getByRole("heading", { name: "Vault Settings", level: 1 })
+  105 |         ).toBeVisible({ timeout: 15000 });
+  106 | 
+  107 |         const authenticatedDuplicate = await duplicateTab(onboardingDuplicate);
+  108 |         await expectCachedDuplicate(authenticatedDuplicate);
+  109 |         await expect(
+  110 |             authenticatedDuplicate.getByRole("heading", { name: "Vault Settings", level: 1 })
+  111 |         ).toBeVisible({ timeout: 15000 });
+  112 |         await expect(
+  113 |             authenticatedDuplicate.getByRole("textbox", { name: "Vault Name" })
+  114 |         ).toBeEnabled();
+  115 | 
+  116 |         const browserErrors: string[] = [];
+  117 |         for (const page of [onboardingDuplicate, authenticatedDuplicate]) {
+  118 |             page.on("console", (message) => {
+  119 |                 if (message.type() === "error") browserErrors.push(message.text());
+  120 |             });
+  121 |             page.on("pageerror", (error) => browserErrors.push(error.message));
+  122 |         }
+  123 |         let receiverPushOps = 0;
+  124 |         onboardingDuplicate.on("request", (request) => {
+  125 |             if (new URL(request.url()).pathname.includes("/api/trpc/sync.pushOps")) {
+  126 |                 receiverPushOps += 1;
+  127 |             }
+  128 |         });
+  129 | 
+  130 |         // Both tabs sit on Vault Settings with the freshly created vault mounted; neither raw
+  131 |         // teardown may discard writes still queued for encryption.
+  132 |         await awaitVaultPersistence(onboardingDuplicate);
+  133 |         await onboardingDuplicate.goto("http://localhost:3000/transactions");
+  134 |         await awaitVaultPersistence(authenticatedDuplicate);
+  135 |         await authenticatedDuplicate.goto("http://localhost:3000/transactions");
+  136 |         await expect(onboardingDuplicate.getByTestId("transaction-table-toolbar")).toBeVisible({
+  137 |             timeout: 15_000
+  138 |         });
+  139 |         await expect(authenticatedDuplicate.getByTestId("transaction-table-toolbar")).toBeVisible({
+  140 |             timeout: 15_000
+  141 |         });
+  142 |         await expect(onboardingDuplicate.getByRole("status", { name: "Saved" })).toBeVisible({
+  143 |             timeout: 15_000
+  144 |         });
+  145 |         await expect(authenticatedDuplicate.getByRole("status", { name: "Saved" })).toBeVisible({
+  146 |             timeout: 15_000
+  147 |         });
+  148 | 
+  149 |         const vaultId = await readActiveVaultId(onboardingDuplicate);
+  150 |         expect(countFixtureVaultOps(vaultId)).toBe(0);
+  151 |         const receiverPushBaseline = receiverPushOps;
+  152 |         const description = "Duplicate tab live sync";
+  153 | 
+  154 |         const addedRowId = await addEmptyTransaction(authenticatedDuplicate);
+  155 |         const addedRow = authenticatedDuplicate.locator(`[data-transaction-id="${addedRowId}"]`);
+  156 |         const descriptionInput = addedRow.getByTestId("description-editable");
+  157 |         await descriptionInput.fill(description);
+  158 |         await descriptionInput.press("Enter");
+  159 |         const amountInput = addedRow.getByTestId("amount-editable");
+  160 |         await amountInput.fill("12.34");
+  161 |         await amountInput.press("Enter");
+  162 | 
+  163 |         const matchingRows = (page: import("@playwright/test").Page) =>
+  164 |             page.getByTestId("transaction-row").filter({
+  165 |                 has: page.locator(`[data-testid="description-editable"][value="${description}"]`)
+  166 |             });
+  167 |         await expect(matchingRows(authenticatedDuplicate)).toHaveCount(1, { timeout: 15_000 });
+  168 |         await expect(matchingRows(onboardingDuplicate)).toHaveCount(1, { timeout: 15_000 });
+  169 |         await expect(authenticatedDuplicate.getByRole("status", { name: "Saved" })).toBeVisible({
+  170 |             timeout: 15_000
+  171 |         });
+  172 |         await expect(onboardingDuplicate.getByRole("status", { name: "Saved" })).toBeVisible({
+```

@@ -23,7 +23,7 @@ import { hashToColor } from "@/lib/utils/color";
 
 import { type AllocationColumn, materializeAllocationRecord } from "./allocation-columns";
 import { RESTING_CELL_CHROME } from "./cells/cell-chrome";
-import { SHORT_CONTROL_HIT_AREA } from "./cells/cell-hit-area";
+import { CHECKBOX_GRIDCELL_SURFACE, SHORT_CONTROL_HIT_AREA } from "./cells/cell-hit-area";
 import { CheckboxCell } from "./cells/CheckboxCell";
 import { InlineEditableAmount } from "./cells/InlineEditableAmount";
 import { InlineEditableDate } from "./cells/InlineEditableDate";
@@ -35,7 +35,17 @@ import {
 import { InlineEditableStatus, type StatusOption } from "./cells/InlineEditableStatus";
 import { InlineEditableTags, type TagOption } from "./cells/InlineEditableTags";
 import { PersonAllocationCell } from "./cells/PersonAllocationCell";
+import { TransactionGridCell } from "./cells/TransactionGridCell";
 import { DuplicateBadge } from "./DuplicateBadge";
+import type {
+    TransactionGridControllerSnapshot,
+    TransactionGridWorkspaceController
+} from "./hooks/useTransactionGridController";
+import {
+    asTransactionId,
+    type TransactionColumnId,
+    type TransactionTableCell
+} from "./table-model";
 import { TRANSACTION_GRID_TEMPLATE } from "./TransactionTable";
 
 /** How long the two-click delete confirmation stays armed. */
@@ -89,6 +99,15 @@ export interface TransactionRowPresence {
     readonly fields: readonly string[];
 }
 
+export interface TransactionGridRowSurface {
+    readonly cells: readonly TransactionTableCell[];
+    readonly controller: TransactionGridWorkspaceController;
+    readonly interactionKind: TransactionGridControllerSnapshot["interactionKind"];
+    readonly initialTabStopColumnId: TransactionColumnId | null;
+    readonly parkedTabStopColumnId: TransactionColumnId | null;
+    readonly viewportRowDistance: number;
+}
+
 export interface TransactionRowProps {
     /** Persisted transaction data */
     transaction: TransactionRowData;
@@ -102,6 +121,10 @@ export interface TransactionRowProps {
     resolveMemberName?: (pubkeyHash: string) => MemberDisplayName;
     /** Whether this row is selected */
     isSelected?: boolean;
+    /** Absolute 1-based row position in the logical grid, including its header and prior notes rows. */
+    ariaRowIndex?: number;
+    /** Total visible logical columns, used by the spanning notes gridcell. */
+    ariaColumnCount?: number;
     /**
      * The `data-cell` markers of this row's selected cells, when the row is inside a table that has
      * cell selection.
@@ -112,6 +135,8 @@ export interface TransactionRowProps {
      * cell advertises a selection state it cannot have.
      */
     selectedCellMarkers?: ReadonlySet<string>;
+    /** Shared TanStack/controller gridcell surface when rendered inside the transaction table. */
+    gridCellSurface?: TransactionGridRowSurface;
     /** Whether the notes row is expanded */
     isExpanded?: boolean;
     /** Suppresses presence publication while the workspace applies programmatic description focus. */
@@ -159,6 +184,8 @@ export interface TransactionRowProps {
      * tree, and opening a cell's own editor is not leaving that cell.
      */
     onCellFocus?: (marker: string | null) => void;
+    /** Reports legacy checkbox/actions focus without discarding an existing canonical cell range. */
+    onActivationDescendantFocus?: () => void;
     /** Callback when resolving duplicate (keep = clear flag, delete = remove) */
     onResolveDuplicate?: (action: "keep" | "delete") => void;
     /** Callback when deleting the transaction */
@@ -238,7 +265,10 @@ export function TransactionRow({
     presence,
     resolveMemberName,
     isSelected = false,
+    ariaRowIndex,
+    ariaColumnCount,
     selectedCellMarkers,
+    gridCellSurface,
     isExpanded = false,
     suppressDescriptionFocusPresence = false,
     onDescriptionInputElementChange,
@@ -254,6 +284,7 @@ export function TransactionRow({
     onFocus,
     onFieldFocus,
     onCellFocus,
+    onActivationDescendantFocus,
     onResolveDuplicate,
     onDelete,
     onFieldUpdate,
@@ -375,22 +406,127 @@ export function TransactionRow({
      * consumed on the commit that applies it, so every genuine gesture reports normally, including
      * a click straight back into the same input.
      */
-    const handleRowFocus = useCallback(
-        (event: React.FocusEvent<HTMLDivElement>) => {
+    const publishPresenceFocus = useCallback(
+        (target: Element) => {
             onFocus?.();
             if (suppressDescriptionFocusPresence) return;
-
-            const cell = event.target.closest("[data-presence-field], [data-cell]");
+            const cell = target.closest("[data-presence-field], [data-cell]");
             const marker =
                 cell?.getAttribute("data-presence-field") ?? cell?.getAttribute("data-cell");
-            // The checkbox is selection, not editing, so it reports the row without a field.
-            onFieldFocus?.(marker == null || marker === "checkbox" ? undefined : marker);
-            // Portaled editors bubble their focus through the React tree from outside this row's DOM,
-            // and are not focus leaving the row. See `onCellFocus`.
-            if (event.currentTarget.contains(event.target)) onCellFocus?.(marker ?? null);
+            // Activation cells report row viewing rather than a field edit.
+            onFieldFocus?.(
+                marker == null || marker === "checkbox" || marker === "actions" ? undefined : marker
+            );
         },
-        [suppressDescriptionFocusPresence, onCellFocus, onFieldFocus, onFocus]
+        [onFieldFocus, onFocus, suppressDescriptionFocusPresence]
     );
+
+    const handleRowFocus = useCallback(
+        (event: React.FocusEvent<HTMLDivElement>) => {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            const gridcell = target.closest<HTMLElement>('[role="gridcell"][data-cell]');
+            const gridcellMarker = gridcell?.getAttribute("data-cell");
+            const controller = gridCellSurface?.controller;
+            const pending = controller?.getPendingRequest();
+            if (
+                controller != null &&
+                pending?.state.phase === "focus" &&
+                pending.state.target.transactionId === effectiveData.id &&
+                pending.state.target.columnId === gridcellMarker
+            ) {
+                // `.focus()` dispatches this event synchronously. Defer presence until the controller
+                // has verified connected activeElement ownership and atomically fulfilled the exact
+                // command; a redirect or unmount abort restores the origin before this microtask.
+                event.stopPropagation();
+                queueMicrotask(() => {
+                    if (
+                        !target.isConnected ||
+                        target.ownerDocument.activeElement !== target ||
+                        controller.getPendingRequest() != null
+                    ) {
+                        return;
+                    }
+                    publishPresenceFocus(target);
+                });
+                return;
+            }
+
+            publishPresenceFocus(target);
+            if (suppressDescriptionFocusPresence) return;
+
+            const cell = target.closest("[data-presence-field], [data-cell]");
+            const marker =
+                cell?.getAttribute("data-presence-field") ?? cell?.getAttribute("data-cell");
+            // Portaled editors bubble their focus through the React tree from outside this row's DOM,
+            // and are not focus leaving the row. Legacy activation descendants retain the slice-2B
+            // focus pin until their dedicated activation-cell migration; focusing the gridcell
+            // background itself uses the new selectable checkbox/actions identity.
+            if (event.currentTarget.contains(target)) {
+                const activationDescendant =
+                    (gridcellMarker === "checkbox" || gridcellMarker === "actions") &&
+                    target !== gridcell;
+                const sharedGridcellSurface = target === gridcell;
+                if (activationDescendant) onActivationDescendantFocus?.();
+                else if (!sharedGridcellSurface) onCellFocus?.(gridcellMarker ?? marker ?? null);
+            }
+        },
+        [
+            effectiveData.id,
+            gridCellSurface,
+            onActivationDescendantFocus,
+            onCellFocus,
+            publishPresenceFocus,
+            suppressDescriptionFocusPresence
+        ]
+    );
+
+    const renderGridCell = (
+        columnId: TransactionColumnId,
+        display: React.ReactNode,
+        options: {
+            readonly className?: string;
+            readonly key?: React.Key;
+            readonly onActivate?: (activation: "checkbox" | "inspector") => void;
+        } = {}
+    ): React.ReactNode => {
+        const cellIndex =
+            gridCellSurface?.cells.findIndex((candidate) => candidate.column.id === columnId) ?? -1;
+        const cell = cellIndex < 0 ? undefined : gridCellSurface?.cells[cellIndex];
+        const meta = cell?.column.columnDef.meta;
+        if (gridCellSurface == null || cell == null || meta == null) {
+            return (
+                <div
+                    key={options.key}
+                    aria-selected={selectedCellMarkers?.has(columnId)}
+                    data-cell={columnId}
+                    className={options.className}
+                    role="gridcell"
+                >
+                    {display}
+                </div>
+            );
+        }
+        return (
+            <TransactionGridCell
+                key={options.key}
+                address={{ columnId, transactionId: asTransactionId(effectiveData.id) }}
+                ariaColumnIndex={cellIndex + 1}
+                cell={cell}
+                controller={gridCellSurface.controller}
+                interaction={meta.interaction}
+                interactionKind={gridCellSurface.interactionKind}
+                selected={selectedCellMarkers?.has(columnId) ?? false}
+                isInitialTabStop={gridCellSurface.initialTabStopColumnId === columnId}
+                isParkedTabStop={gridCellSurface.parkedTabStopColumnId === columnId}
+                viewportRowDistance={gridCellSurface.viewportRowDistance}
+                display={display}
+                legacyInteractive={true}
+                onActivate={options.onActivate}
+                className={options.className}
+            />
+        );
+    };
 
     return (
         <div ref={registerRowElement} className="flex flex-col" role="presentation">
@@ -398,14 +534,12 @@ export function TransactionRow({
             <div
                 onClick={() => onClick?.()}
                 onFocus={handleRowFocus}
-                tabIndex={0}
                 data-testid="transaction-row"
                 data-transaction-id={effectiveData.id}
                 className={cn(
                     "group relative grid items-center gap-4 px-4 py-3",
                     !effectiveExpanded && "border-b",
-                    "hover:bg-accent/50 focus:bg-accent/50",
-                    "focus:outline-none",
+                    "hover:bg-accent/50",
                     "transition-colors",
                     isSelected && "bg-accent",
                     isSelected && "focused selected",
@@ -414,6 +548,7 @@ export function TransactionRow({
                 )}
                 style={{ gridTemplateColumns }}
                 role="row"
+                aria-rowindex={ariaRowIndex}
                 aria-selected={isSelected}
                 aria-expanded={onToggleExpand ? isExpanded : undefined}
             >
@@ -435,77 +570,82 @@ export function TransactionRow({
                     />
                 )}
 
-                {/* Checkbox for selection */}
-                <div
-                    data-cell="checkbox"
-                    data-testid="row-checkbox"
-                    onClick={handleCheckboxClick}
-                    className="flex h-full w-full cursor-pointer items-center justify-center"
-                    role="gridcell"
-                >
-                    <CheckboxCell
-                        checked={isSelected}
-                        onChange={() => handleCheckboxChange()}
-                        onShiftClick={handleShiftClick}
-                        ariaLabel={`Select transaction ${effectiveData.description}`}
-                        rowGeometry="dataRow"
-                    />
-                </div>
+                {/* Checkbox activation stays legacy until the dedicated activation-cell slice. */}
+                {renderGridCell(
+                    "checkbox",
+                    <div
+                        data-testid="row-checkbox"
+                        onClick={handleCheckboxClick}
+                        className="relative flex size-4 cursor-pointer items-center justify-center"
+                        role="presentation"
+                    >
+                        <CheckboxCell
+                            checked={isSelected}
+                            onChange={() => handleCheckboxChange()}
+                            onShiftClick={handleShiftClick}
+                            ariaLabel={`Select transaction ${effectiveData.description}`}
+                            rowGeometry="dataRow"
+                        />
+                    </div>,
+                    {
+                        className: cn(
+                            "flex w-full items-center justify-center",
+                            CHECKBOX_GRIDCELL_SURFACE
+                        ),
+                        onActivate: (activation) => {
+                            if (activation === "checkbox") handleCheckboxChange();
+                        }
+                    }
+                )}
 
                 {/* Date */}
-                <div
-                    aria-selected={selectedCellMarkers?.has("date")}
-                    data-cell="date"
-                    role="gridcell"
-                >
+                {renderGridCell(
+                    "date",
                     <InlineEditableDate
                         value={effectiveData.date}
                         onSave={(value) => onFieldUpdate?.("date", value)}
                         data-testid="date-editable"
                     />
-                </div>
+                )}
 
                 {/* Description */}
-                <div
-                    aria-selected={selectedCellMarkers?.has("description")}
-                    data-cell="description"
-                    className="flex min-w-0 items-center gap-1"
-                    role="gridcell"
-                >
-                    {renderRuleProposalOrCell(
-                        renderRuleProposal,
-                        "descriptionAlias",
-                        { isEditing: isEditingDescription },
-                        "min-w-0 flex-1",
-                        <InlineEditableDescriptionAlias
-                            value={effectiveData.descriptionAliasName ?? effectiveData.description}
-                            descriptionAliasId={effectiveData.descriptionAliasId}
-                            originalDescription={effectiveData.originalDescription}
-                            availableAliases={availableAliases}
-                            onCommitText={(text, origin) => {
-                                onDescriptionCommitText?.(text, origin);
-                            }}
-                            onSelectAlias={(aliasId, origin) => {
-                                onDescriptionSelectAlias?.(aliasId, origin);
-                            }}
-                            onEditingChange={setIsEditingDescription}
-                            onInputElementChange={registerDescriptionInput}
-                            className="truncate font-medium"
-                            inputClassName="font-medium"
-                            placeholder="No description"
-                            data-testid="description-editable"
-                        />
-                    )}
-                    {renderDescriptionRobot?.({ isEditing: isEditingDescription })}
-                </div>
+                {renderGridCell(
+                    "description",
+                    <>
+                        {renderRuleProposalOrCell(
+                            renderRuleProposal,
+                            "descriptionAlias",
+                            { isEditing: isEditingDescription },
+                            "min-w-0 flex-1",
+                            <InlineEditableDescriptionAlias
+                                value={
+                                    effectiveData.descriptionAliasName ?? effectiveData.description
+                                }
+                                descriptionAliasId={effectiveData.descriptionAliasId}
+                                originalDescription={effectiveData.originalDescription}
+                                availableAliases={availableAliases}
+                                onCommitText={(text, origin) => {
+                                    onDescriptionCommitText?.(text, origin);
+                                }}
+                                onSelectAlias={(aliasId, origin) => {
+                                    onDescriptionSelectAlias?.(aliasId, origin);
+                                }}
+                                onEditingChange={setIsEditingDescription}
+                                onInputElementChange={registerDescriptionInput}
+                                className="truncate font-medium"
+                                inputClassName="font-medium"
+                                placeholder="No description"
+                                data-testid="description-editable"
+                            />
+                        )}
+                        {renderDescriptionRobot?.({ isEditing: isEditingDescription })}
+                    </>,
+                    { className: "flex min-w-0 items-center gap-1" }
+                )}
 
                 {/* Account */}
-                <div
-                    aria-selected={selectedCellMarkers?.has("account")}
-                    data-cell="account"
-                    className="min-w-0"
-                    role="gridcell"
-                >
+                {renderGridCell(
+                    "account",
                     <AccountCombobox
                         value={effectiveData.accountId ?? ""}
                         onChange={(accountId) => onFieldUpdate?.("accountId", accountId)}
@@ -520,16 +660,14 @@ export function TransactionRow({
                             SHORT_CONTROL_HIT_AREA,
                             RESTING_CELL_CHROME
                         )}
-                    />
-                </div>
+                    />,
+                    { className: "min-w-0" }
+                )}
 
                 {/* Tags */}
-                <div
-                    aria-selected={selectedCellMarkers?.has("tags")}
-                    data-cell="tags"
-                    role="gridcell"
-                >
-                    {renderRuleProposalOrCell(
+                {renderGridCell(
+                    "tags",
+                    renderRuleProposalOrCell(
                         renderRuleProposal,
                         "tags",
                         { isEditing: isEditingTags },
@@ -544,15 +682,12 @@ export function TransactionRow({
                             ownerRowId={effectiveData.id}
                             data-testid="tags-editable"
                         />
-                    )}
-                </div>
+                    )
+                )}
 
                 {/* Status */}
-                <div
-                    aria-selected={selectedCellMarkers?.has("status")}
-                    data-cell="status"
-                    role="gridcell"
-                >
+                {renderGridCell(
+                    "status",
                     <InlineEditableStatus
                         value={effectiveData.statusId}
                         statusName={effectiveData.status}
@@ -560,7 +695,7 @@ export function TransactionRow({
                         onSave={(statusId) => onFieldUpdate?.("statusId", statusId)}
                         data-testid="status-editable"
                     />
-                </div>
+                )}
 
                 {/* Frozen `:292-293`: a person-percentage rule covers the WHOLE set of percentage
                     columns, and "it should span all the columns". So the proposal wraps the entire
@@ -573,14 +708,9 @@ export function TransactionRow({
                           { isEditing: isEditingAllocation },
                           "grid grid-cols-subgrid",
                           <>
-                              {allocationColumns.map((column) => (
-                                  <div
-                                      key={column.personId}
-                                      aria-selected={selectedCellMarkers?.has(column.field)}
-                                      data-cell={column.field}
-                                      className="min-w-0"
-                                      role="gridcell"
-                                  >
+                              {allocationColumns.map((column) =>
+                                  renderGridCell(
+                                      column.field,
                                       <PersonAllocationCell
                                           personId={column.personId}
                                           personLabel={column.label}
@@ -590,109 +720,108 @@ export function TransactionRow({
                                           effectiveDerivation={effectiveDerivation}
                                           onCommit={onAllocationUpdate}
                                           onEditingChange={setIsEditingAllocation}
-                                      />
-                                  </div>
-                              ))}
+                                      />,
+                                      {
+                                          className: "min-w-0",
+                                          key: column.personId
+                                      }
+                                  )
+                              )}
                           </>,
                           { gridColumn: `span ${String(allocationColumns.length)}` }
                       )
                     : null}
 
                 {/* Amount */}
-                <div
-                    aria-selected={selectedCellMarkers?.has("amount")}
-                    data-cell="amount"
-                    className="text-right"
-                    role="gridcell"
-                >
+                {renderGridCell(
+                    "amount",
                     <InlineEditableAmount
                         value={effectiveData.amount}
                         originalValue={effectiveData.originalAmount}
                         currency={effectiveData.currency}
                         onSave={(value) => onFieldUpdate?.("amount", value)}
                         data-testid="amount-editable"
-                    />
-                </div>
+                    />,
+                    { className: "text-right" }
+                )}
 
-                {/* Actions column.
-                    `role="gridcell"` because this is a cell of the row, and without it the two
-                    buttons below hang directly off `role="row"` — measured in Chrome's accessibility
-                    tree as `row > button "Add notes"`, which breaks grid→row→gridcell containment.
-                    It carries no `data-cell` marker: the column has none (see the model layer's
-                    `cellMarker: null`), and the markers live on the two controls inside it, which is
-                    what arrow-key navigation and the E2E locators address. */}
-                <div className="flex items-center justify-end gap-1" role="gridcell">
-                    {/* Duplicate indicator */}
-                    {isDuplicate && (
-                        <DuplicateBadge
-                            duplicateOfId={effectiveData.possibleDuplicateOf}
-                            onResolve={onResolveDuplicate}
-                        />
-                    )}
+                {/* Actions has a stable selectable cell identity; its legacy controls remain nested. */}
+                {renderGridCell(
+                    "actions",
+                    <>
+                        {isDuplicate && (
+                            <DuplicateBadge
+                                duplicateOfId={effectiveData.possibleDuplicateOf}
+                                onResolve={onResolveDuplicate}
+                            />
+                        )}
 
-                    {/* Expand/Notes toggle button */}
-                    {onToggleExpand && (
-                        <div data-cell="expand" role="presentation">
-                            <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onToggleExpand();
-                                }}
-                                data-testid="expand-notes-button"
-                                className={cn(
-                                    effectiveExpanded || effectiveData.notes
-                                        ? "text-primary hover:bg-primary/10"
-                                        : "text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                )}
-                                title={
-                                    effectiveExpanded
-                                        ? "Collapse notes"
-                                        : effectiveData.notes
-                                          ? "Edit notes"
-                                          : "Add notes"
-                                }
-                            >
-                                {effectiveExpanded ? (
-                                    <ChevronUp className="h-4 w-4" />
-                                ) : effectiveData.notes ? (
-                                    <Pencil className="h-4 w-4" />
-                                ) : (
-                                    <Plus className="h-4 w-4" />
-                                )}
-                            </Button>
-                        </div>
-                    )}
+                        {onToggleExpand && (
+                            <div data-legacy-action="expand" role="presentation">
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onToggleExpand();
+                                    }}
+                                    data-testid="expand-notes-button"
+                                    data-grid-navigation-target
+                                    className={cn(
+                                        effectiveExpanded || effectiveData.notes
+                                            ? "text-primary hover:bg-primary/10"
+                                            : "text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                    )}
+                                    title={
+                                        effectiveExpanded
+                                            ? "Collapse notes"
+                                            : effectiveData.notes
+                                              ? "Edit notes"
+                                              : "Add notes"
+                                    }
+                                >
+                                    {effectiveExpanded ? (
+                                        <ChevronUp className="h-4 w-4" />
+                                    ) : effectiveData.notes ? (
+                                        <Pencil className="h-4 w-4" />
+                                    ) : (
+                                        <Plus className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </div>
+                        )}
 
-                    {/* Delete button */}
-                    {onDelete && (
-                        <div data-cell="delete" role="presentation">
-                            <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={handleDelete}
-                                data-testid="delete-button"
-                                className={cn(
-                                    showDeleteConfirm
-                                        ? "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
-                                        : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                )}
-                                title={
-                                    showDeleteConfirm
-                                        ? "Click again to confirm delete"
-                                        : "Delete transaction"
-                                }
-                            >
-                                {showDeleteConfirm ? (
-                                    <span className="px-1 text-xs font-medium">Confirm?</span>
-                                ) : (
-                                    <Trash2 className="h-4 w-4" />
-                                )}
-                            </Button>
-                        </div>
-                    )}
-                </div>
+                        {onDelete && (
+                            <div data-legacy-action="delete" role="presentation">
+                                <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={handleDelete}
+                                    data-testid="delete-button"
+                                    className={cn(
+                                        showDeleteConfirm
+                                            ? "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
+                                            : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                    )}
+                                    title={
+                                        showDeleteConfirm
+                                            ? "Click again to confirm delete"
+                                            : "Delete transaction"
+                                    }
+                                >
+                                    {showDeleteConfirm ? (
+                                        <span className="px-1 text-xs font-medium">Confirm?</span>
+                                    ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </div>
+                        )}
+                    </>,
+                    {
+                        className: "-my-3 flex h-[calc(100%+1.5rem)] items-center justify-end gap-1"
+                    }
+                )}
 
                 {/* Presence avatar - shows who else is on this row. Non-interactive so keyboard
                     navigation across the table never stops on it. */}
@@ -720,12 +849,19 @@ export function TransactionRow({
                     style={{ gridTemplateColumns }}
                     data-testid="notes-row"
                     role="row"
+                    aria-rowindex={ariaRowIndex == null ? undefined : ariaRowIndex + 1}
                 >
                     {/* Spacer holding the checkbox column's track. Presentational rather than a
                         gridcell: it is layout, and a nameless cell in the accessibility tree would
                         announce an empty column that does not exist. */}
                     <div role="presentation" />
-                    <div style={{ gridColumn: "2 / -1" }} data-cell="notes" role="gridcell">
+                    <div
+                        style={{ gridColumn: "2 / -1" }}
+                        data-cell="notes"
+                        role="gridcell"
+                        aria-colindex={ariaColumnCount == null ? undefined : 2}
+                        aria-colspan={ariaColumnCount == null ? undefined : ariaColumnCount - 1}
+                    >
                         <Textarea
                             ref={notesRef}
                             value={effectiveData.notes || ""}

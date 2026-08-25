@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /home/ben-agents/Code/moneyflow
+
+
+ Test Files  37 passed (37)
+      Tests  474 passed (474)
+   Start at  00:13:32
+   Duration  10.22s (transform 9.32s, setup 7.22s, import 61.08s, tests 25.17s, environment 39.76s)
+

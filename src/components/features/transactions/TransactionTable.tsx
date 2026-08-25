@@ -59,6 +59,7 @@ import {
     transactionCellKeyIntent,
     transactionCellSelectionRowKey,
     transactionCopyOnKeyDown,
+    transactionSelectedCellMarkersFromRowKey,
     type TransactionRowOrder,
     type TransactionRowSelection,
     transactionGridTemplateColumns,
@@ -67,6 +68,7 @@ import {
 } from "./table-model";
 import {
     TransactionRow,
+    type TransactionGridRowSurface,
     type TransactionRowData,
     type TransactionRowPresence
 } from "./TransactionRow";
@@ -202,26 +204,6 @@ export interface TransactionTableProps {
 const NO_ALLOCATION_COLUMNS: readonly AllocationColumn[] = [];
 
 /**
- * The `data-cell` markers of one row's selected cells.
- *
- * Asked of the cells rather than derived from the selection's rectangles, so a column that opts out
- * of selection cannot appear here and the answer cannot disagree with the feature's own geometry. For
- * every column that takes part in a range, the marker and the column id are the same string.
- */
-function selectedCellMarkersOfRow(row: {
-    readonly getAllCells: () => readonly {
-        readonly column: { readonly id: string };
-        readonly getIsSelected: () => boolean;
-    }[];
-}): ReadonlySet<string> {
-    const markers = new Set<string>();
-    for (const cell of row.getAllCells()) {
-        if (cell.getIsSelected()) markers.add(cell.column.id);
-    }
-    return markers;
-}
-
-/**
  * Table header with column labels and select-all checkbox.
  */
 interface TransactionTableHeaderProps {
@@ -247,9 +229,15 @@ function TransactionTableHeader({
             className="bg-muted sticky top-0 z-10 grid min-w-fit items-center gap-4 border-b px-4 py-2 text-sm font-medium"
             style={{ gridTemplateColumns }}
             role="row"
+            aria-rowindex={1}
         >
             {/* Checkbox column */}
-            <div data-testid="header-checkbox" role="columnheader" aria-label="Select all">
+            <div
+                data-testid="header-checkbox"
+                role="columnheader"
+                aria-label="Select all"
+                aria-colindex={1}
+            >
                 <CheckboxCell
                     checked={isAllSelected}
                     indeterminate={isSomeSelected}
@@ -263,29 +251,44 @@ function TransactionTableHeader({
                     rowGeometry="header"
                 />
             </div>
-            <div role="columnheader">Date</div>
-            <div className="truncate" role="columnheader">
+            <div role="columnheader" aria-colindex={2}>
+                Date
+            </div>
+            <div className="truncate" role="columnheader" aria-colindex={3}>
                 Description
             </div>
-            <div className="truncate" role="columnheader">
+            <div className="truncate" role="columnheader" aria-colindex={4}>
                 Account
             </div>
-            <div role="columnheader">Tags</div>
-            <div role="columnheader">Status</div>
-            {allocationColumns.map((column) => (
+            <div role="columnheader" aria-colindex={5}>
+                Tags
+            </div>
+            <div role="columnheader" aria-colindex={6}>
+                Status
+            </div>
+            {allocationColumns.map((column, index) => (
                 <div
                     key={column.personId}
                     className="truncate text-right"
                     title={`${column.label} allocation percentage`}
                     role="columnheader"
+                    aria-colindex={index + 7}
                 >
                     {column.label} %
                 </div>
             ))}
-            <div className="text-right" role="columnheader">
+            <div
+                className="text-right"
+                role="columnheader"
+                aria-colindex={allocationColumns.length + 7}
+            >
                 Amount
             </div>
-            <div role="columnheader" aria-label="Actions" />
+            <div
+                role="columnheader"
+                aria-label="Actions"
+                aria-colindex={allocationColumns.length + 8}
+            />
         </div>
     );
 }
@@ -424,12 +427,24 @@ export function TransactionTable({
             ),
         [rowWindow]
     );
+    const expandedRowIndexes = useMemo(
+        () =>
+            [...expandedIds]
+                .flatMap((transactionId) => {
+                    const index = rowOrder.indexOf(asTransactionId(transactionId));
+                    return index < 0 ? [] : [index];
+                })
+                .sort((left, right) => left - right),
+        [expandedIds, rowOrder]
+    );
+    const visibleColumnCount = table.getVisibleLeafColumns().length;
+    const ariaRowCount = matchingRowCount + expandedRowIndexes.length + 1;
 
     /**
      * The columns whose cells can be part of a range, read off the table rather than re-listed.
      *
-     * The checkbox and actions columns opt out in their own column defs, so asking the table keeps
-     * this from drifting away from them.
+     * Checkbox and actions now participate as stable activation-cell identities; hidden or removed
+     * columns remain absent because this derives from the table's visible leaves.
      */
     const rangeableColumnIds = useMemo(
         () =>
@@ -543,11 +558,23 @@ export function TransactionTable({
      */
     const handleGridBlur = useCallback(
         (event: React.FocusEvent<HTMLDivElement>) => {
+            const grid = event.currentTarget;
             const next = event.relatedTarget;
-            if (next instanceof Node && event.currentTarget.contains(next)) return;
-            onTransactionBlur?.();
+            if (next instanceof Node && grid.contains(next)) return;
+            if (next instanceof Element && next.closest("[data-owned-by-row]") != null) return;
+            // A blur with a null relatedTarget can be an intermediate browser state. Verify the final
+            // active element after the focus transaction before surrendering grid ownership, so a
+            // structural reconciliation cannot later steal focus back from an external filter.
+            queueMicrotask(() => {
+                const active = grid.ownerDocument.activeElement;
+                if (active instanceof Node && grid.contains(active)) return;
+                if (active instanceof Element && active.closest("[data-owned-by-row]") != null)
+                    return;
+                controller.parkExternalFocus();
+                onTransactionBlur?.();
+            });
         },
-        [onTransactionBlur]
+        [controller, onTransactionBlur]
     );
 
     const controllerPinnedIndexes = useMemo(
@@ -605,6 +632,7 @@ export function TransactionTable({
             // page sees and costs a `contains` rather than a walk over the loaded rows.
             const target = event.target;
             if (!(target instanceof Node) || !scrollElement?.contains(target)) return;
+            if (target instanceof Element && target.matches('[role="gridcell"]')) return;
 
             // Don't handle if user is typing in an input
             if (
@@ -784,7 +812,7 @@ export function TransactionTable({
 
     const handleDescriptionInputElementChange = useCallback(
         (transactionId: string, element: HTMLInputElement | null) =>
-            controller.registerCell(
+            controller.registerEditor(
                 { columnId: "description", transactionId: asTransactionId(transactionId) },
                 element
             ),
@@ -804,21 +832,41 @@ export function TransactionTable({
      * would lose its memoization. Building the row up here keeps it in the compiled tree.
      */
     const renderRow = useCallback(
-        (index: number) => {
+        (index: number, isIdleEntryRow: boolean, viewportRowDistance: number) => {
             const displayIndex = displayIndexByRowIndex.get(index);
             const row = displayIndex == null ? undefined : rows[displayIndex];
             if (row == null || displayIndex == null) return null;
             const transaction = row.original;
+            const ariaRowIndex =
+                index +
+                2 +
+                expandedRowIndexes.filter((expandedIndex) => expandedIndex < index).length;
+            const parkedActiveAddress = controllerSnapshot.parkedActiveAddress;
+            const gridCellSurface = {
+                cells: row.getAllCells(),
+                controller,
+                initialTabStopColumnId: isIdleEntryRow ? "checkbox" : null,
+                interactionKind: controllerSnapshot.interactionKind,
+                parkedTabStopColumnId:
+                    parkedActiveAddress?.transactionId === transaction.id
+                        ? parkedActiveAddress.columnId
+                        : null,
+                viewportRowDistance
+            } satisfies TransactionGridRowSurface;
             const rowElement = (selectedCellMarkers: ReadonlySet<string>) => (
                 <TransactionRow
                     selectedCellMarkers={selectedCellMarkers}
+                    gridCellSurface={gridCellSurface}
                     transaction={transaction}
+                    ariaRowIndex={ariaRowIndex}
+                    ariaColumnCount={visibleColumnCount}
                     presence={presenceByTransactionId[transaction.id]}
                     resolveMemberName={resolveMemberName}
                     isSelected={row.getIsSelected()}
                     isExpanded={expandedIds.has(transaction.id)}
                     suppressDescriptionFocusPresence={
-                        controllerSnapshot.pending?.state.target.transactionId === transaction.id &&
+                        controllerSnapshot.pending?.kind === "edit" &&
+                        controllerSnapshot.pending.state.target.transactionId === transaction.id &&
                         controllerSnapshot.pending.state.target.columnId === "description"
                     }
                     onDescriptionInputElementChange={handleDescriptionInputElementChange}
@@ -864,6 +912,9 @@ export function TransactionTable({
                     onFocus={() => onTransactionFocus?.(transaction.id)}
                     onFieldFocus={(field) => onTransactionFieldFocus?.(transaction.id, field)}
                     onCellFocus={(marker) => applyFocusedCell(transaction.id, marker)}
+                    onActivationDescendantFocus={() =>
+                        controller.setFocusedActivation(transaction.id)
+                    }
                     onFieldUpdate={
                         onTransactionUpdate
                             ? (field, value) =>
@@ -899,7 +950,14 @@ export function TransactionTable({
                     source={table.atoms.cellSelection}
                     selector={() => transactionCellSelectionRowKey(table, displayIndex)}
                 >
-                    {() => rowElement(selectedCellMarkersOfRow(row))}
+                    {(selectionRowKey) =>
+                        rowElement(
+                            transactionSelectedCellMarkersFromRowKey(
+                                selectionRowKey,
+                                gridCellSurface.cells.map((cell) => cell.column.id)
+                            )
+                        )
+                    }
                 </table.Subscribe>
             );
         },
@@ -910,9 +968,13 @@ export function TransactionTable({
             availableAliases,
             availableStatuses,
             availableTags,
+            controller,
+            controllerSnapshot.interactionKind,
+            controllerSnapshot.parkedActiveAddress,
             controllerSnapshot.pending,
             displayIndexByRowIndex,
             expandedIds,
+            expandedRowIndexes,
             gridTemplateColumns,
             handleCheckboxChange,
             handleCheckboxShiftClick,
@@ -934,7 +996,8 @@ export function TransactionTable({
             renderRuleProposal,
             resolveMemberName,
             rows,
-            table
+            table,
+            visibleColumnCount
         ]
     );
 
@@ -956,6 +1019,8 @@ export function TransactionTable({
                         className="relative min-w-fit flex-1"
                         role="grid"
                         aria-label="Transactions"
+                        aria-rowcount={ariaRowCount}
+                        aria-colcount={visibleColumnCount}
                         data-testid="transaction-table"
                         onKeyDown={handleKeyDown}
                         onBlur={handleGridBlur}

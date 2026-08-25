@@ -23,6 +23,7 @@ import { describe, expect, it } from "vitest";
 
 import { RESTING_CELL_CHROME } from "@/components/features/transactions/cells/cell-chrome";
 import {
+    CHECKBOX_GRIDCELL_SURFACE,
     CHECKBOX_HIT_AREA,
     INPUT_CELL_HIT_AREA,
     SHORT_CONTROL_HIT_AREA,
@@ -62,8 +63,8 @@ const ROW = {
  * available in the row it is mounted in.
  */
 const MOUNTS = {
-    dataRow: { height: 57, gapAbove: 20, gapBelow: 21 },
-    header: { height: 37, gapAbove: 10, gapBelow: 11 }
+    dataRow: { height: 57, gapAbove: 20, gapBelow: 21, reachAbove: 8, reachBelow: 8 },
+    header: { height: 37, gapAbove: 10, gapBelow: 11, reachAbove: 10, reachBelow: 11 }
 } as const;
 
 describe("cell hit area", () => {
@@ -141,6 +142,17 @@ describe("cell hit area", () => {
             expect(padding).toBe(margin + 4);
         });
 
+        it("grows the checkbox gridcell over row padding without changing row layout", () => {
+            const utilitiesList = utilities(CHECKBOX_GRIDCELL_SURFACE);
+            const height = pixels(utilitiesList.find((utility) => utility.startsWith("h-")) ?? "");
+            const margin = pixels(
+                utilitiesList.find((utility) => utility.startsWith("-my-")) ?? ""
+            );
+
+            expect(height).toBe(ROW.height - 1);
+            expect(height - margin * 2).toBe(32);
+        });
+
         it("reaches the row edge from each control's measured resting position", () => {
             // Each overlay's reach must equal the dead strip actually measured for that control:
             // the row's padding, plus half the difference between the content band and the control.
@@ -151,8 +163,9 @@ describe("cell hit area", () => {
             expect(reachOf(SHORT_CONTROL_HIT_AREA)).toBe(ROW.verticalPadding + 2);
             // `h-8` controls fill the band exactly.
             expect(reachOf(TALL_CONTROL_HIT_AREA)).toBe(ROW.verticalPadding);
-            // The checkbox draws at 16px inside the same 32px band, in the data row.
-            expect(reachOf(CHECKBOX_HIT_AREA.dataRow)).toBe(ROW.verticalPadding + (32 - 16) / 2);
+            // The data checkbox stops at a centred 32px control target; the row's outer strip is the
+            // canonical gridcell background rather than row-selection activation.
+            expect(reachOf(CHECKBOX_HIT_AREA.dataRow)).toBe((32 - 16) / 2);
         });
 
         it("keeps the checkbox's drawn size while widening only its activation area", () => {
@@ -164,11 +177,10 @@ describe("cell hit area", () => {
             expect(pixels(merged.filter((u) => u.startsWith("before:-right-"))[0] ?? "")).toBe(8);
         });
 
-        it("never reaches beyond the row each variant is mounted in", () => {
-            // The guard F-2 needed and did not have. A negative-inset overlay does not clip at its
-            // row's edge — excess reach lands on the NEXT row and steals its clicks. So each
-            // variant's reach must fit inside the gap measured for ITS OWN mount, and a new mount
-            // added without its own measurements fails here rather than in the browser.
+        it("uses the exact interaction reach declared for each checkbox mount", () => {
+            // A negative-inset overlay does not clip at its row edge, so every reach must fit its
+            // measured gap. Equality with the declared reach also protects the deliberate difference:
+            // the data row stops at its centred control while the header reaches its full cell.
             const reachAbove = (hitArea: string) =>
                 pixels(utilities(hitArea).filter((u) => u.startsWith("before:-top-"))[0] ?? "");
             const reachBelow = (hitArea: string) =>
@@ -182,9 +194,12 @@ describe("cell hit area", () => {
                 expect(reachBelow(hitArea), `${mount} reaches below its row`).toBeLessThanOrEqual(
                     geometry.gapBelow
                 );
-                // And it must actually reach the edge, or the dead strip UR-012 removes comes back.
-                expect(reachAbove(hitArea), `${mount} falls short above`).toBe(geometry.gapAbove);
-                expect(reachBelow(hitArea), `${mount} falls short below`).toBe(geometry.gapBelow);
+                expect(reachAbove(hitArea), `${mount} has the wrong upper target`).toBe(
+                    geometry.reachAbove
+                );
+                expect(reachBelow(hitArea), `${mount} has the wrong lower target`).toBe(
+                    geometry.reachBelow
+                );
             }
         });
 

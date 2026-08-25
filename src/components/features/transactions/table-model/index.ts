@@ -21,7 +21,10 @@ export {
     transactionCellKeyIntent,
     type TransactionCellKeyIntent
 } from "./cell-key-intent";
-export { transactionCellSelectionRowKey } from "./cell-selection-render";
+export {
+    transactionCellSelectionRowKey,
+    transactionSelectedCellMarkersFromRowKey
+} from "./cell-selection-render";
 export {
     controlHasTextSelection,
     documentHasTextSelection,
@@ -115,6 +118,7 @@ export {
     type TransactionGridKeyIntent,
     type TransactionGridKeyMode,
     type TransactionNavigationTarget,
+    transactionGridKeyContext,
     transactionGridKeyIntent
 } from "./grid-key-intent";
 export {
@@ -149,6 +153,7 @@ export {
     type TransactionColumnPopupOwner,
     transactionColumnHelper,
     type TransactionTable,
+    type TransactionTableCell,
     transactionTableFeatures,
     type TransactionTableFeatures,
     type TransactionTableRow

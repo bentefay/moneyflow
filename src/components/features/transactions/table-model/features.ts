@@ -52,6 +52,7 @@
 
 import {
     cellSelectionFeature,
+    type Cell,
     columnVisibilityFeature,
     createColumnHelper,
     metaHelper,
@@ -120,11 +121,8 @@ export interface TransactionColumnMeta {
     readonly align: TransactionColumnAlign;
     /** Whether this column's cells can be edited in place. Drives current live-product navigation. */
     readonly editable: boolean;
-    /**
-     * Controller capabilities. Optional only while the old live-input renderer remains authoritative;
-     * the migration slice makes it required when every column moves to the new surface.
-     */
-    readonly interaction?: TransactionColumnInteractionMeta;
+    /** Controller capabilities consumed by the shared gridcell surface and controller bridge. */
+    readonly interaction: TransactionColumnInteractionMeta;
     /**
      * The stable `data-cell` marker the row markup already carries for this column, or `null` for
      * a column that carries none.
@@ -132,10 +130,9 @@ export interface TransactionColumnMeta {
      * Presence reports which field a peer is editing by reading this marker, and the E2E suite
      * addresses cells by it, so it is part of the grid's contract and not a rendering detail.
      *
-     * `null` is not a gap to be filled in later. The actions column is an unmarked container
-     * around two separately-marked controls (`ACTIONS_COLUMN_CELL_MARKERS`), so it has no single
-     * marker to name; inventing one would put a string in the model that appears nowhere in the
-     * DOM. Likewise `notes` belongs to the expanded second row rather than to any column.
+     * The actions column owns the stable `actions` marker while its legacy descendants retain
+     * `expand` and `delete`. `null` remains available only for a future non-addressable presentation
+     * column; `notes` belongs to the expanded second row rather than to any column.
      */
     readonly cellMarker: TransactionCellMarker | null;
     /**
@@ -149,6 +146,9 @@ export interface TransactionColumnMeta {
 
 /** This grid's table instance, with exactly the APIs its registered features install. */
 export type TransactionTable = Table<TransactionTableFeatures, TransactionTableRow>;
+
+/** One concrete cell from this grid's registered TanStack feature set. */
+export type TransactionTableCell = Cell<TransactionTableFeatures, TransactionTableRow, unknown>;
 
 /**
  * The grid's registered features.

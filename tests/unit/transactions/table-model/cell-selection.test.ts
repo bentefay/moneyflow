@@ -185,21 +185,23 @@ describe("modifier-added and modifier-subtracted ranges", () => {
     });
 });
 
-describe("columns that take no part in cell selection", () => {
-    it("cannot be selected by pointer", () => {
+describe("selectable activation cells", () => {
+    it("selects checkbox and actions identities by pointer without changing row selection", () => {
         const table = createTestTransactionTable({ transactions: transactions(3) });
+        const rowSelectionBefore = table.getRowSelectionBaseline();
 
         mouseDown(table, 1, "checkbox");
-        expect(table.getSelectedCellCount()).toBe(0);
+        expect(selectedCellIds(table)).toEqual([transactionCellId(id("tx-1"), "checkbox")]);
 
         mouseDown(table, 1, "actions");
-        expect(table.getSelectedCellCount()).toBe(0);
+        expect(selectedCellIds(table)).toEqual([transactionCellId(id("tx-1"), "actions")]);
 
-        expect(cellAt(table, 1, "checkbox").getCanSelect()).toBe(false);
-        expect(cellAt(table, 1, "actions").getCanSelect()).toBe(false);
+        expect(cellAt(table, 1, "checkbox").getCanSelect()).toBe(true);
+        expect(cellAt(table, 1, "actions").getCanSelect()).toBe(true);
+        expect(table.getRowSelectionBaseline()).toBe(rowSelectionBefore);
     });
 
-    it("are skipped by select-all", () => {
+    it("participates in select-all geometry", () => {
         const table = createTestTransactionTable({
             allocationColumns: [{ label: "Ada", personId: "p1" }],
             transactions: transactions(4)
@@ -207,21 +209,30 @@ describe("columns that take no part in cell selection", () => {
 
         table.selectAllCells();
 
-        // date, description, account, tags, status, allocation:p1, amount — seven of nine columns.
-        expect(table.getSelectedCellCount()).toBe(4 * 7);
-        expect(table.getCellSelectionColumnIds()).not.toContain("checkbox");
-        expect(table.getCellSelectionColumnIds()).not.toContain("actions");
+        expect(table.getSelectedCellCount()).toBe(4 * 9);
+        expect(table.getCellSelectionColumnIds()).toEqual([
+            "checkbox",
+            "date",
+            "description",
+            "account",
+            "tags",
+            "status",
+            "allocation:p1",
+            "amount",
+            "actions"
+        ]);
     });
 
-    it("are stepped over by arrow-key movement", () => {
+    it("are stable arrow-key stops", () => {
         const table = createTestTransactionTable({ transactions: transactions(3) });
 
         table.setFocusedCell(id("tx-1"), "date");
         table.moveCellSelection("left");
+        expect(table.getFocusedCell()?.id).toBe(transactionCellId(id("tx-1"), "checkbox"));
 
-        // `checkbox` sits to the left of `date` and cannot be selected, so the focus stays put
-        // rather than landing on a cell the user cannot act on.
-        expect(table.getFocusedCell()?.id).toBe(transactionCellId(id("tx-1"), "date"));
+        table.setFocusedCell(id("tx-1"), "amount");
+        table.moveCellSelection("right");
+        expect(table.getFocusedCell()?.id).toBe(transactionCellId(id("tx-1"), "actions"));
     });
 });
 

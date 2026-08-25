@@ -149,7 +149,9 @@ approval.
 ### Grid surface, gestures, copy, and accessibility
 
 - [ ] Task 12: Add `TransactionGridCell`, roving tabindex, display-first rows, selection paint, and
-      concise status semantics.
+      concise status semantics. The unreviewed slice 3A handback supplies the shared surface,
+      controller command bridge, required visible-column metadata, and fixed-row DOM coverage;
+      editor-family display replacement and concise status semantics remain pending.
 - [ ] Task 13: Add click, double-click, modifier, drag/autoscroll, activation-cell, and range
       gesture coverage.
 - [ ] Task 14: Add bounded all-or-nothing active-operation copy and native editor-copy precedence.
@@ -357,6 +359,127 @@ controller snapshot now exposes that typed focus-retention transaction ID withou
 canonical active-origin state. TransactionTable gives actual retained DOM focus precedence for row
 shortcuts, then canonical active-cell authority, then the existing exactly-one-selected-row
 fallback. A real DOM regression focuses an unselected row checkbox and proves `d` deletes that row.
+
+### Product slice 3A — display-first gridcell surface handback pending review
+
+The uncommitted handback adds one shared `TransactionGridCell` surface for all nine visible column
+families, required immutable interaction metadata, stable checkbox/actions selection identities,
+layout-neutral selection paint, roving gridcell focus, controller registration, background pointer
+selection, double-click full-edit adaptation, and the pure key-intent/controller command bridge.
+Gridcell and editor registrations are distinct so Add still focuses the Description input, while
+legacy descendants and portaled popups opt out of the new surface until their editor-family slices.
+Checkbox/actions remain selectable but non-copyable, row selection remains orthogonal, notes remain
+outside column selection, and the fixed resting row remains exactly 57px.
+
+This is a partial Task 12 surface slice only. It does not claim editor-family migration, inspector,
+notes relocation, activation-cell migration, complete modifier/drag/autoscroll gestures, bounded
+active-operation copy, concise status semantics, automation, presence ownership replacement, or
+superseded-code deletion. The stable handback is awaiting independent bounded review and has not
+been committed.
+
+### Product slice 3A verification cycle 1 — rejected at gate; navigation race corrected
+
+Independent verification rejected the handback before code review because one retry-free full E2E
+run lost the duplicated page's execution context while `expect.poll` evaluated navigation timing.
+The rejection artifact is preserved under
+`.agent-memory/transaction-grid-inspector/evidence/task-3a-review-rejection-1/`.
+
+Diagnosis found that `chrome.tabs.duplicate()` publishes the new target before session-history
+restoration replaces its main-frame context. `waitForLoadState("load")` can therefore observe an
+inherited completed state from the earlier context. The correction removes that insufficient load
+barrier and uses Playwright's navigation-rerunnable `waitForFunction` to synchronize on the exact
+`back_forward` / `cache` / zero-transfer navigation entry. The original exact cached-duplicate
+assertion remains unchanged in strength. Task 3A product bytes remain frozen; only the E2E lifecycle
+synchronization, evidence, and mutable ledgers changed. The corrected handback has passed focused
+repetition, targeted Task 3A checks, and a full retry-free E2E run and now awaits independent
+re-review without a commit.
+
+### Product slice 3A verification cycle 2 — rejected findings corrected; handback pending review
+
+Independent review rejected the corrected handback on three verified product findings: canonical
+navigation to an unmounted target did not enter the bounded generation-correlated reveal/focus
+transaction; a deeply scrolled untouched grid could expose no mounted roving tab stop; and
+checkbox/actions double-click ignored immutable `editKind: "none"`. The correction routes virtual
+navigation through the existing pending-operation transaction, assigns the idle entry stop to the
+first actually mounted keyed row, and gates double-click adaptation on column capability metadata.
+
+The same correction pass completes the assigned adjacent Task 3A gaps without claiming later slices:
+clipboard TSV retains empty checkbox/actions coordinates, checkbox glyph and gridcell background
+have separate row-selection/cell-selection geometry, native boundary Tab parks retained selection,
+and the virtual grid publishes logical row/column counts plus absolute header, data, and retained
+notes indexes. A retry-free full-suite run then exposed a stale ARIA projection after moving a cell
+selection within an already engaged row. The external atom was correct, but a compiled render prop
+re-read `cell.getIsSelected()` on stable cell identity. The row subscription now consumes its
+projected key directly and derives immutable selected markers from that key before rendering.
+
+The final correction passes transaction-focused unit coverage, targeted virtual-grid and cell-edge
+browser coverage, every static/build gate, the full unit suite, and one full four-worker retry-free
+202-test E2E run. Generated `AGENTS.md` and `next-env.d.ts` drift was inspected and precisely
+restored. The uncommitted exact-path handback remains partial Task 12/13/14 groundwork and awaits
+independent bounded review; editor families, inspector, notes relocation, automation, complete
+gestures/copy, status semantics, and superseded-code deletion remain pending.
+
+### Product slice 3A verification cycle 3 — closed correction scope complete
+
+Semantic discovery closed with the exact correction set Tasks 47–49 and 54–63. The shared surface
+now uses viewport-sized Page movement, preserves canonical Shift and primary-modifier background
+ranges, and leaves the parked active anchor as the sole native re-entry stop. Modified arrows stay
+native instead of leaking into legacy navigation, while semantic row navigation still includes
+dynamic allocation gridcells and treats the actions surface as one stop with an explicit Expand
+target.
+
+Verified external blur now parks controller ownership without stealing focus, retains a surviving
+canonical range through structural reconciliation, and excludes row-owned portals. Selected chrome
+uses a valid OKLCH-compatible inset color mix. The actions surface covers the complete 57px row at
+its top, center, and bottom without obscuring its buttons. Background focus clears stale
+legacy-descendant state, and direct shared-gridcell destructive keys cannot reach legacy row
+deletion.
+
+Legacy tags full-edit adaptation explicitly activates the chooser and focuses Search tags for empty
+or populated cells through Enter or background double-click. Pending activation keeps one absolute
+registration deadline across structural rebases and remains atomic through focus, connectedness,
+active-element, exact command, and generation verification. Redirected or unmounted targets abort
+without target presence publication and restore origin focus, selection, scroll, pins, and the real
+page-held row window.
+
+The final stable campaign passes scoped and repository formatting, lint with only the existing
+`useVirtualizer` React Compiler advisory, typecheck, the 17-route production build, 119 targeted
+unit tests, 2 targeted browser tests, the full 3,020-pass/2-skip unit suite, and all 202 retry-free
+E2E tests. The first full E2E attempt exposed and corrected omitted nested allocation stops; the
+complete campaign was restarted from the corrected tree. Evidence is preserved under
+`.agent-memory/transaction-grid-inspector/evidence/task-3a-review-rejection-4/`. Generated
+`AGENTS.md` and `next-env.d.ts` drift was inspected and precisely restored, port 3000 was released,
+and no commit or push was created. The handback remains the bounded partial Task 12 surface; the
+closed scope does not admit editor-family migration, inspector, notes, automation, complete gestures
+or copy, concise status semantics, or superseded-code deletion.
+
+### Product slice 3A exceptional correction — user-authorized two-finding closure
+
+After the closed-scope handback, exact-server manual review reproduced two final defects. The user
+explicitly authorized one exceptional correction and review cycle limited to those findings. No late
+review or adjacent semantic work was admitted.
+
+When a row-B checkbox or actions descendant receives focus while a canonical range remains anchored
+in row A, the controller now parks the range while retaining row B as explicit focus-retention and
+shortcut authority. Its focus-retention pin coexists with the range's active-origin pin, so both
+rows remain materialized through virtualization. Actual focus movement to a gridcell, another
+activation surface, or outside the grid replaces or clears that authority through the existing
+focus-exit paths. The complete checkbox/actions by `d`/Delete/Backspace matrix proves deletion
+always targets focused row B and never retained-range row A.
+
+When native reverse Tab returns from Expand to the parked actions wrapper, wrapper focus now clears
+the legacy-descendant latch before exposing the retained range. The exact browser sequence actions
+background, Shift+Home, Tab to Expand, then Shift+Tab back proves the wrapper remains `tabIndex=0`,
+the grid has exactly one roving stop, and all nine cells remain selected without collapse.
+
+The exceptional campaign passes 90 focused unit/DOM tests, the exact retry-free browser regression,
+repository formatting, lint with only the existing `useVirtualizer` React Compiler advisory,
+typecheck, the 17-route production build, the full 3,028-pass/2-skip unit suite, and all 202
+four-worker retry-free E2E tests. Evidence is preserved under
+`.agent-memory/transaction-grid-inspector/evidence/task-3a-review-exception-1/`. Generated
+`AGENTS.md` and `next-env.d.ts` drift was inspected and precisely restored after browser/build work.
+No dependency, import picker, editor-family, inspector, notes, automation, copy, status, frozen
+spec, agent configuration, commit, or push change was admitted.
 
 ## Notes
 

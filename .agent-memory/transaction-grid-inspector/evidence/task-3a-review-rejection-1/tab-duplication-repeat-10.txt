@@ -1,0 +1,16 @@
+[WebServer] $ next dev --turbopack
+
+
+Running 10 tests using 1 worker
+
+[1/10] [chromium] › tests/e2e/tab-duplication.spec.ts:50:5 › a browser-duplicated tab hydrates onboarding and an authenticated vault
+[2/10] [chromium] › tests/e2e/tab-duplication.spec.ts:50:5 › a browser-duplicated tab hydrates onboarding and an authenticated vault
+[3/10] [chromium] › tests/e2e/tab-duplication.spec.ts:50:5 › a browser-duplicated tab hydrates onboarding and an authenticated vault
+[4/10] [chromium] › tests/e2e/tab-duplication.spec.ts:50:5 › a browser-duplicated tab hydrates onboarding and an authenticated vault
+[5/10] [chromium] › tests/e2e/tab-duplication.spec.ts:50:5 › a browser-duplicated tab hydrates onboarding and an authenticated vault
+[6/10] [chromium] › tests/e2e/tab-duplication.spec.ts:50:5 › a browser-duplicated tab hydrates onboarding and an authenticated vault
+[7/10] [chromium] › tests/e2e/tab-duplication.spec.ts:50:5 › a browser-duplicated tab hydrates onboarding and an authenticated vault
+[8/10] [chromium] › tests/e2e/tab-duplication.spec.ts:50:5 › a browser-duplicated tab hydrates onboarding and an authenticated vault
+[9/10] [chromium] › tests/e2e/tab-duplication.spec.ts:50:5 › a browser-duplicated tab hydrates onboarding and an authenticated vault
+[10/10] [chromium] › tests/e2e/tab-duplication.spec.ts:50:5 › a browser-duplicated tab hydrates onboarding and an authenticated vault
+  10 passed (1.3m)

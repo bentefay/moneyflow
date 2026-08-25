@@ -2896,14 +2896,17 @@ test.describe("Transactions", () => {
          *
          * Every assertion here clicks. A test that merely located a control, or asserted it was
          * visible, would pass just as happily against the unfixed geometry — the control was always
-         * visible, it was the surrounding strip of the cell that was dead. So the only question this
-         * asks is the requirement's own: was the click ACCEPTED.
+         * visible, it was the surrounding strip of the cell that was dead. Editable cells adapt the
+         * click to their control; the checkbox's activation glyph deliberately leaves that strip to
+         * canonical cell selection so row and cell selection remain orthogonal.
          *
          * The click lands 2px inside the row's top edge, which is 12px above where any control's
          * box used to begin. Measured against the pre-change build, every one of these points
          * focused the row itself and did nothing.
          */
-        test("UR-012: a click at a cell's edge activates that cell's control", async ({ page }) => {
+        test("UR-012: a click at a cell's edge activates its canonical interaction", async ({
+            page
+        }) => {
             // The table is wider than the default 1280px viewport: measured, the amount column
             // spans x=1233..1345, so its centre lies OFF-SCREEN and `mouse.click` there would land
             // on nothing while the test read as passing. Widen first so every column is reachable.
@@ -2966,14 +2969,32 @@ test.describe("Transactions", () => {
              */
             const clickCellEdge = async (cellName: string, edge: "top" | "bottom") => {
                 const rowBox = await row.boundingBox();
-                const cellBox = await row.locator(`[data-cell="${cellName}"]`).boundingBox();
+                const cell = row.locator(`[data-cell="${cellName}"]`);
+                const cellBox = await cell.boundingBox();
                 if (rowBox == null || cellBox == null) {
                     throw new Error(`${cellName} cell is not laid out`);
                 }
-                await page.mouse.click(
-                    cellBox.x + cellBox.width / 2,
-                    edge === "top" ? rowBox.y + 2 : rowBox.y + rowBox.height - 3
-                );
+                const point = {
+                    x: cellBox.x + cellBox.width / 2,
+                    y: edge === "top" ? rowBox.y + 2 : rowBox.y + rowBox.height - 3
+                };
+                const target = await page.evaluate(({ x, y }) => {
+                    const element = document.elementFromPoint(x, y);
+                    return {
+                        cell: element?.closest("[data-cell]")?.getAttribute("data-cell") ?? null,
+                        isGridcell: element?.getAttribute("role") === "gridcell",
+                        tagName: element?.tagName ?? null
+                    };
+                }, point);
+                if (target.cell !== cellName) {
+                    throw new Error(
+                        `${edge} ${cellName} edge resolves to ${String(target.cell)} ${String(target.tagName)}`
+                    );
+                }
+                await cell.click({
+                    position: { x: cellBox.width / 2, y: point.y - cellBox.y }
+                });
+                return target;
             };
 
             /** Which cell, if any, currently holds the caret. */
@@ -3035,33 +3056,31 @@ test.describe("Transactions", () => {
                     await expect(allocationCell.getByRole("textbox")).toBeFocused();
                 });
 
-                await test.step(`${edge} edge toggles only this row's checkbox`, async () => {
+                await test.step(`${edge} edge selects the checkbox cell without selecting rows`, async () => {
                     await settleClearOfTheGrid();
+                    const checkboxCell = row.locator('[role="gridcell"][data-cell="checkbox"]');
                     const checkbox = row.getByRole("checkbox", { name: /^Select transaction/ });
                     const otherCheckbox = bystander.getByRole("checkbox", {
                         name: /^Select transaction/
                     });
                     await expect(checkbox).toHaveAttribute("aria-checked", "false");
                     await expect(otherCheckbox).toHaveAttribute("aria-checked", "false");
+                    const target = await clickCellEdge("checkbox", edge);
 
-                    await clickCellEdge("checkbox", edge);
-
-                    await expect(checkbox).toHaveAttribute("aria-checked", "true");
-                    // The assertion the single-row fixture could not make. Select-all sets the
-                    // clicked row's state exactly as a per-row toggle does, so only an untouched
-                    // row can distinguish "this cell's control" from "the header's".
+                    expect(target).toMatchObject({ isGridcell: true, tagName: "DIV" });
+                    await expect(checkboxCell).toBeFocused();
+                    expect(
+                        await row
+                            .locator('[role="gridcell"][aria-selected="true"]')
+                            .evaluateAll((cells) =>
+                                cells.map((cell) => cell.getAttribute("data-cell"))
+                            )
+                    ).toEqual(["checkbox"]);
+                    await expect(checkbox).toHaveAttribute("aria-checked", "false");
                     await expect(otherCheckbox).toHaveAttribute("aria-checked", "false");
-                    // The header reports `mixed` here, and that is the CORRECT value: one of two
-                    // rows is selected. Asserting `false` was wrong — it would fail on a working
-                    // build. What distinguishes the defect is that the header must not be fully
-                    // checked, which is what select-all produces.
                     await expect(
                         page.getByTestId("header-checkbox").getByRole("checkbox")
-                    ).toHaveAttribute("aria-checked", "mixed");
-
-                    // Restore, so the following iteration starts from the same state it assumes.
-                    await clickCellEdge("checkbox", edge);
-                    await expect(checkbox).toHaveAttribute("aria-checked", "false");
+                    ).toHaveAttribute("aria-checked", "false");
                 });
             }
 

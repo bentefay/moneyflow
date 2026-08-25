@@ -1,0 +1,262 @@
+[WebServer] $ next dev --turbopack
+
+
+Running 202 tests using 4 workers
+
+[1/202] [chromium] › tests/e2e/accounts.spec.ts:107:9 › Accounts Page - Create Account › new account inherits currency from vault default
+[2/202] [chromium] › tests/e2e/accounts.spec.ts:50:9 › Accounts Page - Currency Display › default account shows inherited currency with indicator
+[3/202] [chromium] › tests/e2e/accounts.spec.ts:83:9 › Accounts Page - Default Person › new vault has default person 'Me'
+[4/202] [chromium] › tests/e2e/accounts.spec.ts:69:9 › Accounts Page - Currency Display › default account shows owner 'Me' with 100% ownership
+[5/202] [chromium] › tests/e2e/accounts.spec.ts:133:9 › Accounts Page - Inline Editing › can edit account name inline
+[6/202] [chromium] › tests/e2e/accounts.spec.ts:150:9 › Accounts Page - Inline Editing › can cancel editing with Escape
+[7/202] [chromium] › tests/e2e/accounts.spec.ts:167:9 › Accounts Page - Inline Editing › can change account type inline
+[8/202] [chromium] › tests/e2e/automations.spec.ts:42:9 › Automations › CRUD journey: create, edit, and delete a tags field rule
+[9/202] [chromium] › tests/e2e/automations.spec.ts:102:9 › Automations › apply-all and apply-new report impact and route through the engine
+[10/202] [chromium] › tests/e2e/automations.spec.ts:134:9 › Automations › inline validation and keyboard / focus accessibility
+[11/202] [chromium] › tests/e2e/date-locale.spec.ts:51:9 › UR-007: dates display and parse in the browser's locale › a day-first viewer's typed date is stored as the day they meant
+[12/202] [chromium] › tests/e2e/date-locale.spec.ts:68:9 › UR-007: dates display and parse in the browser's locale › a month-first viewer's identical keystrokes mean the other date
+[13/202] [chromium] › tests/e2e/date-locale.spec.ts:86:9 › UR-007: dates display and parse in the browser's locale › the editing presentation carries the year in full
+[14/202] [chromium] › tests/e2e/date-locale.spec.ts:103:9 › UR-007: dates display and parse in the browser's locale › a different-year date rests with the full year, a same-year date without one
+[15/202] [chromium] › tests/e2e/date-locale.spec.ts:123:9 › UR-007: dates display and parse in the browser's locale › natural language entry still works
+[16/202] [chromium] › tests/e2e/date-locale.spec.ts:152:9 › UR-007: a chosen date format overrides the browser › a day-first choice beats a month-first browser
+[17/202] [chromium] › tests/e2e/date-locale.spec.ts:184:9 › UR-007: a chosen date format overrides the browser › the choice survives a reload
+[18/202] [chromium] › tests/e2e/description-aliases.spec.ts:105:9 › Description Aliases › management page CRUD journey: create, rename, delete aliases
+[19/202] [chromium] › tests/e2e/description-aliases.spec.ts:181:9 › Description Aliases › navigation: sidebar link works
+[WebServer] ⚠️ tRPC failed on realtime.revoke: Request authentication failed
+
+[20/202] [chromium] › tests/e2e/description-aliases.spec.ts:195:9 › Description Aliases › transaction cell pointer, keyboard, seamless commit and provenance journey
+[21/202] [chromium] › tests/e2e/description-aliases.spec.ts:369:9 › Description Aliases › shared change and remove modal choices preserve focus and atomic undo
+[22/202] [chromium] › tests/e2e/description-aliases.spec.ts:467:9 › Description Aliases › duplicate tabs converge management, cell, destructive and offline work
+[23/202] [chromium] › tests/e2e/field-rule-parity.spec.ts:101:9 › Tag field-rule parity › add/set mode select is offered on create and mirrored in the inline popup
+[WebServer] ⚠️ tRPC failed on sync.pushOps: Request authentication failed
+
+[WebServer] ⚠️ tRPC failed on sync.getUpdates: Request authentication failed
+
+[WebServer] ⚠️ tRPC failed on sync.pushOps: Request authentication failed
+
+[24/202] [chromium] › tests/e2e/field-rule-parity.spec.ts:146:9 › Allocation field-rule parity › allocation rules are edited through a column-per-person grid capturing the whole set
+[25/202] [chromium] › tests/e2e/field-rule-parity.spec.ts:190:9 › Manual-row applicability › tag and allocation rules apply to a manual aliased row while description rules never do
+[26/202] [chromium] › tests/e2e/field-rule-parity.spec.ts:250:9 › Manual-row applicability › (d) a manual row whose alias name matches no rule carries no robot
+[27/202] [chromium] › tests/e2e/field-rule-parity.spec.ts:275:9 › Apply-mode persistence › the four-mode apply select is remembered and restored on reopen
+[28/202] [chromium] › tests/e2e/field-rule-parity.spec.ts:300:9 › Inline popup at scale › only matching rows carry a robot and nothing auto-opens
+[29/202] [chromium] › tests/e2e/identity.spec.ts:94:9 › Identity › new user journey: generate seed phrase, confirm, and access settings
+[30/202] [chromium] › tests/e2e/identity.spec.ts:160:9 › Identity › creating another account in the same tab does not reuse the previous vault
+[31/202] [chromium] › tests/e2e/identity.spec.ts:184:9 › Identity › stale active-vault storage is repaired for the current identity
+[32/202] [chromium] › tests/e2e/identity.spec.ts:206:9 › Identity › onboarding loads from the server when IndexedDB is blocked
+[33/202] [chromium] › tests/e2e/identity.spec.ts:291:9 › Identity › unlock journey: enter seed phrase and access transactions
+[34/202] [chromium] › tests/e2e/identity.spec.ts:462:9 › Identity › creation presents the recovery phrase as one savable credential
+[35/202] [chromium] › tests/e2e/identity.spec.ts:535:9 › Identity › unlock presents the recovery phrase entry as a fillable login credential
+[36/202] [chromium] › tests/e2e/identity.spec.ts:596:9 › Identity › unlock via canonical credential fill signs in and leaks no phrase
+[37/202] [chromium] › tests/e2e/identity.spec.ts:677:9 › Identity › auth guard: protected routes redirect to unlock
+[WebServer] [browser] Local vault cache unavailable; continuing with direct server sync: Local vault cache did not open before server data was available (src/lib/sync/manager.ts:1008:17)
+
+[38/202] [chromium] › tests/e2e/import.spec.ts:376:9 › Import Panel › transaction surface drop transfers one File without plaintext storage and cancel returns
+[39/202] [chromium] › tests/e2e/import.spec.ts:485:9 › Import Panel › imports surface overlay is stable for nested and outside drag transitions
+[40/202] [chromium] › tests/e2e/import.spec.ts:512:9 › Import Panel › imports drop rejects invalid payloads before navigation with actionable alerts
+[41/202] [chromium] › tests/e2e/import.spec.ts:589:9 › Import Panel › imports surface drops OFX and QFX into preview without implicit import
+[42/202] [chromium] › tests/e2e/import.spec.ts:616:9 › Import Panel › XML OFX picker and both surface drops reach preview without implicit import
+[43/202] [chromium] › tests/e2e/import.spec.ts:666:9 › Import Panel › renamed JSON is rejected by picker and both surface drops
+[44/202] [chromium] › tests/e2e/import.spec.ts:704:9 › Import Panel › drop guidance and alerts meet theme contrast and zoomed visible geometry
+[45/202] [chromium] › tests/e2e/import.spec.ts:768:9 › Import Panel › CSV and OFX lineage survives edits/reload and delete is isolated one-step history
+[46/202] [chromium] › tests/e2e/import.spec.ts:1005:9 › Import Panel › nested duplicate import count matches its reversible exact deletion
+[47/202] [chromium] › tests/e2e/import.spec.ts:1135:9 › Import Panel › original amount tooltip stays inside the zoomed virtualized viewport
+[48/202] [chromium] › tests/e2e/import.spec.ts:1324:9 › Import Panel › CSV import journey: upload, configure tabs, and see preview
+[49/202] [chromium] › tests/e2e/import.spec.ts:1423:9 › Import Panel › OFX import journey: upload and see auto-parsed data
+[50/202] [chromium] › tests/e2e/import.spec.ts:1462:9 › Import Panel › import page shows supported formats
+[51/202] [chromium] › tests/e2e/import.spec.ts:1470:9 › Import Panel › duplicate detection settings are configurable
+[52/202] [chromium] › tests/e2e/import.spec.ts:1516:9 › Import Panel › CSV import creates transactions and auto-saves template on first import
+[53/202] [chromium] › tests/e2e/import.spec.ts:1598:9 › Import Panel › selecting template and importing auto-updates template config
+[54/202] [chromium] › tests/e2e/import.spec.ts:1727:9 › Import Panel › headerless CSV auto-detects columns and dates and imports with no errors
+[55/202] [chromium] › tests/e2e/import.spec.ts:1806:9 › Import Panel › re-import names old-new and old-duplicate separately and still partitions
+[WebServer] ⚠️ tRPC failed on sync.getUpdates: Request authentication failed
+
+[56/202] [chromium] › tests/e2e/invite-redemption.spec.ts:27:5 › a second user redeems an invite and recovers the real vault key
+[57/202] [chromium] › tests/e2e/invite-redemption.spec.ts:87:5 › accepting an invite opens the shared vault and links both members
+[58/202] [chromium] › tests/e2e/landing.spec.ts:15:9 › Public landing page › takes an unauthenticated visitor from landing to vault creation
+[WebServer] ⚠️ tRPC failed on realtime.revoke: Request authentication failed
+
+[WebServer] ⚠️ tRPC failed on sync.pushOps: Request authentication failed
+
+[59/202] [chromium] › tests/e2e/landing.spec.ts:33:9 › Public landing page › offers returning visitors the unlock flow
+[60/202] [chromium] › tests/e2e/landing.spec.ts:46:9 › Public landing page › navigates to in-page sections from the header
+[61/202] [chromium] › tests/e2e/landing.spec.ts:59:9 › Public landing page › reaches vault creation through the mobile menu
+[62/202] [chromium] › tests/e2e/landing.spec.ts:73:9 › Public landing page › keeps the primary call to action reachable without horizontal overflow on mobile
+[63/202] [chromium] › tests/e2e/landing.spec.ts:85:9 › Public landing page › exposes no dead placeholder links
+[64/202] [chromium] › tests/e2e/landing.spec.ts:93:9 › Public landing page › advertises no budgeting capability
+[65/202] [chromium] › tests/e2e/landing.spec.ts:102:9 › Public landing page › makes no data-durability absolute about concurrent edits
+[66/202] [chromium] › tests/e2e/onboarding-vault.spec.ts:10:9 › Onboarding › creates and selects a vault as part of onboarding
+[67/202] [chromium] › tests/e2e/onboarding-vault.spec.ts:63:9 › Onboarding › failed registration leaves no signing session, selected vault, or unlocked state
+[68/202] [chromium] › tests/e2e/onboarding-vault.spec.ts:92:9 › Onboarding › account creation submits the recovery credential so a manager can offer to save it
+[69/202] [chromium] › tests/e2e/onboarding-vault.spec.ts:150:9 › Onboarding › new vault has default person and account with ownership
+[70/202] [chromium] › tests/e2e/onboarding-vault.spec.ts:195:9 › Currency Detection › time zone decides the default currency, overriding a conflicting locale
+[71/202] [chromium] › tests/e2e/onboarding-vault.spec.ts:208:9 › Currency Detection › a country-less time zone falls back to the locale
+[72/202] [chromium] › tests/e2e/onboarding-vault.spec.ts:218:9 › Currency Detection › neither signal resolving falls back to the default currency
+[73/202] [chromium] › tests/e2e/onboarding-vault.spec.ts:228:9 › Currency Detection › the inferred currency is a default the user can change, and the change persists
+[74/202] [chromium] › tests/e2e/passkey.spec.ts:127:9 › Passkey › creation offers passkey and recovery phrase as two equal OR-separated options
+[75/202] [chromium] › tests/e2e/passkey.spec.ts:172:9 › Passkey › a passkey added to a recovery identity unlocks the SAME identity
+[76/202] [chromium] › tests/e2e/passkey.spec.ts:150:9 › Passkey › passkey-only creation, then unlock by passkey, keeps the same vault identity
+[77/202] [chromium] › tests/e2e/passkey.spec.ts:203:9 › Passkey › multiple passkeys each unlock the same identity, and revocation is scoped
+[78/202] [chromium] › tests/e2e/passkey.spec.ts:236:9 › Passkey › a removed authenticator cannot unlock, and the recovery route stays open
+[WebServer] ⚠️ tRPC failed on realtime.revoke: Missing authentication headers
+
+[79/202] [chromium] › tests/e2e/passkey.spec.ts:264:9 › Passkey › no PRF output, master secret or phrase ever leaves the browser
+[WebServer] ⚠️ tRPC failed on realtime.revoke: Missing authentication headers
+
+[80/202] [chromium] › tests/e2e/passkey.spec.ts:312:9 › Passkey › the passkey option is hidden with an explanation when WebAuthn is unavailable
+[WebServer] ⚠️ tRPC failed on realtime.revoke: Missing authentication headers
+
+[81/202] [chromium] › tests/e2e/passkey.spec.ts:336:9 › Passkey › a cancelled ceremony leaves the user on a usable page with no partial state
+[82/202] [chromium] › tests/e2e/passkey.spec.ts:388:9 › Passkey › a prompt the user never answers is abandoned rather than left spinning
+[83/202] [chromium] › tests/e2e/passkey.spec.ts:413:9 › Passkey › passkey-only creation shows the recovery phrase and it unlocks the same identity
+[84/202] [chromium] › tests/e2e/passkey.spec.ts:443:9 › Passkey › the last passkey cannot be revoked without proving the recovery phrase
+[85/202] [chromium] › tests/e2e/passkey.spec.ts:483:9 › Passkey › passkey unlock is fully operable by keyboard alone
+[WebServer] ⚠️ tRPC failed on vault.list: Missing authentication headers
+
+[WebServer] ⚠️ tRPC failed on vault.list: Missing authentication headers
+
+[WebServer] ⚠️ tRPC failed on vault.list: Request authentication failed
+
+[86/202] [chromium] › tests/e2e/people-settlement.spec.ts:113:9 › People page canonical settlement examples › canonical example A: no explicit allocations produces no obligation
+[87/202] [chromium] › tests/e2e/people-settlement.spec.ts:126:9 › People page canonical settlement examples › canonical example B: basic 50/50 expense makes Bob owe Me $50
+[88/202] [chromium] › tests/e2e/people-settlement.spec.ts:147:9 › People page canonical settlement examples › canonical example C: owner remainder makes Bob owe Me $30
+[89/202] [chromium] › tests/e2e/people-settlement.spec.ts:168:9 › People page canonical settlement examples › canonical example D: joint owners split the third person's share $18 and $12
+[WebServer] ⚠️ tRPC failed on sync.pushOps: Request authentication failed
+
+[90/202] [chromium] › tests/e2e/people-settlement.spec.ts:199:9 › People page canonical settlement examples › canonical example E: a negative allocation reverses the direction so Me owes Bob $20
+[91/202] [chromium] › tests/e2e/people-settlement.spec.ts:222:9 › People page canonical settlement examples › canonical example F: income makes the receiving owner owe Bob $50
+[WebServer] ⚠️ tRPC failed on realtime.revoke: Request authentication failed
+
+[WebServer] ⚠️ tRPC failed on sync.pushOps: Request authentication failed
+
+[92/202] [chromium] › tests/e2e/people-settlement.spec.ts:243:9 › People page canonical settlement examples › canonical example G: equal joint ownership with no allocations produces no obligation
+[93/202] [chromium] › tests/e2e/people-settlement.spec.ts:258:9 › People page canonical settlement examples › canonical example H: a status without Treat-as-Paid produces no obligation
+[94/202] [chromium] › tests/e2e/people-settlement.spec.ts:283:9 › People page settlement journey › mandatory journey: allocate, settle, trace, persist, exclude, restore and reverse
+[95/202] [chromium] › tests/e2e/people-settlement.spec.ts:457:9 › People page settlement matrices › multiple currencies render as separate sections with no combined total
+[96/202] [chromium] › tests/e2e/people-settlement.spec.ts:505:9 › People page settlement matrices › add-row allocations flow straight into settlement
+[97/202] [chromium] › tests/e2e/people-settlement.spec.ts:530:9 › People page settlement matrices › editing an existing transaction's allocation updates settlement without rewriting it
+[WebServer] ⚠️ tRPC failed on sync.pushOps: Request authentication failed
+
+[98/202] [chromium] › tests/e2e/people-settlement.spec.ts:564:9 › People page settlement matrices › bidirectional obligations net within a currency and retain both sources
+[99/202] [chromium] › tests/e2e/people-settlement.spec.ts:601:9 › People page settlement matrices › a deleted Person keeps their historical balance under a stable deleted label
+[WebServer] ⚠️ tRPC failed on sync.pushOps: Request authentication failed
+
+[100/202] [chromium] › tests/e2e/people-settlement.spec.ts:643:9 › People page settlement matrices › invalid ownership surfaces Settlement incomplete and never claims everyone is settled
+[WebServer] ⚠️ tRPC failed on sync.pushOps: Request authentication failed
+
+[101/202] [chromium] › tests/e2e/people-settlement.spec.ts:681:9 › People page settlement matrices › obligations are keyboard operable, accessible and stable across themes and widths
+[102/202] [chromium] › tests/e2e/people-settlement.spec.ts:805:9 › View transaction deep link › the deep-linked row lands selected and revealed, and can then be deselected
+[103/202] [chromium] › tests/e2e/people-settlement.spec.ts:837:9 › View transaction deep link › a bulk delete after deselecting the deep-linked row preserves it
+[104/202] [chromium] › tests/e2e/people-settlement.spec.ts:890:9 › Statuses page › status lifecycle: create, rename, toggle Treat as Paid and delete
+[105/202] [chromium] › tests/e2e/presence.spec.ts:60:5 › two members and a duplicate tab track each other's rows and fields
+[106/202] [chromium] › tests/e2e/presence.spec.ts:177:5 › presence recovers after a page reload
+[107/202] [chromium] › tests/e2e/presence.spec.ts:212:5 › a stale session expires without a clean leave
+[108/202] [chromium] › tests/e2e/presence.spec.ts:253:5 › presence avatars are labelled by name, never by pubkey hash
+[109/202] [chromium] › tests/e2e/realtime-security.spec.ts:25:5 › private vault_ops push synchronizes import, edit and delete and stops after removal
+[110/202] [chromium] › tests/e2e/rule-creation-controls.spec.ts:143:9 › Rule-creation controls on a transaction matching no rule › changing a tag offers to create a rule that applies to the other matching rows
+[111/202] [chromium] › tests/e2e/rule-creation-controls.spec.ts:195:9 › Rule-creation controls on a transaction matching no rule › changing a description alias offers to create a rule that applies to the other rows
+[112/202] [chromium] › tests/e2e/rule-creation-controls.spec.ts:237:9 › Rule-creation controls on a transaction matching no rule › changing a person percentage offers to create a rule spanning the whole set
+[113/202] [chromium] › tests/e2e/rule-creation-controls.spec.ts:277:9 › Rule-creation controls on a transaction matching no rule › a manual row offers a tag rule but never a description-alias rule
+[114/202] [chromium] › tests/e2e/rule-creation-controls.spec.ts:297:9 › The proposal must not disturb the edit that summoned it › the tag dropdown stays open after selecting a tag while a proposal appears
+[115/202] [chromium] › tests/e2e/rule-creation-controls.spec.ts:340:9 › The proposal never covers the cell's own edit surface › the proposal waits for the tag picker to close, then its controls are clickable
+[116/202] [chromium] › tests/e2e/rule-creation-controls.spec.ts:388:9 › The Updating modes wait for the row to lose focus › choosing Updating all writes nothing until focus leaves the row, then writes on blur
+[117/202] [chromium] › tests/e2e/rule-creation-controls.spec.ts:432:9 › The restrictions actually restrict › ticking only-if-amount scopes the rule to that amount and spares the other row
+[118/202] [chromium] › tests/e2e/rule-creation-controls.spec.ts:478:9 › Every way a row loses focus reaches the automatic modes › a description alias committed with Enter applies an Updating rule
+[119/202] [chromium] › tests/e2e/rule-creation-controls.spec.ts:517:9 › Every way a row loses focus reaches the automatic modes › a tag change applies when the user clicks non-focusable page chrome
+[120/202] [chromium] › tests/e2e/rule-creation-controls.spec.ts:551:9 › Updating an existing rule from the same controls › changing a tag on a row that already matches offers an update, not a duplicate
+[121/202] [chromium] › tests/e2e/sidebar.spec.ts:6:9 › Desktop sidebar › keeps labels on one line while the sidebar expands
+[122/202] [chromium] › tests/e2e/sync-persistence.spec.ts:16:13 › Sync Persistence › Sync Status Indicator › shows sync status in app header
+[123/202] [chromium] › tests/e2e/sync-persistence.spec.ts:31:13 › Sync Persistence › Sync Status Indicator › shows Saved state when no pending changes
+[124/202] [chromium] › tests/e2e/sync-persistence.spec.ts:45:13 › Sync Persistence › Local Persistence › persists data after page reload
+[125/202] [chromium] › tests/e2e/tab-duplication.spec.ts:50:5 › a browser-duplicated tab hydrates onboarding and an authenticated vault
+[126/202] [chromium] › tests/e2e/tags.spec.ts:84:9 › Tags › CRUD journey: create, edit, delete tags with cancel operations
+[127/202] [chromium] › tests/e2e/tags.spec.ts:151:9 › Tags › hierarchy journey: parent-child relationships and circular reference prevention
+[128/202] [chromium] › tests/e2e/tags.spec.ts:193:9 › Tags › navigation: sidebar link works
+[129/202] [chromium] › tests/e2e/transaction-grid-structure.spec.ts:164:9 › Transaction grid structure › every element the grid exposes sits inside a cell
+[130/202] [chromium] › tests/e2e/transaction-grid-structure.spec.ts:325:9 › Transaction grid structure › a row paged in after a select-all reports itself as selected
+[131/202] [chromium] › tests/e2e/transaction-rules.spec.ts:93:9 › Transaction description-rule robot › imported match shows a normal robot, hides while editing, and opens the reused editor
+[132/202] [chromium] › tests/e2e/transaction-rules.spec.ts:139:9 › Transaction description-rule robot › editing the alias to differ drives drift and apply-this resolves it
+[133/202] [chromium] › tests/e2e/transactions.spec.ts:222:9 › Transactions › person allocation columns scroll, edit, persist and share undo history
+[WebServer] ⚠️ tRPC failed on sync.getUpdates: Request authentication failed
+
+[134/202] [chromium] › tests/e2e/transactions.spec.ts:278:9 › Transactions › page displays correctly with empty state
+[135/202] [chromium] › tests/e2e/transactions.spec.ts:298:9 › Transactions › each Add click immediately creates a distinct ordinary empty row
+[136/202] [chromium] › tests/e2e/transactions.spec.ts:359:9 › Transactions › Add focuses the new row's description and preserves a multi-row selection
+[137/202] [chromium] › tests/e2e/transactions.spec.ts:418:9 › Transactions › creating a row tells peers nothing until the user actually edits it
+[138/202] [chromium] › tests/e2e/transactions.spec.ts:464:9 › Transactions › Add reveals an ordinary row through every excluding filter class
+[139/202] [chromium] › tests/e2e/transactions.spec.ts:573:9 › Transactions › Add reveals its canonical row beyond the initial transaction page
+[140/202] [chromium] › tests/e2e/transactions.spec.ts:673:9 › Transactions › empty rows survive offline reload and converge once across authenticated tabs
+[141/202] [chromium] › tests/e2e/transactions.spec.ts:716:9 › Transactions › default account exists after vault creation
+[WebServer] ⚠️ tRPC failed on sync.pushOps: Request authentication failed
+
+[142/202] [chromium] › tests/e2e/transactions.spec.ts:727:9 › Transactions › virtualized large list preserves position, focus, editing, filtering and navigation
+[143/202] [chromium] › tests/e2e/transactions.spec.ts:945:9 › Transactions › account selector opens and shows create option
+[144/202] [chromium] › tests/e2e/transactions.spec.ts:976:9 › Transactions › can create account from transaction form
+[145/202] [chromium] › tests/e2e/transactions.spec.ts:1031:13 › Transactions › Inline Cell Editing (US1) › T012: click to focus, Enter saves, Escape reverts
+[WebServer] [browser] SyncManager error: TRPCClientError: Failed to fetch (src/components/providers/vault-provider.tsx:211:33)
+
+[WebServer] [browser] Failed to push to server: TRPCClientError: Failed to fetch (src/lib/sync/manager.ts:897:21)
+
+[146/202] [chromium] › tests/e2e/transactions.spec.ts:1084:13 › Transactions › Inline Cell Editing (US1) › T013: Tab saves and moves to next cell
+[147/202] [chromium] › tests/e2e/transactions.spec.ts:1119:13 › Transactions › Inline Cell Editing (US1) › T014: date displays in compact format for current year
+[148/202] [chromium] › tests/e2e/transactions.spec.ts:1145:13 › Transactions › Inline Cell Editing (US1) › T014a: edit date cell
+[149/202] [chromium] › tests/e2e/transactions.spec.ts:1210:13 › Transactions › Inline Cell Editing (US1) › T015: click to edit amount cell (spreadsheet-style)
+[150/202] [chromium] › tests/e2e/transactions.spec.ts:1263:13 › Transactions › Inline Cell Editing (US1) › T016: click to edit status cell (spreadsheet-style)
+[151/202] [chromium] › tests/e2e/transactions.spec.ts:1319:13 › Transactions › Inline Cell Editing (US1) › T016a: click to edit account cell (spreadsheet-style)
+[152/202] [chromium] › tests/e2e/transactions.spec.ts:1385:13 › Transactions › Inline Cell Editing (US1) › T017: click to edit tags cell (spreadsheet-style)
+[153/202] [chromium] › tests/e2e/transactions.spec.ts:1444:13 › Transactions › Inline Cell Editing (US1) › T033: inline tag creation - Create button visible when searching
+[154/202] [chromium] › tests/e2e/transactions.spec.ts:1500:13 › Transactions › Inline Cell Editing (US1) › T033a: Create button hidden when exact match exists
+[155/202] [chromium] › tests/e2e/transactions.spec.ts:1558:13 › Transactions › Keyboard Grid Navigation › arrow up/down moves focus between same column cells
+[156/202] [chromium] › tests/e2e/transactions.spec.ts:1614:13 › Transactions › Keyboard Grid Navigation › arrow left/right moves focus between cells in same row
+[157/202] [chromium] › tests/e2e/transactions.spec.ts:1687:13 › Transactions › Keyboard Grid Navigation › text input only navigates when cursor at boundary
+[158/202] [chromium] › tests/e2e/transactions.spec.ts:1734:13 › Transactions › Keyboard Grid Navigation › status dropdown arrow keys navigate grid, not open dropdown
+[159/202] [chromium] › tests/e2e/transactions.spec.ts:1777:13 › Transactions › Keyboard Grid Navigation › description row navigation - down from description to notes
+[160/202] [chromium] › tests/e2e/transactions.spec.ts:1837:13 › Transactions › Keyboard Grid Navigation › Enter key opens date calendar popup
+[161/202] [chromium] › tests/e2e/transactions.spec.ts:1869:13 › Transactions › US2: Checkbox Selection › T020: clicking row checkbox selects transaction without editing
+[162/202] [chromium] › tests/e2e/transactions.spec.ts:1919:13 › Transactions › US2: Checkbox Selection › T020b: clicking row body does not select transaction
+[163/202] [chromium] › tests/e2e/transactions.spec.ts:1953:13 › Transactions › US2: Checkbox Selection › T021a: header checkbox selects all filtered transactions
+[164/202] [chromium] › tests/e2e/transactions.spec.ts:2012:13 › Transactions › US2: Checkbox Selection › T021b: header checkbox shows indeterminate when some selected
+[165/202] [chromium] › tests/e2e/transactions.spec.ts:2052:13 › Transactions › US2: Checkbox Selection › T021c: shift-click selects range of transactions
+[166/202] [chromium] › tests/e2e/transactions.spec.ts:2088:13 › Transactions › US2: Checkbox Selection › T021d: UR-010 shift-click deselects a range begun by deselecting
+[167/202] [chromium] › tests/e2e/transactions.spec.ts:2143:13 › Transactions › US2: Checkbox Selection › T021e: UR-010 keyboard range selection follows the same rule as the pointer
+[168/202] [chromium] › tests/e2e/transactions.spec.ts:2189:13 › Transactions › US2: Checkbox Selection › T021f: UR-011 header checkbox selects rows beyond the loaded page
+[169/202] [chromium] › tests/e2e/transactions.spec.ts:2260:13 › Transactions › US2: Checkbox Selection › T021g: UR-011 changing the filters re-derives what the header acts on
+[170/202] [chromium] › tests/e2e/transactions.spec.ts:2307:13 › Transactions › US3: Bulk Edit Operations › T026: bulk edit tags applies to all selected transactions
+[171/202] [chromium] › tests/e2e/transactions.spec.ts:2370:13 › Transactions › US3: Bulk Edit Operations › T027: bulk edit notes applies to all selected transactions
+[172/202] [chromium] › tests/e2e/transactions.spec.ts:2413:13 › Transactions › US3: Bulk Edit Operations › T028: bulk edit status applies to all selected transactions
+[173/202] [chromium] › tests/e2e/transactions.spec.ts:2456:13 › Transactions › US3: Bulk Edit Operations › T028a: bulk edit toolbar disappears when selection cleared
+[174/202] [chromium] › tests/e2e/transactions.spec.ts:2495:13 › Transactions › US3: Bulk Edit Operations › T028b: Escape cancels bulk edit operation
+[175/202] [chromium] › tests/e2e/transactions.spec.ts:2544:13 › Transactions › US5: Description/Notes Separation › T037: description column displays primary text, notes in expandable row
+[176/202] [chromium] › tests/e2e/transactions.spec.ts:2591:13 › Transactions › US5: Description/Notes Separation › T038: edit notes in expanded row
+[177/202] [chromium] › tests/e2e/transactions.spec.ts:2641:13 › Transactions › US5: Description/Notes Separation › T039: expand button icon reflects notes state
+[178/202] [chromium] › tests/e2e/transactions.spec.ts:2681:13 › Transactions › US5: Description/Notes Separation › T040: search filters include both description and notes
+[179/202] [chromium] › tests/e2e/transactions.spec.ts:2733:13 › Transactions › US5: Description/Notes Separation › UR-005: data cells rest without chrome in both themes yet keep every state
+[180/202] [chromium] › tests/e2e/transactions.spec.ts:2907:13 › Transactions › US5: Description/Notes Separation › UR-012: a click at a cell's edge activates its canonical interaction
+[181/202] [chromium] › tests/e2e/transactions.spec.ts:3102:13 › Transactions › US5: Description/Notes Separation › UR-012: enlarging the hit areas moves nothing that was drawn
+[182/202] [chromium] › tests/e2e/transactions.spec.ts:3181:13 › Transactions › US5: Description/Notes Separation › UR-012: a tag pill's remove button still removes its tag
+[183/202] [chromium] › tests/e2e/undo-redo.spec.ts:48:5 › document history controls group real add, edit, delete, alias and import actions
+[184/202] [chromium] › tests/e2e/undo-redo.spec.ts:185:5 › each empty transaction Add is one Undo step and Redo restores the same rows
+[185/202] [chromium] › tests/e2e/undo-redo.spec.ts:259:5 › remote history stays excluded while local undo syncs to a second client
+[186/202] [chromium] › tests/e2e/undo-redo.spec.ts:312:5 › a failed offline undo push retries on browser reconnect without another mutation
+[187/202] [chromium] › tests/e2e/vault-settings.spec.ts:84:13 › Vault Settings › New User Flow › should land on settings page after creating new identity
+[188/202] [chromium] › tests/e2e/vault-settings.spec.ts:103:13 › Vault Settings › New User Flow › should have USD as default currency for new vault
+[189/202] [chromium] › tests/e2e/vault-settings.spec.ts:112:13 › Vault Settings › Currency Selection Persistence › should persist currency selection after page refresh
+[190/202] [chromium] › tests/e2e/vault-settings.spec.ts:136:13 › Vault Settings › Currency Selection Persistence › should persist currency after navigating away and back
+[WebServer] [browser] SyncManager error: TRPCClientError: Failed to fetch (src/components/providers/vault-provider.tsx:211:33)
+
+[WebServer] [browser] Failed to push to server: TRPCClientError: Failed to fetch (src/lib/sync/manager.ts:897:21)
+
+[191/202] [chromium] › tests/e2e/vault-settings.spec.ts:156:13 › Vault Settings › Existing User Flow › same-vault lock then unlock renders on the first attempt
+[192/202] [chromium] › tests/e2e/vault-settings.spec.ts:269:13 › Vault Settings › Date Format › should default to following the browser
+[193/202] [chromium] › tests/e2e/vault-settings.spec.ts:277:13 › Vault Settings › Date Format › should persist the chosen date format after page refresh
+[194/202] [chromium] › tests/e2e/vault-settings.spec.ts:298:13 › Vault Settings › Vault Name › should update vault name in header when renamed in settings
+[195/202] [chromium] › tests/e2e/vault-settings.spec.ts:341:13 › Vault Settings › Members List › identifies members by name and never by a pubkey hash
+[196/202] [chromium] › tests/e2e/vault-settings.spec.ts:393:13 › Vault Settings › Members List › shows a readable fallback for a member with no name, not a hash
+[197/202] [chromium] › tests/e2e/vault-settings.spec.ts:437:13 › Vault Settings › Navigation › should access settings via sidebar navigation
+[198/202] [chromium] › tests/e2e/vault-settings.spec.ts:453:13 › Vault Settings › Navigation › dashboard should redirect to transactions
+[WebServer] ⚠️ tRPC failed on realtime.revoke: Request authentication failed
+
+[199/202] [chromium] › tests/e2e/realtime-recovery.spec.ts:60:5 › a hidden receiver re-syncs missed vault_ops when it becomes visible
+[200/202] [chromium] › tests/e2e/realtime-recovery.spec.ts:134:5 › a visible receiver catches up only after an explicit visible-state barrier
+[201/202] [chromium] › tests/e2e/realtime-recovery.spec.ts:217:5 › a receiver that goes offline catches up on durable ops after reconnecting
+[202/202] [chromium] › tests/e2e/realtime-recovery.spec.ts:273:5 › a hidden client that was never entitled to a vault still sees nothing after foregrounding
+  202 passed (4.1m)

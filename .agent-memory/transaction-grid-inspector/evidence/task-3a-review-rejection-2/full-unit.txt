@@ -1,0 +1,10 @@
+$ vitest run
+
+ RUN  v4.1.11 /home/ben-agents/Code/moneyflow
+
+
+ Test Files  165 passed (165)
+      Tests  2990 passed | 2 skipped (2992)
+   Start at  00:14:49
+   Duration  73.48s (transform 21.25s, setup 33.71s, import 186.79s, tests 208.76s, environment 167.80s)
+

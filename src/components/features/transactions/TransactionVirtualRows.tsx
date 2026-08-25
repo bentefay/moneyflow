@@ -57,7 +57,11 @@ export interface TransactionVirtualRowsProps {
      * empty element carrying a real row's `data-index` would be indistinguishable from the row.
      */
     readonly getRowKey: (index: number) => string | null;
-    readonly renderRow: (index: number) => React.ReactNode;
+    readonly renderRow: (
+        index: number,
+        isIdleEntryRow: boolean,
+        viewportRowDistance: number
+    ) => React.ReactNode;
     /**
      * Reports what the viewport is showing, so the parent can move the window of rows it holds.
      *
@@ -84,6 +88,10 @@ export interface TransactionVirtualRowsProps {
  * Dynamic measurement is on: a row whose notes are expanded is taller than the estimate, and
  * `measureElement` is what lets the group's total height account for it.
  */
+export function transactionViewportRowDistance(range: TransactionVisibleRange | null): number {
+    return range == null ? 1 : Math.max(1, range.endIndex - range.startIndex);
+}
+
 export function TransactionVirtualRows({
     count,
     estimatedRowHeight,
@@ -126,6 +134,11 @@ export function TransactionVirtualRows({
     });
 
     const virtualItems = virtualizer.getVirtualItems();
+    const viewportRowDistance = transactionViewportRowDistance(virtualizer.range);
+    const keyedVirtualItems = virtualItems.flatMap((virtualRow) => {
+        const rowKey = getRowKey(virtualRow.index);
+        return rowKey == null ? [] : [{ rowKey, virtualRow }];
+    });
 
     useEffect(() => {
         // Not applied — and not reported applied — until there is something to scroll. The parent
@@ -144,22 +157,18 @@ export function TransactionVirtualRows({
             role="rowgroup"
             style={{ height: `${String(virtualizer.getTotalSize())}px` }}
         >
-            {virtualItems.map((virtualRow) => {
-                const rowKey = getRowKey(virtualRow.index);
-                if (rowKey == null) return null;
-                return (
-                    <div
-                        key={rowKey}
-                        data-index={virtualRow.index}
-                        ref={virtualizer.measureElement}
-                        className="absolute top-0 left-0 w-full"
-                        style={{ transform: `translateY(${String(virtualRow.start)}px)` }}
-                        role="presentation"
-                    >
-                        {renderRow(virtualRow.index)}
-                    </div>
-                );
-            })}
+            {keyedVirtualItems.map(({ rowKey, virtualRow }, position) => (
+                <div
+                    key={rowKey}
+                    data-index={virtualRow.index}
+                    ref={virtualizer.measureElement}
+                    className="absolute top-0 left-0 w-full"
+                    style={{ transform: `translateY(${String(virtualRow.start)}px)` }}
+                    role="presentation"
+                >
+                    {renderRow(virtualRow.index, position === 0, viewportRowDistance)}
+                </div>
+            ))}
         </div>
     );
 }

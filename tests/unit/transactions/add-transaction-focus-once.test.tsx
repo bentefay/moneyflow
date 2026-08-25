@@ -157,7 +157,7 @@ vi.mock("@/components/features/transactions", async () => {
                     ? pending.state.target.transactionId
                     : null
             );
-            if (pending != null) {
+            if (pending?.kind === "edit") {
                 pendingActivationRenders.push(
                     `${pending.entry}:${pending.state.target.columnId}:${pending.state.target.transactionId}`
                 );

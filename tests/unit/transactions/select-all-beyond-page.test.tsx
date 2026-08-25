@@ -18,9 +18,11 @@
  * window would make every test here pass for the wrong reason.
  */
 
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { TransactionTable as TransactionTableComponent } from "@/components/features/transactions";
+import type { TransactionGridWorkspaceController } from "@/components/features/transactions/hooks/useTransactionGridController";
 import { TRANSACTION_ROW_WINDOW_ROWS } from "@/components/features/transactions/row-window";
 
 import {
@@ -44,6 +46,16 @@ import { installVirtualGridLayout } from "./virtual-grid-harness";
  */
 const TOTAL_TRANSACTIONS = 1_600;
 
+interface GridTrace {
+    controller: TransactionGridWorkspaceController | null;
+    windowStarts: number[];
+}
+
+const gridTrace = vi.hoisted((): GridTrace => ({
+    controller: null,
+    windowStarts: []
+}));
+
 vi.mock("next/navigation", () => routerMock);
 vi.mock("@/lib/crdt/context", () => createCrdtContextMock());
 vi.mock("@/hooks/use-identity", () => ({ usePubkeyHash: () => null }));
@@ -54,6 +66,19 @@ vi.mock("@/components/features/import", () => importMock);
 vi.mock("@/components/features/accounts", () => ({
     AccountCombobox: () => <button type="button">Account</button>
 }));
+vi.mock("@/components/features/transactions", async () => {
+    const actual = await vi.importActual<typeof import("@/components/features/transactions")>(
+        "@/components/features/transactions"
+    );
+    return {
+        ...actual,
+        TransactionTable: (props: React.ComponentProps<typeof TransactionTableComponent>) => {
+            gridTrace.controller = props.controller;
+            gridTrace.windowStarts.push(props.rowWindow.indexes[0] ?? 0);
+            return <actual.TransactionTable {...props} />;
+        }
+    };
+});
 
 describe("UR-011: the header checkbox covers rows beyond the window the grid holds", () => {
     // Mounting the whole page with over a thousand rows is slower under a saturated full-suite run
@@ -67,6 +92,8 @@ describe("UR-011: the header checkbox covers rows beyond the window the grid hol
         // The real virtualizer, given real element sizes. The rows outside its window have no
         // element at all — which is the premise every assertion below rests on.
         restoreLayout = installVirtualGridLayout();
+        gridTrace.controller = null;
+        gridTrace.windowStarts.length = 0;
         seedVault(TOTAL_TRANSACTIONS);
     });
 
@@ -77,6 +104,56 @@ describe("UR-011: the header checkbox covers rows beyond the window the grid hol
         // halves of the fixture have to be bigger than the window for that distinction to exist.
         expect(TOTAL_TRANSACTIONS).toBeGreaterThan(TRANSACTION_ROW_WINDOW_ROWS);
         expect(TOTAL_TRANSACTIONS / 2).toBeGreaterThan(TRANSACTION_ROW_WINDOW_ROWS);
+    });
+
+    it("restores the page-held window when a real pending target focus fails", async () => {
+        await renderTransactionsPage();
+        await waitFor(() =>
+            expect(screen.getAllByTestId("transaction-row").length).toBeGreaterThan(0)
+        );
+        const controller = gridTrace.controller;
+        if (controller == null) throw new Error("the page did not publish its grid controller");
+        const origin = screen
+            .getAllByTestId("transaction-row")[0]
+            .querySelector<HTMLElement>('[role="gridcell"][data-cell="date"]');
+        if (origin == null) throw new Error("the page did not mount an origin gridcell");
+        act(() => origin.focus());
+        const originSelection = controller.cellSelectionAtom.get();
+        const external = document.createElement("input");
+        document.body.append(external);
+        const nativeFocus = HTMLElement.prototype.focus;
+        const failedTarget = { observed: false };
+        const focusSpy = vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(function (
+            this: HTMLElement,
+            options?: FocusOptions
+        ) {
+            const row = this.closest<HTMLElement>("[data-transaction-id]");
+            if (
+                this.getAttribute("data-cell") === "actions" &&
+                row?.getAttribute("data-transaction-id") === "tx-1599"
+            ) {
+                failedTarget.observed = true;
+                nativeFocus.call(external, options);
+                return;
+            }
+            nativeFocus.call(this, options);
+        });
+
+        try {
+            fireEvent.keyDown(origin, { ctrlKey: true, key: "End" });
+            await waitFor(() =>
+                expect(controller.getSnapshot().failure).toMatchObject({ kind: "focus-failed" })
+            );
+
+            expect(failedTarget.observed).toBe(true);
+            await waitFor(() => expect(gridTrace.windowStarts.at(-1)).toBe(0));
+            expect(controller.getPendingRequest()).toBeNull();
+            expect(controller.cellSelectionAtom.get()).toEqual(originSelection);
+            expect(document.activeElement).toBe(origin);
+        } finally {
+            focusSpy.mockRestore();
+            external.remove();
+        }
     });
 
     it("selects every matching transaction, not merely the rows with a rendered element", async () => {

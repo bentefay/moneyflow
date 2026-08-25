@@ -192,6 +192,26 @@ function continuousIntentOfState(
     return NO_TRANSACTION_CONTINUOUS_EDIT;
 }
 
+function selectionSurvivesProjection<TRow>(
+    selection: NonEmptyTransactionGridSelection,
+    projection: TransactionProjectionSnapshot<TRow>
+): boolean {
+    for (const operation of selection) {
+        if (
+            !projection.selectableColumnIds.includes(operation.anchorColumnId) ||
+            !projection.selectableColumnIds.includes(operation.focusColumnId)
+        ) {
+            return false;
+        }
+        const anchorIndex = projection.indexOf(projection.generation, operation.anchorRowId);
+        const focusIndex = projection.indexOf(projection.generation, operation.focusRowId);
+        if (!anchorIndex.ok || anchorIndex.value < 0 || !focusIndex.ok || focusIndex.value < 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function finishNonEmpty(options: {
     readonly address: TransactionGridAddress;
     readonly availableInspectorBindings: readonly TransactionInspectorBindingRegistration[];
@@ -200,8 +220,11 @@ function finishNonEmpty(options: {
     readonly rowSurvives: boolean;
     readonly columnSurvives: boolean;
     readonly previousState: TransactionGridEngagedState<unknown>;
+    readonly preserveSelection: boolean;
 }): TransactionGridReconciliationResult {
-    const selection = oneCellSelection(options.address);
+    const selection = options.preserveSelection
+        ? options.previousState.selection
+        : oneCellSelection(options.address);
     const gridCellSurvives = options.rowSurvives && options.columnSurvives;
     const invalidatedDraft = stateOwnsDraft(options.previousState) && !gridCellSurvives;
     const pins: TransactionGridPinReconciliation = {
@@ -353,6 +376,9 @@ function reconcileEngagedProjection<TRow>(options: {
             focusOwner,
             columnSurvives,
             generation: nextProjection.generation,
+            preserveSelection:
+                focusOwner.kind === "external" &&
+                selectionSurvivesProjection(previousState.selection, nextProjection),
             previousState,
             rowSurvives
         })

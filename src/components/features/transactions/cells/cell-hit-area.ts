@@ -20,10 +20,10 @@
  * | allocation button        | 231, 32         | 12 / 12                  |
  * | checkbox (drawn box)     | 239, 16         | 20 / 20                  |
  *
- * Horizontally every control already spans its whole grid cell — measured dead space of 0px on the
- * left and right of all seven data cells — so only the vertical strips are missing, and only those
- * are added. The checkbox is the sole exception: it draws at 16px inside a 32px cell, so its
- * activation area also grows 8px sideways.
+ * Horizontally every field control already spans its whole grid cell — measured dead space of 0px on
+ * the left and right — so only the vertical strips are missing, and only those are added. The
+ * checkbox is deliberately different: its 16px glyph grows to a centred 32px row-selection target,
+ * leaving the rest of the data gridcell reachable for canonical cell selection.
  *
  * ## Why two mechanisms rather than one
  *
@@ -123,33 +123,26 @@ export const TALL_CONTROL_HIT_AREA =
     "relative before:absolute before:content-[''] before:inset-x-0 before:-top-[12px] before:-bottom-[12px]";
 
 /**
- * The checkbox keeps its 16px drawn size while its activation area covers its cell — but it is the
- * one control mounted in TWO row geometries, so its reach cannot be a single constant.
+ * The checkbox keeps its 16px drawn size and is mounted in two interaction geometries.
  *
- * `CheckboxCell` renders in the 57px data row and in the 37px `py-2` sticky header. A reach derived
- * from the data row overshoots the header by 9px, and because the overlay is a negative inset it
- * lands OUTSIDE the header — on the first data row's checkbox cell. Measured: the first 8 pixels of
- * that cell reported `aria-label="Select all transactions"`, so clicking the first transaction's own
- * checkbox selected every transaction in the table. That is worse than the dead strip UR-012 exists
- * to remove: the dead strip did nothing, this did something wrong.
+ * The header checkbox remains a full-cell select-all control. A transaction row is different: the
+ * shared gridcell owns the cell background, while only the centred 32px checkbox target mutates row
+ * selection. Keeping those targets disjoint makes row selection and canonical cell selection
+ * orthogonal instead of letting an invisible checkbox overlay consume the entire gridcell.
  *
- * The variants below therefore make the geometry an explicit choice at the mount, not a default a
- * new call site inherits silently. Adding a third mount forces the author to say which row it is in.
- *
- * | mount                    | row height | gap above / below the drawn box |
- * | ------------------------ | ---------- | ------------------------------- |
- * | data row (`py-3`)        | 57         | 20 / 21                         |
- * | header (`py-2`, sticky)  | 37         | 10 / 11                         |
- *
- * Each reach is that mount's own measured gap. The `bottom` values deliberately differ from the
- * `top` ones by a pixel: the rows carry a `border-b` that belongs to the row's own box, so the gap
- * below the drawn box is one pixel larger than the gap above it.
+ * The variants remain explicit because the header reach is tied to its 37px row. A data-row target
+ * grows by 8px on every side, from the 16px glyph to 32px; the remaining vertical band belongs to the
+ * gridcell background. The header reaches its measured 10px/11px gaps and must never overhang into
+ * the first transaction row.
  */
+/** Grows the data gridcell over the row's padded band and returns the growth as margin. */
+export const CHECKBOX_GRIDCELL_SURFACE = "h-[56px] -my-[12px]";
+
 export const CHECKBOX_HIT_AREA = {
-    /** Checkbox in a transaction row. */
+    /** Centred 32px row-selection target inside a transaction gridcell. */
     dataRow:
-        "relative before:absolute before:content-[''] before:-top-[20px] before:-bottom-[21px] before:-left-[8px] before:-right-[8px]",
-    /** Select-all checkbox in the sticky column header, which is 20px shorter than a data row. */
+        "relative before:absolute before:content-[''] before:-top-[8px] before:-bottom-[8px] before:-left-[8px] before:-right-[8px]",
+    /** Full-cell select-all target in the sticky 37px column header. */
     header: "relative before:absolute before:content-[''] before:-top-[10px] before:-bottom-[11px] before:-left-[8px] before:-right-[8px]"
 } as const;
 

@@ -419,3 +419,196 @@
 - Scope: Four existing product/test paths plus plan/progress changed relative to the prior stable
   25-path handback; no dependency, cursor, generated, E2E source, frozen spec, or agent
   configuration file changed. No commit has been created.
+
+## Session 2026-08-24 — product slice 3A shared gridcell surface
+
+- Surface: Added one shared `TransactionGridCell` that owns gridcell semantics, stable branded
+  address attributes, layout-neutral selection chrome, visible-selection ARIA, roving tabindex,
+  generation-checked controller registration, background pointer selection, double-click full-edit
+  adaptation, pure key-intent dispatch, and mutually exclusive display/editor branches.
+- Column contract: Made immutable interaction metadata required on every visible column. Date,
+  description, account, tags, status, allocations, and amount are selectable/copyable with typed
+  edit kinds; checkbox and stable `actions` are selectable/non-copyable activation cells; notes
+  retain no column-selection coordinate. Clipboard materialisation now excludes selectable
+  activation cells by `interaction.copyable` rather than by selection eligibility.
+- Controller bridge: Added parked runtime engagement, separate gridcell/editor registrations, typed
+  command effects, cursor-projection movement and extension, Tab-boundary parking, and exact
+  activation/edit effects while retaining one external TanStack atom and generation-checked focus.
+  Add/full-edit focus prefers editor registration; reconciliation prefers gridcell registration.
+- Staged compatibility: Wrapped every visible resting column without migrating editor families.
+  Legacy controls stay mounted and usable, including native Tab/arrow behavior and portaled popups;
+  a focused legacy descendant temporarily removes its wrapper from the tab order. Checkbox/action
+  descendants preserve the slice-2B focus-retention pin, row selection remains orthogonal, notes and
+  automation wrappers remain mounted, and import account-picker behavior is unchanged.
+- DOM and coverage: Removed the row tab stop, preserved exactly 57px resting row height and eight
+  direct gridcells without allocations, added stable actions identity, retained exactly one instance
+  of each legacy control with no hidden duplicate inputs, and updated presence E2E to focus the new
+  checkbox gridcell rather than the now-unfocusable row.
+- Regression correction: The first full E2E run exposed seven failures. Two legacy popup/navigation
+  failures were caused by React-portal and non-semantic legacy descendants reaching the new surface;
+  all legacy descendants and out-of-DOM portal events now opt out. Three presence failures used the
+  intentionally removed row focus target and now use the checkbox gridcell. The same corrections
+  fixed both alias-option cases. The seven exact retry-free regressions then passed 7/7.
+- Checks: Scoped oxfmt passes on all authored TypeScript/TSX and ledger files; `pnpm format:check`
+  passes across 1,088 files after generated drift restoration; `pnpm lint` passes with only the
+  existing React Compiler advisory at `TransactionVirtualRows.tsx:99`; `pnpm typecheck` passes;
+  `pnpm build` completes all 17 routes; full `pnpm test` passes 2,978 tests with 2 skipped in 165
+  files; targeted retry-free grid-structure E2E passes 2/2; targeted Add-focus E2E passes 2/2; the
+  seven corrected retry-free cases pass 7/7; and final full `pnpm test:e2e` passes 202/202 in 3.9
+  minutes.
+- Scope: 21 product/test paths plus mutable `plan.md` and `progress.md`. No dependency, frozen spec,
+  approved source/amendment, import picker, inspector, editor-family lifecycle, automation, agent
+  configuration, or performance artifact changed. Generated `AGENTS.md` and `next-env.d.ts` churn
+  was inspected and restored precisely. No commit was created; the handback awaits independent
+  bounded review.
+
+## Session 2026-08-24 — slice 3A verification rejection and duplicate-tab correction
+
+- Rejection: Independent verification stopped before code review after one retry-free full E2E run
+  failed at `tests/e2e/tab-duplication.spec.ts:72`. `expect.poll` called `page.evaluate` while the
+  duplicated page replaced its execution context during navigation. The original volatile
+  `error-context.md` was copied before any rerun and is preserved byte-for-byte as
+  `evidence/task-3a-review-rejection-1/tab-duplication-error-context.txt`.
+- Diagnosis: `chrome.tabs.duplicate()` emits the new page target before its session-history restore
+  replaces the main-frame context. `waitForLoadState("load")` can return from the duplicated history
+  document's inherited completed load state, so it did not establish that the authoritative
+  navigation timing document existed. An exception thrown from the `expect.poll` callback terminated
+  the assertion instead of reattaching to the replacement context.
+- Correction: Removed the insufficient load-state barrier. `expectCachedDuplicate` now uses
+  Playwright's navigation-rerunnable `waitForFunction` and resolves only when the current document
+  reports the exact required `{ type: "back_forward", deliveryType: "cache", transferSize: 0 }`
+  timing. The resolved value is still compared to that exact object, so the cached-duplicate oracle
+  is not weakened and no arbitrary delay, runner retry, or timeout was added. Task 3A product
+  implementation bytes were otherwise frozen.
+- Focused evidence: The corrected scenario passed once retry-free in 13.6 seconds and then passed
+  10/10 retry-free repetitions with one worker in 1.3 minutes. Logs are preserved as
+  `evidence/task-3a-review-rejection-1/tab-duplication-focused-run.txt` and
+  `evidence/task-3a-review-rejection-1/tab-duplication-repeat-10.txt`.
+- Task 3A evidence: Eight targeted unit files pass 150/150 tests. The two grid-structure and two Add
+  focus scenarios pass 4/4 retry-free. The final full retry-free `pnpm test:e2e` passes 202/202 in
+  4.1 minutes; its complete log is preserved as `evidence/task-3a-review-rejection-1/full-e2e.txt`.
+- Full checks: `pnpm format:check` passes across 1,088 files; `pnpm lint` passes with only the
+  existing React Compiler advisory at `TransactionVirtualRows.tsx:99`; `pnpm typecheck` passes;
+  `pnpm build` completes all 17 routes; and full `pnpm test` passes 2,978 tests with 2 skipped in
+  165 files. Generated `AGENTS.md` and `next-env.d.ts` drift was inspected and restored precisely
+  after the final dev/build runs.
+- Scope: The prior 23-path Task 3A handback plus `tests/e2e/tab-duplication.spec.ts` and four
+  preserved evidence files, for 28 paths total. No Task 3A product byte, dependency, frozen spec,
+  approved source/amendment, agent configuration, or unrelated test changed. No commit or push was
+  created; the correction handback awaits independent re-review.
+
+## Session 2026-08-25 — slice 3A review rejection 2 corrections and stable verification
+
+- Review result: Rejected on three verified findings. Canonical navigation returned an unregistered
+  error for offscreen targets instead of using the generation-correlated activation transaction; a
+  deep untouched virtual scroll could leave zero mounted gridcell tab stops; and checkbox/actions
+  background double-click entered edit because immutable `editKind: "none"` was ignored.
+- Virtual navigation: Unregistered canonical targets now enter the existing bounded pending reveal,
+  held-window pin, virtual scroll, exact registration, verified `preventScroll` focus, and
+  same-generation atomic restoration transaction. Selection publishes only after focus. Unit and
+  browser coverage exercise Ctrl+Home, Ctrl+End, ArrowDown, and Tab across unmounted boundaries and
+  both successful and failed restoration.
+- Idle focus and activation: `TransactionVirtualRows` identifies the first actually mounted keyed
+  row, which owns the sole idle checkbox entry stop even beyond the 600-row held-window bound.
+  Double-click adaptation now requires an editable capability, so checkbox/actions retain selection
+  without entering edit while Description still requests full edit.
+- Assigned adjacent gaps: Clipboard rectangles retain non-copyable activation coordinates as empty
+  TSV fields while excluding their IDs; the centered checkbox glyph toggles row selection while the
+  56px layout-neutral gridcell surface selects the canonical checkbox cell; forward/reverse native
+  boundary Tab parks muted retained selection; and the virtual grid publishes logical row/column
+  counts, absolute dynamic column indexes, deep matching-order row indexes, and retained notes row
+  index/colspan semantics.
+- Full-suite correction: The first retry-free full E2E campaign reached 190 passing tests before the
+  existing UR-012 edge case exposed stale `aria-selected` paint after a selection moved from Status
+  to Checkbox in the same row. Direct probes established that the controller atom and TanStack table
+  atom both contained Checkbox while compiled DOM still painted Status. The per-row Subscribe render
+  prop had ignored its projected string and re-read opaque `cell.getIsSelected()` calls on stable
+  cell identity. It now consumes the projected key, derives current-row selected markers through the
+  pure `transactionSelectedCellMarkersFromRowKey`, and passes the selected boolean into each shared
+  gridcell. The exact top/bottom checkbox-background edge scenario then passed retry-free.
+- Checks: Scoped oxfmt passes on 31 owned TypeScript/TSX paths; transaction-focused Vitest passes
+  474/474 in 37 files; targeted grid-structure E2E passes 2/2; targeted UR-012 cell-edge E2E passes
+  1/1; `pnpm format:check` passes across 1,088 files; `pnpm lint` passes with only the existing
+  React Compiler advisory at `TransactionVirtualRows.tsx:99`; `pnpm typecheck` passes; `pnpm build`
+  completes all 17 routes; full `pnpm test` passes 2,990 tests with 2 skipped in 165 files; and
+  final full four-worker retry-free E2E passes 202/202 in 3.9 minutes.
+- Evidence: Complete logs are preserved under `evidence/task-3a-review-rejection-2/`, including
+  `targeted-unit.txt`, `transaction-grid-structure.txt`, `ur-012-cell-edge.txt`, `full-unit.txt`,
+  and `full-e2e.txt`. Generated `AGENTS.md` and `next-env.d.ts` drift was inspected and precisely
+  restored after every dev/build campaign.
+- Scope and status: No dependency, frozen spec, approved source/amendment, import account-picker,
+  inspector, editor-family lifecycle, automation, agent configuration, secret, commit, or push was
+  added. This remains an uncommitted partial Task 3A handback awaiting independent bounded review.
+
+## Session 2026-08-25 — slice 3A closed-scope corrections and final verification
+
+- Scope closure: Semantic discovery closed with exactly Tasks 47–49 and 54–63. No later editor,
+  inspector, notes, automation, copy, activation-ordering, status, or superseded-code work was
+  admitted.
+- Navigation and selection: PageUp/PageDown use the visible viewport distance. Shift and Ctrl/Cmd
+  background selection survives native wrapper focus, row-checkbox selection remains orthogonal, and
+  the parked active anchor remains the sole re-entry stop. Ctrl/Cmd+Arrow remains unprevented and no
+  longer leaks into legacy DOM navigation from wrappers or caret-boundary text inputs.
+- Semantic stops: Actions has one gridcell navigation stop and an explicit Expand target, without
+  nested action `data-cell` markers or DuplicateBadge capture. The initial direct-child correction
+  omitted allocation subgrid cells; a full E2E failure exposed it, and the final semantic-gridcell
+  enumeration preserves the complete dynamic allocation sequence while excluding descendants of
+  another gridcell.
+- Focus ownership: Verified external blur parks the controller, clears stale pending and
+  reconciliation focus, preserves the canonical range when its endpoints survive filtering, leaves
+  the external control focused, and excludes row-owned portals. Background pointer return clears the
+  stale legacy-descendant latch. Direct shared-gridcell `d`, Delete, and Backspace events do not
+  reach row deletion; legacy descendants retain their staged behavior.
+- Rendering and activation: Selected-cell paint uses a valid `color-mix(in oklch, ...)` inset shadow
+  in light and dark themes. The actions gridcell spans the full exact 57px row and owns top, center,
+  and bottom hit tests while its buttons remain visible and reachable. Tags full edit uses an
+  explicit legacy activation marker, opens the chooser, and focuses Search tags for empty or
+  populated cells through Enter or background double-click rather than focusing Remove.
+- Pending transaction integrity: Focus-phase registration timeout stores one absolute start and uses
+  only the remaining duration after structural rebases. Pending focus survives the synchronous focus
+  event, then verifies connectedness, exact active element, phase, command, and generation before
+  fulfillment. Redirected or unmounted focus aborts, publishes no target presence, and restores
+  origin selection, DOM focus, scroll, pins, and the page's real held-window start.
+- Regression coverage: Added composed Row/GridCell/Table focus-failure coverage, real page-held
+  window rollback over 1,600 rows, full dynamic allocation `aria-colindex` ordering, modifier
+  background-selection propagation, light/dark computed selected shadow, and actions
+  top/center/bottom browser geometry and hit testing.
+- Verification: Scoped oxfmt passed on 13 implementation/test paths. Repository `format:check`
+  passed all 1,088 files. Lint passed with only the existing React Compiler `useVirtualizer`
+  advisory at `TransactionVirtualRows.tsx:107`; typecheck passed; the production build completed 17
+  routes; targeted Vitest passed 119/119 in five files; targeted retry-free browser coverage passed
+  2/2; full Vitest passed 3,020 with 2 skipped in 165 files; and the final four-worker retry-free
+  E2E run passed 202/202 in 3.9 minutes. The failed pre-final E2E run was not counted: the
+  allocation navigation defect was corrected and the complete campaign restarted.
+- Evidence and hygiene: Complete final logs are preserved under
+  `evidence/task-3a-review-rejection-4/`. Every generated `AGENTS.md` and `next-env.d.ts` change was
+  inspected and precisely restored. Port 3000 is free and no MoneyFlow Next writer remains. No
+  commit or push was created; the stable bounded handback is frozen for independent review.
+
+## Session 2026-08-25 — user-authorized exceptional two-defect correction
+
+- Authority: Exact-server manual review reproduced two final defects after the formally closed
+  cycle. The user explicitly authorized one exceptional correction/review cycle limited to those
+  findings; no late scout output or semantic expansion was admitted.
+- Shortcut ownership: Focusing a row-B checkbox or actions descendant with a retained canonical
+  range anchored in row A now parks the range and records row B as focus-retention and shortcut
+  authority. The focus-retention pin coexists with row A's active-origin pin until actual focus
+  exit. Checkbox/actions by `d`, Delete, and Backspace coverage proves all six combinations delete
+  row B, never row A, while preserving the range; real virtualizer coverage proves both pinned rows
+  remain mounted after a distant scroll.
+- Reverse re-entry: Direct wrapper focus clears the legacy-descendant latch before parked selection
+  exposure. The exact browser sequence actions background, Shift+Home, Tab to Expand, Shift+Tab to
+  wrapper now leaves the actions wrapper focused at `tabIndex=0`, exactly one gridcell roving stop,
+  and the retained nine-cell range fully exposed without collapse.
+- Verification: Scoped oxfmt passed on the six implementation/test paths. Focused unit/DOM coverage
+  passed 90/90 in three files, and the exact retry-free browser case passed 1/1. Repository
+  `format:check` passed all 1,088 files; lint passed with only the existing React Compiler
+  `useVirtualizer` advisory at `TransactionVirtualRows.tsx:107`; typecheck passed; the production
+  build completed 17 routes; full Vitest passed 3,028 with 2 skipped in 165 files; and the final
+  four-worker retry-free E2E run passed 202/202 in 4.0 minutes.
+- Evidence and hygiene: Complete logs are preserved under `evidence/task-3a-review-exception-1/`.
+  Build and browser runs changed only the known generated `AGENTS.md` and `next-env.d.ts` forms;
+  both were inspected and restored exactly with no MoneyFlow Next writer or port-3000 listener
+  remaining. No product outside the two fixes, dependency, frozen spec, import picker, editor
+  family, inspector, notes, automation, copy, status, agent configuration, commit, or push change
+  was admitted.

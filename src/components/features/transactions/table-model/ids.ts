@@ -97,8 +97,8 @@ export function allocationColumnId(personId: string): AllocationTransactionColum
  * Read off `TransactionRow.tsx`, not inferred from the column list, because the two do not
  * correspond one-to-one and the difference is load-bearing:
  *
- * - There is **no `actions` marker**. The actions column is an unmarked container holding two
- *   separately-marked controls, `expand` and `delete`.
+ * - `actions` is the stable selectable identity of the actions column. Its `expand` and `delete`
+ *   descendants retain their own control markers for legacy activation paths.
  * - `notes` is not a column at all. It lives on the expanded second row, spanning
  *   `gridColumn: 2 / -1`.
  *
@@ -113,6 +113,7 @@ export const TRANSACTION_CELL_MARKERS = [
     "tags",
     "status",
     "amount",
+    "actions",
     "expand",
     "delete",
     "notes"
@@ -123,12 +124,7 @@ export type FixedTransactionCellMarker = (typeof TRANSACTION_CELL_MARKERS)[numbe
 /** Every `data-cell` value the grid emits. */
 export type TransactionCellMarker = FixedTransactionCellMarker | AllocationTransactionColumnId;
 
-/**
- * The markers inside the actions column.
- *
- * The column itself carries no marker, so a caller wanting to address its controls needs these
- * rather than the column id.
- */
+/** The legacy control markers nested inside the stable `actions` gridcell. */
 export const ACTIONS_COLUMN_CELL_MARKERS = ["expand", "delete"] as const;
 
 /** The marker on the expanded notes row, which no column owns. */

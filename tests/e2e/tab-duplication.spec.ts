@@ -61,26 +61,38 @@ test("a browser-duplicated tab hydrates onboarding and an authenticated vault", 
     const duplicateTab = async (source: import("@playwright/test").Page) => {
         const opened = context.waitForEvent("page");
         await source.evaluate(() => window.postMessage({ type: "moneyflow:duplicate-tab" }, "*"));
-        const duplicate = await opened;
-        await duplicate.waitForLoadState("load");
-        return duplicate;
+        return opened;
     };
 
     const expectCachedDuplicate = async (page: import("@playwright/test").Page) => {
-        await expect
-            .poll(() =>
-                page.evaluate(() => {
-                    const navigation = performance.getEntriesByType(
-                        "navigation"
-                    )[0] as PerformanceNavigationTiming & { deliveryType: string };
-                    return {
-                        type: navigation.type,
-                        deliveryType: navigation.deliveryType,
-                        transferSize: navigation.transferSize
-                    };
-                })
+        const expected = { type: "back_forward", deliveryType: "cache", transferSize: 0 } as const;
+        // chrome.tabs.duplicate() creates the target before its session-history restoration replaces
+        // the main-frame context. An inherited "load" state can therefore precede the document whose
+        // navigation timing is authoritative. waitForFunction is rerunnable across that replacement
+        // and resolves only from the final cached duplicate document.
+        const navigation = await page.waitForFunction((cachedNavigation) => {
+            const entry = performance.getEntriesByType("navigation")[0];
+            if (
+                !(entry instanceof PerformanceNavigationTiming) ||
+                !("deliveryType" in entry) ||
+                typeof entry.deliveryType !== "string"
             )
-            .toEqual({ type: "back_forward", deliveryType: "cache", transferSize: 0 });
+                return null;
+
+            const observed = {
+                type: entry.type,
+                deliveryType: entry.deliveryType,
+                transferSize: entry.transferSize
+            };
+            return observed.type === cachedNavigation.type &&
+                observed.deliveryType === cachedNavigation.deliveryType &&
+                observed.transferSize === cachedNavigation.transferSize
+                ? observed
+                : null;
+        }, expected);
+
+        expect(await navigation.jsonValue()).toEqual(expected);
+        await navigation.dispose();
     };
 
     try {

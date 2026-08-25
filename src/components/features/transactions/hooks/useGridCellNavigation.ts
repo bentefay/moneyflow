@@ -49,9 +49,11 @@ export interface UseGridCellNavigationReturn {
  */
 function focusCellElement(cell: Element): boolean {
     const focusable =
+        cell.querySelector<HTMLElement>("[data-grid-navigation-target]") ??
         cell.querySelector<HTMLElement>(
             'input:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        ) || (cell as HTMLElement);
+        ) ??
+        (cell as HTMLElement);
 
     if (focusable && typeof focusable.focus === "function") {
         focusable.focus();
@@ -135,7 +137,16 @@ function getTransactionRowGroups(grid: Element): Array<{
  * Get all cells in a row, ordered left to right.
  */
 function getCellsInRow(row: Element): Element[] {
-    return Array.from(row.querySelectorAll("[data-cell]"));
+    // One semantic gridcell is one navigation stop. Allocation cells live inside a subgrid wrapper
+    // and must remain in sequence, while activation descendants inside the shared `actions` gridcell
+    // must not become a second nested navigation domain.
+    return Array.from(row.querySelectorAll('[role="gridcell"][data-cell]')).filter(
+        (cell) => cell.parentElement?.closest('[role="gridcell"][data-cell]') == null
+    );
+}
+
+function findCellInRow(row: Element, cellName: string): Element | null {
+    return getCellsInRow(row).find((cell) => cell.getAttribute("data-cell") === cellName) ?? null;
 }
 
 /**
@@ -151,9 +162,11 @@ export function useGridCellNavigation(
             const isVertical = event.key === "ArrowUp" || event.key === "ArrowDown";
             const isHorizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
 
-            if (!isVertical && !isHorizontal) {
-                return;
-            }
+            if (!isVertical && !isHorizontal) return;
+            // Modified arrows belong to the browser, editor or nested widget. In particular, the
+            // shared gridcell intentionally returns a native intent for Ctrl/Cmd+Arrow; claiming it
+            // again here would move DOM focus while the canonical address stays put.
+            if (event.ctrlKey || event.metaKey) return;
 
             const focusedElement = event.target as HTMLElement;
             if (!focusedElement) return;
@@ -181,21 +194,22 @@ export function useGridCellNavigation(
                 }
             }
 
-            const cellContainer = focusedElement.closest("[data-cell]") as HTMLElement;
-            if (!cellContainer) return;
+            const currentRow = focusedElement.closest('[role="row"]');
+            if (currentRow == null) return;
+            const cells = getCellsInRow(currentRow);
+            const cellContainer = cells.find(
+                (cell) => cell === focusedElement || cell.contains(focusedElement)
+            );
+            if (cellContainer == null) return;
 
             const cellName = cellContainer.getAttribute("data-cell");
-            if (!cellName) return;
-
-            const currentRow = cellContainer.closest('[role="row"]');
-            if (!currentRow) return;
+            if (cellName == null) return;
 
             const grid = currentRow.closest('[role="grid"]');
-            if (!grid) return;
+            if (grid == null) return;
 
             // Handle horizontal navigation
             if (isHorizontal) {
-                const cells = getCellsInRow(currentRow);
                 const currentIndex = cells.indexOf(cellContainer);
 
                 if (currentIndex === -1) return;
@@ -244,9 +258,7 @@ export function useGridCellNavigation(
                 // We're in a notes row
                 if (isGoingUp) {
                     // Up from notes → same row's description
-                    const descriptionCell = currentGroup.mainRow.querySelector(
-                        '[data-cell="description"]'
-                    );
+                    const descriptionCell = findCellInRow(currentGroup.mainRow, "description");
                     if (descriptionCell && focusCellElement(descriptionCell)) {
                         event.preventDefault();
                         onNavigate?.("up");
@@ -255,9 +267,7 @@ export function useGridCellNavigation(
                     // Down from notes → next row's description
                     const nextGroup = groups[currentGroupIndex + 1];
                     if (nextGroup) {
-                        const descriptionCell = nextGroup.mainRow.querySelector(
-                            '[data-cell="description"]'
-                        );
+                        const descriptionCell = findCellInRow(nextGroup.mainRow, "description");
                         if (descriptionCell && focusCellElement(descriptionCell)) {
                             event.preventDefault();
                             onNavigate?.("down");
@@ -270,8 +280,7 @@ export function useGridCellNavigation(
                     // Special handling for description column
                     if (isGoingDown && currentGroup.notesRow) {
                         // Down from description with notes → focus notes
-                        const notesCell =
-                            currentGroup.notesRow.querySelector('[data-cell="notes"]');
+                        const notesCell = findCellInRow(currentGroup.notesRow, "notes");
                         if (notesCell && focusCellElement(notesCell)) {
                             event.preventDefault();
                             onNavigate?.("down");
@@ -283,8 +292,7 @@ export function useGridCellNavigation(
                         // Up from description → check if previous row has notes
                         const prevGroup = groups[currentGroupIndex - 1];
                         if (prevGroup?.notesRow) {
-                            const notesCell =
-                                prevGroup.notesRow.querySelector('[data-cell="notes"]');
+                            const notesCell = findCellInRow(prevGroup.notesRow, "notes");
                             if (notesCell && focusCellElement(notesCell)) {
                                 event.preventDefault();
                                 onNavigate?.("up");
@@ -299,7 +307,7 @@ export function useGridCellNavigation(
                 if (targetGroupIndex < 0 || targetGroupIndex >= groups.length) return;
 
                 const targetGroup = groups[targetGroupIndex];
-                const targetCell = targetGroup.mainRow.querySelector(`[data-cell="${cellName}"]`);
+                const targetCell = findCellInRow(targetGroup.mainRow, cellName);
 
                 if (targetCell && focusCellElement(targetCell)) {
                     event.preventDefault();

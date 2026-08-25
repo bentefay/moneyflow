@@ -134,6 +134,271 @@ describe("transaction grid workspace controller", () => {
         expect(table.getSelectedCellCount()).toBe(0);
     });
 
+    it("dispatches pure movement through projection coordinates and registered gridcells", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor([transaction("tx-1"), transaction("tx-2")]), COLUMNS);
+        const first = document.createElement("div");
+        const second = document.createElement("div");
+        first.tabIndex = -1;
+        second.tabIndex = -1;
+        document.body.append(first, second);
+        controller.registerCell(address("tx-1"), first);
+        controller.registerCell(address("tx-2"), second);
+        controller.setFocusedCell("tx-1", "description");
+        first.focus();
+
+        expect(
+            controller.dispatchCellIntent(
+                address("tx-1"),
+                {
+                    direction: "down",
+                    kind: "move"
+                },
+                1
+            )
+        ).toEqual({ ok: true, value: { kind: "handled" } });
+        expect(document.activeElement).toBe(second);
+        expect(controller.cellSelectionAtom.get()[0]).toMatchObject({
+            anchorColumnId: "description",
+            anchorRowId: "tx-2",
+            focusColumnId: "description",
+            focusRowId: "tx-2"
+        });
+        first.remove();
+        second.remove();
+    });
+
+    it.each([
+        ["page-down", "tx-3", "tx-8"],
+        ["page-up", "tx-8", "tx-3"]
+    ] as const)(
+        "uses the supplied viewport distance for %s across an unregistered boundary",
+        (targetKind, originId, targetId) => {
+            const controller = createController();
+            controller.updateProjection(
+                cursorFor(
+                    Array.from({ length: 10 }, (unused, index) =>
+                        transaction(`tx-${String(index + 1)}`)
+                    )
+                ),
+                COLUMNS
+            );
+            controller.setFocusedCell(originId, "description");
+
+            expect(
+                controller.dispatchCellIntent(
+                    address(originId),
+                    { kind: "move-to", target: { kind: targetKind } },
+                    5
+                )
+            ).toEqual({ ok: true, value: { kind: "handled" } });
+            expect(controller.getPendingRequest()).toMatchObject({
+                kind: "navigation",
+                state: { target: address(targetId) }
+            });
+        }
+    );
+
+    it("extends PageDown by the supplied viewport distance without moving the active anchor", () => {
+        const controller = createController();
+        controller.updateProjection(
+            cursorFor(
+                Array.from({ length: 10 }, (unused, index) =>
+                    transaction(`tx-${String(index + 1)}`)
+                )
+            ),
+            COLUMNS
+        );
+        controller.setFocusedCell("tx-2", "description");
+
+        expect(
+            controller.dispatchCellIntent(
+                address("tx-2"),
+                { kind: "extend-to", target: { kind: "page-down" } },
+                4
+            )
+        ).toEqual({ ok: true, value: { kind: "handled" } });
+        expect(controller.cellSelectionAtom.get()).toEqual([
+            {
+                anchorColumnId: "description",
+                anchorRowId: "tx-2",
+                focusColumnId: "description",
+                focusRowId: "tx-6",
+                operation: "include"
+            }
+        ]);
+    });
+
+    it("reveals and focuses an unregistered canonical navigation target before publishing it", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor([transaction("tx-1"), transaction("tx-2")]), COLUMNS);
+        const source = document.createElement("div");
+        const target = document.createElement("div");
+        const focusTarget = vi.spyOn(target, "focus");
+        source.tabIndex = -1;
+        target.tabIndex = -1;
+        document.body.append(source, target);
+        controller.registerCell(address("tx-1"), source);
+        controller.setFocusedCell("tx-1", "description");
+        source.focus();
+
+        expect(
+            controller.dispatchCellIntent(
+                address("tx-1"),
+                {
+                    direction: "down",
+                    kind: "move"
+                },
+                1
+            )
+        ).toEqual({ ok: true, value: { kind: "handled" } });
+        const pending = controller.getPendingRequest();
+        expect(pending).toMatchObject({
+            kind: "navigation",
+            state: { phase: "reveal", target: address("tx-2") }
+        });
+        expect(controller.cellSelectionAtom.get()).toEqual([]);
+        expect(controller.getSnapshot().pins).toEqual([
+            { kind: "active-origin", transactionId: "tx-1" },
+            { kind: "pending-target", transactionId: "tx-2" }
+        ]);
+        if (pending == null) throw new Error("navigation request was not retained");
+        const accepted = {
+            acceptedCommandId: pending.state.acceptedCommandId,
+            projectionGeneration: pending.state.projectionGeneration
+        };
+
+        expect(controller.markRevealApplied(accepted)).toBe(true);
+        expect(controller.focusPendingActivation(accepted)).toBe("unregistered");
+        controller.registerCell(address("tx-2"), target);
+        expect(controller.focusPendingActivation(accepted)).toBe("focused");
+
+        expect(focusTarget).toHaveBeenCalledWith({ preventScroll: true });
+        expect(document.activeElement).toBe(target);
+        expect(controller.getPendingRequest()).toBeNull();
+        expect(controller.getInteractionState()).toMatchObject({ kind: "navigating" });
+        expect(controller.cellSelectionAtom.get()[0]).toMatchObject({
+            anchorColumnId: "description",
+            anchorRowId: "tx-2",
+            focusColumnId: "description",
+            focusRowId: "tx-2"
+        });
+        source.remove();
+        target.remove();
+    });
+
+    it("extends geometry from the latest extent while the anchor keeps DOM focus", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor([transaction("tx-1")]), COLUMNS);
+        const anchor = document.createElement("div");
+        anchor.tabIndex = -1;
+        document.body.append(anchor);
+        controller.registerCell(address("tx-1", "date"), anchor);
+        controller.setFocusedCell("tx-1", "date");
+        anchor.focus();
+
+        controller.dispatchCellIntent(
+            address("tx-1", "date"),
+            {
+                direction: "right",
+                kind: "extend"
+            },
+            1
+        );
+        controller.dispatchCellIntent(
+            address("tx-1", "date"),
+            {
+                direction: "right",
+                kind: "extend"
+            },
+            1
+        );
+
+        expect(document.activeElement).toBe(anchor);
+        expect(controller.cellSelectionAtom.get()[0]).toMatchObject({
+            anchorColumnId: "date",
+            focusColumnId: "amount"
+        });
+        anchor.remove();
+    });
+
+    it("parks canonical selection without clearing its active identity", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor([transaction("tx-1")]), COLUMNS);
+        controller.setFocusedCell("tx-1", "description");
+
+        expect(controller.dispatchCellIntent(address("tx-1"), { kind: "park" }, 1)).toEqual({
+            ok: true,
+            value: { kind: "handled" }
+        });
+        expect(controller.getInteractionState()).toMatchObject({ kind: "parked" });
+        expect(controller.cellSelectionAtom.get()).toHaveLength(1);
+        expect(controller.getSnapshot().activeTransactionId).toBe("tx-1");
+    });
+
+    it("parks an existing range while retaining the focused activation row as shortcut authority", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor([transaction("tx-1"), transaction("tx-2")]), COLUMNS);
+        controller.setFocusedCell("tx-1", "date");
+        controller.dispatchCellIntent(
+            address("tx-1", "date"),
+            { direction: "right", kind: "extend" },
+            1
+        );
+        const selection = controller.cellSelectionAtom.get();
+
+        controller.setFocusedActivation("tx-2");
+
+        expect(controller.getInteractionState()).toMatchObject({ kind: "parked" });
+        expect(controller.cellSelectionAtom.get()).toEqual(selection);
+        expect(controller.getSnapshot()).toMatchObject({
+            focusRetentionTransactionId: "tx-2",
+            parkedActiveAddress: address("tx-1", "date"),
+            pins: [
+                { kind: "focus-retention", transactionId: "tx-2" },
+                { kind: "active-origin", transactionId: "tx-1" }
+            ]
+        });
+    });
+
+    it("parks external ownership while retaining the canonical origin and cancelling pending focus", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor([transaction("tx-1"), transaction("tx-2")]), COLUMNS);
+        controller.setFocusedCell("tx-1", "date");
+        controller.dispatchCellIntent(
+            address("tx-1", "date"),
+            { direction: "right", kind: "extend" },
+            1
+        );
+        const retained = controller.cellSelectionAtom.get();
+        controller.beginActivation({ entry: "full", target: address("tx-2") });
+
+        controller.parkExternalFocus();
+
+        expect(controller.getPendingRequest()).toBeNull();
+        expect(controller.getSnapshot().reconciliationFocus).toBeNull();
+        expect(controller.getInteractionState()).toMatchObject({ kind: "parked" });
+        expect(controller.cellSelectionAtom.get()).toEqual(retained);
+    });
+
+    it("keeps gridcell and editor registrations distinct for full-edit focus", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor([transaction("tx-1")]), COLUMNS);
+        const gridcell = document.createElement("div");
+        const editor = document.createElement("input");
+        gridcell.tabIndex = 0;
+        document.body.append(gridcell, editor);
+        controller.registerCell(address("tx-1"), gridcell);
+        controller.registerEditor(address("tx-1"), editor);
+        const accepted = controller.beginActivation({ entry: "full", target: address("tx-1") });
+        expect(controller.markRevealApplied(accepted)).toBe(true);
+
+        expect(controller.focusPendingActivation(accepted)).toBe("focused");
+        expect(document.activeElement).toBe(editor);
+        gridcell.remove();
+        editor.remove();
+    });
+
     it("advances generation only when stable row or column structure changes", () => {
         const controller = createController();
         controller.updateProjection(cursorFor([transaction("tx-1", "before")]), COLUMNS);
@@ -356,6 +621,61 @@ describe("transaction grid workspace controller", () => {
         input.remove();
     });
 
+    it("atomically restores same-generation navigation resources when gridcell focus fails", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor([transaction("tx-1"), transaction("tx-2")]), COLUMNS);
+        controller.setFocusedCell("tx-1", "description");
+        const priorFocus = document.createElement("input");
+        const scrollElement = document.createElement("div");
+        document.body.append(priorFocus, scrollElement);
+        scrollElement.scrollLeft = 12;
+        scrollElement.scrollTop = 240;
+        controller.registerScrollElement(scrollElement);
+        let heldWindowStart = 400;
+        const restoreHeldWindowStart = vi.fn((start: number) => {
+            heldWindowStart = start;
+        });
+        controller.setHeldWindowState(heldWindowStart, restoreHeldWindowStart);
+        priorFocus.focus();
+
+        controller.dispatchCellIntent(
+            address("tx-1"),
+            {
+                direction: "down",
+                kind: "move"
+            },
+            1
+        );
+        const pending = controller.getPendingRequest();
+        if (pending == null) throw new Error("navigation request was not retained");
+        const accepted = {
+            acceptedCommandId: pending.state.acceptedCommandId,
+            projectionGeneration: pending.state.projectionGeneration
+        };
+        scrollElement.scrollLeft = 80;
+        scrollElement.scrollTop = 900;
+        heldWindowStart = 800;
+        expect(controller.markRevealApplied(accepted)).toBe(true);
+        controller.registerCell(address("tx-2"), document.createElement("div"));
+
+        expect(controller.focusPendingActivation(accepted)).toBe("stale");
+        expect(controller.getSnapshot().failure).toEqual({
+            address: address("tx-2"),
+            kind: "focus-failed"
+        });
+        expect(controller.cellSelectionAtom.get()[0]).toMatchObject({
+            anchorColumnId: "description",
+            anchorRowId: "tx-1"
+        });
+        expect(document.activeElement).toBe(priorFocus);
+        expect(scrollElement.scrollLeft).toBe(12);
+        expect(scrollElement.scrollTop).toBe(240);
+        expect(restoreHeldWindowStart).toHaveBeenCalledWith(400);
+        expect(heldWindowStart).toBe(400);
+        priorFocus.remove();
+        scrollElement.remove();
+    });
+
     it("restores same-generation model focus scroll and held window when focus fails", () => {
         const controller = createController();
         controller.updateProjection(cursorFor([transaction("tx-1"), transaction("tx-2")]), COLUMNS);
@@ -397,6 +717,55 @@ describe("transaction grid workspace controller", () => {
         expect(restoreHeldWindowStart).toHaveBeenCalledWith(400);
         expect(heldWindowStart).toBe(400);
         priorFocus.remove();
+        scrollElement.remove();
+    });
+
+    it("aborts when synchronous target focus redirects and unmounts before fulfillment", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor([transaction("tx-1"), transaction("tx-2")]), COLUMNS);
+        controller.setFocusedCell("tx-1", "description");
+        const origin = document.createElement("button");
+        const external = document.createElement("input");
+        const target = document.createElement("input");
+        const scrollElement = document.createElement("div");
+        document.body.append(origin, external, target, scrollElement);
+        origin.focus();
+        scrollElement.scrollTop = 120;
+        controller.registerScrollElement(scrollElement);
+        let heldWindowStart = 200;
+        controller.setHeldWindowState(heldWindowStart, (start) => {
+            heldWindowStart = start;
+        });
+        controller.registerEditor(address("tx-2"), target);
+        const accepted = controller.beginActivation({ entry: "full", target: address("tx-2") });
+        expect(controller.markRevealApplied(accepted)).toBe(true);
+        scrollElement.scrollTop = 900;
+        heldWindowStart = 700;
+        target.addEventListener(
+            "focus",
+            () => {
+                target.remove();
+                external.focus();
+            },
+            { once: true }
+        );
+
+        expect(controller.focusPendingActivation(accepted)).toBe("stale");
+
+        expect(controller.getPendingRequest()).toBeNull();
+        expect(controller.getSnapshot().failure).toEqual({
+            address: address("tx-2"),
+            kind: "focus-failed"
+        });
+        expect(controller.cellSelectionAtom.get()[0]).toMatchObject({
+            anchorColumnId: "description",
+            anchorRowId: "tx-1"
+        });
+        expect(document.activeElement).toBe(origin);
+        expect(scrollElement.scrollTop).toBe(120);
+        expect(heldWindowStart).toBe(200);
+        origin.remove();
+        external.remove();
         scrollElement.remove();
     });
 
@@ -487,6 +856,57 @@ describe("transaction grid workspace controller", () => {
         unmount();
         priorFocus.remove();
         scrollElement.remove();
+        vi.useRealTimers();
+    });
+
+    it("keeps one registration deadline across surviving focus-phase rebases", () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-08-24T12:00:00Z"));
+        const controller = createController();
+        const initialCursor = cursorFor([transaction("tx-1"), transaction("tx-2")]);
+        controller.updateProjection(initialCursor, COLUMNS);
+        controller.setFocusedCell("tx-1", "description");
+        const accepted = controller.beginActivation({
+            entry: "full",
+            target: address("tx-2")
+        });
+        expect(controller.markRevealApplied(accepted)).toBe(true);
+        const hook = renderHook(
+            ({ cursor }) =>
+                useTransactionGridController({
+                    controller,
+                    cursor,
+                    registrationTimeoutMs: 25,
+                    selectableColumnIds: COLUMNS
+                }),
+            { initialProps: { cursor: initialCursor } }
+        );
+
+        act(() => vi.advanceTimersByTime(20));
+        hook.rerender({
+            cursor: cursorFor([transaction("tx-1"), transaction("tx-2"), transaction("tx-3")])
+        });
+        const rebased = controller.getPendingRequest();
+        expect(rebased?.state.phase).toBe("focus");
+        expect(rebased?.state.projectionGeneration).toBe(controller.getSnapshot().generation);
+
+        act(() => vi.advanceTimersByTime(4));
+        expect(controller.getPendingRequest()).not.toBeNull();
+        act(() => vi.advanceTimersByTime(1));
+
+        expect(controller.getPendingRequest()).toBeNull();
+        expect(controller.getSnapshot().failure).toEqual({
+            address: address("tx-2"),
+            kind: "registration-timeout"
+        });
+        expect(controller.cellSelectionAtom.get()[0]).toMatchObject({
+            anchorColumnId: "description",
+            anchorRowId: "tx-1"
+        });
+        expect(controller.getSnapshot().pins).toEqual([
+            { kind: "active-origin", transactionId: "tx-1" }
+        ]);
+        hook.unmount();
         vi.useRealTimers();
     });
 

@@ -2,16 +2,23 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
     asTransactionCompositionSequence,
+    asTransactionGridCommandId,
+    beginTransactionPendingActivation,
     INACTIVE_TRANSACTION_COMPOSITION
 } from "@/components/features/transactions/table-model/grid-interaction-state";
 import {
     activationTransactionGridKeyCell,
     editableTransactionGridKeyCell,
     transactionGridCompositionStartIntent,
+    transactionGridKeyContext,
     transactionGridKeyIntent,
     type TransactionGridKeyCellContext,
     type TransactionGridKeyContext
 } from "@/components/features/transactions/table-model/grid-key-intent";
+import {
+    asTransactionId,
+    asTransactionProjectionGeneration
+} from "@/components/features/transactions/table-model/ids";
 
 const NAVIGATING: TransactionGridKeyContext = {
     cell: editableTransactionGridKeyCell(),
@@ -57,6 +64,64 @@ describe("transaction grid key intent", () => {
         expectTypeOf(
             activationTransactionGridKeyCell("checkbox")
         ).toMatchTypeOf<TransactionGridKeyCellContext>();
+    });
+
+    it("derives key ownership from canonical state and immutable column capabilities", () => {
+        const base = {
+            automationField: null,
+            copyable: true,
+            focusable: true,
+            popupOwner: "none",
+            selectable: true
+        } as const;
+
+        expect(
+            transactionGridKeyContext(
+                { kind: "idle", selection: [] },
+                {
+                    ...base,
+                    activationKind: "none",
+                    editKind: "date",
+                    popupOwner: "grid-editor"
+                }
+            )
+        ).toEqual({
+            cell: { activation: "none", editable: true, tabBehavior: "open-calendar" },
+            mode: "idle"
+        });
+        expect(
+            transactionGridKeyContext(
+                { kind: "idle", selection: [] },
+                {
+                    ...base,
+                    activationKind: "checkbox",
+                    copyable: false,
+                    editKind: "none"
+                }
+            )
+        ).toEqual({
+            cell: { activation: "checkbox", editable: false },
+            mode: "idle"
+        });
+
+        const pending = beginTransactionPendingActivation({
+            acceptedCommandId: asTransactionGridCommandId("pending-key-context"),
+            current: { kind: "idle", selection: [] },
+            phase: "focus",
+            projectionGeneration: asTransactionProjectionGeneration(1),
+            target: {
+                columnId: "date",
+                transactionId: asTransactionId("transaction-1")
+            }
+        });
+        expect(
+            transactionGridKeyContext(pending, {
+                ...base,
+                activationKind: "none",
+                editKind: "date",
+                popupOwner: "grid-editor"
+            })
+        ).toBeNull();
     });
 
     it.each([

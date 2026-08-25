@@ -33,8 +33,8 @@ async function seedRows(page: import("@playwright/test").Page, count: number): P
 }
 
 /**
- * Moves keyboard focus onto a row without editing it, waiting for the virtualizer to mount it and
- * confirming focus actually landed before returning.
+ * Moves keyboard focus onto a row's checkbox gridcell without activating it, waiting for the
+ * virtualizer to mount the row and confirming focus actually landed before returning.
  */
 async function focusRow(
     page: import("@playwright/test").Page,
@@ -42,7 +42,7 @@ async function focusRow(
 ): Promise<void> {
     const row = page.locator(`[data-transaction-id="${transactionId}"]`).first();
     await row.waitFor({ state: "visible", timeout: 30_000 });
-    await row.focus();
+    await row.locator('[role="gridcell"][data-cell="checkbox"]').focus();
     await expect
         .poll(
             () =>
