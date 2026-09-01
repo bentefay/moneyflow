@@ -8,12 +8,15 @@
 
 import { expect, test } from "@playwright/test";
 
+import { hashToColor } from "@/lib/utils/color";
+
 import {
     createNewIdentity,
     expectPresentRows,
     goToTransactions,
     observePresenceTraffic,
     openDuplicateTab,
+    openTransactionInspector,
     readRowId,
     readRowPresenceEditing,
     reloadPage,
@@ -33,7 +36,7 @@ async function seedRows(page: import("@playwright/test").Page, count: number): P
 }
 
 /**
- * Moves keyboard focus onto a row's checkbox gridcell without activating it, waiting for the
+ * Moves keyboard focus onto a row's Description gridcell without activating it, waiting for the
  * virtualizer to mount the row and confirming focus actually landed before returning.
  */
 async function focusRow(
@@ -42,7 +45,9 @@ async function focusRow(
 ): Promise<void> {
     const row = page.locator(`[data-transaction-id="${transactionId}"]`).first();
     await row.waitFor({ state: "visible", timeout: 30_000 });
-    await row.locator('[role="gridcell"][data-cell="checkbox"]').focus();
+    const gridcell = row.locator('[role="gridcell"][data-cell="description"]');
+    await gridcell.focus();
+    await expect(gridcell).toHaveAttribute("aria-selected", "true");
     await expect
         .poll(
             () =>
@@ -57,55 +62,88 @@ async function focusRow(
         .toBe(transactionId);
 }
 
+async function normalizedCssColor(
+    page: import("@playwright/test").Page,
+    color: string
+): Promise<string> {
+    return page.evaluate((value) => {
+        const probe = document.createElement("span");
+        probe.style.color = value;
+        document.body.append(probe);
+        const normalized = getComputedStyle(probe).color;
+        probe.remove();
+        return normalized;
+    }, color);
+}
+
 test("two members and a duplicate tab track each other's rows and fields", async ({ browser }) => {
     test.setTimeout(180_000);
 
     const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
     const owner = await ownerContext.newPage();
-    const member = await memberContext.newPage();
     const runtimeProblems: string[] = [];
-
-    for (const page of [owner, member]) {
+    const observeRuntimeProblems = (page: import("@playwright/test").Page) => {
         page.on("console", (message) => {
             if (message.type() === "error") runtimeProblems.push(message.text());
         });
         page.on("pageerror", (error) => runtimeProblems.push(error.message));
-    }
+    };
+    observeRuntimeProblems(owner);
+
+    let memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    let member = await memberContext.newPage();
+    let fixture:
+        | { readonly vaultId: string; readonly ownerHash: string; readonly memberHash: string }
+        | undefined;
 
     try {
         await createNewIdentity(owner);
-        await createNewIdentity(member);
-        const fixture = await shareActiveVaultWithMember(owner, member);
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+            observeRuntimeProblems(member);
+            await createNewIdentity(member);
+            const candidate = await shareActiveVaultWithMember(owner, member);
+            if (hashToColor(candidate.ownerHash) !== hashToColor(candidate.memberHash)) {
+                fixture = candidate;
+                break;
+            }
+            await memberContext.close();
+            memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+            member = await memberContext.newPage();
+        }
+        if (fixture == null) throw new Error("Could not create distinct collaborator colors");
+        const sharedFixture = fixture;
 
         await goToTransactions(owner);
         const rowIds = await seedRows(owner, 3);
-
         await goToTransactions(member);
         await expect(member.getByTestId("transaction-row")).toHaveCount(3, { timeout: 30_000 });
 
         // A second tab of the *same* identity: same pubkey, distinct presence session.
         const ownerSecondTab = await openDuplicateTab(ownerContext, owner);
+        observeRuntimeProblems(ownerSecondTab);
         const traffic = observePresenceTraffic(ownerSecondTab, [
             ...rowIds,
-            fixture.ownerHash,
-            fixture.memberHash,
+            sharedFixture.ownerHash,
+            sharedFixture.memberHash,
             "amount",
             "notes"
         ]);
         await expect(ownerSecondTab.getByTestId("transaction-row")).toHaveCount(3, {
             timeout: 30_000
         });
-
         await test.step("distinct sessions focus distinct rows", async () => {
             await focusRow(owner, rowIds[0]);
             await focusRow(member, rowIds[1]);
             await focusRow(ownerSecondTab, rowIds[2]);
+            expect(runtimeProblems).toEqual([]);
 
             // Each session sees the other two rows decorated, never its own.
             await expectPresentRows(owner, [rowIds[1], rowIds[2]]);
             await expectPresentRows(member, [rowIds[0], rowIds[2]]);
             await expectPresentRows(ownerSecondTab, [rowIds[0], rowIds[1]]);
+            await expect
+                .poll(() => readRowPresenceEditing(member, rowIds[0]), { timeout: 20_000 })
+                .toBe(false);
         });
 
         await test.step("presence does not steal focus", async () => {
@@ -118,36 +156,91 @@ test("two members and a duplicate tab track each other's rows and fields", async
             expect(focusedRow).toBe(rowIds[1]);
         });
 
+        await test.step("inspector viewing and field editing attribute the right collaborators", async () => {
+            const sharedRowSelector = `[data-transaction-id="${rowIds[0]}"]`;
+            const ownerRow = owner.locator(sharedRowSelector).first();
+            const ownerInspector = await openTransactionInspector(owner);
+            await ownerRow.locator('[role="gridcell"][data-cell="description"]').click();
+            const ownerNotes = ownerInspector.getByTestId("notes-editable");
+            await expect(ownerNotes).toHaveAttribute("data-transaction-owner", rowIds[0]);
+            await ownerNotes.focus();
+            await expect(ownerNotes).toBeFocused();
+
+            const memberAmountCell = member
+                .locator(sharedRowSelector)
+                .first()
+                .locator('[role="gridcell"][data-cell="amount"]');
+            await memberAmountCell.dblclick();
+            await expect(memberAmountCell.getByTestId("amount-editable")).toBeFocused();
+
+            const observedRow = ownerSecondTab.locator(sharedRowSelector).first();
+            const observedInspector = await openTransactionInspector(ownerSecondTab);
+            await observedRow.locator('[role="gridcell"][data-cell="description"]').click();
+            await expect(observedInspector.getByTestId("notes-editable")).toHaveAttribute(
+                "data-transaction-owner",
+                rowIds[0]
+            );
+            const amountCell = observedRow.locator('[role="gridcell"][data-cell="amount"]');
+            const rowPresence = observedRow.getByTestId("row-presence-indicator");
+            const ownerColor = await normalizedCssColor(
+                ownerSecondTab,
+                hashToColor(sharedFixture.ownerHash)
+            );
+            const memberColor = await normalizedCssColor(
+                ownerSecondTab,
+                hashToColor(sharedFixture.memberHash)
+            );
+            expect(ownerColor).not.toBe(memberColor);
+
+            await expect(rowPresence).toHaveAttribute("data-presence-count", "2", {
+                timeout: 20_000
+            });
+            await expect(rowPresence).toHaveAttribute("data-presence-editing", "true");
+            await expect(rowPresence).toHaveCSS("background-color", memberColor);
+            await expect(amountCell).toHaveAttribute("data-presence", "true", {
+                timeout: 20_000
+            });
+            await expect(amountCell).toHaveCSS("outline-color", memberColor);
+        });
+
         await test.step("switching fields is reflected as editing", async () => {
-            await owner
+            const descriptionCell = owner
                 .locator(`[data-transaction-id="${rowIds[0]}"]`)
-                .getByTestId("description-editable")
-                .focus();
+                .first()
+                .locator('[role="gridcell"][data-cell="description"]');
+            await descriptionCell.dblclick();
+            await expect(descriptionCell.getByTestId("description-editable")).toBeFocused();
             await expect
                 .poll(() => readRowPresenceEditing(member, rowIds[0]), { timeout: 20_000 })
                 .toBe(true);
 
-            // Moving focus out of the table entirely retracts the row indicator. Only the duplicate
-            // tab's row should remain. Retraction crosses two sockets plus a re-render, so this
-            // waits longer than a same-tab assertion would.
+            // Moving focus out of the workspace entirely retracts the owner's row indicator. The
+            // duplicate tab moved to this shared row when it opened the inspector above, so that
+            // session remains. Retraction crosses two sockets plus a re-render, so this waits longer
+            // than a same-tab assertion would.
             await owner.getByTestId("add-transaction-button").focus();
-            await expectPresentRows(member, [rowIds[2]], { timeout: 40_000 });
+            await expectPresentRows(member, [rowIds[0]], { timeout: 40_000 });
         });
 
         await test.step("a peer's presence never blocks our own edit", async () => {
-            // rowIds[2] is currently held by the duplicate tab, so this edits a row under presence.
-            const description = member
-                .locator(`[data-transaction-id="${rowIds[2]}"]`)
-                .getByTestId("description-editable");
+            // rowIds[0] is currently held by the duplicate tab, so this edits a row under presence.
+            const descriptionCell = member
+                .locator(`[data-transaction-id="${rowIds[0]}"]`)
+                .first()
+                .locator('[role="gridcell"][data-cell="description"]');
+            await descriptionCell.dblclick();
+            const description = descriptionCell.getByTestId("description-editable");
             await expect(description).toBeEditable();
             await description.fill("Member edit over peer presence");
             await description.press("Enter");
-            await expect(description).toHaveValue("Member edit over peer presence");
+            await expect(descriptionCell.getByTestId("description-display")).toHaveText(
+                "Member edit over peer presence"
+            );
         });
 
         await test.step("closing a tab retracts its presence", async () => {
             // Only the duplicate tab still holds focus: the owner moved out of the table above.
-            await expectPresentRows(member, [rowIds[2]]);
+            await expectPresentRows(member, [rowIds[0]]);
             // `runBeforeUnload` makes Playwright run the page's unload handlers, matching a real
             // user closing a tab rather than the browser discarding it silently.
             //

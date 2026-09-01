@@ -76,7 +76,9 @@ vi.mock("@/lib/crdt/context", async () => {
         useVaultAction: () => noop,
         useApplyFieldRulesToTransaction: () => noop,
         useUserAutomationChoice: () => empty,
-        usePersistAutomationPreference: () => noop
+        usePersistAutomationPreference: () => noop,
+        useUserTransactionInspectorOpen: () => true,
+        usePersistTransactionInspectorOpen: () => noop
     };
 });
 

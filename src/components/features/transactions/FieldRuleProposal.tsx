@@ -1,29 +1,17 @@
 "use client";
 
 /**
- * Inline rule-PROPOSAL controls (HS-007 / UR-009, frozen `specs/human-scratch.md:249-266`).
+ * Inspector-owned rule proposal controls (HS-007 / UR-009).
  *
- * These are the controls the frozen text asks to "appear" when a user changes a rule-backed field on
- * a transaction whose text does not already match a rule. They are deliberately NOT the robot: the
- * robot opens an existing rule, these offer to make one.
- *
- * The frozen layout constraints (`:252-254`) are met structurally, not by styling alone:
- * - the content is rendered in a Radix popover PORTAL, so it lives outside the table's grid and
- *   cannot contribute to any row or column's size — the table cannot resize because of it;
- * - it is anchored to the edited cell and opens to its side/below, so it sits near the pointer;
- * - `onOpenAutoFocus` is prevented so the popup never steals the caret from the cell the user is
- *   still working in, which is what makes an "unfocused popup" possible.
- *
- * The controls themselves are exactly the frozen list: the four-mode select, a tick button beside it,
- * the "only if $x" and "only this account" checkboxes, and (for tags only, per `:290-292`) the
- * add/set select. The four modes carry the shared tooltip explaining the "Updating" vs "Update"
- * distinction, reusing the SAME copy the automations-page editor shows so the two surfaces can never
- * drift apart.
- *
- * Presentational: every draft change and the write itself belong to {@link useFieldRuleProposal}.
+ * The stable transaction inspector renders this surface after a Description, Tags, or Allocation
+ * editor publishes a changed result. Draft state and mutations belong to
+ * {@link useFieldRuleProposal}; this component only renders the shared four-mode choice, scope
+ * controls, confirmation, and dismissal. Portaled select lists register with the exact transaction
+ * and rule-field owner so focus remains inside the same logical automation surface.
  */
 
 import { Check } from "lucide-react";
+import { useCallback, type RefCallback } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -69,15 +57,33 @@ export interface FieldRuleProposalProps {
     /** Formatted amount for the "only if $x" label, so x is the row's real amount. */
     readonly amountLabel: string;
     readonly accountLabel: string;
-    /** Row identity stamped on this control's portaled select lists; see TransactionRuleProposal. */
+    /** Transaction identity stamped on this control's portaled select lists. */
     readonly rowId: string;
     readonly onConfirm: () => void;
     readonly onDismiss: () => void;
     readonly idPrefix: string;
+    /** Registers each portaled select surface with the exact inspector owner. */
+    readonly registerPortal?: RefCallback<HTMLDivElement>;
 }
 
-export function FieldRuleProposal(props: FieldRuleProposalProps): React.JSX.Element {
-    const { draft, onDraftChange, errors, field, kind, idPrefix } = props;
+export function FieldRuleProposal({
+    accountLabel,
+    amountLabel,
+    draft,
+    errors,
+    field,
+    idPrefix,
+    kind,
+    onConfirm,
+    onDismiss,
+    onDraftChange,
+    registerPortal,
+    rowId
+}: FieldRuleProposalProps): React.JSX.Element {
+    const registerSelectPortal = useCallback(
+        (element: HTMLDivElement | null) => registerPortal?.(element),
+        [registerPortal]
+    );
     const set = (partial: Partial<RuleEditorDraft>): void =>
         onDraftChange({ ...draft, ...partial });
 
@@ -113,7 +119,7 @@ export function FieldRuleProposal(props: FieldRuleProposalProps): React.JSX.Elem
                     >
                         <SelectValue />
                     </SelectTrigger>
-                    <SelectContent data-owned-by-row={props.rowId}>
+                    <SelectContent ref={registerSelectPortal} data-owned-by-row={rowId}>
                         {APPLY_MODES.map((applyMode) => (
                             <SelectItem key={applyMode} value={applyMode}>
                                 {applyModeLabel(applyMode)}
@@ -128,7 +134,7 @@ export function FieldRuleProposal(props: FieldRuleProposalProps): React.JSX.Elem
                         <Button
                             aria-label={kind === "create" ? "Create this rule" : "Update this rule"}
                             data-testid="proposal-confirm"
-                            onClick={props.onConfirm}
+                            onClick={onConfirm}
                             size="icon-sm"
                             type="button"
                         >
@@ -143,7 +149,7 @@ export function FieldRuleProposal(props: FieldRuleProposalProps): React.JSX.Elem
                 <Button
                     aria-label="Dismiss without creating a rule"
                     data-testid="proposal-dismiss"
-                    onClick={props.onDismiss}
+                    onClick={onDismiss}
                     size="sm"
                     type="button"
                     variant="ghost"
@@ -162,7 +168,7 @@ export function FieldRuleProposal(props: FieldRuleProposalProps): React.JSX.Elem
                         onCheckedChange={(checked) => set({ useAmountScope: checked === true })}
                     />
                     <Label className="text-xs" htmlFor={`${idPrefix}-proposal-amount`}>
-                        {`Only if ${props.amountLabel}`}
+                        {`Only if ${amountLabel}`}
                     </Label>
                 </div>
                 <div className="flex items-center gap-2">
@@ -173,7 +179,7 @@ export function FieldRuleProposal(props: FieldRuleProposalProps): React.JSX.Elem
                         onCheckedChange={(checked) => set({ useAccountScope: checked === true })}
                     />
                     <Label className="text-xs" htmlFor={`${idPrefix}-proposal-account`}>
-                        {`Only this account (${props.accountLabel})`}
+                        {`Only this account (${accountLabel})`}
                     </Label>
                 </div>
             </div>
@@ -195,7 +201,7 @@ export function FieldRuleProposal(props: FieldRuleProposalProps): React.JSX.Elem
                         >
                             <SelectValue />
                         </SelectTrigger>
-                        <SelectContent data-owned-by-row={props.rowId}>
+                        <SelectContent ref={registerSelectPortal} data-owned-by-row={rowId}>
                             <SelectItem value="add">Add tags</SelectItem>
                             <SelectItem value="set">Set tags (clear existing)</SelectItem>
                         </SelectContent>

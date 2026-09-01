@@ -129,8 +129,8 @@ describe("privateKeyToBase64 / base64ToPrivateKey", () => {
 });
 
 describe("key derivation property-based tests", () => {
-    it("always produces valid key sizes", () => {
-        fc.assert(
+    it("always produces valid key sizes", async () => {
+        await fc.assert(
             fc.asyncProperty(fc.constant(null), async () => {
                 const mnemonic = generateSeedPhrase();
                 const masterSeed = await mnemonicToMasterSeed(mnemonic);
@@ -147,8 +147,8 @@ describe("key derivation property-based tests", () => {
         );
     });
 
-    it("base64 roundtrip is lossless", () => {
-        fc.assert(
+    it("base64 roundtrip is lossless", async () => {
+        await fc.assert(
             fc.asyncProperty(fc.constant(null), async () => {
                 const mnemonic = generateSeedPhrase();
                 const masterSeed = await mnemonicToMasterSeed(mnemonic);

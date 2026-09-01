@@ -6,22 +6,40 @@ is retained rather than overwritten.
 
 ## Source gate
 
-| Artifact                                   | Purpose                                                                             | Status                                                |
-| ------------------------------------------ | ----------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `../goal.md`                               | Authoritative outcomes and approval decisions                                       | Approved 2026-08-24; frozen by containing commit      |
-| `../interaction-contract.md`               | Acceptance-keyed state, command, focus, inspector, failure, and preference contract | Approved 2026-08-24; frozen by containing commit      |
-| `../source-disposition.md`                 | Preserve/Replace/Not-applicable reconciliation                                      | Approved 2026-08-24; frozen by containing commit      |
-| `../replacement-coverage.md`               | Exhaustive current-path/test/perf replacement and negative-proof map                | Approved 2026-08-24; frozen by containing commit      |
-| `../amendments/001-idle-reconciliation.md` | Idle and pending-activation reconciliation precedence                               | Approved 2026-08-24; post-commit verification pending |
-| `source-freeze/freeze-manifest.md`         | Source identities, current-HEAD disclosures, and approval record                    | Base commit verified; amendment commit pending        |
+| Artifact                                                    | Purpose                                                                             | Status                                                                      |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `../goal.md`                                                | Authoritative outcomes and approval decisions                                       | Approved 2026-08-24; frozen by containing commit                            |
+| `../interaction-contract.md`                                | Acceptance-keyed state, command, focus, inspector, failure, and preference contract | Approved 2026-08-24; frozen by containing commit                            |
+| `../source-disposition.md`                                  | Preserve/Replace/Not-applicable reconciliation                                      | Approved 2026-08-24; frozen by containing commit                            |
+| `../replacement-coverage.md`                                | Exhaustive current-path/test/perf replacement and negative-proof map                | Approved 2026-08-24; frozen by containing commit                            |
+| `../amendments/001-idle-reconciliation.md`                  | Idle and pending-activation reconciliation precedence                               | Approved 2026-08-24; dedicated commit and post-commit verification complete |
+| `../amendments/002-google-sheets-grid-treatment.md`         | Direct-user decision for the bounded resting visual treatment                       | Authorized 2026-08-25; no new approval gate                                 |
+| `../amendments/003-unified-grid-navigation-popup-escape.md` | Direct-user decision for unified Alt navigation and one-Escape cancellation         | Authorized 2026-09-01; no new approval gate                                 |
+| `source-freeze/freeze-manifest.md`                          | Source identities, current-HEAD disclosures, and approval record                    | Base and Amendment 001 commits independently verified                       |
 
 The user approved the four exact base source identities through the source-gate prompt. Independent
 post-commit verification of `67227d06de0545ea5f95e7ba827b670f8b0aa97a` passed without changing those
 bytes. Product slice 2A review then found an authority conflict. Independent amendment review cycle
 4 returned `APPROVE`, and the user selected “Approve and commit” for exact amendment SHA-256
-`bfe997646884ae2b12dcce58af38cafa00e2db79770aa27872832e00a7ee68d0` on 2026-08-24. The dedicated
-source-amendment commit is authorized; post-commit amendment verification remains pending, and
-product correction remains paused until that verification passes.
+`bfe997646884ae2b12dcce58af38cafa00e2db79770aa27872832e00a7ee68d0` on 2026-08-24. Dedicated commit
+`417e103def4e2a2b07caf7171a8e467de9e3bfab`, tree `72f583fbcdcf6539fbeb438bdfebc287a4cd20bd`,
+contains exactly the five authorized amendment/accounting paths. Independent post-commit
+verification passed, and product correction resumed within combined base-source and Amendment 001
+authority.
+
+On 2026-08-25, direct user instruction authorized
+`../amendments/002-google-sheets-grid-treatment.md`, titled “Amendment 002: Google Sheets Grid
+Treatment”, for the bounded shared resting visual treatment. This decision has no executable
+acceptance ID, adds no approval gate, and does not alter the 146 base records or the one executable
+Amendment 001 record.
+
+On 2026-09-01, direct user instruction authorized
+`../amendments/003-unified-grid-navigation-popup-escape.md`, titled “Amendment 003: Unified Grid
+Navigation and Popup Escape”. It supersedes the scoped keyboard and top-level grid-editor popup
+Escape clauses with canonical Alt/Option-arrow movement, Alt/Option+Shift range extension, and
+one-Escape popup/editor cancellation while preserving nested Create Account Select ownership. This
+decision has no executable acceptance ID, adds no approval gate, and leaves the 146 base records
+plus the one executable Amendment 001 record unchanged.
 
 ## Executable acceptance-key registry
 

@@ -14,14 +14,6 @@ export {
     transactionTableRowId
 } from "./columns";
 export {
-    applyTransactionCellKeyIntent,
-    type FocusedControlBoundary,
-    NON_TEXT_CONTROL,
-    readFocusedControlBoundary,
-    transactionCellKeyIntent,
-    type TransactionCellKeyIntent
-} from "./cell-key-intent";
-export {
     transactionCellSelectionRowKey,
     transactionSelectedCellMarkersFromRowKey
 } from "./cell-selection-render";
@@ -59,6 +51,7 @@ export {
     reduceTransactionComposition,
     transactionGridPins,
     transactionGridPresence,
+    transactionGridRetainsDeferredPresence,
     transactionGridSelectionVisibility,
     transitionTransactionContinuousEdit,
     type TransactionCompositionEvent,
@@ -77,6 +70,7 @@ export {
     type TransactionGridCommandError,
     type TransactionGridCommandId,
     type TransactionGridCommandResult,
+    type TransactionGridDeferredPresence,
     type TransactionGridEditingState,
     type TransactionGridEditorReturnState,
     type TransactionGridEditorState,
@@ -94,6 +88,7 @@ export {
     type TransactionGridSelectionOperation,
     type TransactionGridStaleOperationError,
     type TransactionInspectorActionBinding,
+    type TransactionInspectorAutomationBinding,
     type TransactionInspectorControlBinding,
     type TransactionInspectorFieldBinding,
     type TransactionOwnedControlBinding,
@@ -133,6 +128,7 @@ export {
 export {
     reconcileTransactionGridProjection,
     resolveTransactionGridFailure,
+    transactionInspectorBindingEquals,
     type TransactionGridFailureResolution,
     type TransactionGridFocusIntent,
     type TransactionGridFocusOwnership,

@@ -8,44 +8,64 @@
  * Supports duplicate detection, resolution actions, deletion, and inline editing.
  */
 
-import { ChevronUp, Pencil, Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Trash2 } from "lucide-react";
+import { useCallback, useMemo } from "react";
 
 import { AccountCombobox, AccountOption } from "@/components/features/accounts";
 import { PresenceAvatar } from "@/components/features/presence/PresenceAvatar";
+import { useDateLocale } from "@/components/providers/date-locale-provider";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { useTransientFlag } from "@/components/ui/use-transient-flag";
 import { type MemberDisplayName, memberDisplayLabel } from "@/lib/crdt/person";
 import { deriveEffectiveAllocations } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 import { hashToColor } from "@/lib/utils/color";
+import { formatTransactionDate } from "@/lib/utils/date-format";
 
 import { type AllocationColumn, materializeAllocationRecord } from "./allocation-columns";
-import { RESTING_CELL_CHROME } from "./cells/cell-chrome";
-import { CHECKBOX_GRIDCELL_SURFACE, SHORT_CONTROL_HIT_AREA } from "./cells/cell-hit-area";
+import {
+    INNER_CELL_FOCUS_CHROME,
+    PARKED_ACTION_FOCUS_CHROME,
+    RESTING_CELL_CHROME,
+    TRANSACTION_GRID_EDITOR_INLINE_CHROME,
+    TRANSACTION_GRIDCELL_CHROME
+} from "./cells/cell-chrome";
 import { CheckboxCell } from "./cells/CheckboxCell";
-import { InlineEditableAmount } from "./cells/InlineEditableAmount";
+import {
+    TRANSACTION_GRID_EDITOR_COMMIT_FAILURE,
+    type TransactionGridEditorCommitResult
+} from "./cells/editor-lifecycle";
+import {
+    InlineEditableAmount,
+    InlineEditableAmountDisplay,
+    originalAmountDescription
+} from "./cells/InlineEditableAmount";
 import { InlineEditableDate } from "./cells/InlineEditableDate";
 import {
+    DescriptionAliasDisplay,
     type DescriptionAliasEditOrigin,
+    importedDescriptionProvenance,
     InlineEditableDescriptionAlias,
     type DescriptionAliasOption
 } from "./cells/InlineEditableDescriptionAlias";
 import { InlineEditableStatus, type StatusOption } from "./cells/InlineEditableStatus";
 import { InlineEditableTags, type TagOption } from "./cells/InlineEditableTags";
-import { PersonAllocationCell } from "./cells/PersonAllocationCell";
+import { PersonAllocationCell, PersonAllocationDisplay } from "./cells/PersonAllocationCell";
 import { TransactionGridCell } from "./cells/TransactionGridCell";
 import { DuplicateBadge } from "./DuplicateBadge";
 import type {
     TransactionGridControllerSnapshot,
+    TransactionGridEditorProjection,
     TransactionGridWorkspaceController
 } from "./hooks/useTransactionGridController";
 import {
     asTransactionId,
     type TransactionColumnId,
+    type TransactionId,
+    type TransactionEditorPopupKind,
     type TransactionTableCell
 } from "./table-model";
+import { TRANSACTION_MAIN_ROW_HEIGHT_CLASS } from "./transaction-row-geometry";
 import { TRANSACTION_GRID_TEMPLATE } from "./TransactionTable";
 
 /** How long the two-click delete confirmation stays armed. */
@@ -95,14 +115,33 @@ export interface TransactionRowPresence {
     readonly focusedBy: readonly string[];
     /** Identities actively editing a field in this row. */
     readonly editingBy: readonly string[];
-    /** Stable cell names being edited, never their values. */
-    readonly fields: readonly string[];
+    /** Identities actively editing each stable cell name, never the cell values. */
+    readonly editingByField: Readonly<Record<string, readonly string[]>>;
+}
+
+interface IndexedTransactionGridCell {
+    readonly cell: TransactionTableCell;
+    readonly index: number;
+}
+
+/** Indexes one row's TanStack cells once so every rendered field lookup is constant-time. */
+export function indexTransactionGridCells(
+    cells: readonly TransactionTableCell[]
+): ReadonlyMap<string, IndexedTransactionGridCell> {
+    return new Map(
+        cells.map((cell, index): readonly [string, IndexedTransactionGridCell] => [
+            cell.column.id,
+            { cell, index }
+        ])
+    );
 }
 
 export interface TransactionGridRowSurface {
     readonly cells: readonly TransactionTableCell[];
     readonly controller: TransactionGridWorkspaceController;
+    readonly editor: TransactionGridEditorProjection | null;
     readonly interactionKind: TransactionGridControllerSnapshot["interactionKind"];
+    readonly selectionVisibility: TransactionGridControllerSnapshot["selectionVisibility"];
     readonly initialTabStopColumnId: TransactionColumnId | null;
     readonly parkedTabStopColumnId: TransactionColumnId | null;
     readonly viewportRowDistance: number;
@@ -121,10 +160,8 @@ export interface TransactionRowProps {
     resolveMemberName?: (pubkeyHash: string) => MemberDisplayName;
     /** Whether this row is selected */
     isSelected?: boolean;
-    /** Absolute 1-based row position in the logical grid, including its header and prior notes rows. */
+    /** Absolute 1-based row position in the logical grid, including its header. */
     ariaRowIndex?: number;
-    /** Total visible logical columns, used by the spanning notes gridcell. */
-    ariaColumnCount?: number;
     /**
      * The `data-cell` markers of this row's selected cells, when the row is inside a table that has
      * cell selection.
@@ -137,15 +174,13 @@ export interface TransactionRowProps {
     selectedCellMarkers?: ReadonlySet<string>;
     /** Shared TanStack/controller gridcell surface when rendered inside the transaction table. */
     gridCellSurface?: TransactionGridRowSurface;
-    /** Whether the notes row is expanded */
-    isExpanded?: boolean;
     /** Suppresses presence publication while the workspace applies programmatic description focus. */
     suppressDescriptionFocusPresence?: boolean;
     /** Registers this row's description input with the workspace focus coordinator. */
     onDescriptionInputElementChange?: (
-        transactionId: string,
+        transactionId: TransactionId,
         element: HTMLInputElement | null
-    ) => void;
+    ) => void | (() => void);
     /** Registers the rendered row subtree for generation-correlated focus reconciliation. */
     onRowElementChange?: (transactionId: string, element: HTMLElement | null) => void;
     /** Available accounts for inline editing */
@@ -154,23 +189,29 @@ export interface TransactionRowProps {
     availableStatuses?: StatusOption[];
     /** Available tags for inline editing */
     availableTags?: TagOption[];
-    /** Callback when a new tag should be created */
+    /** Materialize a new tag in the editor draft without mutating the vault. */
     onCreateTag?: (name: string) => Promise<TagOption>;
+    /** Commit selected tag IDs and locally-created tag records in one mutation. */
+    onTagsCommit?: (
+        tagIds: string[],
+        createdTags: readonly TagOption[]
+    ) => TransactionGridEditorCommitResult;
     /** Available description aliases for autocomplete */
     availableAliases?: DescriptionAliasOption[];
     /** Callback when user commits description text (for alias creation/rename/modal) */
-    onDescriptionCommitText?: (text: string, origin: DescriptionAliasEditOrigin) => void;
+    onDescriptionCommitText?: (
+        text: string,
+        origin: DescriptionAliasEditOrigin
+    ) => TransactionGridEditorCommitResult;
     /** Callback when user selects an existing alias from dropdown */
-    onDescriptionSelectAlias?: (aliasId: string, origin: DescriptionAliasEditOrigin) => void;
+    onDescriptionSelectAlias?: (
+        aliasId: string,
+        origin: DescriptionAliasEditOrigin
+    ) => TransactionGridEditorCommitResult;
     /** Callback when row is clicked (for navigation/focus, not selection) */
     onClick?: () => void;
     /** Callback when row is focused */
     onFocus?: () => void;
-    /**
-     * Callback when focus lands inside a specific cell, identified by its stable `data-cell` name.
-     * Drives field-level presence; the cell's *value* is never reported.
-     */
-    onFieldFocus?: (field: string | undefined) => void;
     /**
      * Callback when focus lands inside one of THIS row's cells, carrying the raw `data-cell` marker,
      * or `null` for the row's own chrome.
@@ -186,75 +227,26 @@ export interface TransactionRowProps {
     onCellFocus?: (marker: string | null) => void;
     /** Reports legacy checkbox/actions focus without discarding an existing canonical cell range. */
     onActivationDescendantFocus?: () => void;
+    /** Makes the persistent inspector visible before actions-cell keyboard focus enters it. */
+    onInspectorOpenRequest?: () => void;
     /** Callback when resolving duplicate (keep = clear flag, delete = remove) */
     onResolveDuplicate?: (action: "keep" | "delete") => void;
     /** Callback when deleting the transaction */
     onDelete?: () => void;
     /** Callback when a field is updated via inline edit */
     onFieldUpdate?: (field: keyof TransactionRowData, value: unknown) => void;
-    /**
-     * Render the inline description-rule robot for this row. Receives whether the description field
-     * is actively being edited so the affordance can hide itself. Kept as a render prop so the row
-     * stays presentational and the CRDT wiring lives in the page.
-     */
-    renderDescriptionRobot?: (context: { readonly isEditing: boolean }) => React.ReactNode;
-    /**
-     * Wrap a rule-backed cell so a just-made change to it can offer to become an automation rule
-     * (UR-009). Kept as a render prop for the same reason as the robot: the row stays presentational
-     * and every CRDT seam lives in the page. When absent, the cell renders unchanged.
-     */
-    renderRuleProposal?: (
-        field: "descriptionAlias" | "tags" | "allocation",
-        context: { readonly isEditing: boolean },
-        cell: React.ReactNode,
-        anchorClassName: string | undefined,
-        style: React.CSSProperties | undefined
-    ) => React.ReactNode;
     /** Ordered person-specific columns shared with the table header */
     allocationColumns?: readonly AllocationColumn[];
     /** Shared dynamic grid template */
     gridTemplateColumns?: string;
     /** Commit one person allocation through the central mutation boundary */
-    onAllocationUpdate?: (personId: string, value: number) => void;
+    onAllocationUpdate?: (personId: string, value: number) => TransactionGridEditorCommitResult;
     /** Callback when checkbox is toggled */
     onCheckboxChange?: () => void;
     /** Callback when shift-clicking checkbox for range selection */
     onCheckboxShiftClick?: () => void;
-    /** Callback when expand/collapse is toggled */
-    onToggleExpand?: () => void;
     /** Additional CSS classes */
     className?: string;
-}
-
-/**
- * Wrap a rule-backed cell in its proposal surface, or render it untouched when the page supplies no
- * proposal renderer (every non-transactions surface, and tests that mount the row directly).
- *
- * `anchorClassName` carries the layout the wrapper must take over from the cell it replaces, and
- * `style` any inline geometry that layout needs, so wrapping is size-neutral.
- *
- * Which of the two branches below is taken depends only on whether the caller supplies a renderer,
- * which is fixed for the lifetime of a surface — so this branch never flips at runtime and cannot
- * itself cause a remount. Keeping the edited cell mounted while a proposal appears is the RENDERER's
- * responsibility, discharged in `page.tsx` by mounting one stable element type regardless of whether
- * the cell is the pending edit.
- */
-function renderRuleProposalOrCell(
-    render: TransactionRowProps["renderRuleProposal"],
-    field: "descriptionAlias" | "tags" | "allocation",
-    context: { readonly isEditing: boolean },
-    anchorClassName: string | undefined,
-    cell: React.ReactNode,
-    style?: React.CSSProperties
-): React.ReactNode {
-    if (render == null) {
-        return (
-            <div className={anchorClassName} style={style}>
-                {cell}
-            </div>
-        );
-    }
-    return render(field, context, cell, anchorClassName, style);
 }
 
 /**
@@ -266,10 +258,8 @@ export function TransactionRow({
     resolveMemberName,
     isSelected = false,
     ariaRowIndex,
-    ariaColumnCount,
     selectedCellMarkers,
     gridCellSurface,
-    isExpanded = false,
     suppressDescriptionFocusPresence = false,
     onDescriptionInputElementChange,
     onRowElementChange,
@@ -277,32 +267,31 @@ export function TransactionRow({
     availableStatuses = [],
     availableTags = [],
     onCreateTag,
+    onTagsCommit,
     availableAliases = [],
     onDescriptionCommitText,
     onDescriptionSelectAlias,
     onClick,
     onFocus,
-    onFieldFocus,
     onCellFocus,
     onActivationDescendantFocus,
+    onInspectorOpenRequest,
     onResolveDuplicate,
     onDelete,
     onFieldUpdate,
-    renderDescriptionRobot,
-    renderRuleProposal,
     allocationColumns = [],
     gridTemplateColumns = TRANSACTION_GRID_TEMPLATE,
     onAllocationUpdate,
     onCheckboxChange,
     onCheckboxShiftClick,
-    onToggleExpand,
     className
 }: TransactionRowProps) {
-    const notesRef = useRef<HTMLTextAreaElement>(null);
+    const dateLocale = useDateLocale();
+    const transactionId = asTransactionId(transaction.id);
     const registerDescriptionInput = useCallback(
         (element: HTMLInputElement | null) =>
-            onDescriptionInputElementChange?.(transaction.id, element),
-        [onDescriptionInputElementChange, transaction.id]
+            onDescriptionInputElementChange?.(transactionId, element),
+        [onDescriptionInputElementChange, transactionId]
     );
     const registerRowElement = useCallback(
         (element: HTMLElement | null) => onRowElementChange?.(transaction.id, element),
@@ -314,12 +303,92 @@ export function TransactionRow({
         activate: armDeleteConfirm,
         reset: clearDeleteConfirm
     } = useTransientFlag(DELETE_CONFIRM_MS);
-    const [isEditingDescription, setIsEditingDescription] = useState(false);
-    const [isEditingTags, setIsEditingTags] = useState(false);
-    const [isEditingAllocation, setIsEditingAllocation] = useState(false);
+    const indexedGridCells = useMemo(
+        () => indexTransactionGridCells(gridCellSurface?.cells ?? []),
+        [gridCellSurface?.cells]
+    );
 
     const effectiveData = transaction;
-    const effectiveExpanded = isExpanded;
+    const displayedDate = effectiveData.date
+        ? formatTransactionDate(effectiveData.date, undefined, dateLocale)
+        : "Pick a date";
+    const displayedDescription =
+        effectiveData.descriptionAliasName ?? effectiveData.description ?? "No description";
+    const descriptionProvenance = importedDescriptionProvenance(
+        displayedDescription,
+        effectiveData.descriptionAliasId,
+        effectiveData.originalDescription
+    );
+    const amountProvenance = originalAmountDescription(
+        effectiveData.originalAmount,
+        effectiveData.currency ?? "USD"
+    );
+    const displayedAccount =
+        availableAccounts.find((account) => account.id === effectiveData.accountId)?.name ??
+        effectiveData.account ??
+        "Add account...";
+    const displayedStatus = effectiveData.status ?? "Select...";
+    const gridController = gridCellSurface?.controller;
+    const controllerPopupEditorOpen =
+        gridCellSurface?.interactionKind === "editing" ||
+        gridCellSurface?.interactionKind === "interacting";
+    const finishControllerEditing = useCallback(
+        (columnId: TransactionColumnId, editing: boolean) => {
+            if (editing || gridController == null) return;
+            gridController.finishEditing({
+                columnId,
+                transactionId: transactionId
+            });
+        },
+        [gridController, transactionId]
+    );
+    const finishControllerEditingFor = useMemo(
+        () => ({
+            account: (editing: boolean) => finishControllerEditing("account", editing),
+            amount: (editing: boolean) => finishControllerEditing("amount", editing),
+            date: (editing: boolean) => finishControllerEditing("date", editing),
+            description: (editing: boolean) => finishControllerEditing("description", editing),
+            status: (editing: boolean) => finishControllerEditing("status", editing),
+            tags: (editing: boolean) => finishControllerEditing("tags", editing)
+        }),
+        [finishControllerEditing]
+    );
+    const setControllerEditorInteraction = useCallback(
+        (columnId: TransactionColumnId, popup: TransactionEditorPopupKind, open: boolean) => {
+            if (gridController == null) return;
+            gridController.setEditorInteraction(
+                {
+                    columnId,
+                    transactionId: transactionId
+                },
+                popup,
+                open
+            );
+        },
+        [gridController, transactionId]
+    );
+    const handleDatePopupOpenChange = useCallback(
+        (popup: "calendar", open: boolean) => setControllerEditorInteraction("date", popup, open),
+        [setControllerEditorInteraction]
+    );
+    const handleDescriptionPopupOpenChange = useCallback(
+        (popup: "listbox", open: boolean) =>
+            setControllerEditorInteraction("description", popup, open),
+        [setControllerEditorInteraction]
+    );
+    const handleAccountPopupOpenChange = useCallback(
+        (popup: "combobox" | "modal", open: boolean) =>
+            setControllerEditorInteraction("account", popup, open),
+        [setControllerEditorInteraction]
+    );
+    const handleTagsPopupOpenChange = useCallback(
+        (popup: "combobox", open: boolean) => setControllerEditorInteraction("tags", popup, open),
+        [setControllerEditorInteraction]
+    );
+    const handleStatusPopupOpenChange = useCallback(
+        (popup: "listbox", open: boolean) => setControllerEditorInteraction("status", popup, open),
+        [setControllerEditorInteraction]
+    );
     const allocations = useMemo(
         () => materializeAllocationRecord(effectiveData.allocations),
         [effectiveData.allocations]
@@ -355,6 +424,10 @@ export function TransactionRow({
         : undefined;
 
     const isDuplicate = !!effectiveData.possibleDuplicateOf;
+    const actionFocusChrome =
+        gridCellSurface?.interactionKind === "parked"
+            ? PARKED_ACTION_FOCUS_CHROME
+            : INNER_CELL_FOCUS_CHROME;
 
     const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -385,46 +458,15 @@ export function TransactionRow({
         [onCheckboxShiftClick]
     );
 
-    // Auto-focus notes textarea when expanded
-    useEffect(() => {
-        if (effectiveExpanded && notesRef.current) {
-            notesRef.current.focus();
-        }
-    }, [effectiveExpanded]);
-
-    /**
-     * Reports row and field focus from a single delegated listener. Reading the enclosing
-     * `data-cell` / `data-presence-field` marker keeps every cell free of presence wiring, so a new
-     * column reports focus correctly without touching this component.
-     *
-     * Presence answers "is a person working on this row", so it must describe a person rather than
-     * a render. Placing the caret in a newly created row is the app moving focus on the user's
-     * behalf, before they have touched anything, so that one focus reports nothing at all — exactly
-     * as creating a row did before it moved focus. Reporting it as merely viewing would be just as
-     * untrue, and would additionally leave this session's published state already naming the row,
-     * so the user's first real focus would dedupe away and never reach peers. The request is
-     * consumed on the commit that applies it, so every genuine gesture reports normally, including
-     * a click straight back into the same input.
-     */
-    const publishPresenceFocus = useCallback(
-        (target: Element) => {
-            onFocus?.();
-            if (suppressDescriptionFocusPresence) return;
-            const cell = target.closest("[data-presence-field], [data-cell]");
-            const marker =
-                cell?.getAttribute("data-presence-field") ?? cell?.getAttribute("data-cell");
-            // Activation cells report row viewing rather than a field edit.
-            onFieldFocus?.(
-                marker == null || marker === "checkbox" || marker === "actions" ? undefined : marker
-            );
-        },
-        [onFieldFocus, onFocus, suppressDescriptionFocusPresence]
-    );
+    const publishPresenceFocus = useCallback(() => {
+        onFocus?.();
+    }, [onFocus]);
 
     const handleRowFocus = useCallback(
         (event: React.FocusEvent<HTMLDivElement>) => {
             const target = event.target;
-            if (!(target instanceof Element)) return;
+            if (!(target instanceof Element) || target.ownerDocument.activeElement !== target)
+                return;
             const gridcell = target.closest<HTMLElement>('[role="gridcell"][data-cell]');
             const gridcellMarker = gridcell?.getAttribute("data-cell");
             const controller = gridCellSurface?.controller;
@@ -447,13 +489,20 @@ export function TransactionRow({
                     ) {
                         return;
                     }
-                    publishPresenceFocus(target);
+                    publishPresenceFocus();
                 });
                 return;
             }
 
-            publishPresenceFocus(target);
+            publishPresenceFocus();
             if (suppressDescriptionFocusPresence) return;
+            const activeEditor = controller?.getSnapshot().editor;
+            if (
+                activeEditor?.address.transactionId === effectiveData.id &&
+                activeEditor.address.columnId === gridcellMarker
+            ) {
+                return;
+            }
 
             const cell = target.closest("[data-presence-field], [data-cell]");
             const marker =
@@ -485,44 +534,71 @@ export function TransactionRow({
         columnId: TransactionColumnId,
         display: React.ReactNode,
         options: {
+            readonly adornment?: React.ReactNode;
+            readonly ariaDescription?: string;
             readonly className?: string;
+            readonly editor?: React.ReactNode;
             readonly key?: React.Key;
+            readonly legacyInteractive?: boolean;
             readonly onActivate?: (activation: "checkbox" | "inspector") => void;
+            readonly presenceField?: string;
         } = {}
     ): React.ReactNode => {
-        const cellIndex =
-            gridCellSurface?.cells.findIndex((candidate) => candidate.column.id === columnId) ?? -1;
-        const cell = cellIndex < 0 ? undefined : gridCellSurface?.cells[cellIndex];
+        const indexedCell = indexedGridCells.get(columnId);
+        const cellIndex = indexedCell?.index ?? -1;
+        const cell = indexedCell?.cell;
         const meta = cell?.column.columnDef.meta;
+        const presenceField = options.presenceField ?? columnId;
+        const fieldPresenceUserId = presence?.editingByField[presenceField]?.[0];
+        const projectedEditor = gridCellSurface?.editor;
+        const showEditor =
+            projectedEditor?.address.transactionId === effectiveData.id &&
+            projectedEditor.address.columnId === columnId;
+        const address = {
+            columnId,
+            transactionId: transactionId
+        };
         if (gridCellSurface == null || cell == null || meta == null) {
             return (
                 <div
                     key={options.key}
+                    aria-description={options.ariaDescription}
                     aria-selected={selectedCellMarkers?.has(columnId)}
                     data-cell={columnId}
-                    className={options.className}
+                    className={cn(TRANSACTION_GRIDCELL_CHROME, options.className)}
                     role="gridcell"
                 >
                     {display}
+                    {options.adornment}
                 </div>
             );
         }
         return (
             <TransactionGridCell
                 key={options.key}
-                address={{ columnId, transactionId: asTransactionId(effectiveData.id) }}
+                address={address}
                 ariaColumnIndex={cellIndex + 1}
                 cell={cell}
                 controller={gridCellSurface.controller}
                 interaction={meta.interaction}
                 interactionKind={gridCellSurface.interactionKind}
                 selected={selectedCellMarkers?.has(columnId) ?? false}
+                selectionVisibility={gridCellSurface.selectionVisibility}
                 isInitialTabStop={gridCellSurface.initialTabStopColumnId === columnId}
                 isParkedTabStop={gridCellSurface.parkedTabStopColumnId === columnId}
                 viewportRowDistance={gridCellSurface.viewportRowDistance}
                 display={display}
-                legacyInteractive={true}
+                adornment={options.adornment}
+                ariaDescription={options.ariaDescription}
+                editor={options.editor}
+                editorEntry={showEditor ? projectedEditor.entry : undefined}
+                editorInitialText={showEditor ? projectedEditor.initialText : undefined}
+                showEditor={showEditor}
+                legacyInteractive={options.legacyInteractive ?? false}
                 onActivate={options.onActivate}
+                presenceColor={
+                    fieldPresenceUserId == null ? undefined : hashToColor(fieldPresenceUserId)
+                }
                 className={options.className}
             />
         );
@@ -537,9 +613,8 @@ export function TransactionRow({
                 data-testid="transaction-row"
                 data-transaction-id={effectiveData.id}
                 className={cn(
-                    "group relative grid items-center gap-4 px-4 py-3",
-                    !effectiveExpanded && "border-b",
-                    "hover:bg-accent/50",
+                    "group border-border/60 relative grid items-stretch gap-0 border-l p-0",
+                    TRANSACTION_MAIN_ROW_HEIGHT_CLASS,
                     "transition-colors",
                     isSelected && "bg-accent",
                     isSelected && "focused selected",
@@ -550,7 +625,6 @@ export function TransactionRow({
                 role="row"
                 aria-rowindex={ariaRowIndex}
                 aria-selected={isSelected}
-                aria-expanded={onToggleExpand ? isExpanded : undefined}
             >
                 {/* Presence indicator - colored left border. Purely decorative and never
                     interactive, so it cannot take focus or block editing. Editing is distinguished
@@ -585,13 +659,12 @@ export function TransactionRow({
                             onShiftClick={handleShiftClick}
                             ariaLabel={`Select transaction ${effectiveData.description}`}
                             rowGeometry="dataRow"
+                            showFocusIndicator={gridCellSurface?.interactionKind === "parked"}
                         />
                     </div>,
                     {
-                        className: cn(
-                            "flex w-full items-center justify-center",
-                            CHECKBOX_GRIDCELL_SURFACE
-                        ),
+                        className: "justify-center px-0",
+                        legacyInteractive: true,
                         onActivate: (activation) => {
                             if (activation === "checkbox") handleCheckboxChange();
                         }
@@ -601,148 +674,229 @@ export function TransactionRow({
                 {/* Date */}
                 {renderGridCell(
                     "date",
-                    <InlineEditableDate
-                        value={effectiveData.date}
-                        onSave={(value) => onFieldUpdate?.("date", value)}
-                        data-testid="date-editable"
-                    />
+                    <span
+                        data-testid="date-display"
+                        className="w-full min-w-0 truncate text-sm tabular-nums"
+                    >
+                        {displayedDate}
+                    </span>,
+                    {
+                        editor: (
+                            <InlineEditableDate
+                                value={effectiveData.date}
+                                onSave={(value) => onFieldUpdate?.("date", value)}
+                                onEditingChange={finishControllerEditingFor.date}
+                                onPopupOpenChange={handleDatePopupOpenChange}
+                                ownerRowId={transactionId}
+                                className="w-full min-w-0"
+                                data-testid="date-editable"
+                            />
+                        )
+                    }
                 )}
 
                 {/* Description */}
                 {renderGridCell(
                     "description",
-                    <>
-                        {renderRuleProposalOrCell(
-                            renderRuleProposal,
-                            "descriptionAlias",
-                            { isEditing: isEditingDescription },
-                            "min-w-0 flex-1",
-                            <InlineEditableDescriptionAlias
-                                value={
-                                    effectiveData.descriptionAliasName ?? effectiveData.description
-                                }
-                                descriptionAliasId={effectiveData.descriptionAliasId}
-                                originalDescription={effectiveData.originalDescription}
-                                availableAliases={availableAliases}
-                                onCommitText={(text, origin) => {
-                                    onDescriptionCommitText?.(text, origin);
-                                }}
-                                onSelectAlias={(aliasId, origin) => {
-                                    onDescriptionSelectAlias?.(aliasId, origin);
-                                }}
-                                onEditingChange={setIsEditingDescription}
-                                onInputElementChange={registerDescriptionInput}
-                                className="truncate font-medium"
-                                inputClassName="font-medium"
-                                placeholder="No description"
-                                data-testid="description-editable"
-                            />
-                        )}
-                        {renderDescriptionRobot?.({ isEditing: isEditingDescription })}
-                    </>,
-                    { className: "flex min-w-0 items-center gap-1" }
+                    <div className="min-w-0 flex-1">
+                        <DescriptionAliasDisplay
+                            value={displayedDescription}
+                            descriptionAliasId={effectiveData.descriptionAliasId}
+                            originalDescription={effectiveData.originalDescription}
+                            data-testid="description-display"
+                        />
+                    </div>,
+                    {
+                        ariaDescription: descriptionProvenance?.ariaDescription,
+                        className: "flex min-w-0 items-center gap-1",
+                        editor: (
+                            <div className="min-w-0 flex-1">
+                                <InlineEditableDescriptionAlias
+                                    value={displayedDescription}
+                                    descriptionAliasId={effectiveData.descriptionAliasId}
+                                    originalDescription={effectiveData.originalDescription}
+                                    availableAliases={availableAliases}
+                                    onCommitText={(text, origin) =>
+                                        onDescriptionCommitText?.(text, origin) ??
+                                        TRANSACTION_GRID_EDITOR_COMMIT_FAILURE
+                                    }
+                                    onSelectAlias={(aliasId, origin) =>
+                                        onDescriptionSelectAlias?.(aliasId, origin) ??
+                                        TRANSACTION_GRID_EDITOR_COMMIT_FAILURE
+                                    }
+                                    onEditingChange={finishControllerEditingFor.description}
+                                    onPopupOpenChange={handleDescriptionPopupOpenChange}
+                                    ownerRowId={transactionId}
+                                    onInputElementChange={registerDescriptionInput}
+                                    className="truncate font-medium"
+                                    inputClassName="font-medium"
+                                    placeholder="No description"
+                                    data-testid="description-editable"
+                                />
+                            </div>
+                        )
+                    }
                 )}
 
                 {/* Account */}
                 {renderGridCell(
                     "account",
-                    <AccountCombobox
-                        value={effectiveData.accountId ?? ""}
-                        onChange={(accountId) => onFieldUpdate?.("accountId", accountId)}
-                        accounts={availableAccounts}
-                        placeholder="Add account..."
-                        className={cn(
-                            "text-muted-foreground hover:bg-accent/30 focus:border-primary focus:bg-background focus:ring-primary h-7 px-1 focus:ring-1",
-                            // UR-012 covers EVERY editable control in the table, and the account
-                            // combobox is one of them. The hit area is applied here rather than in
-                            // `AccountCombobox`, which is shared with surfaces outside this table
-                            // whose rows are a different height.
-                            SHORT_CONTROL_HIT_AREA,
-                            RESTING_CELL_CHROME
-                        )}
-                    />,
-                    { className: "min-w-0" }
+                    <span className="text-muted-foreground w-full min-w-0 truncate text-sm">
+                        {displayedAccount}
+                    </span>,
+                    {
+                        className: "min-w-0",
+                        editor: (
+                            <AccountCombobox
+                                commitMode="deferred"
+                                value={effectiveData.accountId ?? ""}
+                                initialSearch={
+                                    gridCellSurface?.editor?.address.transactionId ===
+                                        effectiveData.id &&
+                                    gridCellSurface.editor.address.columnId === "account"
+                                        ? gridCellSurface.editor.initialText
+                                        : undefined
+                                }
+                                onChange={(accountId) => onFieldUpdate?.("accountId", accountId)}
+                                onEditingChange={finishControllerEditingFor.account}
+                                onPopupOpenChange={handleAccountPopupOpenChange}
+                                ownerTransactionId={transactionId}
+                                startOpen={controllerPopupEditorOpen}
+                                accounts={availableAccounts}
+                                placeholder="Add account..."
+                                className={cn(
+                                    "text-muted-foreground h-7",
+                                    RESTING_CELL_CHROME,
+                                    TRANSACTION_GRID_EDITOR_INLINE_CHROME
+                                )}
+                            />
+                        )
+                    }
                 )}
 
                 {/* Tags */}
                 {renderGridCell(
                     "tags",
-                    renderRuleProposalOrCell(
-                        renderRuleProposal,
-                        "tags",
-                        { isEditing: isEditingTags },
-                        undefined,
-                        <InlineEditableTags
-                            value={effectiveData.tags?.map((t) => t.id) ?? []}
-                            tags={effectiveData.tags ?? []}
-                            availableTags={availableTags}
-                            onSave={(tagIds) => onFieldUpdate?.("tags", tagIds)}
-                            onCreateTag={onCreateTag}
-                            onEditingChange={setIsEditingTags}
-                            ownerRowId={effectiveData.id}
-                            data-testid="tags-editable"
-                        />
-                    )
+                    <span className="w-full min-w-0 truncate text-sm">
+                        {effectiveData.tags?.map((tag) => tag.name).join(", ") || "Add tags..."}
+                    </span>,
+                    {
+                        editor: (
+                            <InlineEditableTags
+                                value={effectiveData.tags?.map((t) => t.id) ?? []}
+                                tags={effectiveData.tags ?? []}
+                                availableTags={availableTags}
+                                onSave={(tagIds, createdTags) =>
+                                    onTagsCommit?.(tagIds, createdTags) ??
+                                    TRANSACTION_GRID_EDITOR_COMMIT_FAILURE
+                                }
+                                onCreateTag={onCreateTag}
+                                initialSearch={
+                                    gridCellSurface?.editor?.address.transactionId ===
+                                        effectiveData.id &&
+                                    gridCellSurface.editor.address.columnId === "tags"
+                                        ? gridCellSurface.editor.initialText
+                                        : undefined
+                                }
+                                onEditingChange={finishControllerEditingFor.tags}
+                                onPopupOpenChange={handleTagsPopupOpenChange}
+                                ownerRowId={effectiveData.id}
+                                startOpen={controllerPopupEditorOpen}
+                                className="w-full min-w-0"
+                                data-testid="tags-editable"
+                            />
+                        )
+                    }
                 )}
 
                 {/* Status */}
                 {renderGridCell(
                     "status",
-                    <InlineEditableStatus
-                        value={effectiveData.statusId}
-                        statusName={effectiveData.status}
-                        availableStatuses={availableStatuses}
-                        onSave={(statusId) => onFieldUpdate?.("statusId", statusId)}
-                        data-testid="status-editable"
-                    />
+                    <span className="text-muted-foreground w-full min-w-0 truncate text-sm">
+                        {displayedStatus}
+                    </span>,
+                    {
+                        editor: (
+                            <InlineEditableStatus
+                                value={effectiveData.statusId}
+                                statusName={effectiveData.status}
+                                availableStatuses={availableStatuses}
+                                onSave={(statusId) => onFieldUpdate?.("statusId", statusId)}
+                                startOpen={controllerPopupEditorOpen}
+                                onEditingChange={finishControllerEditingFor.status}
+                                onPopupOpenChange={handleStatusPopupOpenChange}
+                                ownerRowId={transactionId}
+                                data-testid="status-editable"
+                            />
+                        )
+                    }
                 )}
 
-                {/* Frozen `:292-293`: a person-percentage rule covers the WHOLE set of percentage
-                    columns, and "it should span all the columns". So the proposal wraps the entire
-                    run of allocation cells as one anchored group rather than appearing per column,
-                    and each cell keeps its own grid position inside that span. */}
-                {allocationColumns.length > 0
-                    ? renderRuleProposalOrCell(
-                          renderRuleProposal,
-                          "allocation",
-                          { isEditing: isEditingAllocation },
-                          "grid grid-cols-subgrid",
-                          <>
-                              {allocationColumns.map((column) =>
-                                  renderGridCell(
-                                      column.field,
-                                      <PersonAllocationCell
-                                          personId={column.personId}
-                                          personLabel={column.label}
-                                          explicitValue={allocations[column.personId]}
-                                          allocations={allocations}
-                                          accountOwnerships={accountOwnerships}
-                                          effectiveDerivation={effectiveDerivation}
-                                          onCommit={onAllocationUpdate}
-                                          onEditingChange={setIsEditingAllocation}
-                                      />,
-                                      {
-                                          className: "min-w-0",
-                                          key: column.personId
-                                      }
-                                  )
-                              )}
-                          </>,
-                          { gridColumn: `span ${String(allocationColumns.length)}` }
-                      )
-                    : null}
+                {allocationColumns.length > 0 ? (
+                    <div
+                        className="grid h-full min-w-0 grid-cols-subgrid"
+                        style={{ gridColumn: `span ${String(allocationColumns.length)}` }}
+                    >
+                        {allocationColumns.map((column) =>
+                            renderGridCell(
+                                column.field,
+                                <PersonAllocationDisplay
+                                    personId={column.personId}
+                                    explicitValue={allocations[column.personId]}
+                                    allocations={allocations}
+                                    accountOwnerships={accountOwnerships}
+                                    effectiveDerivation={effectiveDerivation}
+                                    presenceField={column.presenceField}
+                                />,
+                                {
+                                    className: "min-w-0",
+                                    editor: (
+                                        <PersonAllocationCell
+                                            personId={column.personId}
+                                            personLabel={column.label}
+                                            presenceField={column.presenceField}
+                                            explicitValue={allocations[column.personId]}
+                                            allocations={allocations}
+                                            accountOwnerships={accountOwnerships}
+                                            effectiveDerivation={effectiveDerivation}
+                                            startEditing
+                                            onCommit={onAllocationUpdate}
+                                            onEditingChange={(editing) =>
+                                                finishControllerEditing(column.field, editing)
+                                            }
+                                        />
+                                    ),
+                                    key: column.personId,
+                                    presenceField: column.presenceField
+                                }
+                            )
+                        )}
+                    </div>
+                ) : null}
 
                 {/* Amount */}
                 {renderGridCell(
                     "amount",
-                    <InlineEditableAmount
+                    <InlineEditableAmountDisplay
                         value={effectiveData.amount}
                         originalValue={effectiveData.originalAmount}
                         currency={effectiveData.currency}
-                        onSave={(value) => onFieldUpdate?.("amount", value)}
-                        data-testid="amount-editable"
+                        data-testid="amount-display"
                     />,
-                    { className: "text-right" }
+                    {
+                        ariaDescription: amountProvenance,
+                        className: "justify-end text-right",
+                        editor: (
+                            <InlineEditableAmount
+                                value={effectiveData.amount}
+                                originalValue={effectiveData.originalAmount}
+                                currency={effectiveData.currency}
+                                onSave={(value) => onFieldUpdate?.("amount", value)}
+                                onEditingChange={finishControllerEditingFor.amount}
+                                data-testid="amount-editable"
+                            />
+                        )
+                    }
                 )}
 
                 {/* Actions has a stable selectable cell identity; its legacy controls remain nested. */}
@@ -756,51 +910,17 @@ export function TransactionRow({
                             />
                         )}
 
-                        {onToggleExpand && (
-                            <div data-legacy-action="expand" role="presentation">
-                                <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onToggleExpand();
-                                    }}
-                                    data-testid="expand-notes-button"
-                                    data-grid-navigation-target
-                                    className={cn(
-                                        effectiveExpanded || effectiveData.notes
-                                            ? "text-primary hover:bg-primary/10"
-                                            : "text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                    )}
-                                    title={
-                                        effectiveExpanded
-                                            ? "Collapse notes"
-                                            : effectiveData.notes
-                                              ? "Edit notes"
-                                              : "Add notes"
-                                    }
-                                >
-                                    {effectiveExpanded ? (
-                                        <ChevronUp className="h-4 w-4" />
-                                    ) : effectiveData.notes ? (
-                                        <Pencil className="h-4 w-4" />
-                                    ) : (
-                                        <Plus className="h-4 w-4" />
-                                    )}
-                                </Button>
-                            </div>
-                        )}
-
                         {onDelete && (
                             <div data-legacy-action="delete" role="presentation">
                                 <Button
                                     variant="ghost"
-                                    size="icon-sm"
+                                    size={showDeleteConfirm ? "sm" : "icon-sm"}
                                     onClick={handleDelete}
                                     data-testid="delete-button"
                                     className={cn(
+                                        actionFocusChrome,
                                         showDeleteConfirm
-                                            ? "bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
+                                            ? "h-8 w-12 min-w-12 bg-red-100 px-0 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
                                             : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100"
                                     )}
                                     title={
@@ -810,7 +930,7 @@ export function TransactionRow({
                                     }
                                 >
                                     {showDeleteConfirm ? (
-                                        <span className="px-1 text-xs font-medium">Confirm?</span>
+                                        <span className="text-xs font-medium">Delete</span>
                                     ) : (
                                         <Trash2 className="h-4 w-4" />
                                     )}
@@ -819,7 +939,21 @@ export function TransactionRow({
                         )}
                     </>,
                     {
-                        className: "-my-3 flex h-[calc(100%+1.5rem)] items-center justify-end gap-1"
+                        className: cn(
+                            "h-full justify-end",
+                            showDeleteConfirm ? "gap-0.5 px-1" : "gap-1 px-2"
+                        ),
+                        legacyInteractive: true,
+                        onActivate: (activation) => {
+                            if (activation !== "inspector" || gridController == null) return;
+                            onInspectorOpenRequest?.();
+                            queueMicrotask(() => {
+                                gridController.activateInspectorFromActionCell({
+                                    columnId: "actions",
+                                    transactionId
+                                });
+                            });
+                        }
                     }
                 )}
 
@@ -841,40 +975,6 @@ export function TransactionRow({
                     </div>
                 )}
             </div>
-
-            {/* Expanded notes row */}
-            {effectiveExpanded && (
-                <div
-                    className="bg-muted/30 grid items-center gap-4 border-b px-4 py-2"
-                    style={{ gridTemplateColumns }}
-                    data-testid="notes-row"
-                    role="row"
-                    aria-rowindex={ariaRowIndex == null ? undefined : ariaRowIndex + 1}
-                >
-                    {/* Spacer holding the checkbox column's track. Presentational rather than a
-                        gridcell: it is layout, and a nameless cell in the accessibility tree would
-                        announce an empty column that does not exist. */}
-                    <div role="presentation" />
-                    <div
-                        style={{ gridColumn: "2 / -1" }}
-                        data-cell="notes"
-                        role="gridcell"
-                        aria-colindex={ariaColumnCount == null ? undefined : 2}
-                        aria-colspan={ariaColumnCount == null ? undefined : ariaColumnCount - 1}
-                    >
-                        <Textarea
-                            ref={notesRef}
-                            value={effectiveData.notes || ""}
-                            onChange={(e) => onFieldUpdate?.("notes", e.target.value)}
-                            onBlur={(e) => onFieldUpdate?.("notes", e.target.value)}
-                            rows={1}
-                            className="text-muted-foreground hover:bg-accent/30 focus:border-input focus:bg-background min-h-0 resize-none border-transparent bg-transparent py-1 text-sm shadow-none"
-                            placeholder="Add notes or a memo..."
-                            data-testid="notes-editable"
-                        />
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

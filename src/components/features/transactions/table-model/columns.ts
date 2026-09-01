@@ -37,6 +37,7 @@ import {
     allocationColumnId,
     type AllocationTransactionColumnId,
     asTransactionId,
+    transactionColumnAutomationField,
     type TransactionColumnId,
     type TransactionId
 } from "./ids";
@@ -60,7 +61,7 @@ const TAGS_TRACK = "140px";
 const STATUS_TRACK = "110px";
 const ALLOCATION_TRACK = "minmax(112px,128px)";
 const AMOUNT_TRACK = "112px";
-const ACTIONS_TRACK = "88px";
+const ACTIONS_TRACK = "120px";
 
 // ============================================================================
 // Clipboard value formatting
@@ -135,7 +136,7 @@ const DATE_INTERACTION = {
 
 const DESCRIPTION_INTERACTION = {
     activationKind: "none",
-    automationField: "descriptionAlias",
+    automationField: transactionColumnAutomationField("description"),
     copyable: true,
     editKind: "description",
     focusable: true,
@@ -155,7 +156,7 @@ const ACCOUNT_INTERACTION = {
 
 const TAGS_INTERACTION = {
     activationKind: "none",
-    automationField: "tags",
+    automationField: transactionColumnAutomationField("tags"),
     copyable: true,
     editKind: "tags",
     focusable: true,
@@ -173,15 +174,19 @@ const STATUS_INTERACTION = {
     selectable: true
 } as const satisfies TransactionColumnMeta["interaction"];
 
-const ALLOCATION_INTERACTION = {
-    activationKind: "none",
-    automationField: "allocation",
-    copyable: true,
-    editKind: "allocation",
-    focusable: true,
-    popupOwner: "none",
-    selectable: true
-} as const satisfies TransactionColumnMeta["interaction"];
+function allocationInteraction(
+    columnId: AllocationTransactionColumnId
+): TransactionColumnMeta["interaction"] {
+    return {
+        activationKind: "none",
+        automationField: transactionColumnAutomationField(columnId),
+        copyable: true,
+        editKind: "allocation",
+        focusable: true,
+        popupOwner: "none",
+        selectable: true
+    };
+}
 
 const AMOUNT_INTERACTION = {
     activationKind: "none",
@@ -363,7 +368,7 @@ function allocationColumn(person: TransactionAllocationColumn) {
                 copyValue: copyAllocationPercentage,
                 editable: true,
                 gridTemplate: ALLOCATION_TRACK,
-                interaction: ALLOCATION_INTERACTION
+                interaction: allocationInteraction(columnId)
             } satisfies TransactionColumnMeta
         }
     );

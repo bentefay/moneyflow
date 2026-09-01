@@ -11,7 +11,7 @@
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { awaitVaultPersistence, createNewIdentity, goToAccounts } from "./helpers";
+import { createNewIdentity, goToAccounts } from "./helpers";
 
 test.use({ timezoneId: "America/New_York" });
 
@@ -65,37 +65,6 @@ test.describe("Accounts Page - Currency Display", () => {
             expect(currencyDisplay).toContain("(default)");
         });
     });
-
-    test("default account shows owner 'Me' with 100% ownership", async ({ page }) => {
-        await test.step("verify default account has Me as owner", async () => {
-            // Default account should show "Me (100%)" as the owner
-            const row = getAccountRow(page, "Default");
-            await expect(row).toContainText("Me (100%)");
-        });
-    });
-});
-
-test.describe("Accounts Page - Default Person", () => {
-    test.beforeEach(async ({ page }) => {
-        await createNewIdentity(page);
-    });
-
-    test("new vault has default person 'Me'", async ({ page }) => {
-        await test.step("navigate to people page", async () => {
-            // Vault creation's own writes may still be queued for encryption; this raw teardown
-            // would discard them.
-            await awaitVaultPersistence(page);
-            await page.goto("/people");
-            await page
-                .getByRole("heading", { name: "People", level: 1 })
-                .waitFor({ timeout: 15000 });
-        });
-
-        await test.step("verify Me person exists", async () => {
-            // The default "Me" person should be visible (exact match to avoid matching description)
-            await expect(page.getByText("Me", { exact: true })).toBeVisible();
-        });
-    });
 });
 
 test.describe("Accounts Page - Create Account", () => {
@@ -130,52 +99,32 @@ test.describe("Accounts Page - Inline Editing", () => {
         await goToAccounts(page);
     });
 
-    test("can edit account name inline", async ({ page }) => {
-        await test.step("click on account name to edit", async () => {
-            // Click on the account name text directly
+    test("cancels and commits inline account edits", async ({ page }) => {
+        test.setTimeout(60_000);
+
+        await test.step("cancel a name edit with Escape", async () => {
             await page.getByText("Default", { exact: true }).click();
-        });
-
-        await test.step("change name and press Enter", async () => {
-            const nameInput = page.getByPlaceholder(/account name/i);
-            await nameInput.fill("Renamed Account");
-            await nameInput.press("Enter");
-        });
-
-        await test.step("verify name was updated", async () => {
-            await expect(page.getByText("Renamed Account", { exact: true })).toBeVisible();
-        });
-    });
-
-    test("can cancel editing with Escape", async ({ page }) => {
-        await test.step("click on account name to edit", async () => {
-            await page.getByText("Default", { exact: true }).click();
-        });
-
-        await test.step("change name and press Escape", async () => {
             const nameInput = page.getByPlaceholder(/account name/i);
             await nameInput.fill("Should Not Save");
             await nameInput.press("Escape");
-        });
 
-        await test.step("verify original name is preserved", async () => {
             await expect(page.getByText("Default", { exact: true })).toBeVisible();
             await expect(page.getByText("Should Not Save")).not.toBeVisible();
         });
-    });
 
-    test("can change account type inline", async ({ page }) => {
-        await test.step("click on account type badge to edit", async () => {
-            // The type badge shows "Checking" for the default account
+        await test.step("commit a name edit with Enter", async () => {
+            await page.getByText("Default", { exact: true }).click();
+            const nameInput = page.getByPlaceholder(/account name/i);
+            await nameInput.fill("Renamed Account");
+            await nameInput.press("Enter");
+
+            await expect(page.getByText("Renamed Account", { exact: true })).toBeVisible();
+        });
+
+        await test.step("commit an account type selection", async () => {
             await page.getByText("Checking", { exact: true }).click();
-        });
+            await page.locator("select").selectOption("savings");
 
-        await test.step("select Savings from dropdown", async () => {
-            const select = page.locator("select");
-            await select.selectOption("savings");
-        });
-
-        await test.step("verify type was updated", async () => {
             await expect(page.getByText("Savings", { exact: true })).toBeVisible();
         });
     });

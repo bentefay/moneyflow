@@ -1,20 +1,10 @@
 /**
  * E2E Test: Tag + allocation field-rule parity and apply-mode persistence (HS-007 / P17D)
  *
- * These journeys exercise the P17D additions on top of the P17C description-rule robot:
- *
- * - TAG rules expose an add/set mode SELECT in the shared editor and in the inline transaction
- *   popup, with the same view/create/edit/apply affordances as description rules (frozen `:288-293`).
- * - ALLOCATION rules are edited through a column-per-person grid capturing the WHOLE explicit
- *   percentage set (frozen `:288-291`).
- * - Unlike description-alias rules, tag/allocation rules DO apply to MANUAL rows: the inline robot
- *   surfaces on a hand-entered transaction and "apply to this" resolves the drift (frozen `:294-295`).
- * - The four-mode apply SELECT choice is REMEMBERED per user and restored on reopen (frozen `:270`).
- * - At scale the inline popup stays non-intrusive: only matching rows carry a robot and nothing
- *   auto-opens.
- *
- * Assertions target accessible roles, stable testids and observable state (`data-drift`), never
- * incidental copy.
+ * These journeys exercise tag and allocation parity in the shared rule editor and the stable
+ * transaction inspector. Existing-rule controls are keyed to the active transaction and rule field;
+ * virtual transaction rows own no rule UI. Tag and allocation rules still apply to manual rows,
+ * while description-alias rules remain imported-only. The four apply modes remain remembered.
  */
 
 import { expect, type Page, test } from "@playwright/test";
@@ -25,7 +15,11 @@ import {
     goToImportNew,
     goToPeople,
     goToTags,
-    goToTransactions
+    goToTransactions,
+    openTransactionInspector,
+    rowsWithDisplayedDescription,
+    stableTransactionRow,
+    transactionGridCell
 } from "./helpers";
 import { addPerson, addTransaction, DEFAULT_PERSON_NAME } from "./helpers/settlement";
 
@@ -98,7 +92,7 @@ async function importRows(
 // ============================================================================
 
 test.describe("Tag field-rule parity", () => {
-    test("add/set mode select is offered on create and mirrored in the inline popup", async ({
+    test("add/set mode select is offered on create and mirrored in the inspector", async ({
         page
     }) => {
         await createNewIdentity(page);
@@ -106,10 +100,8 @@ test.describe("Tag field-rule parity", () => {
 
         await test.step("create a SET-mode tag rule for an exact description", async () => {
             await openCreateEditor(page);
-            // Default field is Tags, so the tag-mode select and tag group are present.
             await expect(page.getByTestId("rule-tag-mode")).toBeVisible();
             await chooseFromSelect(page, "rule-tag-mode", "Set tags (clear existing)");
-
             await page.getByLabel(/exact description text/i).fill("COFFEE SHOP 123");
             await page
                 .getByRole("group", { name: /tags to apply/i })
@@ -120,24 +112,24 @@ test.describe("Tag field-rule parity", () => {
         });
 
         await importRows(page, [{ date: "2026-07-01", description: "COFFEE SHOP 123" }]);
+        const row = await stableTransactionRow(page.getByTestId("transaction-row").first());
+        const inspector = await openTransactionInspector(page);
+        await transactionGridCell(row, "description").click();
+        const rule = inspector.getByTestId("tags-rule-inspector");
 
-        await test.step("the imported row carries a tags robot the popup reuses the editor for", async () => {
-            const robot = page.getByTestId("tags-rule-robot");
-            await expect(robot).toBeVisible();
-            // The engine applied the set-mode tag on import, so the row already matches its rule.
-            await expect(robot).toHaveAttribute("data-drift", "false");
-
-            await robot.click();
-            await expect(page.getByTestId("transaction-rule-popup")).toBeVisible();
-            await expect(page.getByTestId("field-rule-editor")).toBeVisible();
-            // The inline popup surfaces the SAME add/set select, reflecting the rule's stored mode.
-            await expect(page.getByTestId("rule-tag-mode")).toContainText(/set tags/i);
-            // And the Coffee tag is shown as selected (parity with the description-alias view).
+        await test.step("the inspector reuses the shared editor for the active matching row", async () => {
+            await expect(rule).toBeVisible();
+            await expect(rule.getByTestId("transaction-rule-popup")).toBeVisible();
+            await expect(rule.getByTestId("field-rule-editor")).toBeVisible();
+            await expect(rule.getByTestId("rule-tag-mode")).toContainText(/set tags/i);
             await expect(
-                page.getByRole("group", { name: /tags to apply/i }).getByRole("button", {
-                    name: "Coffee"
-                })
+                rule
+                    .getByRole("group", { name: /tags to apply/i })
+                    .getByRole("button", { name: "Coffee" })
             ).toHaveAttribute("aria-pressed", "true");
+            await expect(row.getByTestId("transaction-rule-popup")).toHaveCount(0, {
+                timeout: 3_000
+            });
         });
     });
 });
@@ -183,7 +175,7 @@ test.describe("Allocation field-rule parity", () => {
 test.describe("Manual-row applicability", () => {
     // Frozen `:294-295`: tag/allocation rules apply to manually-created rows, which per frozen `:269`
     // carry NO raw description text — only a description alias. The engine now projects that alias's
-    // resolved NAME as the match text (Q-P17D-01) so tag/allocation robots surface on manual rows,
+    // resolved NAME as the match text (Q-P17D-01) so tag/allocation rules surface for manual rows,
     // while description-alias rules stay excluded via the manual-row field gate. The engine-level
     // proof of all four behaviours lives in tests/integration/field-rule-mutations.test.ts; this
     // journey exercises the same behaviours through the real UI end to end.
@@ -221,33 +213,41 @@ test.describe("Manual-row applicability", () => {
         // A manual grid row stores "MANUAL COFFEE" as a description ALIAS; the raw description is empty.
         await addTransaction(page, { description: "MANUAL COFFEE", amount: "-4.50" });
 
-        const tagsRobot = page.getByTestId("tags-rule-robot");
-        const allocationRobot = page.getByTestId("allocation-rule-robot");
+        const row = await stableTransactionRow(
+            rowsWithDisplayedDescription(page, "MANUAL COFFEE").first()
+        );
+        const inspector = await openTransactionInspector(page);
+        await transactionGridCell(row, "description").click();
+        const tagsRule = inspector.getByTestId("tags-rule-inspector");
+        const allocationRule = inspector.getByTestId("allocation-rule-inspector");
 
-        await test.step("(a,b) the manual row surfaces drifting tag + allocation robots; (c) never a description robot", async () => {
-            await expect(tagsRobot).toBeVisible();
-            await expect(tagsRobot).toHaveAttribute("data-drift", "true");
-            await expect(allocationRobot).toBeVisible();
-            await expect(allocationRobot).toHaveAttribute("data-drift", "true");
-            // The SAME projected alias name drives the tag/allocation robots above, yet no
-            // description-alias robot mounts: description rules are gated off manual rows.
-            await expect(page.getByTestId("description-rule-robot")).toHaveCount(0);
+        await test.step("the manual row exposes drifting tag and allocation rules but no description rule", async () => {
+            await expect(tagsRule.getByTestId("transaction-rule-drift")).toBeVisible();
+            await expect(allocationRule.getByTestId("transaction-rule-drift")).toBeVisible();
+            await expect(inspector.getByTestId("descriptionAlias-rule-inspector")).toHaveCount(0, {
+                timeout: 3_000
+            });
+            await expect(row.getByTestId("transaction-rule-popup")).toHaveCount(0, {
+                timeout: 3_000
+            });
         });
 
-        await test.step("(a,b) apply-to-this reconciles the tag and allocation rules for the manual row", async () => {
-            await tagsRobot.click();
-            await expect(page.getByTestId("transaction-rule-drift")).toBeVisible();
-            await page.getByTestId("rule-apply-this").click();
-            await expect(page.getByTestId("transaction-rule-popover")).toHaveCount(0);
-            // Apply-to-this reconciles every matching rule for the row at once: the tag rule and the
-            // allocation rule (written through the P16C complete-set boundary) both land, so both
-            // robots stop drifting.
-            await expect(tagsRobot).toHaveAttribute("data-drift", "false");
-            await expect(allocationRobot).toHaveAttribute("data-drift", "false");
+        await test.step("apply-to-this reconciles every matching rule for the manual row", async () => {
+            await tagsRule.getByTestId("rule-apply-this").click();
+            await expect(tagsRule.getByTestId("transaction-rule-drift")).toHaveCount(0, {
+                timeout: 3_000
+            });
+            await expect(allocationRule.getByTestId("transaction-rule-drift")).toHaveCount(0, {
+                timeout: 3_000
+            });
+            await expect(tagsRule).toBeVisible();
+            await expect(allocationRule).toBeVisible();
         });
     });
 
-    test("(d) a manual row whose alias name matches no rule carries no robot", async ({ page }) => {
+    test("a manual row whose alias name matches no rule shows no existing-rule controls", async ({
+        page
+    }) => {
         await createNewIdentity(page);
         await createTag(page, "Coffee");
 
@@ -265,9 +265,24 @@ test.describe("Manual-row applicability", () => {
         await goToTransactions(page);
         await addTransaction(page, { description: "SOMETHING ELSE", amount: "-9.99" });
 
-        // The manual row's alias name differs from every rule, so nothing matches and no robot mounts.
-        await expect(page.getByTestId("tags-rule-robot")).toHaveCount(0);
-        await expect(page.getByTestId("allocation-rule-robot")).toHaveCount(0);
+        const row = await stableTransactionRow(
+            rowsWithDisplayedDescription(page, "SOMETHING ELSE").first()
+        );
+        const inspector = await openTransactionInspector(page);
+        await transactionGridCell(row, "description").click();
+
+        await expect(inspector.getByTestId("tags-rule-inspector")).toHaveCount(0, {
+            timeout: 3_000
+        });
+        await expect(inspector.getByTestId("allocation-rule-inspector")).toHaveCount(0, {
+            timeout: 3_000
+        });
+        await expect(inspector.getByTestId("descriptionAlias-rule-inspector")).toHaveCount(0, {
+            timeout: 3_000
+        });
+        await expect(inspector.getByTestId("transaction-rule-popup")).toHaveCount(0, {
+            timeout: 3_000
+        });
     });
 });
 
@@ -296,8 +311,10 @@ test.describe("Apply-mode persistence", () => {
     });
 });
 
-test.describe("Inline popup at scale", () => {
-    test("only matching rows carry a robot and nothing auto-opens", async ({ page }) => {
+test.describe("Inspector existing rules at scale", () => {
+    test("only an active matching transaction shows existing-rule controls and rows own none", async ({
+        page
+    }) => {
         await createNewIdentity(page);
         await createTag(page, "Coffee");
 
@@ -323,10 +340,32 @@ test.describe("Inline popup at scale", () => {
         ];
         await importRows(page, rows);
 
-        await test.step("robots appear only for the two matching rows and none auto-open", async () => {
-            await expect(page.getByTestId("tags-rule-robot")).toHaveCount(2);
-            // The popup is non-intrusive: no rule popover is open until the user clicks a robot.
-            await expect(page.getByTestId("transaction-rule-popover")).toHaveCount(0);
+        await test.step("the inspector follows matching rows and clears for an unrelated row", async () => {
+            const inspector = await openTransactionInspector(page);
+            const matchingRows = rowsWithDisplayedDescription(page, "COFFEE SHOP 123");
+            await expect(matchingRows).toHaveCount(2);
+
+            await transactionGridCell(
+                await stableTransactionRow(matchingRows.nth(0)),
+                "description"
+            ).click();
+            await expect(inspector.getByTestId("tags-rule-inspector")).toBeVisible();
+            await transactionGridCell(
+                await stableTransactionRow(matchingRows.nth(1)),
+                "description"
+            ).click();
+            await expect(inspector.getByTestId("tags-rule-inspector")).toBeVisible();
+
+            const unrelatedRow = await stableTransactionRow(
+                rowsWithDisplayedDescription(page, "UNRELATED MERCHANT 0").first()
+            );
+            await transactionGridCell(unrelatedRow, "description").click();
+            await expect(inspector.getByTestId("tags-rule-inspector")).toHaveCount(0, {
+                timeout: 3_000
+            });
+            await expect(
+                page.getByTestId("transaction-row").getByTestId("transaction-rule-popup")
+            ).toHaveCount(0, { timeout: 3_000 });
         });
     });
 });

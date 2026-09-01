@@ -30,6 +30,7 @@ import {
 import type { TransactionRowData } from "@/components/features/transactions/TransactionRow";
 import { TransactionTable } from "@/components/features/transactions/TransactionTable";
 import { transactionViewportRowDistance } from "@/components/features/transactions/TransactionVirtualRows";
+import { allocationPresenceField } from "@/lib/crdt/allocations";
 
 import {
     contiguousRowWindow,
@@ -109,6 +110,7 @@ interface GridProps {
         readonly personId: string;
         readonly label: string;
         readonly field: `allocation:${string}`;
+        readonly presenceField: `allocation:h:${string}`;
     }[];
     readonly onVisibleRowRangeChange?: (range: {
         readonly startIndex: number;
@@ -385,8 +387,13 @@ describe("TransactionTable virtualization", () => {
 
     it("shares one grid template, derived from the table's own columns, with every row", () => {
         const allocationColumns = [
-            { personId: "person-a", label: "Ada", field: "allocation:person-a" as const }
-        ];
+            {
+                personId: "person-a",
+                label: "Ada",
+                field: "allocation:person-a",
+                presenceField: allocationPresenceField("person-a")
+            }
+        ] satisfies GridProps["allocationColumns"];
         renderGrid({ transactions: createTransactions(40), allocationColumns });
 
         // One template string for the header and every row, and it is built from the table's visible

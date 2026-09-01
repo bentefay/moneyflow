@@ -7,6 +7,8 @@
  * them while a selection is open. Everything here is therefore derived from domain identity.
  */
 
+import type { RuleField } from "@/lib/domain/automation/rules";
+
 /**
  * A transaction's stable identity, as stored in the CRDT.
  *
@@ -135,6 +137,13 @@ export function isAllocationColumnId(
     columnId: TransactionColumnId
 ): columnId is AllocationTransactionColumnId {
     return columnId.startsWith("allocation:");
+}
+
+/** The automation field, if any, declared by one canonical transaction column identity. */
+export function transactionColumnAutomationField(columnId: TransactionColumnId): RuleField | null {
+    if (columnId === "description") return "descriptionAlias";
+    if (columnId === "tags") return "tags";
+    return isAllocationColumnId(columnId) ? "allocation" : null;
 }
 
 /** The person whose allocation an allocation column presents. */

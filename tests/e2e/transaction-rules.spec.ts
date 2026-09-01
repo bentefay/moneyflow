@@ -1,24 +1,23 @@
 /**
- * E2E Test: Inline description-rule robot (HS-007 / P17C)
+ * E2E Test: Transaction description-rule inspector (HS-007 / P17C)
  *
- * Journey-style tests for the per-row description-rule robot on the transactions table. The robot
- * REUSES the shared {@link FieldRuleEditor} inside a contextual popover and is driven by the P17A
- * matcher: it is NORMAL when a transaction's current description alias matches its highest-precedence
- * matching rule, RED (drift) when the matching rule implies a different alias, and HIDDEN while the
- * description cell is actively being edited.
- *
- * Description-alias rules only apply to IMPORTED transactions, so every scenario imports a CSV row
- * whose exact description matches a rule. Assertions target accessible roles and stable testids
- * rather than incidental copy.
+ * Journey-style tests for description-rule matching and drift in the stable transaction inspector.
+ * The inspector reuses the shared FieldRuleEditor without adding automation descendants to virtual
+ * transaction rows. Description-alias rules apply only to imported transactions, so every scenario
+ * imports a CSV row whose exact description matches a rule.
  */
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { createNewIdentity, goToAutomations, goToImportNew, goToTxDescriptions } from "./helpers";
-
-// ============================================================================
-// Helpers
-// ============================================================================
+import {
+    createNewIdentity,
+    goToAutomations,
+    goToImportNew,
+    goToTxDescriptions,
+    openTransactionInspector,
+    stableTransactionRow,
+    transactionGridCell
+} from "./helpers";
 
 /** Create a description alias via the Tx Descriptions page so a rule can target it. */
 async function createAlias(page: Page, name: string): Promise<void> {
@@ -39,16 +38,11 @@ async function createDescriptionAliasRule(
     await goToAutomations(page);
     await page.locator('[data-testid="new-rule-btn"]').click();
     await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
-
-    // Ensure the rule targets the descriptionAlias field.
     await page.locator('[data-testid="rule-field"]').click();
     await page.getByRole("option", { name: "Description alias" }).click();
-
     await page.getByLabel(/exact description text/i).fill(input.description);
-
     await page.locator('[data-testid="rule-alias"]').click();
     await page.getByRole("option", { name: input.aliasName, exact: true }).click();
-
     await page.locator('[data-testid="rule-save"]').click();
     await expect(page.getByText(new RegExp(input.description))).toBeVisible();
 }
@@ -85,12 +79,8 @@ async function importRows(
     await expect(page).toHaveURL(/\/transactions/);
 }
 
-// ============================================================================
-// Journey Tests
-// ============================================================================
-
-test.describe("Transaction description-rule robot", () => {
-    test("imported match shows a normal robot, hides while editing, and opens the reused editor", async ({
+test.describe("Transaction description-rule inspector", () => {
+    test("imported match shows the existing rule in the inspector and reuses the shared editor", async ({
         page
     }) => {
         await createNewIdentity(page);
@@ -101,48 +91,61 @@ test.describe("Transaction description-rule robot", () => {
         });
         await importRows(page, [{ date: "2026-07-01", description: "COFFEE SHOP 123" }]);
 
-        const description = page.getByTestId("description-editable");
-        const robot = page.getByTestId("description-rule-robot");
+        const row = await stableTransactionRow(page.getByTestId("transaction-row").first());
+        const descriptionCell = transactionGridCell(row, "description");
+        const descriptionDisplay = row.getByTestId("description-display");
+        const descriptionEditor = row.getByTestId("description-editable");
+        const inspector = await openTransactionInspector(page);
+        await descriptionCell.click();
+        const rule = inspector.getByTestId("descriptionAlias-rule-inspector");
 
-        await test.step("the rule auto-applied on import and the robot reports a match", async () => {
-            // Import-commit runs the P17A engine, so the row already carries the rule's alias.
-            await expect(description).toHaveValue("Coffee");
-            await expect(robot).toBeVisible();
-            await expect(robot).toHaveAttribute("data-drift", "false");
+        await test.step("the imported rule is visible only in the active transaction inspector", async () => {
+            await expect(descriptionCell).toHaveAttribute("data-cell-content", "display");
+            await expect(descriptionDisplay).toHaveText("Coffee");
+            await expect(descriptionEditor).toHaveCount(0, { timeout: 3_000 });
+            await expect(rule).toBeVisible();
+            await expect(rule.getByTestId("transaction-rule-popup")).toBeVisible();
+            await expect(rule.getByTestId("field-rule-editor")).toBeVisible();
+            await expect(rule.getByTestId("rule-description")).toBeDisabled();
+            await expect(rule.getByTestId("transaction-rule-drift")).toHaveCount(0, {
+                timeout: 3_000
+            });
+            await expect(rule.getByTestId("rule-apply-this")).toHaveCount(0, { timeout: 3_000 });
+            await expect(row.getByTestId("transaction-rule-popup")).toHaveCount(0, {
+                timeout: 3_000
+            });
         });
 
-        await test.step("clicking the robot opens the popup that reuses the shared editor", async () => {
-            await robot.click();
-            await expect(page.getByTestId("transaction-rule-popover")).toBeVisible();
-            await expect(page.getByTestId("transaction-rule-popup")).toBeVisible();
-            // The shared FieldRuleEditor is mounted, with its description field locked (view/edit,
-            // never re-targeting the description from a transaction context).
-            await expect(page.getByTestId("field-rule-editor")).toBeVisible();
-            await expect(page.getByTestId("rule-description")).toBeDisabled();
-            // A matching (non-drift) row offers no drift banner nor apply-this action.
-            await expect(page.getByTestId("transaction-rule-drift")).toHaveCount(0);
-            await expect(page.getByTestId("rule-apply-this")).toHaveCount(0);
-            await page.keyboard.press("Escape");
-            await expect(page.getByTestId("transaction-rule-popover")).toHaveCount(0);
+        await test.step("closing and reopening retains the stable existing-rule card", async () => {
+            await page.getByTestId("transaction-inspector-toggle").click();
+            await expect(inspector).toBeHidden();
+            await page.getByTestId("transaction-inspector-toggle").click();
+            await expect(inspector).toBeVisible();
+            await expect(rule).toBeVisible();
         });
 
-        await test.step("the robot is hidden while the description cell is actively edited", async () => {
-            await description.click();
-            await expect(description).toBeFocused();
-            await expect(robot).toHaveCount(0);
+        await test.step("editing the description leaves inspector-owned rule controls mounted", async () => {
+            await descriptionCell.focus();
+            await descriptionCell.press("Enter");
+            await expect(descriptionCell).toHaveAttribute("data-cell-content", "editor");
+            await expect(descriptionEditor).toHaveValue("Coffee");
+            await expect(descriptionEditor).toBeFocused();
+            await expect(rule).toBeVisible();
+
             await page.keyboard.press("Escape");
-            await expect(robot).toBeVisible();
-            await expect(robot).toHaveAttribute("data-drift", "false");
+            await expect(descriptionCell).toHaveAttribute("data-cell-content", "display");
+            await expect(descriptionEditor).toHaveCount(0, { timeout: 3_000 });
+            await expect(descriptionDisplay).toHaveText("Coffee");
+            await expect(descriptionCell).toBeFocused();
+            await expect(rule).toBeVisible();
         });
     });
 
-    test("editing the alias to differ drives drift and apply-this resolves it", async ({
+    test("editing the alias drives inspector drift and apply-this resolves it", async ({
         page
     }) => {
         await createNewIdentity(page);
         await createAlias(page, "Coffee");
-        // A second, distinct alias the row can be REPOINTED to. Repointing to another existing alias
-        // (a `change-one`) is what diverges from the rule's target; renaming the same alias would not.
         await createAlias(page, "Tea");
         await createDescriptionAliasRule(page, {
             description: "COFFEE SHOP 123",
@@ -150,30 +153,39 @@ test.describe("Transaction description-rule robot", () => {
         });
         await importRows(page, [{ date: "2026-07-01", description: "COFFEE SHOP 123" }]);
 
-        const description = page.getByTestId("description-editable");
-        const robot = page.getByTestId("description-rule-robot");
+        const row = await stableTransactionRow(page.getByTestId("transaction-row").first());
+        const descriptionCell = transactionGridCell(row, "description");
+        const descriptionDisplay = row.getByTestId("description-display");
+        const descriptionEditor = row.getByTestId("description-editable");
+        const inspector = await openTransactionInspector(page);
+        await descriptionCell.click();
+        const rule = inspector.getByTestId("descriptionAlias-rule-inspector");
 
-        await expect(robot).toHaveAttribute("data-drift", "false");
+        await expect(descriptionDisplay).toHaveText("Coffee");
+        await expect(rule).toBeVisible();
+        await expect(rule.getByTestId("transaction-rule-drift")).toHaveCount(0, { timeout: 3_000 });
 
-        await test.step("repointing the alias creates drift and auto-opens the popup", async () => {
-            await description.click();
-            await description.fill("Tea");
-            await description.press("Enter");
+        await test.step("repointing the alias exposes drift in the stable inspector", async () => {
+            await descriptionCell.focus();
+            await descriptionCell.press("Enter");
+            await expect(descriptionEditor).toHaveValue("Coffee");
+            await descriptionEditor.fill("Tea");
+            await descriptionEditor.press("Enter");
 
-            // Enter commits + blurs, so the (now hidden-during-edit) robot re-appears in drift and
-            // the page auto-opens the popup so the user can reconcile the rule.
-            await expect(robot).toBeVisible();
-            await expect(robot).toHaveAttribute("data-drift", "true");
-            await expect(page.getByTestId("transaction-rule-popover")).toBeVisible();
-            await expect(page.getByTestId("transaction-rule-drift")).toBeVisible();
-            await expect(page.getByTestId("rule-apply-this")).toBeVisible();
+            await expect(descriptionDisplay).toHaveText("Tea");
+            await expect(rule.getByTestId("transaction-rule-drift")).toBeVisible();
+            await expect(rule.getByTestId("rule-apply-this")).toBeVisible();
         });
 
-        await test.step("apply-this re-applies the rule to only this transaction and clears drift", async () => {
-            await page.getByTestId("rule-apply-this").click();
-            await expect(page.getByTestId("transaction-rule-popover")).toHaveCount(0);
-            await expect(description).toHaveValue("Coffee");
-            await expect(robot).toHaveAttribute("data-drift", "false");
+        await test.step("apply-this restores the rule value and clears drift", async () => {
+            await rule.getByTestId("rule-apply-this").click();
+            await expect(descriptionCell).toHaveAttribute("data-cell-content", "display");
+            await expect(descriptionEditor).toHaveCount(0, { timeout: 3_000 });
+            await expect(descriptionDisplay).toHaveText("Coffee");
+            await expect(rule.getByTestId("transaction-rule-drift")).toHaveCount(0, {
+                timeout: 3_000
+            });
+            await expect(rule).toBeVisible();
         });
     });
 });

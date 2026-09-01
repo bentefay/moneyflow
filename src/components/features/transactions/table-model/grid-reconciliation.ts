@@ -54,6 +54,11 @@ export interface TransactionGridReconciliationResult {
     readonly generation: TransactionProjectionGeneration;
     readonly state: TransactionGridInteractionState<unknown>;
     readonly focus: TransactionGridFocusIntent;
+    /** Focus deferred until a retained pending command aborts after this reconciliation. */
+    readonly pendingAbortFocus?: Extract<
+        TransactionGridFocusIntent,
+        { readonly kind: "gridcell" | "after-grid" }
+    >;
     readonly pins: TransactionGridPinReconciliation;
     readonly cancelledDraft: boolean;
     readonly cancelledPopup: boolean;
@@ -63,7 +68,7 @@ export type TransactionGridReconciliationOutcome =
     | { readonly ok: true; readonly value: TransactionGridReconciliationResult }
     | { readonly ok: false; readonly error: TransactionProjectionError };
 
-function sameBinding(
+export function transactionInspectorBindingEquals(
     first: TransactionInspectorControlBinding,
     second: TransactionInspectorControlBinding
 ): boolean {
@@ -72,6 +77,8 @@ function sameBinding(
             return second.kind === "field" && first.columnId === second.columnId;
         case "action":
             return second.kind === "action" && first.action === second.action;
+        case "automation":
+            return second.kind === "automation" && first.field === second.field;
         default:
             return assertNever(first, "transaction inspector binding");
     }
@@ -85,7 +92,7 @@ function bindingSurvives(
     return available.some(
         (candidate) =>
             candidate.transactionOwner === transactionOwner &&
-            sameBinding(candidate.binding, binding)
+            transactionInspectorBindingEquals(candidate.binding, binding)
     );
 }
 
@@ -289,7 +296,7 @@ function finishNonEmpty(options: {
         options.previousState.kind === "interacting" &&
         options.previousState.owner === "inspector" &&
         inspector.focus.kind === "retain-inspector-control" &&
-        sameBinding(options.previousState.binding, inspector.focus.binding);
+        transactionInspectorBindingEquals(options.previousState.binding, inspector.focus.binding);
     if (inspectorPopupSurvives) {
         return {
             ...common,
@@ -419,7 +426,11 @@ function engagedSnapshotAfterReconciliation(
 function pendingResult(
     state: TransactionGridPendingActivationState<unknown>,
     cancelledDraft: boolean,
-    cancelledPopup: boolean
+    cancelledPopup: boolean,
+    pendingAbortFocus?: Extract<
+        TransactionGridFocusIntent,
+        { readonly kind: "gridcell" | "after-grid" }
+    >
 ): TransactionGridReconciliationResult {
     const pins: TransactionGridPinReconciliation =
         state.origin.kind === "neutral"
@@ -436,6 +447,7 @@ function pendingResult(
         cancelledPopup,
         focus: { kind: "none" },
         generation: state.projectionGeneration,
+        ...(pendingAbortFocus == null ? {} : { pendingAbortFocus }),
         pins,
         state
     };
@@ -454,13 +466,17 @@ function neutralIdleResult(
     };
 }
 
-function pendingTargetSurvives<TRow>(
+function pendingTargetColumnSurvives<TRow>(
+    pending: TransactionGridPendingActivationState<unknown>,
+    projection: TransactionProjectionSnapshot<TRow>
+): boolean {
+    return projection.selectableColumnIds.includes(pending.target.columnId);
+}
+
+function pendingTargetRowSurvives<TRow>(
     pending: TransactionGridPendingActivationState<unknown>,
     projection: TransactionProjectionSnapshot<TRow>
 ): TransactionProjectionResult<boolean> {
-    if (!projection.selectableColumnIds.includes(pending.target.columnId)) {
-        return { ok: true, value: false };
-    }
     const position = projection.indexOf(projection.generation, pending.target.transactionId);
     return position.ok ? { ok: true, value: position.value >= 0 } : position;
 }
@@ -483,11 +499,16 @@ function reconcilePendingActivation<TRow>(options: {
         };
     }
 
+    const targetColumnSurvives = pendingTargetColumnSurvives(pending, nextProjection);
     if (pending.origin.kind === "neutral") {
-        const survives = pendingTargetSurvives(pending, nextProjection);
-        if (!survives.ok) return survives;
-        if (!survives.value)
+        if (!targetColumnSurvives) {
             return { ok: true, value: neutralIdleResult(nextProjection.generation) };
+        }
+        const targetRowSurvives = pendingTargetRowSurvives(pending, nextProjection);
+        if (!targetRowSurvives.ok) return targetRowSurvives;
+        if (!targetRowSurvives.value && pending.phase === "focus") {
+            return { ok: true, value: neutralIdleResult(nextProjection.generation) };
+        }
         return {
             ok: true,
             value: pendingResult(
@@ -506,9 +527,10 @@ function reconcilePendingActivation<TRow>(options: {
         previousState: pending.origin.snapshot.state
     });
     if (!origin.ok) return origin;
-    const survives = pendingTargetSurvives(pending, nextProjection);
-    if (!survives.ok) return survives;
-    if (!survives.value) return origin;
+    if (!targetColumnSurvives) return origin;
+    const targetRowSurvives = pendingTargetRowSurvives(pending, nextProjection);
+    if (!targetRowSurvives.ok) return targetRowSurvives;
+    if (!targetRowSurvives.value && pending.phase === "focus") return origin;
     if (origin.value.state.kind === "idle") {
         const rebased: TransactionGridPendingActivationState<unknown> = {
             ...pending,
@@ -517,7 +539,12 @@ function reconcilePendingActivation<TRow>(options: {
         };
         return {
             ok: true,
-            value: pendingResult(rebased, origin.value.cancelledDraft, origin.value.cancelledPopup)
+            value: pendingResult(
+                rebased,
+                origin.value.cancelledDraft,
+                origin.value.cancelledPopup,
+                origin.value.focus.kind === "after-grid" ? origin.value.focus : undefined
+            )
         };
     }
     if (origin.value.state.kind === "pending-activation") {

@@ -9,6 +9,7 @@ import fc from "fast-check";
 import { EphemeralStore } from "loro-crdt";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { allocationPresenceField } from "@/lib/crdt/allocations";
 import { initCrypto } from "@/lib/crypto/keypair";
 import { derivePresenceKey } from "@/lib/crypto/presence-key";
 import {
@@ -21,6 +22,7 @@ import {
     PRESENCE_PROTOCOL_VERSION,
     PRESENCE_REFRESH_MS,
     PRESENCE_TIMEOUT_MS,
+    presenceFieldSchema,
     type PresenceSession,
     type PresenceState,
     readOnlineIdentities,
@@ -83,6 +85,48 @@ describe("presence key derivation", () => {
 
     it("refreshes well inside the expiry window", () => {
         expect(PRESENCE_REFRESH_MS).toBeLessThan(PRESENCE_TIMEOUT_MS / 2);
+    });
+});
+
+describe("presence field boundary", () => {
+    it("maps arbitrary persisted person ids to stable bounded wire fields", () => {
+        const sharedPrefix = "person-prefix-".repeat(20);
+        const personIds = [
+            "person.with.dots",
+            "名字",
+            " person id with spaces ",
+            `${sharedPrefix}a`,
+            `${sharedPrefix}b`
+        ];
+        const fields = personIds.map(allocationPresenceField);
+
+        expect(new Set(fields).size).toBe(personIds.length);
+        for (const [index, field] of fields.entries()) {
+            const personId = personIds[index];
+            if (personId == null) throw new Error("person id fixture is missing");
+            expect(field).toHaveLength(77);
+            expect(field).toMatch(/^allocation:h:[0-9a-f]{64}$/);
+            expect(presenceFieldSchema.safeParse(field).success).toBe(true);
+            expect(allocationPresenceField(personId)).toBe(field);
+        }
+    });
+
+    it("rejects malformed raw allocation fields while preserving fixed fields", () => {
+        for (const rawField of [
+            "allocation:person.with.dots",
+            "allocation:名字",
+            "allocation: person id ",
+            `allocation:${"p".repeat(78)}`
+        ]) {
+            expect(presenceFieldSchema.safeParse(rawField).success).toBe(false);
+        }
+
+        for (const fixedField of ["date", "description", "accountId", "status", "tags", "amount"]) {
+            expect(presenceFieldSchema.safeParse(fixedField)).toMatchObject({
+                success: true,
+                data: fixedField
+            });
+        }
     });
 });
 
@@ -379,8 +423,47 @@ describe("projection to the UI", () => {
 
     it("groups sessions by transaction and deduplicates identities", () => {
         expect(buildTransactionPresence(sessions)).toEqual({
-            tx1: { focusedBy: [HASH_A], editingBy: [HASH_A], fields: ["amount"] },
-            tx2: { focusedBy: [HASH_B], editingBy: [HASH_B], fields: ["notes"] }
+            tx1: {
+                focusedBy: [HASH_A],
+                editingBy: [HASH_A],
+                editingByField: { amount: [HASH_A] }
+            },
+            tx2: {
+                focusedBy: [HASH_B],
+                editingBy: [HASH_B],
+                editingByField: { notes: [HASH_B] }
+            }
+        });
+    });
+
+    it("preserves each editor's field attribution on the same transaction", () => {
+        expect(
+            buildTransactionPresence([
+                {
+                    sessionId: "a1",
+                    pubkeyHash: HASH_A,
+                    state: { transactionId: "tx1", field: "amount", editing: true }
+                },
+                {
+                    sessionId: "b1",
+                    pubkeyHash: HASH_B,
+                    state: { transactionId: "tx1", field: "notes", editing: true }
+                },
+                {
+                    sessionId: "a2",
+                    pubkeyHash: HASH_A,
+                    state: { transactionId: "tx1", field: "notes", editing: true }
+                }
+            ])
+        ).toEqual({
+            tx1: {
+                focusedBy: [HASH_A, HASH_B],
+                editingBy: [HASH_A, HASH_B],
+                editingByField: {
+                    amount: [HASH_A],
+                    notes: [HASH_B, HASH_A]
+                }
+            }
         });
     });
 

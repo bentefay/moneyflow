@@ -16,6 +16,7 @@ import {
     groupRulesByUniquenessKey,
     hasUniqueRuleKeys,
     isNewerTransactionDate,
+    projectRuleMatchSubject,
     resolveTagRuleResult,
     ruleMatchesSubject,
     ruleScopeRank,
@@ -123,6 +124,49 @@ describe("uniqueness", () => {
         expect(forward[0]?.id).toBe(newer.id);
         expect(reverse[0]?.id).toBe(newer.id);
         expect(hasUniqueRuleKeys(forward)).toBe(true);
+    });
+});
+
+describe("projectRuleMatchSubject", () => {
+    it("uses raw provenance for imported rows and resolved aliases for manual rows", () => {
+        const imported = projectRuleMatchSubject({
+            accountId: "acct-checking",
+            amount: asMinorUnits(-450),
+            description: "RAW IMPORT",
+            importId: "import-1",
+            resolvedAliasName: "Visible alias"
+        });
+        const manual = projectRuleMatchSubject({
+            accountId: "acct-checking",
+            amount: asMinorUnits(-450),
+            description: "",
+            importId: undefined,
+            resolvedAliasName: "Visible alias"
+        });
+
+        expect(imported).toMatchObject({ descriptionText: "RAW IMPORT", isManual: false });
+        expect(manual).toMatchObject({ descriptionText: "Visible alias", isManual: true });
+    });
+
+    it("projects empty or unresolved matching text to null", () => {
+        expect(
+            projectRuleMatchSubject({
+                accountId: "acct-checking",
+                amount: asMinorUnits(-450),
+                description: "",
+                importId: "import-1",
+                resolvedAliasName: null
+            }).descriptionText
+        ).toBeNull();
+        expect(
+            projectRuleMatchSubject({
+                accountId: "acct-checking",
+                amount: asMinorUnits(-450),
+                description: "ignored",
+                importId: undefined,
+                resolvedAliasName: null
+            }).descriptionText
+        ).toBeNull();
     });
 });
 

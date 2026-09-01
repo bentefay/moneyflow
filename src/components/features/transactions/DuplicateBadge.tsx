@@ -69,6 +69,8 @@ export function DuplicateBadge({
                 onMouseEnter={() => setShowTooltip(true)}
                 onMouseLeave={() => setShowTooltip(false)}
                 onClick={() => setShowTooltip(!showTooltip)}
+                aria-expanded={showTooltip}
+                aria-haspopup="dialog"
                 className={cn(
                     "inline-flex items-center justify-center rounded-full p-1 text-xs font-medium",
                     "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -92,6 +94,7 @@ export function DuplicateBadge({
                 typeof document !== "undefined" &&
                 createPortal(
                     <div
+                        role="dialog"
                         className={cn(
                             "fixed z-[9999] -translate-x-1/2 -translate-y-full",
                             "bg-popover w-64 rounded-lg border p-3 shadow-lg",

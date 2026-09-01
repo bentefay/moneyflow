@@ -34,9 +34,14 @@ export interface AccountActionMessageProps {
     className?: string;
 }
 
+export type AccountTabAccount = Pick<
+    Account,
+    "accountNumber" | "currency" | "deletedAt" | "id" | "name"
+>;
+
 export interface AccountTabProps {
     /** Available accounts (not deleted) */
-    accounts: Account[];
+    accounts: readonly AccountTabAccount[];
     /** Currently selected account ID */
     selectedAccountId: string | null;
     /** Callback when account is selected */
@@ -211,6 +216,7 @@ export function AccountTab({
             {/* Account selector using AccountCombobox */}
             <div id="account-select">
                 <AccountCombobox
+                    commitMode="immediate"
                     value={selectedAccountId ?? ""}
                     onChange={onSelectAccount}
                     accounts={accountOptions}

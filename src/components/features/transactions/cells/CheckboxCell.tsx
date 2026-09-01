@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
+import { INNER_CELL_FOCUS_CHROME, PARKED_ACTION_FOCUS_CHROME } from "./cell-chrome";
 import { CHECKBOX_HIT_AREA, type CheckboxRowGeometry } from "./cell-hit-area";
 
 export interface CheckboxCellProps {
@@ -18,6 +19,8 @@ export interface CheckboxCellProps {
     disabled?: boolean;
     /** Whether this is a "select all" checkbox (shows indeterminate state) */
     indeterminate?: boolean;
+    /** Show an inset keyboard outline when the outer data gridcell is parked. */
+    showFocusIndicator?: boolean;
     /** Accessible label for the checkbox */
     ariaLabel: string;
     /**
@@ -47,6 +50,7 @@ export function CheckboxCell({
     onShiftClick,
     disabled = false,
     indeterminate = false,
+    showFocusIndicator = false,
     ariaLabel,
     rowGeometry,
     className
@@ -85,7 +89,9 @@ export function CheckboxCell({
                 aria-label={ariaLabel}
                 className={cn(
                     disabled && "opacity-50",
-                    // UR-012: the box keeps its drawn 16px size while the required mount geometry
+                    rowGeometry === "dataRow" &&
+                        (showFocusIndicator ? PARKED_ACTION_FOCUS_CHROME : INNER_CELL_FOCUS_CHROME),
+                    // The box keeps its drawn 16px size while the required mount geometry
                     // supplies either the row's centred control target or the header's full-cell target.
                     CHECKBOX_HIT_AREA[rowGeometry]
                 )}

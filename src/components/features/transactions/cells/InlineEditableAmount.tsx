@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { ReactElement } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -22,8 +23,24 @@ import {
 } from "@/lib/domain/currency";
 import { cn } from "@/lib/utils";
 
-import { RESTING_CELL_CHROME } from "./cell-chrome";
-import { INPUT_CELL_HIT_AREA } from "./cell-hit-area";
+import { parseCurrency, validateCurrencyDraft } from "./amount-draft";
+import { RESTING_CELL_CHROME, TRANSACTION_GRID_EDITOR_INLINE_CHROME } from "./cell-chrome";
+import {
+    TRANSACTION_GRID_EDITOR_COMMIT_FAILURE,
+    TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS,
+    TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED,
+    type TransactionGridEditorCommitResult,
+    type TransactionGridEditorLifecycle,
+    useTransactionGridEditorLifecycle
+} from "./editor-lifecycle";
+
+export interface InlineEditableAmountDisplayProps {
+    readonly className?: string;
+    readonly currency?: string;
+    readonly originalValue?: number;
+    readonly value: number;
+    readonly "data-testid"?: string;
+}
 
 export interface InlineEditableAmountProps {
     /** Current value in minor units (e.g., cents) - integer */
@@ -34,6 +51,8 @@ export interface InlineEditableAmountProps {
     currency?: string;
     /** Callback when value is saved (returns minor units as integer) */
     onSave: (newValue: number) => void;
+    /** Reports actual input focus to the authoritative grid controller. */
+    onEditingChange?: (editing: boolean) => void;
     /** Additional class names for the container */
     className?: string;
     /** Additional class names for the input */
@@ -52,15 +71,7 @@ interface TooltipTranslation {
 const INITIAL_TOOLTIP_TRANSLATION: TooltipTranslation = { x: 0, y: 0 };
 const TOOLTIP_VIEWPORT_PADDING = 8;
 
-/**
- * Parse a currency string to number (major units).
- */
-function parseCurrency(str: string): number {
-    // Remove currency symbols, commas, and whitespace
-    const cleaned = str.replace(/[^0-9.-]/g, "");
-    const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? 0 : parsed;
-}
+export { parseCurrency } from "./amount-draft";
 
 /**
  * Format minor units as a display string.
@@ -87,95 +98,39 @@ export function formatOriginalAmount(minorUnits: number, currencyCode: string): 
     }).format(majorUnits);
 }
 
-/**
- * Spreadsheet-style always-editable amount cell.
- *
- * - Click to focus and edit
- * - Enter to save
- * - Escape to revert
- * - Tab to save and move to next cell
- * - Blur to save
- */
-export function InlineEditableAmount({
-    value,
-    originalValue,
-    currency = "USD",
-    onSave,
-    className,
-    inputClassName,
-    disabled = false,
-    "data-testid": testId
-}: InlineEditableAmountProps) {
-    // Convert minor units to display string
-    const displayValue = useMemo(() => formatForDisplay(value, currency), [value, currency]);
+export function originalAmountDescription(
+    originalValue: number | undefined,
+    currencyCode: string
+): string | undefined {
+    return originalValue == null
+        ? undefined
+        : `Original imported amount: ${formatOriginalAmount(originalValue, currencyCode)}`;
+}
 
-    const [localValue, setLocalValue] = useState(displayValue);
-    const [isFocused, setIsFocused] = useState(false);
-    const [isTooltipOpen, setIsTooltipOpen] = useState(false);
-    const [tooltipTranslation, setTooltipTranslation] = useState<TooltipTranslation>(
-        INITIAL_TOOLTIP_TRANSLATION
-    );
-    const inputRef = useRef<HTMLInputElement>(null);
-    const tooltipContentRef = useRef<HTMLDivElement>(null);
-    const isRevertingRef = useRef(false);
+export function amountColorClass(value: number | null): string {
+    return value == null || value < 0
+        ? "text-red-600 dark:text-red-400"
+        : "text-green-700 dark:text-green-400";
+}
 
-    // Sync local value when prop changes (only if not focused)
-    if (displayValue !== localValue && !isFocused) {
-        setLocalValue(displayValue);
-    }
+function ImportedAmountTooltip({
+    children,
+    description
+}: {
+    readonly children: ReactElement;
+    readonly description: string;
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [translation, setTranslation] = useState<TooltipTranslation>(INITIAL_TOOLTIP_TRANSLATION);
+    const contentRef = useRef<HTMLDivElement>(null);
 
-    const handleSave = useCallback(() => {
-        const parsedMajorUnits = parseCurrency(localValue);
-        const newMinorUnits = toMinorUnitsForCurrency(parsedMajorUnits, currency);
-        if (newMinorUnits !== value) {
-            onSave(newMinorUnits);
-        }
-    }, [localValue, value, currency, onSave]);
-
-    const handleRevert = useCallback(() => {
-        setLocalValue(displayValue);
-    }, [displayValue]);
-
-    const handleKeyDown = useCallback(
-        (e: React.KeyboardEvent<HTMLInputElement>) => {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                handleSave();
-            } else if (e.key === "Escape") {
-                e.preventDefault();
-                isRevertingRef.current = true;
-                handleRevert();
-                inputRef.current?.blur();
-            }
-        },
-        [handleSave, handleRevert]
-    );
-
-    const handleFocus = useCallback(() => {
-        setIsFocused(true);
+    const handleOpenChange = useCallback((open: boolean) => {
+        if (open) setTranslation(INITIAL_TOOLTIP_TRANSLATION);
+        setIsOpen(open);
     }, []);
 
-    const handleBlur = useCallback(() => {
-        setIsFocused(false);
-        // Don't save on blur if we're reverting (Escape was pressed)
-        if (isRevertingRef.current) {
-            isRevertingRef.current = false;
-            return;
-        }
-        handleSave();
-    }, [handleSave]);
-
-    const handleClick = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent row selection
-    }, []);
-
-    const handleTooltipOpenChange = useCallback((open: boolean) => {
-        if (open) setTooltipTranslation(INITIAL_TOOLTIP_TRANSLATION);
-        setIsTooltipOpen(open);
-    }, []);
-
-    const keepTooltipInsideViewport = useCallback(() => {
-        const content = tooltipContentRef.current;
+    const keepInsideViewport = useCallback(() => {
+        const content = contentRef.current;
         if (!content) return;
 
         const contentBox = content.getBoundingClientRect();
@@ -211,56 +166,210 @@ export function InlineEditableAmount({
             content.offsetWidth > 0 ? contentBox.width / content.offsetWidth : 1;
         const verticalScale =
             content.offsetHeight > 0 ? contentBox.height / content.offsetHeight : horizontalScale;
-        setTooltipTranslation((current) => ({
+        setTranslation((current) => ({
             x: current.x + horizontalDelta / horizontalScale,
             y: current.y + verticalDelta / verticalScale
         }));
     }, []);
 
     useLayoutEffect(() => {
-        if (!isTooltipOpen) return;
+        if (!isOpen) return;
 
         const frame = { id: 0 };
-        const monitorTooltipPosition = () => {
-            keepTooltipInsideViewport();
-            frame.id = requestAnimationFrame(monitorTooltipPosition);
+        const monitorPosition = () => {
+            keepInsideViewport();
+            frame.id = requestAnimationFrame(monitorPosition);
         };
-        frame.id = requestAnimationFrame(monitorTooltipPosition);
-        const content = tooltipContentRef.current;
-        const resizeObserver =
-            content == null ? undefined : new ResizeObserver(keepTooltipInsideViewport);
+        frame.id = requestAnimationFrame(monitorPosition);
+        const content = contentRef.current;
+        const resizeObserver = content == null ? undefined : new ResizeObserver(keepInsideViewport);
         if (content) resizeObserver?.observe(content);
-        document.addEventListener("scroll", keepTooltipInsideViewport, true);
-        window.addEventListener("resize", keepTooltipInsideViewport);
-        window.visualViewport?.addEventListener("resize", keepTooltipInsideViewport);
-        window.visualViewport?.addEventListener("scroll", keepTooltipInsideViewport);
+        document.addEventListener("scroll", keepInsideViewport, true);
+        window.addEventListener("resize", keepInsideViewport);
+        window.visualViewport?.addEventListener("resize", keepInsideViewport);
+        window.visualViewport?.addEventListener("scroll", keepInsideViewport);
 
         return () => {
             cancelAnimationFrame(frame.id);
             resizeObserver?.disconnect();
-            document.removeEventListener("scroll", keepTooltipInsideViewport, true);
-            window.removeEventListener("resize", keepTooltipInsideViewport);
-            window.visualViewport?.removeEventListener("resize", keepTooltipInsideViewport);
-            window.visualViewport?.removeEventListener("scroll", keepTooltipInsideViewport);
+            document.removeEventListener("scroll", keepInsideViewport, true);
+            window.removeEventListener("resize", keepInsideViewport);
+            window.visualViewport?.removeEventListener("resize", keepInsideViewport);
+            window.visualViewport?.removeEventListener("scroll", keepInsideViewport);
         };
-    }, [isTooltipOpen, keepTooltipInsideViewport]);
+    }, [isOpen, keepInsideViewport]);
 
-    // Determine color based on current input value
+    return (
+        <Tooltip open={isOpen} onOpenChange={handleOpenChange}>
+            <TooltipTrigger asChild>{children}</TooltipTrigger>
+            <TooltipContent
+                ref={contentRef}
+                align="start"
+                alignOffset={-70}
+                collisionPadding={TOOLTIP_VIEWPORT_PADDING}
+                className="max-w-[calc(50vw-1rem)] whitespace-normal sm:max-w-xs"
+                data-testid="original-amount-tooltip"
+                style={{ translate: `${translation.x}px ${translation.y}px` }}
+            >
+                {description}
+            </TooltipContent>
+        </Tooltip>
+    );
+}
+
+/** Resting amount presentation with sign colour and imported provenance. */
+export function InlineEditableAmountDisplay({
+    className,
+    currency = "USD",
+    originalValue,
+    value,
+    "data-testid": testId
+}: InlineEditableAmountDisplayProps) {
+    const description = originalAmountDescription(originalValue, currency);
+    const content = (
+        <span
+            aria-description={description}
+            className={cn(
+                "w-full min-w-0 truncate text-right text-sm font-medium tabular-nums",
+                amountColorClass(value),
+                className
+            )}
+            data-testid={testId}
+        >
+            {formatForDisplay(value, currency)}
+        </span>
+    );
+    return description == null ? (
+        content
+    ) : (
+        <ImportedAmountTooltip description={description}>{content}</ImportedAmountTooltip>
+    );
+}
+
+/**
+ * Spreadsheet-style always-editable amount cell.
+ *
+ * - Click to focus and edit
+ * - Enter to save
+ * - Escape to revert
+ * - Tab to save and move to next cell
+ * - Blur to save
+ */
+export function InlineEditableAmount({
+    value,
+    originalValue,
+    currency = "USD",
+    onSave,
+    onEditingChange,
+    className,
+    inputClassName,
+    disabled = false,
+    "data-testid": testId
+}: InlineEditableAmountProps) {
+    // Convert minor units to display string
+    const displayValue = useMemo(() => formatForDisplay(value, currency), [value, currency]);
+
+    const [localValue, setLocalValue] = useState(displayValue);
+    const [isFocused, setIsFocused] = useState(false);
+    const [inputError, setInputError] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const isRevertingRef = useRef(false);
+    const externalExitValidationResult = useRef<TransactionGridEditorCommitResult | null>(null);
+
+    // Sync local value when prop changes (only if not focused)
+    if (displayValue !== localValue && !isFocused) {
+        setLocalValue(displayValue);
+    }
+
+    const handleSave = useCallback(() => {
+        const parsedMajorUnits = validateCurrencyDraft(localValue);
+        if (!parsedMajorUnits.ok) {
+            setInputError(true);
+            return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
+        }
+        const newMinorUnits = toMinorUnitsForCurrency(parsedMajorUnits.value, currency);
+        if (newMinorUnits === value) {
+            setInputError(false);
+            return TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
+        }
+        onSave(newMinorUnits);
+        setInputError(false);
+        return TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS;
+    }, [currency, localValue, onSave, value]);
+
+    const handleRevert = useCallback(() => {
+        setLocalValue(displayValue);
+        setInputError(false);
+    }, [displayValue]);
+    const editorLifecycle = useMemo<TransactionGridEditorLifecycle>(
+        () => ({
+            beginExternalExitValidation: () => {
+                externalExitValidationResult.current = null;
+            },
+            cancel: handleRevert,
+            commit: handleSave,
+            externalExitValidation: "blur",
+            readExternalExitValidation: () => externalExitValidationResult.current
+        }),
+        [handleRevert, handleSave]
+    );
+    useTransactionGridEditorLifecycle(editorLifecycle);
+
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                handleSave();
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                isRevertingRef.current = true;
+                handleRevert();
+                inputRef.current?.blur();
+            }
+        },
+        [handleSave, handleRevert]
+    );
+
+    const handleFocus = useCallback(() => {
+        setIsFocused(true);
+        onEditingChange?.(true);
+    }, [onEditingChange]);
+
+    const handleBlur = useCallback(() => {
+        // Don't save on blur if we're reverting (Escape was pressed)
+        if (isRevertingRef.current) {
+            isRevertingRef.current = false;
+            setIsFocused(false);
+            onEditingChange?.(false);
+            return;
+        }
+        const committed = handleSave();
+        externalExitValidationResult.current = committed;
+        if (!committed.ok) {
+            queueMicrotask(() => inputRef.current?.focus({ preventScroll: true }));
+            return;
+        }
+        setIsFocused(false);
+        onEditingChange?.(false);
+    }, [handleSave, onEditingChange]);
+
+    const handleClick = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent row selection
+    }, []);
+
     const parsed = parseCurrency(localValue);
-    const colorClass =
-        parsed < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400";
-
-    const originalAmountDescription =
-        originalValue == null
-            ? undefined
-            : `Original imported amount: ${formatOriginalAmount(originalValue, currency)}`;
+    const colorClass = amountColorClass(parsed.ok ? parsed.value : null);
+    const originalDescription = originalAmountDescription(originalValue, currency);
     const input = (
         <Input
             ref={inputRef}
             type="text"
             inputMode="decimal"
             value={localValue}
-            onChange={(e) => setLocalValue(e.target.value)}
+            onChange={(e) => {
+                setLocalValue(e.target.value);
+                if (inputError) setInputError(false);
+            }}
             onKeyDown={handleKeyDown}
             onFocus={handleFocus}
             onBlur={handleBlur}
@@ -268,15 +377,13 @@ export function InlineEditableAmount({
             disabled={disabled}
             data-testid={testId}
             aria-label={`Transaction amount in ${currency}`}
-            aria-description={originalAmountDescription}
+            aria-description={originalDescription}
+            aria-invalid={inputError ? "true" : undefined}
             className={cn(
                 "h-7 text-right text-sm font-medium tabular-nums",
-                // UR-012: the field accepts a click anywhere in its cell.
-                INPUT_CELL_HIT_AREA,
                 RESTING_CELL_CHROME,
+                TRANSACTION_GRID_EDITOR_INLINE_CHROME,
                 colorClass,
-                "hover:bg-accent/30",
-                "focus:border-input focus:bg-background",
                 disabled && "cursor-not-allowed opacity-50",
                 inputClassName,
                 className
@@ -284,24 +391,9 @@ export function InlineEditableAmount({
             placeholder="0.00"
         />
     );
-    if (!originalAmountDescription) return input;
-
-    return (
-        <Tooltip open={isTooltipOpen} onOpenChange={handleTooltipOpenChange}>
-            <TooltipTrigger asChild>{input}</TooltipTrigger>
-            <TooltipContent
-                ref={tooltipContentRef}
-                align="start"
-                alignOffset={-70}
-                collisionPadding={TOOLTIP_VIEWPORT_PADDING}
-                className="max-w-[calc(50vw-1rem)] whitespace-normal sm:max-w-xs"
-                data-testid="original-amount-tooltip"
-                style={{
-                    translate: `${tooltipTranslation.x}px ${tooltipTranslation.y}px`
-                }}
-            >
-                {originalAmountDescription}
-            </TooltipContent>
-        </Tooltip>
+    return originalDescription == null ? (
+        input
+    ) : (
+        <ImportedAmountTooltip description={originalDescription}>{input}</ImportedAmountTooltip>
     );
 }

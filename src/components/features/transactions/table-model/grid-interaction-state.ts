@@ -1,3 +1,5 @@
+import type { RuleField } from "@/lib/domain/automation/rules";
+
 import type { TransactionColumnId, TransactionId, TransactionProjectionGeneration } from "./ids";
 
 export interface TransactionGridAddress {
@@ -71,12 +73,18 @@ export interface TransactionInspectorFieldBinding {
 
 export interface TransactionInspectorActionBinding {
     readonly kind: "action";
-    readonly action: "duplicate" | "delete" | "automation" | "notes";
+    readonly action: "duplicate" | "delete" | "notes" | "close";
+}
+
+export interface TransactionInspectorAutomationBinding {
+    readonly kind: "automation";
+    readonly field: RuleField;
 }
 
 export type TransactionInspectorControlBinding =
     | TransactionInspectorFieldBinding
-    | TransactionInspectorActionBinding;
+    | TransactionInspectorActionBinding
+    | TransactionInspectorAutomationBinding;
 
 /** Compatibility name for consumers that can own either inspector binding family. */
 export type TransactionOwnedControlBinding = TransactionInspectorControlBinding;
@@ -96,12 +104,15 @@ export function asTransactionCompositionSequence(value: number): TransactionComp
     return value as TransactionCompositionSequence;
 }
 
+export type TransactionCompositionEmptyCompletion = "editing" | "navigating";
+
 export type TransactionCompositionState =
     | { readonly kind: "inactive" }
     | {
           readonly kind: "active";
           readonly sequence: TransactionCompositionSequence;
           readonly preview: string;
+          readonly emptyCompletion: TransactionCompositionEmptyCompletion;
       }
     | {
           readonly kind: "awaiting-final-insertion";
@@ -111,12 +122,17 @@ export type TransactionCompositionState =
     | {
           readonly kind: "consumed";
           readonly sequence: TransactionCompositionSequence;
+          readonly resume: TransactionCompositionEmptyCompletion;
       };
 
 export const INACTIVE_TRANSACTION_COMPOSITION: TransactionCompositionState = { kind: "inactive" };
 
 export type TransactionCompositionEvent =
-    | { readonly kind: "start"; readonly sequence: TransactionCompositionSequence }
+    | {
+          readonly kind: "start";
+          readonly sequence: TransactionCompositionSequence;
+          readonly emptyCompletion: TransactionCompositionEmptyCompletion;
+      }
     | { readonly kind: "update"; readonly data: string }
     | { readonly kind: "end"; readonly data: string }
     | {
@@ -145,7 +161,12 @@ export function reduceTransactionComposition(
 ): TransactionCompositionResult {
     if (event.kind === "start") {
         return {
-            composition: { kind: "active", preview: "", sequence: event.sequence },
+            composition: {
+                emptyCompletion: event.emptyCompletion,
+                kind: "active",
+                preview: "",
+                sequence: event.sequence
+            },
             insertedText: null
         };
     }
@@ -161,7 +182,11 @@ export function reduceTransactionComposition(
         if (composition.kind !== "active") return { composition, insertedText: null };
         return event.data.length === 0
             ? {
-                  composition: { kind: "consumed", sequence: composition.sequence },
+                  composition: {
+                      kind: "consumed",
+                      resume: composition.emptyCompletion,
+                      sequence: composition.sequence
+                  },
                   insertedText: null
               }
             : {
@@ -181,7 +206,7 @@ export function reduceTransactionComposition(
             return { composition, insertedText: null };
         }
         return {
-            composition: { kind: "consumed", sequence: composition.sequence },
+            composition: { kind: "consumed", resume: "editing", sequence: composition.sequence },
             insertedText: event.data
         };
     }
@@ -193,7 +218,7 @@ export function reduceTransactionComposition(
             return { composition, insertedText: null };
         }
         return {
-            composition: { kind: "consumed", sequence: composition.sequence },
+            composition: { kind: "consumed", resume: "editing", sequence: composition.sequence },
             insertedText: composition.completedText
         };
     }
@@ -408,20 +433,45 @@ export type TransactionGridPresence =
           readonly columnId: TransactionColumnId;
       };
 
+/** Programmatic Add owns this silence until the user gestures inside its exact Description editor. */
+export interface TransactionGridDeferredPresence {
+    readonly kind: "add-description-editor-gesture";
+    readonly address: TransactionGridAddress & { readonly columnId: "description" };
+}
+
+function addressesMatch(first: TransactionGridAddress, second: TransactionGridAddress): boolean {
+    return first.transactionId === second.transactionId && first.columnId === second.columnId;
+}
+
+/** Whether a deferred Add gate still belongs to the pending or fulfilled editor that created it. */
+export function transactionGridRetainsDeferredPresence(
+    state: TransactionGridInteractionState<unknown>,
+    deferredPresence: TransactionGridDeferredPresence
+): boolean {
+    if (state.kind === "pending-activation") {
+        return addressesMatch(state.target, deferredPresence.address);
+    }
+    return (
+        state.kind === "editing" &&
+        addressesMatch(activeTransactionGridAddress(state.selection), deferredPresence.address)
+    );
+}
+
 /** Presence exposes stable ownership only; drafts, values, extents and destinations never appear. */
 export function transactionGridPresence(
-    state: TransactionGridInteractionState<unknown>
+    state: TransactionGridInteractionState<unknown>,
+    deferredPresence: TransactionGridDeferredPresence | null = null
 ): TransactionGridPresence {
-    if (state.kind === "idle" || state.kind === "pending-activation") return { kind: "none" };
+    if (
+        state.kind === "idle" ||
+        state.kind === "pending-activation" ||
+        (deferredPresence != null &&
+            transactionGridRetainsDeferredPresence(state, deferredPresence))
+    ) {
+        return { kind: "none" };
+    }
     const active = activeTransactionGridAddress(state.selection);
     if (state.kind === "editing") {
-        return {
-            columnId: active.columnId,
-            kind: "editing",
-            transactionId: active.transactionId
-        };
-    }
-    if (state.kind === "interacting" && state.owner === "grid-editor") {
         return {
             columnId: active.columnId,
             kind: "editing",
@@ -505,7 +555,7 @@ function oneCellSelection(address: TransactionGridAddress): NonEmptyTransactionG
 }
 
 export type TransactionPendingActivationFulfillment<TDraft> =
-    | { readonly kind: "navigating" }
+    | { readonly kind: "navigating"; readonly continuous?: TransactionContinuousEditIntent }
     | { readonly kind: "inspecting" }
     | { readonly kind: "editing"; readonly editor: TransactionGridEditorState<TDraft> };
 
@@ -564,7 +614,7 @@ export function fulfillTransactionPendingActivation<TDraft>(
         return {
             ok: true,
             value: {
-                continuous: NO_TRANSACTION_CONTINUOUS_EDIT,
+                continuous: fulfillment.continuous ?? NO_TRANSACTION_CONTINUOUS_EDIT,
                 kind: "navigating",
                 selection
             }

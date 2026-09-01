@@ -9,6 +9,12 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 import { goToAccounts, goToPeople, goToTransactions } from "./nav";
+import {
+    activateTransactionEditor,
+    allocationGridCell,
+    expectTransactionCellDisplay,
+    transactionGridCell
+} from "./transaction-grid";
 
 /** Name of the person seeded into every new vault. */
 export const DEFAULT_PERSON_NAME = "Me";
@@ -175,43 +181,35 @@ export function rowById(page: Page, transactionId: string): Locator {
 }
 
 /**
- * Sets one allocation through a real grid cell and waits for the *stored* value to commit.
+ * Sets one allocation through the display-first grid cell and waits for its committed resting value.
  *
- * The barrier asserts the cell's `Explicit:` clause rather than a substring of the whole cell,
- * because the cell renders a screen-reader description as a child of the same button:
- * `Explicit: X%. Effective: Y%. Owner remainder: Z%.` A substring match on `${value}%` is therefore
- * satisfied by the *derived* `Effective:` or `Owner remainder:` figures — which, for an even
- * ownership split, already read the target value before anything is stored at all. Such a barrier
- * can return without the write having landed, and the failure then surfaces at whatever settlement
- * assertion runs next, far from its cause.
- *
- * The `Explicit:` clause is the only part of the cell that reflects stored state. Entering zero is
- * the one case where the stored outcome is not the typed value: `setTransactionAllocation` treats
- * zero as removal at the CRDT boundary (`src/lib/crdt/allocations.ts:294-303` deletes the key), so
- * the committed cell reads `Explicit: not stored.` rather than `Explicit: 0%.`. Negatives store
- * normally and render `Explicit: -20%.` verbatim.
+ * Entering zero removes the explicit allocation at the CRDT boundary, so its resting display is the
+ * unstored em dash rather than `0%`. Other values render verbatim and therefore distinguish the
+ * stored write from the pre-edit derived allocation.
  */
 export async function setAllocation(
     row: Locator,
     personName: string,
     value: string
 ): Promise<void> {
-    const cell = row.getByRole("button", { name: `Edit ${personName} allocation` });
-    await cell.click();
+    const cell = await allocationGridCell(row, personName);
+    await expect(cell).toHaveAttribute("data-cell-content", "display");
+    await cell.dblclick();
+    await expect(cell).toHaveAttribute("data-cell-content", "editor");
     const input = row.getByRole("textbox", { name: `${personName} allocation percentage` });
     await input.fill(value);
     await input.press("Enter");
-    const committedExplicit =
-        Number(value) === 0 ? "Explicit: not stored." : `Explicit: ${value}%.`;
-    await expect(cell).toContainText(committedExplicit);
+    await expect(cell).toHaveAttribute("data-cell-content", "display");
+    await expect(input).toHaveCount(0);
+    await expect(cell).toContainText(Number(value) === 0 ? "—" : `${value}%`);
 }
 
 /** Sets a transaction's status by name through the real inline status control. */
 export async function setStatus(page: Page, row: Locator, statusName: string): Promise<void> {
-    const status = row.getByTestId("status-editable");
-    await status.click();
+    const status = await activateTransactionEditor(row, "status");
+    await expect(status).toHaveAttribute("aria-expanded", "true");
     await page.getByRole("option", { name: statusName, exact: true }).click();
-    await expect(status).toContainText(statusName);
+    await expectTransactionCellDisplay(row, "status", statusName);
 }
 
 /**
@@ -236,32 +234,42 @@ const LATCHED_ROW_ATTRIBUTE = "data-e2e-latched-description-focus";
  * ID to an attribute converts that instant into monotonic state, which only ever goes from absent
  * to present. The caller can then wait for it with an ordinary converging wait.
  */
-async function latchNextDescriptionFocus(page: Page): Promise<void> {
-    await page.evaluate((attribute) => {
-        document.documentElement.removeAttribute(attribute);
+async function latchNextDescriptionFocus(
+    page: Page,
+    knownPreExistingTransactionIds: ReadonlySet<string>
+): Promise<void> {
+    await page.evaluate(
+        ({ attribute, knownPreExistingTransactionIds }) => {
+            document.documentElement.removeAttribute(attribute);
 
-        // Only a row that does not exist yet can be the one Add is about to create. Ignoring the
-        // rows already on screen means a caret returning to the row the caller was previously
-        // editing — which a commit-driven remount can do — cannot be mistaken for the new row.
-        const preExistingRowIds = new Set(
-            Array.from(document.querySelectorAll("[data-transaction-id]"), (row) =>
-                row.getAttribute("data-transaction-id")
-            )
-        );
+            // A filtered-out row is not mounted when the latch is armed, but clearing the filter can
+            // remount and restore focus to it before the new row materializes. The caller's known IDs
+            // close that gap; mounted IDs still protect generic Add flows without explicit history.
+            const preExistingRowIds = new Set([
+                ...knownPreExistingTransactionIds,
+                ...Array.from(document.querySelectorAll("[data-transaction-id]"), (row) =>
+                    row.getAttribute("data-transaction-id")
+                ).filter((rowId): rowId is string => rowId != null && rowId.length > 0)
+            ]);
 
-        const latch = (event: FocusEvent) => {
-            const target = event.target;
-            if (!(target instanceof HTMLElement)) return;
-            if (target.getAttribute("data-testid") !== "description-editable") return;
-            const rowId = target
-                .closest("[data-transaction-id]")
-                ?.getAttribute("data-transaction-id");
-            if (rowId == null || rowId.length === 0 || preExistingRowIds.has(rowId)) return;
-            document.documentElement.setAttribute(attribute, rowId);
-            document.removeEventListener("focusin", latch);
-        };
-        document.addEventListener("focusin", latch);
-    }, LATCHED_ROW_ATTRIBUTE);
+            const latch = (event: FocusEvent) => {
+                const target = event.target;
+                if (!(target instanceof HTMLElement)) return;
+                if (target.getAttribute("data-testid") !== "description-editable") return;
+                const rowId = target
+                    .closest("[data-transaction-id]")
+                    ?.getAttribute("data-transaction-id");
+                if (rowId == null || rowId.length === 0 || preExistingRowIds.has(rowId)) return;
+                document.documentElement.setAttribute(attribute, rowId);
+                document.removeEventListener("focusin", latch);
+            };
+            document.addEventListener("focusin", latch);
+        },
+        {
+            attribute: LATCHED_ROW_ATTRIBUTE,
+            knownPreExistingTransactionIds: [...knownPreExistingTransactionIds]
+        }
+    );
 }
 
 /**
@@ -277,8 +285,11 @@ async function latchNextDescriptionFocus(page: Page): Promise<void> {
  * transient-state assertion in the path of every Add-based test. It is asserted where it belongs:
  * in the UR-001 specs that own the behaviour, and in the `add-transaction-focus*` unit tests.
  */
-export async function addEmptyTransaction(page: Page): Promise<string> {
-    await latchNextDescriptionFocus(page);
+export async function addEmptyTransaction(
+    page: Page,
+    knownPreExistingTransactionIds: ReadonlySet<string> = new Set<string>()
+): Promise<string> {
+    await latchNextDescriptionFocus(page, knownPreExistingTransactionIds);
     await page.getByTestId("add-transaction-button").click();
 
     // Sized like the sibling waits on `helpers/auth.ts:32`: Add resets the filters, extends the
@@ -294,6 +305,9 @@ export async function addEmptyTransaction(page: Page): Promise<string> {
     await latched.dispose();
     if (transactionId == null || transactionId.length === 0) {
         throw new Error("Add did not focus a description belonging to a row with a stable ID");
+    }
+    if (knownPreExistingTransactionIds.has(transactionId)) {
+        throw new Error(`Add focused known pre-existing transaction ${transactionId}`);
     }
 
     // The row's own presence is the monotonic signal every caller actually depends on: they address
@@ -315,28 +329,32 @@ export async function addTransaction(page: Page, spec: TransactionSpec): Promise
     const row = rowById(page, transactionId);
 
     if (spec.account != null) {
-        const account = row.locator('[data-cell="account"]').getByRole("combobox");
-        await account.click();
+        const accountCell = transactionGridCell(row, "account");
+        await expect(accountCell).toHaveAttribute("data-cell-content", "display");
+        await accountCell.dblclick();
+        const account = accountCell.getByRole("combobox");
+        await expect(accountCell).toHaveAttribute("data-cell-content", "editor");
+        await expect(account).toHaveAttribute("aria-expanded", "true");
         await page.getByRole("option", { name: spec.account, exact: true }).click();
-        await expect(account).toContainText(spec.account);
+        await expect(accountCell).toHaveAttribute("data-cell-content", "editor");
+        await expect(account).toHaveAttribute("aria-expanded", "false");
+        await transactionGridCell(row, "description").click();
+        await expect(accountCell).toHaveAttribute("data-cell-content", "display");
+        await expect(accountCell).toContainText(spec.account);
+        await expect(account).toHaveCount(0);
     }
 
     if (spec.description != null) {
-        const description = row.getByTestId("description-editable");
-        await description.click();
+        const description = await activateTransactionEditor(row, "description");
         await description.fill(spec.description);
         await description.press("Enter");
-        // Committing re-sorts the grid and remounts the row, which detaches every element handle
-        // inside it. Settling on the committed value here means the next field is addressed against
-        // the post-commit DOM rather than racing the remount.
-        await expect(description).toHaveValue(spec.description);
+        await expectTransactionCellDisplay(row, "description", spec.description);
     }
 
-    const amount = row.getByTestId("amount-editable");
-    await amount.click();
+    const amount = await activateTransactionEditor(row, "amount");
     await amount.fill(spec.amount);
     await amount.press("Enter");
-    await expect(amount).toHaveValue(spec.amount);
+    await expectTransactionCellDisplay(row, "amount", spec.amount);
 
     await setStatus(page, row, spec.status ?? PAID_STATUS_NAME);
 
@@ -383,12 +401,17 @@ export function obligationRow(
 export async function readPersonIds(page: Page): Promise<ReadonlyMap<string, string>> {
     await goToTransactions(page);
     const ids = new Map<string, string>();
-    for (const cell of await page.locator("[data-presence-field^='allocation:']").all()) {
-        const field = (await cell.getAttribute("data-presence-field")) ?? "";
-        const label = (await cell.getAttribute("aria-label")) ?? "";
-        const name = label.replace(/^Edit /, "").replace(/ allocation$/, "");
+    const row = page.getByTestId("transaction-row").first();
+    for (const header of await page.getByRole("columnheader", { name: / %$/ }).all()) {
+        const name = ((await header.textContent()) ?? "").replace(/ %$/, "");
+        const columnIndex = await header.getAttribute("aria-colindex");
+        if (name.length === 0 || columnIndex == null) continue;
+        const field =
+            (await row
+                .locator(`[role="gridcell"][aria-colindex="${columnIndex}"]`)
+                .getAttribute("data-cell")) ?? "";
         const personId = field.replace(/^allocation:/, "");
-        if (name.length > 0 && personId.length > 0) ids.set(name, personId);
+        if (personId.length > 0) ids.set(name, personId);
     }
     return ids;
 }

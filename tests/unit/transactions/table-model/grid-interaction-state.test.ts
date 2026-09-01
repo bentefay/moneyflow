@@ -15,9 +15,11 @@ import {
     reduceTransactionComposition,
     transactionGridPins,
     transactionGridPresence,
+    transactionGridRetainsDeferredPresence,
     transactionGridSelectionVisibility,
     transitionTransactionContinuousEdit,
     type NonEmptyTransactionGridSelection,
+    type TransactionGridDeferredPresence,
     type TransactionGridEngagedSnapshot,
     type TransactionGridInteractionState
 } from "@/components/features/transactions/table-model/grid-interaction-state";
@@ -96,13 +98,73 @@ describe("transaction grid interaction state", () => {
             kind: "viewing",
             transactionId: "tx-anchor"
         });
+        const interacting: TransactionGridInteractionState<string> = {
+            kind: "interacting",
+            owner: "grid-editor",
+            popup: "listbox",
+            returnState: editing,
+            selection: SELECTION
+        };
+
         expect(transactionGridPresence(editing)).toEqual({
             columnId: "description",
             kind: "editing",
             transactionId: "tx-anchor"
         });
+        expect(transactionGridPresence(interacting)).toEqual({
+            kind: "viewing",
+            transactionId: "tx-anchor"
+        });
         expect(JSON.stringify(transactionGridPresence(editing))).not.toContain("private query");
         expect(JSON.stringify(transactionGridPresence(editing))).not.toContain("tx-extent");
+    });
+
+    it("suppresses only the exact pending or fulfilled Add Description editor", () => {
+        const deferredPresence: TransactionGridDeferredPresence = {
+            address: {
+                columnId: "description",
+                transactionId: asTransactionId("tx-anchor")
+            },
+            kind: "add-description-editor-gesture"
+        };
+        const editing: TransactionGridInteractionState<string> = {
+            editor: {
+                binding: { kind: "field" },
+                composition: INACTIVE_TRANSACTION_COMPOSITION,
+                continuous: NO_TRANSACTION_CONTINUOUS_EDIT,
+                draft: "",
+                entry: "full"
+            },
+            kind: "editing",
+            selection: SELECTION
+        };
+        const pending = beginTransactionPendingActivation({
+            acceptedCommandId: asTransactionGridCommandId("add-command"),
+            current: { kind: "idle", selection: [] },
+            phase: "reveal",
+            projectionGeneration: asTransactionProjectionGeneration(4),
+            target: deferredPresence.address
+        });
+
+        expect(transactionGridRetainsDeferredPresence(pending, deferredPresence)).toBe(true);
+        expect(transactionGridRetainsDeferredPresence(editing, deferredPresence)).toBe(true);
+        expect(transactionGridPresence(editing, deferredPresence)).toEqual({ kind: "none" });
+
+        const unrelatedDeferredPresence: TransactionGridDeferredPresence = {
+            ...deferredPresence,
+            address: {
+                ...deferredPresence.address,
+                transactionId: asTransactionId("tx-unrelated")
+            }
+        };
+        expect(transactionGridRetainsDeferredPresence(editing, unrelatedDeferredPresence)).toBe(
+            false
+        );
+        expect(transactionGridPresence(editing, unrelatedDeferredPresence)).toEqual({
+            columnId: "description",
+            kind: "editing",
+            transactionId: "tx-anchor"
+        });
     });
 
     it("represents neutral pending activation without publishing engagement", () => {
@@ -362,6 +424,7 @@ describe("transaction grid IME composition", () => {
     it("applies authoritative final input exactly once and retains a consumed barrier", () => {
         const sequence = asTransactionCompositionSequence(7);
         const started = reduceTransactionComposition(INACTIVE_TRANSACTION_COMPOSITION, {
+            emptyCompletion: "editing",
             kind: "start",
             sequence
         });
@@ -380,7 +443,7 @@ describe("transaction grid IME composition", () => {
         });
 
         expect(inserted).toEqual({
-            composition: { kind: "consumed", sequence },
+            composition: { kind: "consumed", resume: "editing", sequence },
             insertedText: "日本"
         });
         expect(lateFallback.insertedText).toBeNull();
@@ -393,6 +456,7 @@ describe("transaction grid IME composition", () => {
         const first = asTransactionCompositionSequence(8);
         const second = asTransactionCompositionSequence(9);
         const firstStarted = reduceTransactionComposition(INACTIVE_TRANSACTION_COMPOSITION, {
+            emptyCompletion: "editing",
             kind: "start",
             sequence: first
         });
@@ -401,6 +465,7 @@ describe("transaction grid IME composition", () => {
             kind: "end"
         });
         const secondStarted = reduceTransactionComposition(firstEnded.composition, {
+            emptyCompletion: "editing",
             kind: "start",
             sequence: second
         });
@@ -427,6 +492,7 @@ describe("transaction grid IME composition", () => {
     it("uses fallback once and ignores a later authoritative insertion", () => {
         const sequence = asTransactionCompositionSequence(10);
         const started = reduceTransactionComposition(INACTIVE_TRANSACTION_COMPOSITION, {
+            emptyCompletion: "editing",
             kind: "start",
             sequence
         });
@@ -449,15 +515,27 @@ describe("transaction grid IME composition", () => {
         ).toBeNull();
     });
 
-    it("keeps an empty composition behind the same consumed barrier", () => {
-        const sequence = asTransactionCompositionSequence(11);
-        const started = reduceTransactionComposition(INACTIVE_TRANSACTION_COMPOSITION, {
-            kind: "start",
-            sequence
-        });
+    it.each(["editing", "navigating"] as const)(
+        "keeps an empty composition behind the consumed barrier before resuming %s",
+        (emptyCompletion) => {
+            const sequence = asTransactionCompositionSequence(11);
+            const started = reduceTransactionComposition(INACTIVE_TRANSACTION_COMPOSITION, {
+                emptyCompletion,
+                kind: "start",
+                sequence
+            });
+            const ended = reduceTransactionComposition(started.composition, {
+                data: "",
+                kind: "end"
+            });
 
-        expect(
-            reduceTransactionComposition(started.composition, { data: "", kind: "end" })
-        ).toEqual({ composition: { kind: "consumed", sequence }, insertedText: null });
-    });
+            expect(ended).toEqual({
+                composition: { kind: "consumed", resume: emptyCompletion, sequence },
+                insertedText: null
+            });
+            expect(
+                reduceTransactionComposition(ended.composition, { kind: "resume", sequence })
+            ).toEqual({ composition: { kind: "inactive" }, insertedText: null });
+        }
+    );
 });

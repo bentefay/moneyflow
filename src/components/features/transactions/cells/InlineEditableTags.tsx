@@ -9,7 +9,7 @@
  */
 
 import { Check, Plus, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -23,12 +23,45 @@ import {
 import { DEFAULT_TAG_COLOR, getContrastingTextColor } from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
-import { SHORT_CONTROL_HIT_AREA } from "./cell-hit-area";
+import { tagSetChanged } from "../field-rule-proposal-state";
+import {
+    INNER_CELL_FOCUS_CHROME,
+    PARKED_ACTION_FOCUS_CHROME,
+    TRANSACTION_GRID_EDITOR_INLINE_CHROME
+} from "./cell-chrome";
+import {
+    TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED,
+    type TransactionGridEditorCommitResult,
+    type TransactionGridEditorLifecycle,
+    useTransactionGridEditorLifecycle,
+    useTransactionGridEditorPortalRef,
+    useTransactionGridStartOpen
+} from "./editor-lifecycle";
 
 export interface TagOption {
     id: string;
     name: string;
     color?: string;
+}
+
+function normalizeTagName(name: string): string {
+    return name.trim().toLowerCase();
+}
+
+function tagNameMatches(tag: TagOption, query: string): boolean {
+    return normalizeTagName(tag.name) === normalizeTagName(query);
+}
+
+function selectableTagOptions(
+    committedTags: readonly TagOption[],
+    availableTags: readonly TagOption[],
+    draftCreatedTags: readonly TagOption[]
+): readonly TagOption[] {
+    const byId = new Map<string, TagOption>();
+    for (const tag of [...committedTags, ...availableTags, ...draftCreatedTags]) {
+        if (!byId.has(tag.id)) byId.set(tag.id, tag);
+    }
+    return [...byId.values()];
 }
 
 export interface InlineEditableTagsProps {
@@ -38,15 +71,24 @@ export interface InlineEditableTagsProps {
     tags: TagOption[];
     /** All available tags for selection */
     availableTags: TagOption[];
-    /** Callback when value is saved */
-    onSave: (newTagIds: string[]) => void;
+    /** Commit selected IDs and any locally-created tag records in one transaction mutation. */
+    onSave: (
+        newTagIds: string[],
+        createdTags: readonly TagOption[]
+    ) => TransactionGridEditorCommitResult;
     /** Callback when a new tag should be created */
     onCreateTag?: (name: string) => Promise<TagOption>;
+    /** Completed printable quick-entry text used as the initial tag query. */
+    initialSearch?: string;
+    /** Whether the picker opens immediately when its editor branch mounts. */
+    startOpen?: boolean;
     /**
      * Reports whether the tag dropdown is open, i.e. whether the user is actively editing this
      * cell. Callers use it to decide when an edit has finished; the tag VALUES are never reported.
      */
     onEditingChange?: (isEditing: boolean) => void;
+    /** Reports the controller-owned combobox independently from edit focus. */
+    onPopupOpenChange?: (popup: "combobox", open: boolean) => void;
     /**
      * Transaction id of the row owning this cell. Stamped on the PORTALED dropdown so focus-tracking
      * elsewhere can tell this row's own picker from another row's.
@@ -80,21 +122,7 @@ function TagPill({
     return (
         <span
             className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                // `relative` lifts the pill above the cell's full-cell activation overlay (UR-012).
-                //
-                // That overlay lives on this pill's ANCESTOR, the display area, and is positioned —
-                // so it paints above its own in-flow descendants. This pill's remove button is
-                // `position: static`, which put it underneath: measured, `elementFromPoint` at the
-                // button's centre returned the overlay's owner, the tag survived the click and the
-                // chooser opened instead.
-                //
-                // Positioning the pill is what restores it; `z-index` is deliberately not used,
-                // since the two elements are siblings in paint order rather than competing layers.
-                // Pushing the overlay behind instead was tried and rejected by measurement: a
-                // negative `z-index` drops it behind the row, and the cell-edge click that UR-012
-                // exists to deliver stops arriving.
-                "relative",
+                "relative inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
                 disabled && "opacity-50"
             )}
             style={{ backgroundColor: bgColor, color: textColor }}
@@ -107,7 +135,10 @@ function TagPill({
                         e.stopPropagation();
                         onRemove();
                     }}
-                    className="-m-1 cursor-pointer rounded-full p-1 hover:opacity-70"
+                    className={cn(
+                        "-m-1 cursor-pointer rounded-full p-1 hover:opacity-70",
+                        PARKED_ACTION_FOCUS_CHROME
+                    )}
                     aria-label={`Remove ${tag.name}`}
                 >
                     <X className="h-3 w-3" />
@@ -131,25 +162,84 @@ export function InlineEditableTags({
     availableTags,
     onSave,
     onCreateTag,
+    initialSearch = "",
+    startOpen = false,
     onEditingChange,
+    onPopupOpenChange,
     ownerRowId,
     className,
     disabled = false,
     "data-testid": testId
 }: InlineEditableTagsProps) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
+    const [isOpen, setIsOpen] = useTransactionGridStartOpen(startOpen);
+    const [draftTagIds, setDraftTagIds] = useState<readonly string[]>(value);
+    const [draftCreatedTags, setDraftCreatedTags] = useState<readonly TagOption[]>([]);
+    const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [isCreating, setIsCreating] = useState(false);
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const registerEditorPortal = useTransactionGridEditorPortalRef<HTMLDivElement>();
+    const registerDropdown = useCallback(
+        (element: HTMLDivElement | null) => {
+            dropdownRef.current = element;
+            if (element == null) return;
+            const unregister = registerEditorPortal?.(element);
+            return () => {
+                if (dropdownRef.current === element) dropdownRef.current = null;
+                if (typeof unregister === "function") unregister();
+            };
+        },
+        [registerEditorPortal]
+    );
+    const cancelPicker = useCallback(() => {
+        setDraftTagIds(value);
+        setDraftCreatedTags([]);
+        setIsOpen(false);
+        setSearchQuery("");
+    }, [setIsOpen, value]);
+    const closePopupAndFocusEditor = useCallback(() => {
+        setIsOpen(false);
+        setSearchQuery("");
+        onPopupOpenChange?.("combobox", false);
+        queueMicrotask(() => {
+            containerRef.current
+                ?.querySelector<HTMLElement>("[data-tag-strip]")
+                ?.focus({ preventScroll: true });
+        });
+    }, [onPopupOpenChange, setIsOpen]);
+    const editorLifecycle = useMemo<TransactionGridEditorLifecycle>(
+        () => ({
+            automation: {
+                draftTagIds,
+                field: "tags",
+                originalTagIds: value
+            },
+            cancel: cancelPicker,
+            commit: () => {
+                if (!tagSetChanged(value, draftTagIds)) {
+                    return TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
+                }
+                return onSave(
+                    [...draftTagIds],
+                    draftCreatedTags.filter((tag) => draftTagIds.includes(tag.id))
+                );
+            },
+            externalExitValidation: "controller"
+        }),
+        [cancelPicker, draftCreatedTags, draftTagIds, onSave, value]
+    );
+    useTransactionGridEditorLifecycle(editorLifecycle);
 
-    // Report open/closed as "is the user editing this cell". Derived from the single `isOpen` state
-    // rather than tracked separately, so the two can never disagree.
+    // Closing only the popup returns controller ownership to the retained editor. A later Escape or
+    // outside-grid gesture owns cancellation or commit of that editor.
     useEffect(() => {
-        onEditingChange?.(isOpen);
-    }, [isOpen, onEditingChange]);
+        if (!isOpen) return;
+        onEditingChange?.(true);
+        onPopupOpenChange?.("combobox", true);
+        return () => onPopupOpenChange?.("combobox", false);
+    }, [isOpen, onEditingChange, onPopupOpenChange]);
 
     // Calculate dropdown position when opening
     useEffect(() => {
@@ -174,18 +264,20 @@ export function InlineEditableTags({
         if (!isOpen) return;
 
         const handleClickOutside = (e: MouseEvent) => {
-            const target = e.target as Node;
+            const target = e.target;
+            if (!(target instanceof Node)) return;
             // Check if click is inside container or the portaled dropdown
             if (containerRef.current?.contains(target) || dropdownRef.current?.contains(target)) {
                 return;
             }
             setIsOpen(false);
             setSearchQuery("");
+            onPopupOpenChange?.("combobox", false);
         };
 
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [isOpen]);
+    }, [isOpen, onPopupOpenChange, setIsOpen]);
 
     const handleClick = useCallback(
         (e: React.MouseEvent) => {
@@ -194,24 +286,23 @@ export function InlineEditableTags({
                 setIsOpen(true);
             }
         },
-        [disabled]
+        [disabled, setIsOpen]
     );
 
-    const toggleTag = useCallback(
-        (tagId: string) => {
-            const newValue = value.includes(tagId)
-                ? value.filter((id) => id !== tagId)
-                : [...value, tagId];
-            onSave(newValue);
-        },
-        [value, onSave]
-    );
+    const toggleTag = useCallback((tagId: string) => {
+        setDraftTagIds((current) =>
+            current.includes(tagId)
+                ? current.filter((candidate) => candidate !== tagId)
+                : [...current, tagId]
+        );
+    }, []);
 
-    const removeTag = useCallback(
-        (tagId: string) => {
-            onSave(value.filter((id) => id !== tagId));
-        },
-        [value, onSave]
+    const removeTag = useCallback((tagId: string) => {
+        setDraftTagIds((current) => current.filter((candidate) => candidate !== tagId));
+    }, []);
+    const selectableTags = useMemo(
+        () => selectableTagOptions(tags, availableTags, draftCreatedTags),
+        [availableTags, draftCreatedTags, tags]
     );
 
     // Handle creating a new tag
@@ -219,35 +310,37 @@ export function InlineEditableTags({
         if (!onCreateTag || !searchQuery.trim() || isCreating) return;
 
         // Check if exact match already exists
-        const exactMatch = availableTags.some(
-            (t) => t.name.toLowerCase() === searchQuery.toLowerCase()
-        );
+        const exactMatch = selectableTags.some((tag) => tagNameMatches(tag, searchQuery));
         if (exactMatch) return;
 
         setIsCreating(true);
         try {
             const newTag = await onCreateTag(searchQuery.trim());
-            // Add the new tag to the selection
-            onSave([...value, newTag.id]);
+            setDraftCreatedTags((current) =>
+                current.some((tag) => tag.id === newTag.id) ? current : [...current, newTag]
+            );
+            setDraftTagIds((current) =>
+                current.includes(newTag.id) ? current : [...current, newTag.id]
+            );
             setSearchQuery("");
         } finally {
             setIsCreating(false);
         }
-    }, [onCreateTag, searchQuery, isCreating, availableTags, onSave, value]);
+    }, [isCreating, onCreateTag, searchQuery, selectableTags]);
 
     // Handle keyboard events on the display area (Enter/Space to open, Escape to close)
     const handleDisplayKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
-            if (e.key === "Escape") {
+            if (e.key === "Escape" && isOpen) {
                 e.preventDefault();
-                setIsOpen(false);
-                setSearchQuery("");
+                e.stopPropagation();
+                closePopupAndFocusEditor();
             } else if ((e.key === "Enter" || e.key === " ") && !isOpen && !disabled) {
                 e.preventDefault();
                 setIsOpen(true);
             }
         },
-        [isOpen, disabled]
+        [closePopupAndFocusEditor, disabled, isOpen, setIsOpen]
     );
 
     // Handle keyboard events on input (Enter to create/toggle, Escape to close)
@@ -255,40 +348,52 @@ export function InlineEditableTags({
         (e: React.KeyboardEvent) => {
             if (e.key === "Escape") {
                 e.preventDefault();
-                setIsOpen(false);
-                setSearchQuery("");
+                e.stopPropagation();
+                closePopupAndFocusEditor();
             } else if (e.key === "Enter" && searchQuery.trim()) {
                 e.preventDefault();
                 e.stopPropagation(); // Prevent double-firing
                 // If there's an exact match, toggle it
-                const exactMatch = availableTags.find(
-                    (t) => t.name.toLowerCase() === searchQuery.toLowerCase()
-                );
+                const exactMatch = selectableTags.find((tag) => tagNameMatches(tag, searchQuery));
                 if (exactMatch) {
                     toggleTag(exactMatch.id);
                     setSearchQuery("");
                 } else if (onCreateTag) {
-                    // Otherwise create a new tag (handleCreateTag already calls onSave)
+                    // Otherwise materialize a local draft tag; the editor commit persists it.
                     void handleCreateTag();
                 }
             }
         },
-        [availableTags, searchQuery, toggleTag, onCreateTag, handleCreateTag]
+        [
+            closePopupAndFocusEditor,
+            handleCreateTag,
+            onCreateTag,
+            searchQuery,
+            selectableTags,
+            toggleTag
+        ]
     );
 
-    // Filter available tags based on search
-    const filteredTags = availableTags.filter((tag) =>
-        tag.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const normalizedSearchQuery = normalizeTagName(searchQuery);
+
+    // Filter available tags based on the same normalized query used for exact creation authority.
+    const filteredTags = selectableTags.filter((tag) =>
+        normalizeTagName(tag.name).includes(normalizedSearchQuery)
     );
 
     // Selected tags for display
-    const selectedTags = tags.length > 0 ? tags : availableTags.filter((t) => value.includes(t.id));
+    const selectedTags = draftTagIds.flatMap((tagId) => {
+        const tag =
+            tags.find((candidate) => candidate.id === tagId) ??
+            selectableTags.find((candidate) => candidate.id === tagId);
+        return tag == null ? [] : [tag];
+    });
 
     // Check if we can create a new tag (search has content and no exact match)
     const canCreateTag =
-        onCreateTag &&
-        searchQuery.trim() &&
-        !availableTags.some((t) => t.name.toLowerCase() === searchQuery.toLowerCase());
+        onCreateTag != null &&
+        normalizedSearchQuery !== "" &&
+        !selectableTags.some((tag) => tagNameMatches(tag, searchQuery));
 
     return (
         <div
@@ -300,18 +405,15 @@ export function InlineEditableTags({
             {/* Display area */}
             <div
                 tabIndex={disabled ? -1 : 0}
+                aria-expanded={isOpen}
+                data-gridcell-interactive
                 data-legacy-edit-activation
+                data-tag-strip
                 onKeyDown={handleDisplayKeyDown}
                 className={cn(
-                    "flex min-h-[28px] cursor-pointer flex-wrap items-center gap-1 rounded-md px-1 py-0.5",
-                    "border border-transparent bg-transparent shadow-none outline-none",
-                    // UR-012: the chooser opens from a click anywhere in its cell. The overlay sits
-                    // on this display area, so a click on it still bubbles to the container's
-                    // `handleClick`; the container's own box is untouched, which matters because
-                    // `containerRef` is what positions the portaled dropdown.
-                    SHORT_CONTROL_HIT_AREA,
-                    "hover:bg-accent/30",
-                    "focus-visible:border-ring focus-visible:bg-background focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+                    "flex h-7 min-w-0 cursor-pointer flex-nowrap items-center gap-1 overflow-hidden rounded-none border border-transparent bg-transparent py-0.5 shadow-none outline-none",
+                    INNER_CELL_FOCUS_CHROME,
+                    TRANSACTION_GRID_EDITOR_INLINE_CHROME,
                     disabled && "cursor-not-allowed opacity-50"
                 )}
             >
@@ -334,11 +436,12 @@ export function InlineEditableTags({
                 typeof document !== "undefined" &&
                 createPortal(
                     <div
-                        ref={dropdownRef}
+                        ref={registerDropdown}
                         // Portaled to document.body, so it is outside the row in the DOM while still
                         // being part of editing that row. Marked so focus-tracking elsewhere can
                         // tell "the user moved into this row's own dropdown" from "the user left".
                         data-owned-by-row={ownerRowId}
+                        data-owned-by-field="tags"
                         className="bg-popover fixed z-[9999] w-56 rounded-md border shadow-lg"
                         style={{
                             top: dropdownPosition.top,
@@ -369,7 +472,7 @@ export function InlineEditableTags({
                                                     style={{ backgroundColor: tagColor }}
                                                 />
                                                 {tag.name}
-                                                {value.includes(tag.id) && (
+                                                {draftTagIds.includes(tag.id) && (
                                                     <Check className="ml-auto h-4 w-4" />
                                                 )}
                                             </CommandItem>

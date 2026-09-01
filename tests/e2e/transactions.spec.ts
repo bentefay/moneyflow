@@ -15,15 +15,19 @@ import {
     createNewIdentity,
     createTag,
     expectPresentRows,
+    expectTransactionCellDisplay,
     goToAccounts,
     goToImportNew,
     goToPeople,
     goToTags,
     goToTransactions,
     goToTxDescriptions,
+    openTransactionInspector,
     readRowPresenceEditing,
     reloadPage,
-    shareActiveVaultWithMember
+    shareActiveVaultWithMember,
+    stableTransactionRow,
+    transactionGridCell
 } from "./helpers";
 import { addEmptyTransaction, newlyAddedRow, readSelectedRowIds } from "./helpers/settlement";
 
@@ -50,11 +54,12 @@ async function createTestTransaction(
     const descriptionInput = addedRow.getByTestId("description-editable");
     await descriptionInput.fill(data.description);
     await descriptionInput.press("Enter");
-    // Committing re-sorts the grid and remounts the row, detaching the handles inside it. Settling
-    // on the committed value first means the amount field below is resolved against the post-commit
-    // DOM instead of racing the remount and dying on "element was detached from the DOM".
-    await expect(descriptionInput).toHaveValue(data.description);
+    // Committing replaces the editor with the controller-owned display branch and may re-sort the
+    // grid. Settle on that stable branch before resolving the amount cell against the new DOM.
+    await expect(addedRow.getByTestId("description-display")).toHaveText(data.description);
 
+    const amountCell = addedRow.locator('[role="gridcell"][data-cell="amount"]');
+    await amountCell.dblclick();
     const amountInput = addedRow.getByTestId("amount-editable");
     await amountInput.fill(data.amount);
     await amountInput.press("Enter");
@@ -107,13 +112,8 @@ function createFutureTransactionCSV(rowCount: number): string {
     return ["Date,Description,Amount", ...rows].join("\n");
 }
 
-/** The `data-testid` of each data cell UR-005 requires to be chrome-free at rest. */
-const RESTING_CHROME_CELL_TEST_IDS = [
-    "date-editable",
-    "description-editable",
-    "status-editable",
-    "amount-editable"
-] as const;
+/** The canonical display-first columns UR-005 requires to be chrome-free at rest. */
+const RESTING_CHROME_COLUMNS = ["date", "description", "account", "tags", "status", "amount"];
 
 interface CellPaint {
     readonly backgroundColor: string;
@@ -138,6 +138,13 @@ async function readCellPaint(cell: import("@playwright/test").Locator): Promise<
             boxShadow: styles.boxShadow
         };
     });
+}
+
+/** True when every serialized shadow length is zero, including ring variables with no extent. */
+function hasNoShadowExtent(boxShadow: string): boolean {
+    if (boxShadow === "none") return true;
+    const lengths = boxShadow.match(/-?\d+(?:\.\d+)?px/g);
+    return lengths != null && lengths.every((length) => Number.parseFloat(length) === 0);
 }
 
 /**
@@ -236,42 +243,36 @@ test.describe("Transactions", () => {
 
         await goToTransactions(page);
         const row = page.locator(`[data-transaction-id="${await addEmptyTransaction(page)}"]`);
-        const editorButton = row.getByRole("button", {
-            name: /edit Grid Person 00 allocation/i
-        });
+        const allocationDisplay = row.locator('[data-testid^="allocation-cell-"]').first();
+        const allocationCell = allocationDisplay.locator('xpath=ancestor::*[@role="gridcell"][1]');
         const scrollContainer = page.getByTestId("transaction-table").locator("..");
 
         await expect(page.getByText("Grid Person 00 %", { exact: true })).toBeVisible();
-        await expect(editorButton).toContainText("—");
-        await expect(editorButton).toHaveAttribute(
-            "data-presence-field",
-            expect.stringMatching(/^allocation:/)
-        );
+        await expect(allocationDisplay).toContainText("—");
+        await expect(allocationCell).toHaveAttribute("data-cell", /^allocation:/);
         expect(await scrollContainer.evaluate((element) => element.scrollWidth)).toBeGreaterThan(
             await scrollContainer.evaluate((element) => element.clientWidth)
         );
 
         const startedAt = Date.now();
-        await editorButton.click();
+        await allocationCell.dblclick();
         const input = row.getByRole("textbox", {
             name: "Grid Person 00 allocation percentage"
         });
         await input.fill("-35.125");
         await input.press("Enter");
-        await expect(editorButton).toContainText("-35.125%");
+        await expect(allocationCell).toContainText("-35.125%");
         expect(Date.now() - startedAt).toBeLessThan(2_000);
 
         await page.getByRole("button", { name: "Undo" }).click();
-        await expect(editorButton).toContainText("—");
+        await expect(allocationCell).toContainText("—");
         await page.getByRole("button", { name: "Redo" }).click();
-        await expect(editorButton).toContainText("-35.125%");
+        await expect(allocationCell).toContainText("-35.125%");
 
         await reloadPage(page);
         const persistedRow = page.getByTestId("transaction-row").first();
         await expect(
-            persistedRow.getByRole("button", {
-                name: /edit Grid Person 00 allocation/i
-            })
+            persistedRow.locator('[data-testid^="allocation-cell-"]').first()
         ).toContainText("-35.125%");
     });
 
@@ -300,7 +301,10 @@ test.describe("Transactions", () => {
         await goToTransactions(page);
 
         const addButton = page.getByTestId("add-transaction-button");
-        const firstAddedRowId = await addEmptyTransaction(page);
+        const createdTransactionIds = new Set<string>();
+        const firstAddedRowId = await addEmptyTransaction(page, createdTransactionIds);
+        expect(createdTransactionIds.has(firstAddedRowId)).toBe(false);
+        createdTransactionIds.add(firstAddedRowId);
         const firstAddedRow = page.locator(`[data-transaction-id="${firstAddedRowId}"]`);
 
         await expect(addButton).toBeEnabled();
@@ -309,49 +313,66 @@ test.describe("Transactions", () => {
         await expect(page.getByTestId("add-transaction-submit")).toHaveCount(0);
         await expect(page.getByTestId("add-transaction-cancel")).toHaveCount(0);
 
-        // Add identifies the new row by putting the caret in it, and leaves it unselected: an empty
-        // edit target is not a bulk-operation target.
-        await expect(firstAddedRow.getByTestId("description-editable")).toBeFocused();
+        // Add identifies the new row by putting the caret in its one mounted editor. Every other
+        // value is already projected through the controller-owned display branch.
+        const firstDescriptionEditor = firstAddedRow.getByTestId("description-editable");
+        await expect(firstDescriptionEditor).toBeFocused();
         await expect(
             firstAddedRow.getByRole("checkbox", { name: "Select transaction" })
         ).not.toBeChecked();
-        await expect(firstAddedRow.getByTestId("description-editable")).toHaveValue("");
-        await expect(firstAddedRow.getByTestId("description-editable")).toHaveAttribute(
-            "placeholder",
-            "No description"
-        );
-        await expect(firstAddedRow.getByTestId("date-editable")).not.toHaveValue("");
-        await expect(firstAddedRow.getByRole("combobox", { name: "Select account" })).toContainText(
-            "Default"
-        );
-        await expect(firstAddedRow.getByTestId("status-editable")).toContainText("For Review");
-        await expect(firstAddedRow.getByTestId("amount-editable")).toHaveValue("0.00");
+        await expect(firstDescriptionEditor).toHaveValue("");
+        await expect(firstDescriptionEditor).toHaveAttribute("placeholder", "No description");
+        await expect(firstAddedRow.getByTestId("date-display")).not.toHaveText("");
+        await expect(firstAddedRow.locator('[data-cell="account"]')).toContainText("Default");
+        await expect(firstAddedRow.locator('[data-cell="status"]')).toContainText("For Review");
+        await expect(firstAddedRow.locator('[data-cell="amount"]')).toContainText("0.00");
+        await expect(firstAddedRow.getByTestId("date-editable")).toHaveCount(0);
+        await expect(firstAddedRow.getByTestId("status-editable")).toHaveCount(0);
+        await expect(firstAddedRow.getByTestId("amount-editable")).toHaveCount(0);
 
-        await addEmptyTransaction(page);
-        await addEmptyTransaction(page);
-        await expect(page.getByTestId("transaction-row")).toHaveCount(3);
+        for (let index = 0; index < 2; index += 1) {
+            const addedRowId = await addEmptyTransaction(page, createdTransactionIds);
+            expect(createdTransactionIds.has(addedRowId)).toBe(false);
+            createdTransactionIds.add(addedRowId);
+        }
+        const rows = page.getByTestId("transaction-row");
+        await expect(rows).toHaveCount(3);
         await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
+        await expect(page.getByTestId("description-editable")).toHaveCount(1);
 
-        const descriptions = page.getByTestId("description-editable");
-        await descriptions.nth(0).focus();
-        await descriptions.nth(0).press("ArrowDown");
-        await expect(descriptions.nth(1)).toBeFocused();
-        await descriptions.nth(1).press("Shift+Tab");
-        await expect(page.getByTestId("date-editable").nth(1)).toBeFocused();
-        await page.getByTestId("date-editable").nth(1).press("Tab");
-        await expect(descriptions.nth(1)).toBeFocused();
+        const firstDescriptionCell = rows.nth(0).locator('[data-cell="description"]');
+        const secondDescriptionCell = rows.nth(1).locator('[data-cell="description"]');
+        const thirdDescriptionCell = rows.nth(2).locator('[data-cell="description"]');
+        await firstDescriptionCell.focus();
+        await firstDescriptionCell.press("ArrowDown");
+        await expect(secondDescriptionCell).toBeFocused();
+        await secondDescriptionCell.press("Shift+Tab");
+        await expect(rows.nth(1).locator('[data-cell="date"]')).toBeFocused();
+        await rows.nth(1).locator('[data-cell="date"]').press("Tab");
+        await expect(secondDescriptionCell).toBeFocused();
 
-        await descriptions.nth(1).fill("Ordinary empty row");
-        await descriptions.nth(1).press("Enter");
-        await expect(descriptions.nth(1)).toHaveValue("Ordinary empty row");
+        const committedRowId = await rows.nth(1).getAttribute("data-transaction-id");
+        if (committedRowId == null) throw new Error("ordinary row has no stable identity");
+        await secondDescriptionCell.dblclick();
+        const committedEditor = rows.nth(1).getByTestId("description-editable");
+        await committedEditor.fill("Ordinary empty row");
+        await committedEditor.press("Enter");
+        const committedRow = page.locator(`[data-transaction-id="${committedRowId}"]`);
+        await expect(committedRow.getByTestId("description-display")).toHaveText(
+            "Ordinary empty row"
+        );
+        await expect(committedRow.getByTestId("description-editable")).toHaveCount(0);
 
-        await descriptions.nth(2).fill("Discarded draft");
-        await descriptions.nth(2).press("Escape");
-        await expect(descriptions.nth(2)).toHaveValue("");
+        await thirdDescriptionCell.dblclick();
+        const cancelledEditor = rows.nth(2).getByTestId("description-editable");
+        await cancelledEditor.fill("Discarded draft");
+        await cancelledEditor.press("Escape");
+        await expect(rows.nth(2).getByTestId("description-display")).toHaveText("");
+        await expect(rows.nth(2).getByTestId("description-editable")).toHaveCount(0);
 
         await reloadPage(page);
         await expect(page.getByTestId("transaction-row")).toHaveCount(3);
-        await expect(page.getByTestId("description-editable").nth(1)).toHaveValue(
+        await expect(committedRow.getByTestId("description-display")).toHaveText(
             "Ordinary empty row"
         );
     });
@@ -400,16 +421,19 @@ test.describe("Transactions", () => {
         });
 
         await test.step("the focus intent does not re-assert on a later render", async () => {
-            const firstDescription = page
-                .locator(`[data-transaction-id="${existingIds[0]}"]`)
-                .getByTestId("description-editable");
-            await firstDescription.click();
-            await firstDescription.fill("Typed somewhere else");
+            const firstRow = page.locator(`[data-transaction-id="${existingIds[0]}"]`);
+            const firstDescriptionCell = firstRow.locator('[data-cell="description"]');
+            await firstDescriptionCell.dblclick();
+            const firstDescriptionEditor = firstRow.getByTestId("description-editable");
+            await firstDescriptionEditor.fill("Typed somewhere else");
             // Committing re-renders the whole grid. A focus intent that had not been consumed
             // would yank the caret back into the created row mid-edit.
-            await firstDescription.press("Enter");
+            await firstDescriptionEditor.press("Enter");
 
-            await expect(firstDescription).toHaveValue("Typed somewhere else");
+            await expect(firstRow.getByTestId("description-display")).toHaveText(
+                "Typed somewhere else"
+            );
+            await expect(firstRow.getByTestId("description-editable")).toHaveCount(0);
             await expect(newlyAddedRow(page)).toHaveCount(0);
             expect(await readSelection()).toEqual(chosenIds);
         });
@@ -437,24 +461,49 @@ test.describe("Transactions", () => {
             await goToTransactions(owner);
             await goToTransactions(member);
 
-            const createdId = await addEmptyTransaction(owner);
+            // First prove this session can publish observable editing Presence. Without this positive
+            // predecessor, the later empty set could pass because Presence never connected at all.
+            const predecessorId = await addEmptyTransaction(owner);
             await expect(member.getByTestId("transaction-row")).toHaveCount(1, { timeout: 30_000 });
-            await expect(owner.getByTestId("description-editable")).toBeFocused();
+            const predecessorRow = owner.locator(`[data-transaction-id="${predecessorId}"]`);
+            const predecessorEditor = predecessorRow.getByTestId("description-editable");
+            await expect(predecessorEditor).toBeFocused();
+            await predecessorEditor.click();
+            await expectPresentRows(member, [predecessorId]);
+            await expect
+                .poll(() => readRowPresenceEditing(member, predecessorId), { timeout: 20_000 })
+                .toBe(true);
 
-            // The caret is in the row on the owner's screen, yet the peer is told nothing.
+            const createdId = await addEmptyTransaction(owner, new Set([predecessorId]));
+            await expect(member.getByTestId("transaction-row")).toHaveCount(2, { timeout: 30_000 });
+            const ownerRow = owner.locator(`[data-transaction-id="${createdId}"]`);
+            const ownerEditor = ownerRow.getByTestId("description-editable");
+            await expect(ownerEditor).toBeFocused();
+
+            // Add moved from an observably present row to this programmatically focused editor, so
+            // the peer must see a real transition to no present rows rather than an initially empty set.
             await expectPresentRows(member, []);
+            expect(await readRowPresenceEditing(member, predecessorId)).toBe(false);
             expect(await readRowPresenceEditing(member, createdId)).toBe(false);
 
-            // A real gesture into the very same input reports as editing, so the suppression is
-            // scoped to the programmatic focus rather than disabling presence for the row. The
-            // caret is already sitting in that input, and clicking a focused element fires no
-            // focus event, so this leaves the grid first to make the return a genuine transition.
-            await owner.getByTestId("add-transaction-button").focus();
-            await owner.getByTestId("description-editable").click();
+            // Pointer capture inside the already-focused exact editor releases only this Add gate.
+            await ownerEditor.click();
+            await expect(ownerEditor).toBeFocused();
             await expectPresentRows(member, [createdId]);
             await expect
                 .poll(() => readRowPresenceEditing(member, createdId), { timeout: 20_000 })
                 .toBe(true);
+            const memberRow = member.locator(`[data-transaction-id="${createdId}"]`);
+            expect(await memberRow.evaluate((node) => node.getBoundingClientRect().height)).toBe(
+                57
+            );
+            const presenceCell = memberRow.locator(
+                '[role="gridcell"][data-cell="description"][data-presence="true"]'
+            );
+            await expect(presenceCell).toHaveCount(1);
+            expect(await presenceCell.evaluate((node) => getComputedStyle(node).outlineWidth)).toBe(
+                "2px"
+            );
         } finally {
             await ownerContext.close();
             await memberContext.close();
@@ -477,6 +526,7 @@ test.describe("Transactions", () => {
 
         await goToTransactions(page);
 
+        const createdTransactionIds = new Set<string>();
         const addThroughExcludingFilter = async (
             label: string,
             expectedCount: number,
@@ -487,11 +537,13 @@ test.describe("Transactions", () => {
                 await expect(page.getByTestId("transaction-row")).toHaveCount(0);
                 await expect(page.getByRole("button", { name: /^Clear all/ })).toBeVisible();
 
-                const transactionId = await addEmptyTransaction(page);
+                const transactionId = await addEmptyTransaction(page, createdTransactionIds);
+                expect(createdTransactionIds.has(transactionId)).toBe(false);
+                createdTransactionIds.add(transactionId);
                 const addedRow = page.locator(`[data-transaction-id="${transactionId}"]`);
 
-                await expect(page.getByTestId("transaction-row")).toHaveCount(expectedCount);
                 await expect(page.getByRole("button", { name: /^Clear all/ })).toHaveCount(0);
+                await expect(page.getByTestId("transaction-row")).toHaveCount(expectedCount);
 
                 const toolbar = page.getByTestId("transaction-table-toolbar");
                 await expect(toolbar).toContainText(
@@ -503,11 +555,21 @@ test.describe("Transactions", () => {
                 await expect(page.getByTestId("search-filter")).toHaveValue("");
                 await expect(page.getByRole("row", { selected: true })).toHaveCount(0);
 
+                const focusedDescriptionRow = newlyAddedRow(page);
+                await expect(focusedDescriptionRow).toHaveCount(1);
+                await expect(focusedDescriptionRow).toHaveAttribute(
+                    "data-transaction-id",
+                    transactionId
+                );
                 await expect(addedRow.getByTestId("description-editable")).toBeFocused();
                 await expect(addedRow.getByTestId("description-editable")).toHaveValue("");
-                const addedAccount = addedRow.getByRole("combobox", { name: "Select account" });
+                const addedAccount = addedRow.locator('[data-cell="account"]');
                 await expect(addedAccount).not.toHaveText("");
-                await expect(addedRow.getByTestId("status-editable")).toContainText("For Review");
+                await expect(addedRow.locator('[data-cell="status"]')).toContainText("For Review");
+                await expect(
+                    addedRow.getByRole("combobox", { name: "Select account" })
+                ).toHaveCount(0);
+                await expect(addedRow.getByTestId("status-editable")).toHaveCount(0);
 
                 const accountName = (await addedAccount.textContent())?.trim();
                 if (!accountName) throw new Error("Expected persisted transaction account");
@@ -628,12 +690,14 @@ test.describe("Transactions", () => {
             await expect(exactRow).toBeVisible();
             await expect(exactRow.getByTestId("description-editable")).toBeFocused();
             await expect(exactRow.getByTestId("description-editable")).toHaveValue("");
-            await expect(exactRow.getByTestId("date-editable")).not.toHaveValue("");
-            await expect(exactRow.getByRole("combobox", { name: "Select account" })).toContainText(
-                "Default"
-            );
-            await expect(exactRow.getByTestId("status-editable")).toContainText("For Review");
-            await expect(exactRow.getByTestId("amount-editable")).toHaveValue("0.00");
+            await expect(exactRow.getByTestId("date-display")).not.toHaveText("");
+            await expect(exactRow.locator('[data-cell="account"]')).toContainText("Default");
+            await expect(exactRow.locator('[data-cell="status"]')).toContainText("For Review");
+            await expect(exactRow.locator('[data-cell="amount"]')).toContainText("0.00");
+            await expect(exactRow.getByTestId("date-editable")).toHaveCount(0);
+            await expect(exactRow.getByRole("combobox", { name: "Select account" })).toHaveCount(0);
+            await expect(exactRow.getByTestId("status-editable")).toHaveCount(0);
+            await expect(exactRow.getByTestId("amount-editable")).toHaveCount(0);
             await expect(exactRow.locator("../..")).toHaveAttribute("data-index", "51");
 
             await page.getByRole("button", { name: "Undo" }).click();
@@ -665,7 +729,8 @@ test.describe("Transactions", () => {
                 })
                 .toBe(1);
             await expect(exactRow).toBeVisible();
-            await expect(exactRow.getByTestId("description-editable")).toHaveValue("");
+            await expect(exactRow.getByTestId("description-display")).toHaveText("");
+            await expect(exactRow.getByTestId("description-editable")).toHaveCount(0);
             await expect(exactRow.locator("../..")).toHaveAttribute("data-index", "51");
         });
     });
@@ -711,17 +776,6 @@ test.describe("Transactions", () => {
             await context.setOffline(false);
             await duplicate.close();
         }
-    });
-
-    test("default account exists after vault creation", async ({ page }) => {
-        await createNewIdentity(page);
-
-        await test.step("navigate to accounts and verify default account exists", async () => {
-            await goToAccounts(page);
-
-            // The default account should be visible in the table
-            await expect(page.getByText("Default", { exact: true })).toBeVisible();
-        });
     });
 
     test("virtualized large list preserves position, focus, editing, filtering and navigation", async ({
@@ -823,7 +877,7 @@ test.describe("Transactions", () => {
         await test.step("lazily filter the large alias set and pin one focused recycled row", async () => {
             const scrollContainer = page.getByTestId("transaction-table").locator("..");
             const firstWrapper = page.locator('[data-index="0"]');
-            const firstDescription = firstWrapper.getByTestId("description-editable");
+            const firstDescriptionCell = firstWrapper.locator('[data-cell="description"]');
             await scrollContainer.evaluate((element) => {
                 element.scrollTop = 0;
                 element.dispatchEvent(new Event("scroll"));
@@ -836,24 +890,29 @@ test.describe("Transactions", () => {
             );
             expect(await page.getByRole("option").count()).toBe(0);
 
-            await firstDescription.focus();
+            await firstDescriptionCell.dblclick();
+            const firstDescriptionEditor = firstWrapper.getByTestId("description-editable");
+            await expect(firstDescriptionEditor).toBeFocused();
             expect(await page.getByRole("listbox", { name: "Description aliases" }).count()).toBe(
                 0
             );
             const filterStartedAt = Date.now();
-            await firstDescription.fill("Scale Alias 0099");
+            await firstDescriptionEditor.fill("Scale Alias 0099");
             await expect(page.getByRole("listbox", { name: "Description aliases" })).toHaveCount(1);
             await expect(page.getByRole("option", { name: "Scale Alias 0099" })).toHaveAttribute(
                 "aria-selected",
                 "false"
             );
             expect(Date.now() - filterStartedAt).toBeLessThan(2_000);
-            await firstDescription.press("Escape");
+            await firstDescriptionEditor.press("Escape");
             await expect(page.getByRole("listbox", { name: "Description aliases" })).toHaveCount(0);
-            await firstDescription.press("Escape");
+            await expect(firstDescriptionCell).toBeFocused();
+            await expect(firstDescriptionCell).toHaveAttribute("data-cell-content", "display");
+            await expect(firstWrapper.getByTestId("description-editable")).toHaveCount(0);
 
-            await firstDescription.focus();
-            await firstDescription.evaluate((input: HTMLInputElement) =>
+            await firstDescriptionCell.dblclick();
+            const pinnedDescriptionEditor = firstWrapper.getByTestId("description-editable");
+            await pinnedDescriptionEditor.evaluate((input: HTMLInputElement) =>
                 input.setSelectionRange(4, 4)
             );
             await scrollContainer.evaluate((element) => {
@@ -862,30 +921,35 @@ test.describe("Transactions", () => {
             });
             await expect(page.locator('[data-index="499"]')).toBeVisible();
             await expect(firstWrapper).toHaveCount(1);
-            await expect(firstDescription).toBeFocused();
+            await expect(pinnedDescriptionEditor).toBeFocused();
             await expect
                 .poll(() =>
-                    firstDescription.evaluate((input: HTMLInputElement) => input.selectionStart)
+                    pinnedDescriptionEditor.evaluate(
+                        (input: HTMLInputElement) => input.selectionStart
+                    )
                 )
                 .toBe(4);
             expect(await page.getByTestId("transaction-row").count()).toBeLessThan(40);
 
-            await expect(firstDescription).toBeFocused();
+            await expect(pinnedDescriptionEditor).toBeFocused();
         });
 
         await test.step("resize and edit the focused overscan-edge row without losing focus", async () => {
-            const edgeDescription = page
-                .locator('[data-index="499"]')
-                .getByTestId("description-editable");
+            const edgeWrapper = page.locator('[data-index="499"]');
+            const edgeDescriptionCell = edgeWrapper.locator('[data-cell="description"]');
+            await edgeDescriptionCell.dblclick();
+            const edgeDescriptionEditor = edgeWrapper.getByTestId("description-editable");
 
-            await edgeDescription.click();
-            await expect(edgeDescription).toBeFocused();
+            await expect(edgeDescriptionEditor).toBeFocused();
             await page.setViewportSize({ width: 1_000, height: 700 });
-            await expect(edgeDescription).toBeFocused();
+            await expect(edgeDescriptionEditor).toBeFocused();
 
-            await edgeDescription.fill("Virtualized Edge Edited");
-            await edgeDescription.press("Enter");
-            await expect(edgeDescription).toHaveValue("Virtualized Edge Edited");
+            await edgeDescriptionEditor.fill("Virtualized Edge Edited");
+            await edgeDescriptionEditor.press("Enter");
+            await expect(edgeWrapper.getByTestId("description-display")).toHaveText(
+                "Virtualized Edge Edited"
+            );
+            await expect(edgeWrapper.getByTestId("description-editable")).toHaveCount(0);
         });
 
         await test.step("filter the large list and restore its edited row", async () => {
@@ -942,38 +1006,8 @@ test.describe("Transactions", () => {
         expect(runtimeProblems).toEqual([]);
     });
 
-    test("account selector opens and shows create option", async ({ page }) => {
-        await createNewIdentity(page);
-        await goToTransactions(page);
-
-        await test.step("activate add transaction row", async () => {
-            const addButton = page.locator('[data-testid="add-transaction-button"]');
-            await addButton.click();
-        });
-
-        await test.step("open account selector and verify create option exists", async () => {
-            // Click the account combobox button
-            const accountButton = page.getByRole("combobox", { name: /select account/i });
-            await accountButton.click();
-
-            // The create option should be visible
-            await expect(page.getByRole("option", { name: /create new account/i })).toBeVisible();
-        });
-
-        await test.step("search filters accounts and create option remains", async () => {
-            // Type in the search box
-            const searchInput = page.getByPlaceholder(/search accounts/i);
-            await searchInput.fill("xyz-nonexistent-account-name");
-
-            // Create option should still be visible even when no accounts match
-            await expect(page.getByRole("option", { name: /create new account/i })).toBeVisible();
-
-            // Clear search to reset
-            await searchInput.clear();
-        });
-    });
-
-    test("can create account from transaction form", async ({ page }) => {
+    test("filters and creates an account from the transaction selector", async ({ page }) => {
+        test.setTimeout(60_000);
         await createNewIdentity(page);
         await goToTransactions(page);
 
@@ -986,33 +1020,80 @@ test.describe("Transactions", () => {
             await descriptionInput.press("Enter");
         });
 
-        await test.step("open account selector and click create", async () => {
-            const accountButton = page.getByRole("combobox", { name: /select account/i });
-            await accountButton.click();
+        await test.step("filter accounts while retaining the create option", async () => {
+            const row = page.getByTestId("transaction-row").first();
+            await row.locator('[data-cell="account"]').dblclick();
+            const accountButton = row.getByRole("combobox", { name: /select account/i });
+            await expect(accountButton).toHaveAttribute("aria-expanded", "true");
 
-            // Click create new account
+            const createOption = page.getByRole("option", { name: /create new account/i });
+            await expect(createOption).toBeVisible();
+
+            const searchInput = page.getByPlaceholder(/search accounts/i);
+            await searchInput.fill("xyz-nonexistent-account-name");
+            await expect(createOption).toBeVisible();
+            await searchInput.clear();
+            await createOption.click();
+        });
+
+        await test.step("nested Select Escape retains the modal while modal Escape cancels the editor", async () => {
+            const row = page.getByTestId("transaction-row").first();
+            const accountCell = row.locator('[data-cell="account"]');
+            const accountEditor = row.getByRole("combobox", { name: /select account/i });
+            const dialog = page.getByRole("dialog", { name: "Create Account" });
+            const name = page.getByLabel(/^name$/i);
+            await expect(dialog).toBeVisible();
+            await expect(name).toBeFocused();
+            await expect(accountCell).toHaveAttribute("data-cell-content", "editor");
+
+            for (const label of ["Type", "Currency"]) {
+                await page.getByRole("combobox", { name: label }).click();
+                await expect(page.getByRole("listbox")).toBeVisible();
+                await page.keyboard.press("Escape");
+                await expect(page.getByRole("listbox")).toHaveCount(0);
+                await expect(dialog).toBeVisible();
+                await expect(accountCell).toHaveAttribute("data-cell-content", "editor");
+            }
+
+            await name.fill("Discarded by Escape");
+            await page.keyboard.press("Escape");
+            await expect(dialog).toHaveCount(0);
+            await expect(accountCell).toHaveAttribute("data-cell-content", "display");
+            await expect(accountCell).toBeFocused();
+            await expect(accountEditor).toHaveCount(0);
+
+            await accountCell.dblclick();
             await page.getByRole("option", { name: /create new account/i }).click();
+            await expect(dialog).toBeVisible();
+            await expect(name).toBeFocused();
+            await expect(name).toHaveValue("");
+            await name.fill("Discarded by overlay");
+            await page.locator('[data-slot="dialog-overlay"]').click({ position: { x: 5, y: 5 } });
+            await expect(dialog).toHaveCount(0);
+            await expect(accountCell).toHaveAttribute("data-cell-content", "editor");
+            await expect(accountEditor).toBeFocused();
         });
 
-        await test.step("create account dialog appears and create account", async () => {
-            // Dialog should be visible
-            await expect(page.getByRole("dialog")).toBeVisible();
-            await expect(page.getByRole("heading", { name: /create account/i })).toBeVisible();
-
-            // Fill in the account name
-            await page.getByLabel(/^name$/i).fill("My Checking");
-
-            // Click create button
+        await test.step("repeated handoff creates and explicitly commits the account", async () => {
+            const row = page.getByTestId("transaction-row").first();
+            await row.getByRole("combobox", { name: /select account/i }).click();
+            await page.getByRole("option", { name: /create new account/i }).click();
+            const dialog = page.getByRole("dialog", { name: "Create Account" });
+            const name = page.getByLabel(/^name$/i);
+            await expect(dialog).toBeVisible();
+            await expect(name).toBeFocused();
+            await expect(name).toHaveValue("");
+            await name.fill("My Checking");
             await page.getByRole("button", { name: /^create account$/i }).click();
-
-            // Dialog should close
-            await expect(page.getByRole("dialog")).not.toBeVisible();
+            await expect(dialog).toHaveCount(0);
         });
 
-        await test.step("new account is selected in combobox", async () => {
-            // The combobox should now show the new account
-            const accountButton = page.getByRole("combobox", { name: /select account/i });
-            await expect(accountButton).toContainText("My Checking");
+        await test.step("new account is selected in the account display", async () => {
+            const row = page.getByTestId("transaction-row").first();
+            const accountCell = row.locator('[data-cell="account"]');
+            await expect(accountCell).toHaveAttribute("data-cell-content", "display");
+            await expect(accountCell).toContainText("My Checking");
+            await expect(row.getByRole("combobox", { name: /select account/i })).toHaveCount(0);
         });
 
         await test.step("verify account exists in accounts page", async () => {
@@ -1039,45 +1120,115 @@ test.describe("Transactions", () => {
                 });
             });
 
-            await test.step("click on description cell to focus and edit", async () => {
-                const descriptionInput = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="description-editable"]');
+            const row = page.locator('[data-testid="transaction-row"]').first();
+            const descriptionCell = row.locator('[role="gridcell"][data-cell="description"]');
+            const restingTextInset =
+                await test.step("resting text uses the compact cell inset", async () => {
+                    const geometry = await descriptionCell.evaluate((cell) => {
+                        const display = cell.querySelector('[data-testid="description-display"]');
+                        if (!(cell instanceof HTMLElement) || !(display instanceof HTMLElement)) {
+                            return null;
+                        }
+                        const cellRect = cell.getBoundingClientRect();
+                        const displayRect = display.getBoundingClientRect();
+                        const styles = getComputedStyle(cell);
+                        return {
+                            paddingLeft: Number.parseFloat(styles.paddingLeft),
+                            paddingRight: Number.parseFloat(styles.paddingRight),
+                            textInset: displayRect.left - cellRect.left
+                        };
+                    });
+                    if (geometry == null)
+                        throw new Error("description resting geometry is unavailable");
+                    expect(geometry.paddingLeft).toBe(8);
+                    expect(geometry.paddingRight).toBe(8);
+                    expect(Math.abs(geometry.textInset - geometry.paddingLeft)).toBeLessThanOrEqual(
+                        0.5
+                    );
+                    return geometry.textInset;
+                });
 
-                // In spreadsheet mode, input is always present
-                await expect(descriptionInput).toHaveRole("textbox");
-                await descriptionInput.click();
+            await test.step("full edit selects the value without moving its text edge", async () => {
+                await descriptionCell.dblclick();
+                const descriptionInput = row.getByTestId("description-editable");
                 await expect(descriptionInput).toBeFocused();
+                await expect
+                    .poll(() =>
+                        descriptionInput.evaluate((input: HTMLInputElement) => ({
+                            end: input.selectionEnd,
+                            start: input.selectionStart,
+                            valueLength: input.value.length
+                        }))
+                    )
+                    .toEqual({ end: 16, start: 0, valueLength: 16 });
+
+                const editingGeometry = await descriptionInput.evaluate((input) => {
+                    const cell = input.closest('[role="gridcell"]');
+                    if (!(cell instanceof HTMLElement)) return null;
+                    const cellRect = cell.getBoundingClientRect();
+                    const inputRect = input.getBoundingClientRect();
+                    const styles = getComputedStyle(input);
+                    const paddingLeft = Number.parseFloat(styles.paddingLeft);
+                    return {
+                        paddingLeft,
+                        paddingRight: Number.parseFloat(styles.paddingRight),
+                        textInset: inputRect.left + paddingLeft - input.scrollLeft - cellRect.left
+                    };
+                });
+                if (editingGeometry == null)
+                    throw new Error("description editor geometry is unavailable");
+                expect(editingGeometry.paddingLeft).toBe(0);
+                expect(editingGeometry.paddingRight).toBe(0);
+                expect(Math.abs(editingGeometry.textInset - restingTextInset)).toBeLessThanOrEqual(
+                    0.5
+                );
             });
 
             await test.step("type new value and press Enter to save", async () => {
-                const descriptionInput = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="description-editable"]');
-
+                const descriptionInput = row.getByTestId("description-editable");
                 await descriptionInput.clear();
                 await descriptionInput.fill("Updated Description Name");
                 await descriptionInput.press("Enter");
 
-                // Value should be updated
-                await expect(descriptionInput).toHaveValue("Updated Description Name");
+                await expect(row.getByTestId("description-display")).toHaveText(
+                    "Updated Description Name"
+                );
             });
 
             await test.step("edit again and press Escape to revert", async () => {
-                const descriptionInput = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="description-editable"]');
-
-                await descriptionInput.click();
-                await descriptionInput.clear();
+                await descriptionCell.dblclick();
+                const descriptionInput = row.getByTestId("description-editable");
                 await descriptionInput.fill("This should be reverted");
                 await descriptionInput.press("Escape");
 
-                // Value should be reverted to saved value
-                await expect(descriptionInput).toHaveValue("Updated Description Name");
+                await expect(descriptionCell).toContainText("Updated Description Name");
+            });
+
+            await test.step("printable quick edit leaves its caret at the text end", async () => {
+                const updatedTextLeft = await row
+                    .getByTestId("description-display")
+                    .evaluate((display) => display.getBoundingClientRect().left);
+                await descriptionCell.focus();
+                await descriptionCell.press("q");
+                const descriptionInput = row.getByTestId("description-editable");
+                await expect(descriptionInput).toBeFocused();
+                await expect(descriptionInput).toHaveValue("q");
+                await expect
+                    .poll(() =>
+                        descriptionInput.evaluate((input: HTMLInputElement) => ({
+                            end: input.selectionEnd,
+                            start: input.selectionStart
+                        }))
+                    )
+                    .toEqual({ end: 1, start: 1 });
+                const quickTextLeft = await descriptionInput.evaluate((input) => {
+                    const rect = input.getBoundingClientRect();
+                    const paddingLeft = Number.parseFloat(getComputedStyle(input).paddingLeft);
+                    return rect.left + paddingLeft - input.scrollLeft;
+                });
+                expect(Math.abs(quickTextLeft - updatedTextLeft)).toBeLessThanOrEqual(0.5);
+                await descriptionInput.press("Escape");
+                await expect(descriptionCell).toContainText("Updated Description Name");
             });
         });
 
@@ -1092,31 +1243,29 @@ test.describe("Transactions", () => {
                 });
             });
 
-            await test.step("click to focus description cell", async () => {
-                const descriptionInput = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="description-editable"]');
-                await descriptionInput.click();
-                await expect(descriptionInput).toBeFocused();
-            });
-
-            await test.step("press Tab to save and move to next cell", async () => {
-                const descriptionInput = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="description-editable"]');
-
-                await descriptionInput.clear();
+            await test.step("full edit commits before Tab moves to Account", async () => {
+                const row = page.locator('[data-testid="transaction-row"]').first();
+                const descriptionCell = row.locator('[role="gridcell"][data-cell="description"]');
+                await descriptionCell.dblclick();
+                const descriptionInput = row.getByTestId("description-editable");
                 await descriptionInput.fill("Tab Saved Value");
                 await descriptionInput.press("Tab");
 
-                // Description should be saved
-                await expect(descriptionInput).toHaveValue("Tab Saved Value");
+                await expect(descriptionCell).toContainText("Tab Saved Value");
+                const accountCell = row.locator('[role="gridcell"][data-cell="account"]');
+                await expect(accountCell).toHaveAttribute("data-cell-content", "editor");
+                await expect(page.getByRole("option", { name: "Default" })).toBeVisible();
+                await page.keyboard.press("Escape");
+                await expect(page.getByRole("option", { name: "Default" })).toHaveCount(0);
+                await expect(accountCell).toHaveAttribute("data-cell-content", "display");
+                await expect(accountCell).toBeFocused();
+                await expect(
+                    row.getByRole("combobox", { name: "Select account", exact: true })
+                ).toHaveCount(0);
             });
         });
 
-        test("T014: date displays in compact format for current year", async ({ page }) => {
+        test("T014: date display projects the localized transaction date", async ({ page }) => {
             await createNewIdentity(page);
             await goToTransactions(page);
 
@@ -1127,18 +1276,13 @@ test.describe("Transactions", () => {
                 });
             });
 
-            await test.step("verify date displays in compact format (no year)", async () => {
-                // New transaction defaults to today's date
-                // Date should be displayed in compact format without year (e.g., "2/1" or "1/2" depending on locale)
-                const dateInput = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="date-editable"]');
-
-                const dateText = await dateInput.inputValue();
-                // Format should be D/M or M/D (no year for current year, no strict padding)
-                // Allow for locale-specific separators (/, ., -)
+            await test.step("verify the resting display owns the localized date", async () => {
+                const row = page.locator('[data-testid="transaction-row"]').first();
+                const dateCell = row.locator('[data-cell="date"]');
+                await expect(dateCell).toHaveAttribute("data-cell-content", "display");
+                const dateText = await row.getByTestId("date-display").textContent();
                 expect(dateText).toMatch(/^\d{1,2}[./-]\d{1,2}\.?$/);
+                await expect(row.getByTestId("date-editable")).toHaveCount(0);
             });
         });
 
@@ -1153,15 +1297,10 @@ test.describe("Transactions", () => {
                 });
             });
 
-            await test.step("click on date cell to open calendar popover", async () => {
-                // Click the calendar button to open the popover
-                const calendarButton = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .getByRole("button", { name: "Open calendar" });
-
-                await calendarButton.click();
-                // Calendar popover should be visible - use specific month name pattern
+            await test.step("open the date editor and calendar popover", async () => {
+                const row = page.locator('[data-testid="transaction-row"]').first();
+                await row.locator('[role="gridcell"][data-cell="date"]').dblclick();
+                await row.getByRole("button", { name: "Open calendar" }).click();
                 await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).toBeVisible();
             });
 
@@ -1173,37 +1312,29 @@ test.describe("Transactions", () => {
                 // Calendar should close after selection
                 await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).not.toBeVisible();
 
-                // Date input should show the selected date (value contains "15")
-                const dateInput = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="date-editable"]');
-                await expect(dateInput).toHaveValue(/15/);
+                await expect(
+                    page
+                        .locator('[data-testid="transaction-row"]')
+                        .first()
+                        .getByTestId("date-display")
+                ).toContainText("15");
             });
 
-            await test.step("open calendar and click outside to close without saving", async () => {
-                const dateInput = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="date-editable"]');
-
-                // Get current date value
-                const currentValue = await dateInput.inputValue();
-
-                // Open calendar via button
-                const calendarButton = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .getByRole("button", { name: "Open calendar" });
+            await test.step("open the calendar and cancel the complete Date edit with Escape", async () => {
+                const row = page.locator('[data-testid="transaction-row"]').first();
+                const dateCell = row.locator('[role="gridcell"][data-cell="date"]');
+                const currentDateText = await row.getByTestId("date-display").innerText();
+                await dateCell.dblclick();
+                const calendarButton = row.getByRole("button", { name: "Open calendar" });
                 await calendarButton.click();
                 await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).toBeVisible();
 
-                // Press Escape to close without selecting
                 await page.keyboard.press("Escape");
                 await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).not.toBeVisible();
-
-                // Date should be unchanged
-                await expect(dateInput).toHaveValue(currentValue);
+                await expect(dateCell).toHaveAttribute("data-cell-content", "display");
+                await expect(dateCell).toBeFocused();
+                await expect(row.getByTestId("date-editable")).toHaveCount(0);
+                await expect(row.getByTestId("date-display")).toHaveText(currentDateText);
             });
         });
 
@@ -1218,14 +1349,10 @@ test.describe("Transactions", () => {
                 });
             });
 
-            await test.step("click on amount cell to focus and edit", async () => {
-                // Spreadsheet-style: input is always visible, click to focus
-                const amountInput = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="amount-editable"]');
-
-                await amountInput.click();
+            await test.step("double click the amount cell to focus its editor", async () => {
+                const row = page.locator('[data-testid="transaction-row"]').first();
+                await row.locator('[role="gridcell"][data-cell="amount"]').dblclick();
+                const amountInput = row.getByTestId("amount-editable");
                 await expect(amountInput).toBeFocused();
                 await expect(amountInput).toHaveRole("textbox");
             });
@@ -1240,23 +1367,23 @@ test.describe("Transactions", () => {
                 await amountInput.fill("-250.50");
                 await amountInput.press("Enter");
 
-                // Should have the new value
-                await expect(amountInput).toHaveValue("-250.50");
+                await expect(
+                    page
+                        .locator('[data-testid="transaction-row"]')
+                        .first()
+                        .locator('[role="gridcell"][data-cell="amount"]')
+                ).toContainText("-250.50");
             });
 
             await test.step("edit again and press Escape to cancel", async () => {
-                const amountInput = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="amount-editable"]');
-
-                await amountInput.click();
-                await amountInput.clear();
+                const row = page.locator('[data-testid="transaction-row"]').first();
+                const amountCell = row.locator('[role="gridcell"][data-cell="amount"]');
+                await amountCell.dblclick();
+                const amountInput = row.getByTestId("amount-editable");
                 await amountInput.fill("-999.99");
                 await amountInput.press("Escape");
 
-                // Value should be reverted
-                await expect(amountInput).toHaveValue("-250.50");
+                await expect(amountCell).toContainText("-250.50");
             });
         });
 
@@ -1271,18 +1398,13 @@ test.describe("Transactions", () => {
                 });
             });
 
-            await test.step("click on status cell to focus", async () => {
-                // Spreadsheet-style: select is always visible, click to open dropdown
-                const statusSelect = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="status-editable"]');
-
-                await expect(statusSelect).toHaveRole("combobox");
-                await statusSelect.click();
-
-                // Dropdown should be open (Radix moves focus to dropdown content)
-                await expect(statusSelect).toHaveAttribute("aria-expanded", "true");
+            await test.step("double click the status cell to open its editor", async () => {
+                const row = page.locator('[data-testid="transaction-row"]').first();
+                await row.locator('[role="gridcell"][data-cell="status"]').dblclick();
+                await expect(row.getByTestId("status-editable")).toHaveAttribute(
+                    "aria-expanded",
+                    "true"
+                );
             });
 
             await test.step("select different status (saves immediately)", async () => {
@@ -1290,29 +1412,21 @@ test.describe("Transactions", () => {
                 // Radix Select uses role="option" for items in the dropdown
                 await page.getByRole("option", { name: "Paid" }).click();
 
-                // Dropdown closes and status should show "Paid"
-                const statusTrigger = page
+                const statusCell = page
                     .locator('[data-testid="transaction-row"]')
                     .first()
-                    .locator('[data-testid="status-editable"]');
-
-                await expect(statusTrigger).toContainText("Paid");
+                    .locator('[role="gridcell"][data-cell="status"]');
+                await expect(statusCell).toContainText("Paid");
             });
 
             await test.step("change status and verify it persists", async () => {
-                const statusTrigger = page
+                const statusCell = page
                     .locator('[data-testid="transaction-row"]')
                     .first()
-                    .locator('[data-testid="status-editable"]');
-
-                // Open dropdown again
-                await statusTrigger.click();
-
-                // Select "For Review" status
+                    .locator('[role="gridcell"][data-cell="status"]');
+                await statusCell.dblclick();
                 await page.getByRole("option", { name: "For Review" }).click();
-
-                // Verify it shows "For Review"
-                await expect(statusTrigger).toContainText("For Review");
+                await expect(statusCell).toContainText("For Review");
             });
         });
 
@@ -1341,44 +1455,33 @@ test.describe("Transactions", () => {
                 const transactionRow = page.locator('[data-testid="transaction-row"]').first();
                 await expect(transactionRow).toBeVisible({ timeout: 15_000 });
 
-                // Spreadsheet-style: click opens the dropdown
-                const accountTrigger = transactionRow
-                    .locator('[data-cell="account"]')
-                    .getByRole("combobox");
-
-                await expect(accountTrigger).toBeVisible({ timeout: 15_000 });
-                await accountTrigger.click();
+                await transactionRow.locator('[data-cell="account"]').dblclick();
+                const accountTrigger = transactionRow.getByRole("combobox", {
+                    name: "Select account"
+                });
+                await expect(accountTrigger).toBeVisible();
+                await expect(accountTrigger).toHaveAttribute("aria-expanded", "true");
 
                 // Dropdown should be visible with account options
                 await expect(page.getByRole("option", { name: "Default" })).toBeVisible();
                 await expect(page.getByRole("option", { name: "Savings" })).toBeVisible();
             });
 
-            await test.step("select different account (saves immediately)", async () => {
-                // Click on Savings account option
+            await test.step("resolve the Account draft and commit it explicitly", async () => {
+                const transactionRow = page.locator('[data-testid="transaction-row"]').first();
+                const accountCell = transactionRow.locator('[data-cell="account"]');
+                const accountTrigger = transactionRow.getByRole("combobox", {
+                    name: "Select account"
+                });
                 await page.getByRole("option", { name: "Savings" }).click();
 
-                // Dropdown should close and account should be updated
-                const accountTrigger = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-cell="account"]')
-                    .getByRole("combobox");
-
+                await expect(accountCell).toHaveAttribute("data-cell-content", "editor");
                 await expect(accountTrigger).toContainText("Savings");
-            });
+                await expect(accountTrigger).toBeFocused();
+                await accountTrigger.press("Enter");
 
-            await test.step("change account back and verify it persists", async () => {
-                const accountTrigger = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-cell="account"]')
-                    .getByRole("combobox");
-
-                await accountTrigger.click();
-                await page.getByRole("option", { name: "Default" }).click();
-
-                await expect(accountTrigger).toContainText("Default");
+                await expect(accountCell).toHaveAttribute("data-cell-content", "display");
+                await expect(accountCell).toContainText("Savings");
             });
         });
 
@@ -1412,38 +1515,32 @@ test.describe("Transactions", () => {
                 });
             });
 
-            await test.step("click on tags cell to open dropdown", async () => {
-                // Spreadsheet-style: click opens the dropdown
-                const tagsEditable = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-testid="tags-editable"]');
-
-                await expect(tagsEditable).toBeVisible();
-                await tagsEditable.click();
+            await test.step("double click the tags cell to open its editor", async () => {
+                const row = page.locator('[data-testid="transaction-row"]').first();
+                await row.locator('[role="gridcell"][data-cell="tags"]').dblclick();
 
                 // Wait for the dropdown to appear with search input (portaled to body)
                 const searchInput = page.getByPlaceholder("Search tags...");
                 await expect(searchInput).toBeVisible({ timeout: 15_000 });
             });
 
-            await test.step("select a tag (saves immediately)", async () => {
-                // Click on Groceries tag in the portaled dropdown (cmdk items have role="option")
-                const tagOption = page.getByRole("option", { name: "Groceries" });
-                await tagOption.click();
+            await test.step("select a tag and commit it when leaving the editor", async () => {
+                const row = page.locator('[data-testid="transaction-row"]').first();
+                const tagsCell = row.locator('[data-cell="tags"]');
+                await page.getByRole("option", { name: "Groceries" }).click();
+                await expect(row.getByTestId("tags-editable")).toContainText("Groceries");
 
-                // Should show the tag in the cell (dropdown closes after selection)
-                const tagsCell = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-cell="tags"]');
+                await row
+                    .locator('[role="gridcell"][data-cell="description"]')
+                    .click({ position: { x: 2, y: 2 } });
+
+                await expect(tagsCell).toHaveAttribute("data-cell-content", "display");
                 await expect(tagsCell).toContainText("Groceries");
             });
         });
 
-        test("T033: inline tag creation - Create button visible when searching", async ({
-            page
-        }) => {
+        test("T033: inline tags offer creation only for a new exact name", async ({ page }) => {
+            test.setTimeout(60_000);
             await createNewIdentity(page);
             await goToTransactions(page);
 
@@ -1460,7 +1557,7 @@ test.describe("Transactions", () => {
                     .first()
                     .locator('[data-cell="tags"]');
 
-                await tagsCell.click();
+                await tagsCell.dblclick();
 
                 // Dropdown is portaled to body
                 const searchInput = page.getByPlaceholder("Search tags...");
@@ -1479,73 +1576,40 @@ test.describe("Transactions", () => {
                 await createButton.click();
             });
 
-            await test.step("verify new tag was created and applied", async () => {
+            await test.step("commit the staged tag and assignment together", async () => {
+                const row = page.locator('[data-testid="transaction-row"]').first();
+                const tagsCell = row.locator('[data-cell="tags"]');
+                await expect(row.getByTestId("tags-editable")).toContainText("NewInlineTag");
+
+                await row
+                    .locator('[role="gridcell"][data-cell="description"]')
+                    .click({ position: { x: 2, y: 2 } });
+
+                await expect(tagsCell).toHaveAttribute("data-cell-content", "display");
+                await expect(tagsCell).toContainText("NewInlineTag");
+            });
+
+            await test.step("hide creation when the exact tag already exists", async () => {
                 const tagsCell = page
                     .locator('[data-testid="transaction-row"]')
                     .first()
                     .locator('[data-cell="tags"]');
+                await tagsCell.dblclick();
 
-                // The tag should now be visible on the transaction
-                await expect(tagsCell).toContainText("NewInlineTag");
+                const searchInput = page.getByPlaceholder("Search tags...");
+                await expect(searchInput).toBeVisible({ timeout: 15_000 });
+                await searchInput.fill("NewInlineTag");
+
+                await expect(page.getByTestId("create-tag-button")).not.toBeVisible();
+                await expect(page.getByRole("option", { name: "NewInlineTag" })).toBeVisible();
+                await searchInput.press("Escape");
+                await expect(tagsCell).toHaveAttribute("data-cell-content", "display");
+                await expect(tagsCell).toBeFocused();
             });
 
             await test.step("verify tag exists in tags page", async () => {
                 await goToTags(page);
-
-                // The newly created tag should appear
-                await expect(page.getByText("NewInlineTag")).toBeVisible();
-            });
-        });
-
-        test("T033a: Create button hidden when exact match exists", async ({ page }) => {
-            await createNewIdentity(page);
-            await goToTransactions(page);
-
-            await test.step("create an existing tag", async () => {
-                await goToTags(page);
-                await page.getByRole("button", { name: /add tag/i }).click();
-
-                const nameInput = page.getByPlaceholder(/enter tag name/i);
-                await nameInput.waitFor({ state: "visible", timeout: 3000 });
-                await nameInput.fill("ExistingTag");
-
-                await page.getByRole("button", { name: /^add tag$/i }).click();
-                await expect(page.locator('[data-testid^="tag-row-"]').first()).toBeVisible();
-
-                await goToTransactions(page);
-            });
-
-            await test.step("create a test transaction", async () => {
-                await createTestTransaction(page, {
-                    description: "Exact Match Test",
-                    amount: "-25.00"
-                });
-            });
-
-            await test.step("open tags dropdown and type exact match", async () => {
-                const tagsCell = page
-                    .locator('[data-testid="transaction-row"]')
-                    .first()
-                    .locator('[data-cell="tags"]');
-
-                await tagsCell.click();
-
-                // Dropdown is portaled to body
-                const searchInput = page.getByPlaceholder("Search tags...");
-                await expect(searchInput).toBeVisible({ timeout: 15_000 });
-
-                // Type exact name of existing tag
-                await searchInput.fill("ExistingTag");
-            });
-
-            await test.step("verify Create button is not shown for exact match", async () => {
-                // When exact match exists, no create button is rendered
-                const createButton = page.getByTestId("create-tag-button");
-                await expect(createButton).not.toBeVisible();
-
-                // The existing tag should be selectable instead
-                const existingTagOption = page.getByRole("option", { name: "ExistingTag" });
-                await expect(existingTagOption).toBeVisible();
+                await expect(page.getByText("NewInlineTag", { exact: true })).toBeVisible();
             });
         });
     });
@@ -1555,7 +1619,8 @@ test.describe("Transactions", () => {
     // ========================================================================
 
     test.describe("Keyboard Grid Navigation", () => {
-        test("arrow up/down moves focus between same column cells", async ({ page }) => {
+        test("arrow navigation resumes from the retained parked cell", async ({ page }) => {
+            test.setTimeout(60_000);
             await createNewIdentity(page);
             await goToTransactions(page);
 
@@ -1569,45 +1634,90 @@ test.describe("Transactions", () => {
                 await expect(page.getByText("3 transactions", { exact: true })).toBeVisible();
             });
 
-            await test.step("focus first row description and press arrow down", async () => {
-                // Use the stable value rather than a live `.first()` locator: a late CRDT render
-                // can reorder newly inserted rows between click and focus assertion.
-                const firstRowDescription = page
-                    .getByRole("row", { name: /Row 3 Store/ })
-                    .getByTestId("description-editable");
+            const descriptionCell = (description: RegExp) =>
+                page.getByRole("row", { name: description }).locator('[data-cell="description"]');
+            const afterGrid = page.getByRole("button", { name: "After transactions" });
+            const parkDescription = async (description: RegExp) => {
+                const cell = descriptionCell(description);
+                await cell.dblclick();
+                const editor = cell.getByTestId("description-editable");
+                await expect(editor).toBeFocused();
+                await editor.press("Escape");
+                await expect(cell).toBeFocused();
+                await expect(cell).toHaveAttribute("aria-selected", "true");
+                await cell.press("Escape");
+                await expect(afterGrid).toBeFocused();
+                await expect(
+                    page
+                        .getByTestId("transaction-table")
+                        .locator('[role="gridcell"][aria-selected="true"]')
+                ).toHaveCount(0);
+            };
 
-                await firstRowDescription.click();
+            await test.step("focus first row description and press arrow down", async () => {
+                const firstRowDescription = descriptionCell(/Row 3 Store/);
+                await firstRowDescription.focus();
                 await expect(firstRowDescription).toBeFocused();
 
-                // Press arrow down
-                await page.keyboard.press("ArrowDown");
-
-                // Second row description should now be focused
-                const secondRowDescription = page
-                    .getByRole("row", { name: /Row 2 Store/ })
-                    .getByTestId("description-editable");
-
-                await expect(secondRowDescription).toBeFocused();
+                await firstRowDescription.press("ArrowDown");
+                await expect(descriptionCell(/Row 2 Store/)).toBeFocused();
             });
 
             await test.step("press arrow down again to move to third row", async () => {
                 await page.keyboard.press("ArrowDown");
-
-                const thirdRowDescription = page
-                    .getByRole("row", { name: /Row 1 Store/ })
-                    .getByTestId("description-editable");
-
-                await expect(thirdRowDescription).toBeFocused();
+                await expect(descriptionCell(/Row 1 Store/)).toBeFocused();
             });
 
             await test.step("press arrow up to move back to second row", async () => {
                 await page.keyboard.press("ArrowUp");
+                await expect(descriptionCell(/Row 2 Store/)).toBeFocused();
+            });
 
-                const secondRowDescription = page
-                    .getByRole("row", { name: /Row 2 Store/ })
-                    .getByTestId("description-editable");
+            await test.step("double Escape parks and vertical Arrows move from the retained row", async () => {
+                await parkDescription(/Row 2 Store/);
+                await afterGrid.press("ArrowDown");
+                await expect(descriptionCell(/Row 1 Store/)).toBeFocused();
+                await expect(descriptionCell(/Row 1 Store/)).toHaveAttribute(
+                    "aria-selected",
+                    "true"
+                );
 
-                await expect(secondRowDescription).toBeFocused();
+                await parkDescription(/Row 2 Store/);
+                await afterGrid.press("ArrowUp");
+                await expect(descriptionCell(/Row 3 Store/)).toBeFocused();
+                await expect(descriptionCell(/Row 3 Store/)).toHaveAttribute(
+                    "aria-selected",
+                    "true"
+                );
+            });
+
+            await test.step("double Escape parks and horizontal Arrows move from the retained column", async () => {
+                const middleRow = page.getByRole("row", { name: /Row 2 Store/ });
+                await parkDescription(/Row 2 Store/);
+                await afterGrid.press("ArrowLeft");
+                await expect(middleRow.locator('[data-cell="date"]')).toBeFocused();
+
+                await parkDescription(/Row 2 Store/);
+                await afterGrid.press("ArrowRight");
+                await expect(middleRow.locator('[data-cell="account"]')).toBeFocused();
+            });
+
+            await test.step("parked vertical Arrows preserve selection at grid boundaries", async () => {
+                await parkDescription(/Row 3 Store/);
+                await afterGrid.press("ArrowUp");
+                await expect(descriptionCell(/Row 3 Store/)).toBeFocused();
+                await expect(descriptionCell(/Row 3 Store/)).toHaveAttribute(
+                    "aria-selected",
+                    "true"
+                );
+
+                await parkDescription(/Row 1 Store/);
+                await afterGrid.press("ArrowDown");
+                await expect(descriptionCell(/Row 1 Store/)).toBeFocused();
+                await expect(descriptionCell(/Row 1 Store/)).toHaveAttribute(
+                    "aria-selected",
+                    "true"
+                );
             });
         });
 
@@ -1619,72 +1729,50 @@ test.describe("Transactions", () => {
                 await createTestTransaction(page, { description: "Nav Test", amount: "-50.00" });
             });
 
+            const row = page.locator('[data-testid="transaction-row"]').first();
+            const cell = (column: string) =>
+                row.locator(`[role="gridcell"][data-cell="${column}"]`);
+            const allocationCell = row
+                .locator('[role="gridcell"][data-cell^="allocation:"]')
+                .first();
+
             await test.step("focus description cell and navigate right to account", async () => {
-                const row = page.locator('[data-testid="transaction-row"]').first();
-                const descriptionInput = row.locator('[data-testid="description-editable"]');
-
-                await descriptionInput.click();
-                await expect(descriptionInput).toBeFocused();
-
-                // Move cursor to end of text, then press right to navigate to next cell
-                await page.keyboard.press("End");
-                await page.keyboard.press("ArrowRight");
-
-                // Should focus the account cell (next after description)
-                const accountTrigger = row.locator('[data-cell="account"]').getByRole("combobox");
-                await expect(accountTrigger).toBeFocused();
+                const descriptionCell = cell("description");
+                await descriptionCell.focus();
+                await expect(descriptionCell).toBeFocused();
+                await descriptionCell.press("ArrowRight");
+                await expect(cell("account")).toBeFocused();
             });
 
             await test.step("navigate right through remaining cells", async () => {
-                const row = page.locator('[data-testid="transaction-row"]').first();
-
-                // From account, arrow right goes to tags (focusable div inside tags-editable)
                 await page.keyboard.press("ArrowRight");
-                const tagsFocusable = row.locator('[data-testid="tags-editable"] [tabindex="0"]');
-                await expect(tagsFocusable).toBeFocused();
+                await expect(cell("tags")).toBeFocused();
 
-                // From tags, arrow right goes to status
                 await page.keyboard.press("ArrowRight");
-                const statusTrigger = row.locator('[data-testid="status-editable"]');
-                await expect(statusTrigger).toBeFocused();
+                await expect(cell("status")).toBeFocused();
 
-                // Allocation columns are real grid cells between status and amount.
                 await page.keyboard.press("ArrowRight");
-                const allocationCell = row.getByRole("button", {
-                    name: /edit Me allocation/i
-                });
                 await expect(allocationCell).toBeFocused();
 
                 await page.keyboard.press("ArrowRight");
-                const amountInput = row.locator('[data-testid="amount-editable"]');
-                await expect(amountInput).toBeFocused();
+                await expect(cell("amount")).toBeFocused();
             });
 
             await test.step("navigate left back through cells", async () => {
-                const row = page.locator('[data-testid="transaction-row"]').first();
-
-                // Move cursor to start, then press left
-                await page.keyboard.press("Home");
                 await page.keyboard.press("ArrowLeft");
-
-                // Amount moves left through the allocation column before status.
-                const allocationCell = row.getByRole("button", {
-                    name: /edit Me allocation/i
-                });
                 await expect(allocationCell).toBeFocused();
 
                 await page.keyboard.press("ArrowLeft");
-                const statusTrigger = row.locator('[data-testid="status-editable"]');
-                await expect(statusTrigger).toBeFocused();
+                await expect(cell("status")).toBeFocused();
 
-                // Left again to tags
                 await page.keyboard.press("ArrowLeft");
-                const tagsFocusable = row.locator('[data-testid="tags-editable"] [tabindex="0"]');
-                await expect(tagsFocusable).toBeFocused();
+                await expect(cell("tags")).toBeFocused();
             });
         });
 
-        test("text input only navigates when cursor at boundary", async ({ page }) => {
+        test("text input keeps interior arrows and exits to its canonical cell", async ({
+            page
+        }) => {
             await createNewIdentity(page);
             await goToTransactions(page);
 
@@ -1699,11 +1787,10 @@ test.describe("Transactions", () => {
             });
 
             await test.step("position cursor in middle of text - arrow keys move cursor not focus", async () => {
-                const descriptionInput = page
-                    .getByRole("row", { name: /Other Row/ })
-                    .getByTestId("description-editable");
-
-                await descriptionInput.click();
+                const row = page.getByRole("row", { name: /Other Row/ });
+                await row.locator('[data-cell="description"]').dblclick();
+                const descriptionInput = row.getByTestId("description-editable");
+                await expect(descriptionInput).toBeFocused();
                 // Position cursor in the middle (after "Other")
                 await page.keyboard.press("Home");
                 await page.keyboard.press("ArrowRight");
@@ -1719,15 +1806,18 @@ test.describe("Transactions", () => {
                 await expect(descriptionInput).toBeFocused();
             });
 
-            await test.step("arrow down from text input moves to next row", async () => {
-                // Arrow down should move to next row's description (single-line input)
+            await test.step("arrow down commits and continues full editing in the next row", async () => {
                 await page.keyboard.press("ArrowDown");
 
-                const secondRowDescription = page
-                    .getByRole("row", { name: /Boundary Test/ })
-                    .getByTestId("description-editable");
+                const sourceRow = page.getByRole("row", { name: /Other Row/ });
+                await expect(sourceRow.getByTestId("description-editable")).toHaveCount(0);
+                await expect(sourceRow.getByTestId("description-display")).toHaveText("Other Row");
 
-                await expect(secondRowDescription).toBeFocused();
+                const destinationRow = page.getByRole("row", { name: /Boundary Test/ });
+                const destinationEditor = destinationRow.getByTestId("description-editable");
+                await expect(destinationEditor).toBeFocused();
+                await destinationEditor.press("Escape");
+                await expectTransactionCellDisplay(destinationRow, "description", "Boundary Test");
             });
         });
 
@@ -1749,92 +1839,79 @@ test.describe("Transactions", () => {
             });
 
             await test.step("focus status cell and verify arrow down navigates to next row", async () => {
-                const firstStatus = page
-                    .getByRole("row", { name: /Status Nav 2/ })
-                    .getByTestId("status-editable");
+                const firstRow = page.getByRole("row", { name: /Status Nav 2/ });
+                const firstStatus = firstRow.locator('[data-cell="status"]');
 
-                // Click to focus (not open)
                 await firstStatus.focus();
                 await expect(firstStatus).toBeFocused();
+                await expect(firstRow.getByTestId("status-editable")).toHaveCount(0);
+                await expect(page.getByRole("option", { name: "Paid" })).toHaveCount(0);
 
-                // Dropdown should NOT be open
-                await expect(firstStatus).toHaveAttribute("aria-expanded", "false");
+                // Press arrow down - should navigate to next row, not open dropdown.
+                await firstStatus.press("ArrowDown");
 
-                // Press arrow down - should navigate to next row, not open dropdown
-                await page.keyboard.press("ArrowDown");
-
-                // Second row status should be focused
-                const secondStatus = page
-                    .getByRole("row", { name: /Status Nav 1/ })
-                    .getByTestId("status-editable");
+                const secondRow = page.getByRole("row", { name: /Status Nav 1/ });
+                const secondStatus = secondRow.locator('[data-cell="status"]');
                 await expect(secondStatus).toBeFocused();
-
-                // Dropdown should still be closed
-                await expect(secondStatus).toHaveAttribute("aria-expanded", "false");
+                await expect(secondRow.getByTestId("status-editable")).toHaveCount(0);
+                await expect(page.getByRole("option", { name: "Paid" })).toHaveCount(0);
             });
         });
 
-        test("description row navigation - down from description to notes", async ({ page }) => {
+        test("inspector notes stay outside canonical grid navigation", async ({ page }) => {
             await createNewIdentity(page);
             await goToTransactions(page);
 
-            await test.step("create transaction and add notes", async () => {
+            const targetRowId = await test.step("create transaction and add notes", async () => {
                 await createTestTransaction(page, {
                     description: "Desc Nav Test",
                     amount: "-50.00"
                 });
 
-                // Find the row by its description (not position, since order may vary)
-                const row = page.locator('[data-testid="transaction-row"]').filter({
-                    has: page.locator('[data-testid="description-editable"][value="Desc Nav Test"]')
-                });
+                const row = await stableTransactionRow(
+                    page.getByRole("row", { name: /Desc Nav Test/ })
+                );
+                const transactionId = await row.getAttribute("data-transaction-id");
+                if (transactionId == null) throw new Error("transaction has no stable identity");
 
-                // Expand and add notes
-                const expandButton = row.locator('[data-testid="expand-notes-button"]');
-                await expandButton.click();
-
-                const notesInput = page.locator('[data-testid="notes-editable"]');
+                const inspector = await openTransactionInspector(page);
+                await transactionGridCell(row, "description").click();
+                const notesInput = inspector.getByTestId("notes-editable");
+                await expect(notesInput).toHaveAttribute("data-transaction-owner", transactionId);
                 await notesInput.fill("Test notes text");
-                await notesInput.press("Enter");
+                await expect(notesInput).toHaveValue("Test notes text");
+                return transactionId;
             });
 
             await test.step("create second transaction", async () => {
                 await createTestTransaction(page, { description: "Second Row", amount: "-30.00" });
             });
 
-            await test.step("navigate down from description to notes", async () => {
-                // Find the row with expanded notes by its description
-                const targetRow = page.locator('[data-testid="transaction-row"]').filter({
-                    has: page.locator('[data-testid="description-editable"][value="Desc Nav Test"]')
-                });
-                const descriptionInput = targetRow.locator('[data-testid="description-editable"]');
+            const targetRow = page.locator(`[data-transaction-id="${targetRowId}"]`);
+            const descriptionCell = transactionGridCell(targetRow, "description");
+            const inspector = await openTransactionInspector(page);
+            const notesInput = inspector.getByTestId("notes-editable");
 
-                await descriptionInput.click();
-                await expect(descriptionInput).toBeFocused();
+            await test.step("vertical grid movement does not enter the inspector", async () => {
+                await descriptionCell.focus();
+                await expect(descriptionCell).toBeFocused();
 
-                // Arrow down should go to notes (expanded row)
-                await page.keyboard.press("ArrowDown");
-
-                const notesInput = page.locator('[data-testid="notes-editable"]');
-                await expect(notesInput).toBeFocused();
+                await descriptionCell.press("ArrowDown");
+                await expect(descriptionCell).toBeFocused();
+                await expect(notesInput).not.toBeFocused();
+                await expect(targetRow.getByTestId("description-editable")).toHaveCount(0);
             });
 
-            await test.step("navigate up from notes back to description", async () => {
-                // The notes should still be focused from previous step
-                // Move cursor to start of textarea before pressing up
-                await page.keyboard.press("Control+Home"); // Go to very beginning
+            await test.step("notes retain their own text-navigation focus", async () => {
+                await notesInput.focus();
+                await page.keyboard.press("Control+Home");
                 await page.keyboard.press("ArrowUp");
-
-                // Should go back to the "Desc Nav Test" row's description
-                const targetRow = page.locator('[data-testid="transaction-row"]').filter({
-                    has: page.locator('[data-testid="description-editable"][value="Desc Nav Test"]')
-                });
-                const descriptionInput = targetRow.locator('[data-testid="description-editable"]');
-                await expect(descriptionInput).toBeFocused();
+                await expect(notesInput).toBeFocused();
+                await expect(descriptionCell).not.toBeFocused();
             });
         });
 
-        test("Enter key opens date calendar popup", async ({ page }) => {
+        test("Enter edits date and Tab opens its calendar popup", async ({ page }) => {
             await createNewIdentity(page);
             await goToTransactions(page);
 
@@ -1845,17 +1922,16 @@ test.describe("Transactions", () => {
                 });
             });
 
-            await test.step("focus date cell and press Enter to open calendar", async () => {
+            await test.step("enter full edit and advance into the date calendar", async () => {
                 const row = page.locator('[data-testid="transaction-row"]').first();
-                const dateInput = row.locator('[data-testid="date-editable"]');
-
-                await dateInput.click();
+                const dateCell = row.locator('[role="gridcell"][data-cell="date"]');
+                await dateCell.focus();
+                await dateCell.press("Enter");
+                const dateInput = row.getByTestId("date-editable");
                 await expect(dateInput).toBeFocused();
 
-                // Press Enter to open calendar
-                await page.keyboard.press("Enter");
+                await dateInput.press("Tab");
 
-                // Calendar popup should be visible
                 await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).toBeVisible();
             });
         });
@@ -2251,9 +2327,10 @@ test.describe("Transactions", () => {
                 await expect(page.getByTestId("transaction-row")).toHaveCount(1);
 
                 const farRow = page.getByTestId("transaction-row").first();
-                await expect(farRow.locator('[data-testid="status-editable"]')).toContainText(
-                    "Paid"
-                );
+                const statusCell = farRow.locator('[data-cell="status"]');
+                await expect(statusCell).toHaveAttribute("data-cell-content", "display");
+                await expect(statusCell).toContainText("Paid");
+                await expect(farRow.getByTestId("status-editable")).toHaveCount(0);
             });
         });
 
@@ -2394,17 +2471,21 @@ test.describe("Transactions", () => {
             });
 
             await test.step("verify notes applied to all transactions", async () => {
-                const rows = page.locator('[data-testid="transaction-row"]');
+                const rows = page.getByTestId("transaction-row");
                 const count = await rows.count();
+                const inspector = await openTransactionInspector(page);
+                const notesInput = inspector.getByTestId("notes-editable");
 
-                // Notes is in the expanded row - expand each row and check
-                for (let i = 0; i < count; i++) {
-                    const row = rows.nth(i);
-                    const expandButton = row.locator('[data-testid="expand-notes-button"]');
-                    await expandButton.click();
-
-                    // The notes row appears for the expanded row
-                    const notesInput = page.locator('[data-testid="notes-editable"]').nth(i);
+                for (let index = 0; index < count; index += 1) {
+                    const row = await stableTransactionRow(rows.nth(index));
+                    const transactionId = await row.getAttribute("data-transaction-id");
+                    if (transactionId == null)
+                        throw new Error("transaction has no stable identity");
+                    await transactionGridCell(row, "description").click();
+                    await expect(notesInput).toHaveAttribute(
+                        "data-transaction-owner",
+                        transactionId
+                    );
                     await expect(notesInput).toHaveValue("Bulk Updated Description");
                 }
             });
@@ -2445,10 +2526,11 @@ test.describe("Transactions", () => {
                 const count = await rows.count();
 
                 for (let i = 0; i < count; i++) {
-                    // Status is in a select element - check the value contains the status name
-                    const statusSelect = rows.nth(i).locator('[data-testid="status-editable"]');
-                    // The selected option should display "Paid"
-                    await expect(statusSelect).toContainText("Paid");
+                    const row = rows.nth(i);
+                    const statusCell = row.locator('[data-cell="status"]');
+                    await expect(statusCell).toHaveAttribute("data-cell-content", "display");
+                    await expect(statusCell).toContainText("Paid");
+                    await expect(row.getByTestId("status-editable")).toHaveCount(0);
                 }
             });
         });
@@ -2522,16 +2604,9 @@ test.describe("Transactions", () => {
             });
 
             await test.step("verify no changes applied", async () => {
-                // Transactions should keep original description names - verify both exist
-                const escapeTestRow = page.locator('[data-testid="transaction-row"]').filter({
-                    has: page.locator('[data-testid="description-editable"][value="Escape Test"]')
-                });
-                await expect(escapeTestRow).toBeVisible();
-
-                const escapeTest2Row = page.locator('[data-testid="transaction-row"]').filter({
-                    has: page.locator('[data-testid="description-editable"][value="Escape Test 2"]')
-                });
-                await expect(escapeTest2Row).toBeVisible();
+                await expect(page.getByRole("row", { name: /Escape Test(?! 2)/ })).toBeVisible();
+                await expect(page.getByRole("row", { name: /Escape Test 2/ })).toBeVisible();
+                await expect(page.getByTestId("description-editable")).toHaveCount(0);
             });
         });
     });
@@ -2541,196 +2616,75 @@ test.describe("Transactions", () => {
     // ========================================================================
 
     test.describe("US5: Description/Notes Separation", () => {
-        test("T037: description column displays primary text, notes in expandable row", async ({
+        test("T037: notes journey covers empty, edit, inspector and search states", async ({
             page
         }) => {
+            test.setTimeout(60_000);
             await createNewIdentity(page);
             await goToTransactions(page);
 
-            await test.step("create transaction with description", async () => {
-                await createTestTransaction(page, {
-                    description: "Starbucks",
-                    amount: "-5.00"
+            const row =
+                await test.step("create a transaction with an empty notes state", async () => {
+                    await createTestTransaction(page, {
+                        description: "UniqueStoreName",
+                        amount: "-50.00"
+                    });
+
+                    const stableRow = await stableTransactionRow(
+                        page.getByTestId("transaction-row").first()
+                    );
+                    const descriptionCell = transactionGridCell(stableRow, "description");
+                    await expect(descriptionCell).toHaveAttribute("data-cell-content", "display");
+                    await expect(stableRow.getByTestId("description-display")).toHaveText(
+                        "UniqueStoreName"
+                    );
+                    await expect(stableRow.getByTestId("description-editable")).toHaveCount(0);
+                    await expect(stableRow.getByTestId("expand-notes-button")).toHaveCount(0, {
+                        timeout: 3_000
+                    });
+                    return stableRow;
                 });
-            });
 
-            await test.step("verify description displays in main row", async () => {
-                const row = page.locator('[data-testid="transaction-row"]').first();
-                const descriptionInput = row.locator('[data-testid="description-editable"]');
+            const transactionId = await row.getAttribute("data-transaction-id");
+            if (transactionId == null) throw new Error("transaction has no stable identity");
 
-                await expect(descriptionInput).toHaveValue("Starbucks");
-            });
-
-            await test.step("verify expand button exists", async () => {
-                const row = page.locator('[data-testid="transaction-row"]').first();
-                const expandButton = row.locator('[data-testid="expand-notes-button"]');
-
-                await expect(expandButton).toBeVisible();
-            });
-
-            await test.step("expand notes row", async () => {
-                const row = page.locator('[data-testid="transaction-row"]').first();
-                const expandButton = row.locator('[data-testid="expand-notes-button"]');
-
-                await expandButton.click();
-
-                // Notes row should now be visible
-                const notesRow = page.locator('[data-testid="notes-row"]');
-                await expect(notesRow).toBeVisible();
-            });
-
-            await test.step("verify notes field is editable", async () => {
-                const notesRow = page.locator('[data-testid="notes-row"]');
-                const notesInput = notesRow.locator('[data-testid="notes-editable"]');
-
-                await expect(notesInput).toBeVisible();
+            await test.step("open the inspector and edit the empty notes field", async () => {
+                const inspector = await openTransactionInspector(page);
+                await transactionGridCell(row, "description").click();
+                const notesInput = inspector.getByTestId("notes-editable");
+                await expect(notesInput).toHaveAttribute("data-transaction-owner", transactionId);
                 await expect(notesInput).toHaveAttribute("placeholder", /add notes/i);
-            });
-        });
-
-        test("T038: edit notes in expanded row", async ({ page }) => {
-            await createNewIdentity(page);
-            await goToTransactions(page);
-
-            await test.step("create transaction and expand", async () => {
-                await createTestTransaction(page, {
-                    description: "Amazon",
-                    amount: "-99.00"
-                });
-
-                const row = page.locator('[data-testid="transaction-row"]').first();
-                const expandButton = row.locator('[data-testid="expand-notes-button"]');
-                await expandButton.click();
-            });
-
-            await test.step("edit notes and save with Enter", async () => {
-                const notesRow = page.locator('[data-testid="notes-row"]');
-                const notesInput = notesRow.locator('[data-testid="notes-editable"]');
-
-                await notesInput.click();
-                await notesInput.fill("Monthly subscription payment");
-                await notesInput.press("Enter");
-            });
-
-            await test.step("verify notes saved", async () => {
-                const notesRow = page.locator('[data-testid="notes-row"]');
-                const notesInput = notesRow.locator('[data-testid="notes-editable"]');
-
-                // Textarea may have trailing newline, so check contains text
-                await expect(notesInput).toHaveValue(/Monthly subscription payment/);
-            });
-
-            await test.step("collapse and re-expand to verify persistence", async () => {
-                const row = page.locator('[data-testid="transaction-row"]').first();
-                const expandButton = row.locator('[data-testid="expand-notes-button"]');
-
-                // Collapse
-                await expandButton.click();
-                await expect(page.locator('[data-testid="notes-row"]')).not.toBeVisible();
-
-                // Re-expand
-                await expandButton.click();
-                const notesRow = page.locator('[data-testid="notes-row"]');
-                const notesInput = notesRow.locator('[data-testid="notes-editable"]');
-
-                // Textarea may have trailing newline, so check contains text
-                await expect(notesInput).toHaveValue(/Monthly subscription payment/);
-            });
-        });
-
-        test("T039: expand button icon reflects notes state", async ({ page }) => {
-            await createNewIdentity(page);
-            await goToTransactions(page);
-
-            await test.step("create transaction without notes", async () => {
-                await createTestTransaction(page, {
-                    description: "Icon Test Store",
-                    amount: "-10.00"
-                });
-            });
-
-            await test.step("verify expand button shows plus icon initially", async () => {
-                const row = page.locator('[data-testid="transaction-row"]').first();
-                const expandButton = row.locator('[data-testid="expand-notes-button"]');
-
-                // Button should be mostly hidden until hover (opacity-0 with group-hover:opacity-100)
-                // But we can still click it
-                await expect(expandButton).toBeAttached();
-            });
-
-            await test.step("add notes and verify icon changes", async () => {
-                const row = page.locator('[data-testid="transaction-row"]').first();
-                const expandButton = row.locator('[data-testid="expand-notes-button"]');
-
-                await expandButton.click();
-
-                const notesRow = page.locator('[data-testid="notes-row"]');
-                const notesInput = notesRow.locator('[data-testid="notes-editable"]');
-
-                await notesInput.fill("Test memo");
-                await notesInput.press("Enter");
-
-                // Collapse
-                await expandButton.click();
-
-                // Expand button should now be visible (not hidden) because notes exists
-                await expect(expandButton).toBeVisible();
-            });
-        });
-
-        test("T040: search filters include both description and notes", async ({ page }) => {
-            await createNewIdentity(page);
-            await goToTransactions(page);
-
-            await test.step("create transaction with description and add notes", async () => {
-                await createTestTransaction(page, {
-                    description: "UniqueStoreName",
-                    amount: "-50.00"
-                });
-
-                // add notes
-                const row = page.locator('[data-testid="transaction-row"]').first();
-                const expandButton = row.locator('[data-testid="expand-notes-button"]');
-                await expandButton.click();
-
-                const notesRow = page.locator('[data-testid="notes-row"]');
-                const notesInput = notesRow.locator('[data-testid="notes-editable"]');
+                await expect(notesInput).toHaveValue("");
 
                 await notesInput.fill("UniqueNotesText");
-                await notesInput.press("Enter");
-
-                // Collapse
-                await expandButton.click();
+                await expect(notesInput).toHaveValue("UniqueNotesText");
             });
 
-            await test.step("search by description finds transaction", async () => {
+            await test.step("retain notes after closing and reopening the inspector", async () => {
+                const toggle = page.getByTestId("transaction-inspector-toggle");
+                await toggle.click();
+                await expect(page.getByTestId("transaction-inspector")).toBeHidden();
+
+                const inspector = await openTransactionInspector(page);
+                const notesInput = inspector.getByTestId("notes-editable");
+                await expect(notesInput).toHaveAttribute("data-transaction-owner", transactionId);
+                await expect(notesInput).toHaveValue("UniqueNotesText");
+            });
+
+            await test.step("find the transaction by description and notes", async () => {
                 const searchInput = page.getByPlaceholder(/search/i).first();
                 await searchInput.fill("UniqueStoreName");
+                await expect(page.getByTestId("transaction-row")).toHaveCount(1);
 
-                // Transaction should be visible
-                await expect(page.locator('[data-testid="transaction-row"]')).toHaveCount(1);
-            });
-
-            await test.step("search by notes finds transaction", async () => {
-                const searchInput = page.getByPlaceholder(/search/i).first();
-                await searchInput.clear();
                 await searchInput.fill("UniqueNotesText");
+                await expect(page.getByTestId("transaction-row")).toHaveCount(1);
 
-                // Transaction should still be visible
-                await expect(page.locator('[data-testid="transaction-row"]')).toHaveCount(1);
-            });
-
-            await test.step("search by non-matching term hides transaction", async () => {
-                const searchInput = page.getByPlaceholder(/search/i).first();
-                await searchInput.clear();
                 await searchInput.fill("NonExistentSearchTerm12345");
-
-                // Transaction should not be visible
-                await expect(page.locator('[data-testid="transaction-row"]')).toHaveCount(0);
+                await expect(page.getByTestId("transaction-row")).toHaveCount(0);
             });
         });
 
-        test("UR-005: data cells rest without chrome in both themes yet keep every state", async ({
+        test("Task 70: spreadsheet cells own contiguous chrome in both themes", async ({
             page
         }) => {
             await createNewIdentity(page);
@@ -2739,9 +2693,16 @@ test.describe("Transactions", () => {
                 description: "Minimal Chrome Store",
                 amount: "-12.34"
             });
+            await createTestTransaction(page, {
+                description: "Neighboring Chrome Store",
+                amount: "-23.45"
+            });
 
-            const row = page.locator('[data-testid="transaction-row"]').first();
-            const accountCell = row.getByRole("combobox", { name: "Select account" });
+            const rows = page.locator('[data-testid="transaction-row"]');
+            await expect(rows).toHaveCount(2);
+            const row = rows.first();
+            const nextRow = rows.nth(1);
+            const accountCell = row.locator('[role="gridcell"][data-cell="account"]');
 
             for (const theme of ["light", "dark"] as const) {
                 await test.step(`${theme} theme rests with no fill on any data cell`, async () => {
@@ -2762,73 +2723,175 @@ test.describe("Transactions", () => {
                             .poll(
                                 async () => {
                                     const paint = await readCellPaint(cell);
-                                    return (
-                                        (await paintsNothing(page, paint.backgroundColor)) &&
-                                        (await paintsNothing(page, paint.borderColor))
-                                    );
+                                    return paintsNothing(page, paint.backgroundColor);
                                 },
                                 { message: `${label} resting fill in ${theme}` }
                             )
                             .toBe(true);
                     };
 
-                    for (const testId of RESTING_CHROME_CELL_TEST_IDS) {
-                        const cell = row.locator(`[data-testid="${testId}"]`);
-                        await expectRestsClean(cell, testId);
+                    for (const column of RESTING_CHROME_COLUMNS) {
+                        const cell = row.locator(`[role="gridcell"][data-cell="${column}"]`);
+                        await expect(cell).toHaveAttribute("data-cell-content", "display");
+                        await expectRestsClean(cell, column);
                         expect(
-                            (await readCellPaint(cell)).boxShadow,
-                            `${testId} resting shadow in ${theme}`
-                        ).not.toMatch(/rgba?\((?!0, 0, 0, 0\))/);
-                        // Removing chrome must not cost legibility. The shared `Input` base carries
-                        // `transition-[color,...]`, so straight after a theme switch the text is
-                        // still animating from the outgoing theme's colour and reads as dark-on-dark
-                        // for a few frames; poll to the settled value.
+                            hasNoShadowExtent((await readCellPaint(cell)).boxShadow),
+                            `${column} resting shadow in ${theme}`
+                        ).toBe(true);
                         await expect
                             .poll(() => measuredTextContrast(cell), {
-                                message: `${testId} text contrast in ${theme}`
+                                message: `${column} text contrast in ${theme}`
                             })
                             .toBeGreaterThanOrEqual(4.5);
                     }
 
-                    await expectRestsClean(accountCell, "account");
-
-                    const percentageCell = row.getByRole("button", { name: "Edit Me allocation" });
-                    await expect
-                        .poll(
-                            async () =>
-                                paintsNothing(
-                                    page,
-                                    (await readCellPaint(percentageCell)).backgroundColor
-                                ),
-                            { message: `percentage resting background in ${theme}` }
-                        )
-                        .toBe(true);
+                    const percentageCell = row
+                        .locator('[role="gridcell"][data-cell^="allocation:"]')
+                        .first();
+                    await expect(percentageCell).toHaveAttribute("data-cell-content", "display");
+                    await expectRestsClean(percentageCell, "percentage");
                 });
 
-                await test.step(`${theme} theme keeps hover feedback`, async () => {
-                    const description = row.locator('[data-testid="description-editable"]');
-                    await description.hover();
+                await test.step(`${theme} theme keeps square contiguous spreadsheet rules`, async () => {
+                    const sampledCells = [
+                        row.locator('[role="gridcell"][data-cell="checkbox"]'),
+                        row.locator('[role="gridcell"][data-cell="date"]'),
+                        row.locator('[role="gridcell"][data-cell^="allocation:"]').first(),
+                        row.locator('[role="gridcell"][data-cell="actions"]')
+                    ];
+                    for (const cell of sampledCells) {
+                        const style = await cell.evaluate((node) => {
+                            const computed = getComputedStyle(node);
+                            return {
+                                borderBottomStyle: computed.borderBottomStyle,
+                                borderBottomWidth: computed.borderBottomWidth,
+                                borderRadius: computed.borderRadius,
+                                borderRightStyle: computed.borderRightStyle,
+                                borderRightWidth: computed.borderRightWidth
+                            };
+                        });
+                        expect(style).toEqual({
+                            borderBottomStyle: "solid",
+                            borderBottomWidth: "1px",
+                            borderRadius: "0px",
+                            borderRightStyle: "solid",
+                            borderRightWidth: "1px"
+                        });
+                    }
+
+                    const bodyCells = row.locator('[role="gridcell"]');
+                    const horizontalGaps = await bodyCells.evaluateAll((cells) =>
+                        cells.slice(0, -1).map((cell, index) => {
+                            const next = cells[index + 1];
+                            if (next == null) return Number.NaN;
+                            return (
+                                next.getBoundingClientRect().left -
+                                cell.getBoundingClientRect().right
+                            );
+                        })
+                    );
+                    expect(horizontalGaps.every((gap) => gap === 0)).toBe(true);
+
+                    const grid = page.getByTestId("transaction-table");
+                    const headerCells = grid.locator(
+                        '[role="row"][aria-rowindex="1"] > [role="columnheader"]'
+                    );
+                    const readTrackRects = (cells: import("@playwright/test").Locator) =>
+                        cells.evaluateAll((nodes) =>
+                            nodes.map((node) => {
+                                const rect = node.getBoundingClientRect();
+                                return { left: rect.left, width: rect.width };
+                            })
+                        );
+                    const assertTrackAlignment = async () => {
+                        const [headerRects, bodyRects] = await Promise.all([
+                            readTrackRects(headerCells),
+                            readTrackRects(bodyCells)
+                        ]);
+                        expect(headerRects).toHaveLength(bodyRects.length);
+                        expect(
+                            headerRects.every((headerRect, index) => {
+                                const bodyRect = bodyRects[index];
+                                return (
+                                    bodyRect != null &&
+                                    Math.abs(headerRect.left - bodyRect.left) < 0.01 &&
+                                    Math.abs(headerRect.width - bodyRect.width) < 0.01
+                                );
+                            })
+                        ).toBe(true);
+                    };
+                    await assertTrackAlignment();
+                    const horizontalScroll = await grid.evaluate((node) => {
+                        const scroll = node.parentElement;
+                        if (!(scroll instanceof HTMLElement)) return null;
+                        scroll.scrollLeft = scroll.scrollWidth;
+                        return {
+                            clientWidth: scroll.clientWidth,
+                            scrollLeft: scroll.scrollLeft,
+                            scrollWidth: scroll.scrollWidth
+                        };
+                    });
+                    if (horizontalScroll == null) throw new Error("grid scroll owner is missing");
+                    expect(horizontalScroll.scrollWidth).toBeGreaterThan(
+                        horizontalScroll.clientWidth
+                    );
+                    expect(horizontalScroll.scrollLeft).toBeGreaterThan(0);
+                    await assertTrackAlignment();
+                    await grid.evaluate((node) => {
+                        const scroll = node.parentElement;
+                        if (scroll instanceof HTMLElement) scroll.scrollLeft = 0;
+                    });
+
+                    const rowBox = await row.boundingBox();
+                    const nextRowBox = await nextRow.boundingBox();
+                    if (rowBox == null || nextRowBox == null)
+                        throw new Error("rows are not laid out");
+                    expect(rowBox.height).toBe(57);
+                    expect(nextRowBox.height).toBe(57);
+                    expect(Math.abs(nextRowBox.y - (rowBox.y + rowBox.height))).toBeLessThan(0.01);
+                });
+
+                await test.step(`${theme} theme paints hover across the whole cell`, async () => {
+                    const descriptionCell = row.locator(
+                        '[role="gridcell"][data-cell="description"]'
+                    );
+                    await descriptionCell.hover();
                     await expect
                         .poll(
                             async () =>
                                 paintsNothing(
                                     page,
-                                    (await readCellPaint(description)).backgroundColor
+                                    (await readCellPaint(descriptionCell)).backgroundColor
                                 ),
-                            { message: `description hover fill in ${theme}` }
+                            { message: `description cell hover fill in ${theme}` }
                         )
                         .toBe(false);
                     await page.mouse.move(0, 0);
                 });
 
-                await test.step(`${theme} theme keeps focus obvious on every cell`, async () => {
-                    for (const testId of RESTING_CHROME_CELL_TEST_IDS) {
-                        const cell = row.locator(`[data-testid="${testId}"]`);
-                        const resting = await readCellPaint(cell);
-                        await cell.focus();
-                        await expect(cell).toBeFocused();
-                        // Same `transition-colors` race as the selected row: poll until the focus
-                        // treatment has actually landed rather than sampling the first frame.
+                await test.step(`${theme} theme keeps editor hover paint on the outer cell`, async () => {
+                    const controls = [
+                        {
+                            column: "date",
+                            label: "date calendar",
+                            locator: row.getByRole("button", { name: "Open calendar" })
+                        },
+                        {
+                            column: "account",
+                            label: "account",
+                            locator: row.getByRole("combobox", { name: "Select account" })
+                        },
+                        {
+                            column: "status",
+                            label: "status",
+                            locator: row.getByTestId("status-editable")
+                        }
+                    ];
+                    for (const { column, label, locator } of controls) {
+                        const cell = row.locator(`[role="gridcell"][data-cell="${column}"]`);
+                        await cell.dblclick();
+                        await expect(cell).toHaveAttribute("data-cell-content", "editor");
+                        await locator.hover({ force: true });
                         await expect
                             .poll(
                                 async () =>
@@ -2836,19 +2899,48 @@ test.describe("Transactions", () => {
                                         page,
                                         (await readCellPaint(cell)).backgroundColor
                                     ),
-                                { message: `${testId} focused fill in ${theme}` }
+                                { message: `${label} outer hover fill in ${theme}` }
                             )
                             .toBe(false);
-                        const focused = await readCellPaint(cell);
+                        await expect
+                            .poll(
+                                async () =>
+                                    paintsNothing(
+                                        page,
+                                        (await readCellPaint(locator)).backgroundColor
+                                    ),
+                                { message: `${label} inner hover neutrality in ${theme}` }
+                            )
+                            .toBe(true);
                         expect(
-                            focused.backgroundColor !== resting.backgroundColor ||
-                                focused.borderColor !== resting.borderColor ||
-                                focused.boxShadow !== resting.boxShadow,
-                            `${testId} focus indication in ${theme}`
-                        ).toBe(true);
+                            await locator.evaluate((node) => getComputedStyle(node).borderRadius),
+                            `${label} inner radius in ${theme}`
+                        ).toBe("0px");
+                        await page.keyboard.press("Escape");
+                        await expect(cell).toHaveAttribute("data-cell-content", "display");
+                        await expect(cell).toBeFocused();
+                        await expect(locator).toHaveCount(0);
+                        await page.mouse.move(0, 0);
+                    }
+                });
+
+                await test.step(`${theme} theme paints focus only on the whole cell`, async () => {
+                    for (const column of RESTING_CHROME_COLUMNS) {
+                        const cell = row.locator(`[role="gridcell"][data-cell="${column}"]`);
+                        const resting = await readCellPaint(cell);
+                        await cell.focus();
+                        await expect(cell).toBeFocused();
+                        await expect(cell).toHaveAttribute("data-cell-content", "display");
+                        await expect
+                            .poll(
+                                async () =>
+                                    (await readCellPaint(cell)).boxShadow !== resting.boxShadow,
+                                { message: `${column} outer focus ring in ${theme}` }
+                            )
+                            .toBe(true);
                         await expect
                             .poll(() => measuredTextContrast(cell), {
-                                message: `${testId} focused text contrast in ${theme}`
+                                message: `${column} focused text contrast in ${theme}`
                             })
                             .toBeGreaterThanOrEqual(4.5);
                         await cell.blur();
@@ -2873,17 +2965,20 @@ test.describe("Transactions", () => {
                 });
 
                 await test.step(`${theme} theme leaves the accessible cell contract intact`, async () => {
-                    await expect(
-                        row.getByRole("textbox", { name: "Pick a date", exact: true })
-                    ).toBeVisible();
-                    await expect(
-                        row.getByRole("textbox", { name: "Transaction description", exact: true })
-                    ).toBeVisible();
-                    await expect(accountCell).toBeVisible();
-                    await expect(
-                        row.locator('[data-testid="amount-editable"]')
-                    ).toHaveAccessibleName(/^Transaction amount in /);
                     await expect(row).toHaveAttribute("role", "row");
+                    await expect(row.getByTestId("date-display")).toBeVisible();
+                    await expect(row.getByTestId("description-display")).toBeVisible();
+                    await expect(accountCell).toBeVisible();
+                    await expect(row.getByRole("textbox")).toHaveCount(0);
+                    await expect(row.getByRole("combobox")).toHaveCount(0);
+
+                    const amountCell = row.locator('[data-cell="amount"]');
+                    await amountCell.dblclick();
+                    await expect(row.getByTestId("amount-editable")).toHaveAccessibleName(
+                        /^Transaction amount in /
+                    );
+                    await page.keyboard.press("Escape");
+                    await expect(amountCell).toHaveAttribute("data-cell-content", "display");
                 });
             }
 
@@ -2891,22 +2986,10 @@ test.describe("Transactions", () => {
         });
 
         /**
-         * UR-012: "clicking anywhere in the cell begins editing that field without the pointer
-         * having to find the control", while "the resting appearance is unchanged".
-         *
-         * Every assertion here clicks. A test that merely located a control, or asserted it was
-         * visible, would pass just as happily against the unfixed geometry — the control was always
-         * visible, it was the surrounding strip of the cell that was dead. Editable cells adapt the
-         * click to their control; the checkbox's activation glyph deliberately leaves that strip to
-         * canonical cell selection so row and cell selection remain orthogonal.
-         *
-         * The click lands 2px inside the row's top edge, which is 12px above where any control's
-         * box used to begin. Measured against the pre-change build, every one of these points
-         * focused the row itself and did nothing.
+         * The spreadsheet cell owns its background while staged editor descendants keep their exact
+         * native interaction. Coordinate clicks prove the two surfaces do not overlap or duplicate.
          */
-        test("UR-012: a click at a cell's edge activates its canonical interaction", async ({
-            page
-        }) => {
+        test("Task 70: cell backgrounds select and descendants activate once", async ({ page }) => {
             // The table is wider than the default 1280px viewport: measured, the amount column
             // spans x=1233..1345, so its centre lies OFF-SCREEN and `mouse.click` there would land
             // on nothing while the test read as passing. Widen first so every column is reachable.
@@ -2930,6 +3013,25 @@ test.describe("Transactions", () => {
 
             const rows = page.locator('[data-testid="transaction-row"]');
             await expect(rows).toHaveCount(2);
+            const grid = page.getByTestId("transaction-table");
+            const transactionScroller = grid.locator("..");
+            await transactionScroller.evaluate((element) => {
+                element.scrollTop = 0;
+                element.dispatchEvent(new Event("scroll"));
+            });
+            await expect
+                .poll(async () => {
+                    const [header, firstRow] = await Promise.all([
+                        grid.locator(':scope > [role="row"]').boundingBox(),
+                        rows.first().boundingBox()
+                    ]);
+                    return (
+                        header != null &&
+                        firstRow != null &&
+                        firstRow.y >= header.y + header.height - 0.5
+                    );
+                })
+                .toBe(true);
             // Rows are addressed by their STABLE ID, captured once, and not by text or accessible
             // name. Two earlier attempts failed for reasons worth recording, because both produce a
             // timeout that looks like a product defect:
@@ -2959,25 +3061,42 @@ test.describe("Transactions", () => {
             await expect(row).toHaveCount(1);
             await expect(bystander).toHaveCount(1);
 
-            /**
-             * Click the horizontal centre of a cell, `inset` pixels below the ROW's top edge.
-             *
-             * Deliberately derived from the row box rather than the cell box: the point must fall in
-             * the strip that belongs to the cell but lay outside the control, which is exactly the
-             * region the requirement is about. Taking it from the cell would re-derive the control's
-             * own box and test nothing.
-             */
-            const clickCellEdge = async (cellName: string, edge: "top" | "bottom") => {
-                const rowBox = await row.boundingBox();
-                const cell = row.locator(`[data-cell="${cellName}"]`);
+            /** Click a background point owned by the outer spreadsheet cell. */
+            const clickCellEdge = async (
+                cellName: string,
+                edge: "top" | "bottom" | "left" | "right",
+                clickCount = 1
+            ) => {
+                const cell = row.locator(`[role="gridcell"][data-cell="${cellName}"]`);
+                await cell.scrollIntoViewIfNeeded();
                 const cellBox = await cell.boundingBox();
-                if (rowBox == null || cellBox == null) {
-                    throw new Error(`${cellName} cell is not laid out`);
-                }
+                if (cellBox == null) throw new Error(`${cellName} cell is not laid out`);
                 const point = {
-                    x: cellBox.x + cellBox.width / 2,
-                    y: edge === "top" ? rowBox.y + 2 : rowBox.y + rowBox.height - 3
+                    x:
+                        edge === "left"
+                            ? cellBox.x + 2
+                            : edge === "right"
+                              ? cellBox.x + cellBox.width - 3
+                              : cellBox.x + cellBox.width / 2,
+                    y:
+                        edge === "top"
+                            ? cellBox.y + 2
+                            : edge === "bottom"
+                              ? cellBox.y + cellBox.height - 3
+                              : cellBox.y + cellBox.height / 2
                 };
+                const scrollerBox = await transactionScroller.boundingBox();
+                if (scrollerBox == null) throw new Error("transaction scroller is not laid out");
+                if (
+                    point.x < scrollerBox.x ||
+                    point.x >= scrollerBox.x + scrollerBox.width ||
+                    point.y < scrollerBox.y ||
+                    point.y >= scrollerBox.y + scrollerBox.height
+                ) {
+                    throw new Error(
+                        `${edge} ${cellName} point is outside the transaction scroller`
+                    );
+                }
                 const target = await page.evaluate(({ x, y }) => {
                     const element = document.elementFromPoint(x, y);
                     return {
@@ -2991,17 +3110,9 @@ test.describe("Transactions", () => {
                         `${edge} ${cellName} edge resolves to ${String(target.cell)} ${String(target.tagName)}`
                     );
                 }
-                await cell.click({
-                    position: { x: cellBox.width / 2, y: point.y - cellBox.y }
-                });
+                await page.mouse.click(point.x, point.y, { clickCount });
                 return target;
             };
-
-            /** Which cell, if any, currently holds the caret. */
-            const activeCell = () =>
-                page.evaluate(() =>
-                    document.activeElement?.closest("[data-cell]")?.getAttribute("data-cell")
-                );
 
             const settleClearOfTheGrid = async () => {
                 await page.keyboard.press("Escape");
@@ -3009,97 +3120,303 @@ test.describe("Transactions", () => {
                 await page.mouse.move(0, 0);
             };
 
-            for (const edge of ["top", "bottom"] as const) {
-                await test.step(`${edge} edge begins editing each text field`, async () => {
-                    for (const cell of ["date", "description", "amount"] as const) {
+            const allocationCell = row
+                .locator('[role="gridcell"][data-cell^="allocation:"]')
+                .first();
+            const allocationCellName = await allocationCell.getAttribute("data-cell");
+            if (allocationCellName == null) throw new Error("no allocation column is rendered");
+            const spreadsheetCells = [
+                "checkbox",
+                "date",
+                "description",
+                "account",
+                "tags",
+                "status",
+                allocationCellName,
+                "amount",
+                "actions"
+            ] as const;
+
+            for (const edge of ["top", "bottom", "left", "right"] as const) {
+                await test.step(`${edge} background edge selects each outer cell`, async () => {
+                    const edgeCells =
+                        edge === "left" || edge === "right"
+                            ? spreadsheetCells.filter((cellName) => cellName !== "checkbox")
+                            : spreadsheetCells;
+                    for (const cellName of edgeCells) {
                         await settleClearOfTheGrid();
-                        await clickCellEdge(cell, edge);
-                        await expect
-                            .poll(activeCell, { message: `${cell} caret from ${edge} edge` })
-                            .toBe(cell);
+                        const target = await clickCellEdge(cellName, edge);
+                        expect(target).toMatchObject({ isGridcell: true, tagName: "DIV" });
+                        const cell = row.locator(`[role="gridcell"][data-cell="${cellName}"]`);
+                        await expect(cell).toBeFocused();
+                        expect(
+                            await row
+                                .locator('[role="gridcell"][aria-selected="true"]')
+                                .evaluateAll((cells) =>
+                                    cells.map((selected) => selected.getAttribute("data-cell"))
+                                )
+                        ).toEqual([cellName]);
                     }
                 });
+            }
 
-                await test.step(`${edge} edge opens the account chooser`, async () => {
-                    await settleClearOfTheGrid();
-                    await clickCellEdge("account", edge);
+            const clickControlCenter = async (control: import("@playwright/test").Locator) => {
+                await control.scrollIntoViewIfNeeded();
+                await transactionScroller.evaluate((element) => {
+                    element.scrollTop = 0;
+                    element.dispatchEvent(new Event("scroll"));
+                });
+                await expect
+                    .poll(async () => {
+                        const [header, firstRow, scrollTop] = await Promise.all([
+                            grid.locator(':scope > [role="row"]').boundingBox(),
+                            row.boundingBox(),
+                            transactionScroller.evaluate((element) => element.scrollTop)
+                        ]);
+                        return (
+                            scrollTop === 0 &&
+                            header != null &&
+                            firstRow != null &&
+                            firstRow.y >= header.y + header.height - 0.5
+                        );
+                    })
+                    .toBe(true);
+
+                const box = await control.boundingBox();
+                if (box == null) throw new Error("control is not laid out");
+                const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+                const [scrollerClientRect, viewport] = await Promise.all([
+                    transactionScroller.evaluate((element) => {
+                        const rect = element.getBoundingClientRect();
+                        return {
+                            height: element.clientHeight,
+                            width: element.clientWidth,
+                            x: rect.left + element.clientLeft,
+                            y: rect.top + element.clientTop
+                        };
+                    }),
+                    page.evaluate(() => ({ height: window.innerHeight, width: window.innerWidth }))
+                ]);
+                if (
+                    point.x < 0 ||
+                    point.x >= viewport.width ||
+                    point.y < 0 ||
+                    point.y >= viewport.height
+                ) {
+                    throw new Error("control center is outside the page viewport");
+                }
+                if (
+                    point.x < scrollerClientRect.x ||
+                    point.x >= scrollerClientRect.x + scrollerClientRect.width ||
+                    point.y < scrollerClientRect.y ||
+                    point.y >= scrollerClientRect.y + scrollerClientRect.height
+                ) {
+                    throw new Error("control center is outside the transaction scroller");
+                }
+                const target = await page.evaluate(({ x, y }) => {
+                    const element = document.elementFromPoint(x, y);
+                    return {
+                        cell: element?.closest("[data-cell]")?.getAttribute("data-cell") ?? null,
+                        tagName: element?.tagName ?? null
+                    };
+                }, point);
+                await page.mouse.click(point.x, point.y);
+                return target;
+            };
+
+            await test.step("center controls remain single reachable descendants", async () => {
+                const descriptionCell = row.locator('[data-cell="description"]');
+                await descriptionCell.dblclick();
+                const descriptionEditor = row.getByTestId("description-editable");
+                const descriptionTarget = await clickControlCenter(descriptionEditor);
+                expect(descriptionTarget).toMatchObject({ cell: "description", tagName: "INPUT" });
+                await expect(descriptionEditor).toBeFocused();
+                await expect(row.getByTestId("description-editable")).toHaveCount(1);
+                await descriptionEditor.press("Escape");
+                await expect(descriptionCell).toHaveAttribute("data-cell-content", "display");
+
+                const checkbox = row.getByRole("checkbox", { name: /^Select transaction/ });
+                const otherCheckbox = bystander.getByRole("checkbox", {
+                    name: /^Select transaction/
+                });
+                const checkboxTarget = await clickControlCenter(checkbox);
+                expect(checkboxTarget).toEqual({ cell: "checkbox", tagName: "BUTTON" });
+                await expect(checkbox).toHaveAttribute("aria-checked", "true");
+                await expect(otherCheckbox).toHaveAttribute("aria-checked", "false");
+                await clickControlCenter(checkbox);
+                await expect(checkbox).toHaveAttribute("aria-checked", "false");
+
+                await allocationCell.dblclick();
+                const allocationEditor = allocationCell.getByRole("textbox");
+                const allocationTarget = await clickControlCenter(allocationEditor);
+                expect(allocationTarget.cell).toBe(allocationCellName);
+                await expect(allocationEditor).toBeFocused();
+                await allocationEditor.press("Escape");
+                await expect(allocationCell).toHaveAttribute("data-cell-content", "display");
+
+                const deleteAction = row.getByTestId("delete-button");
+                const actionTarget = await clickControlCenter(deleteAction);
+                expect(actionTarget.cell).toBe("actions");
+                await expect(deleteAction).toHaveAttribute(
+                    "title",
+                    "Click again to confirm delete"
+                );
+                await expect(row).toHaveCount(1);
+
+                await expect(row.locator('[role="gridcell"][tabindex="0"]')).toHaveCount(1);
+            });
+
+            await test.step("checked and unchecked checkbox cells retain canonical focus paint", async () => {
+                const checkbox = row.getByRole("checkbox", { name: /^Select transaction/ });
+                const checkboxCell = row.locator('[role="gridcell"][data-cell="checkbox"]');
+                const dateCell = row.locator('[role="gridcell"][data-cell="date"]');
+
+                for (const theme of ["light", "dark"] as const) {
+                    await page.emulateMedia({ colorScheme: theme });
+                    for (const checked of [false, true]) {
+                        await dateCell.focus();
+                        await page.keyboard.press("Shift+Tab");
+                        await expect(checkboxCell).toBeFocused();
+                        await expect(checkbox).toHaveAttribute(
+                            "aria-checked",
+                            checked ? "true" : "false"
+                        );
+                        expect(
+                            hasNoShadowExtent((await readCellPaint(checkboxCell)).boxShadow),
+                            `${theme} checked=${checked} canonical focus ring`
+                        ).toBe(false);
+                        await page.keyboard.press("Space");
+                    }
+                }
+                await page.emulateMedia({ colorScheme: "light" });
+            });
+
+            const activateLegacyFullEdit = async (
+                cellName: string,
+                gesture: "Enter" | "double click"
+            ) => {
+                await settleClearOfTheGrid();
+                const target = await clickCellEdge(cellName, "top", gesture === "Enter" ? 1 : 2);
+                expect(target).toMatchObject({
+                    cell: cellName,
+                    isGridcell: true,
+                    tagName: "DIV"
+                });
+                if (gesture === "Enter") {
+                    await expect(
+                        row.locator(`[role="gridcell"][data-cell="${cellName}"]`)
+                    ).toBeFocused();
+                    await page.keyboard.press("Enter");
+                }
+            };
+
+            const fullEditGestures: readonly ("Enter" | "double click")[] = [
+                "Enter",
+                "double click"
+            ];
+            for (const gesture of fullEditGestures) {
+                await test.step(`${gesture} fully activates account, status and allocation`, async () => {
+                    await activateLegacyFullEdit("account", gesture);
+                    await expect(page.getByRole("option", { name: "Default" })).toBeVisible();
+                    await page.keyboard.press("Escape");
+                    await expect(page.getByRole("option", { name: "Default" })).toHaveCount(0, {
+                        timeout: 3_000
+                    });
+                    const accountCell = row.locator('[data-cell="account"]');
+                    await expect(accountCell).toHaveAttribute("data-cell-content", "display");
+                    await expect(accountCell).toBeFocused();
                     await expect(
                         row.getByRole("combobox", { name: "Select account", exact: true })
-                    ).toHaveAttribute("aria-expanded", "true");
-                });
+                    ).toHaveCount(0);
 
-                await test.step(`${edge} edge opens the tag chooser`, async () => {
-                    await settleClearOfTheGrid();
-                    await clickCellEdge("tags", edge);
-                    // The chooser's own search box is the unambiguous evidence it opened, and it is
-                    // portaled out of the row, so it is addressed from the page.
-                    await expect(page.getByPlaceholder("Search tags...")).toBeFocused();
-                });
-
-                await test.step(`${edge} edge opens the status select`, async () => {
-                    await settleClearOfTheGrid();
-                    await clickCellEdge("status", edge);
-                    await expect(row.getByTestId("status-editable")).toHaveAttribute(
-                        "aria-expanded",
-                        "true"
-                    );
-                });
-
-                await test.step(`${edge} edge begins editing the person percentage`, async () => {
-                    await settleClearOfTheGrid();
-                    const allocationCell = row.locator('[data-cell^="allocation:"]').first();
-                    const cellName = await allocationCell.getAttribute("data-cell");
-                    if (cellName == null) throw new Error("no allocation column is rendered");
-                    await clickCellEdge(cellName, edge);
-                    // Editing replaces the button with a text input, so the input's presence in the
-                    // cell is the state change, not merely focus moving somewhere.
-                    await expect(allocationCell.getByRole("textbox")).toBeFocused();
-                });
-
-                await test.step(`${edge} edge selects the checkbox cell without selecting rows`, async () => {
-                    await settleClearOfTheGrid();
-                    const checkboxCell = row.locator('[role="gridcell"][data-cell="checkbox"]');
-                    const checkbox = row.getByRole("checkbox", { name: /^Select transaction/ });
-                    const otherCheckbox = bystander.getByRole("checkbox", {
-                        name: /^Select transaction/
+                    await activateLegacyFullEdit("status", gesture);
+                    await expect(page.getByRole("option", { name: "Paid" })).toBeVisible();
+                    await page.keyboard.press("Escape");
+                    await expect(page.getByRole("option", { name: "Paid" })).toHaveCount(0, {
+                        timeout: 3_000
                     });
-                    await expect(checkbox).toHaveAttribute("aria-checked", "false");
-                    await expect(otherCheckbox).toHaveAttribute("aria-checked", "false");
-                    const target = await clickCellEdge("checkbox", edge);
+                    const statusCell = row.locator('[data-cell="status"]');
+                    await expect(statusCell).toHaveAttribute("data-cell-content", "display");
+                    await expect(statusCell).toBeFocused();
+                    await expect(row.getByTestId("status-editable")).toHaveCount(0);
 
-                    expect(target).toMatchObject({ isGridcell: true, tagName: "DIV" });
-                    await expect(checkboxCell).toBeFocused();
-                    expect(
-                        await row
-                            .locator('[role="gridcell"][aria-selected="true"]')
-                            .evaluateAll((cells) =>
-                                cells.map((cell) => cell.getAttribute("data-cell"))
-                            )
-                    ).toEqual(["checkbox"]);
-                    await expect(checkbox).toHaveAttribute("aria-checked", "false");
-                    await expect(otherCheckbox).toHaveAttribute("aria-checked", "false");
-                    await expect(
-                        page.getByTestId("header-checkbox").getByRole("checkbox")
-                    ).toHaveAttribute("aria-checked", "false");
+                    await activateLegacyFullEdit(allocationCellName, gesture);
+                    await expect(allocationCell.getByRole("textbox")).toBeFocused();
+                    await page.keyboard.press("Escape");
+                    await expect(allocationCell).toHaveAttribute("data-cell-content", "display");
+                    await expect(allocationCell.getByRole("textbox")).toHaveCount(0);
                 });
             }
+
+            await test.step("main row stays exactly 57px through constrained states", async () => {
+                const expectMainRowHeight = async (state: string) => {
+                    expect(
+                        await row.evaluate((node) => node.getBoundingClientRect().height),
+                        state
+                    ).toBe(57);
+                };
+
+                await expectMainRowHeight("resting");
+                await clickCellEdge("description", "top");
+                await expectMainRowHeight("selected and focused");
+
+                await row.locator('[data-cell="account"]').dblclick();
+                await expect(
+                    row.getByRole("combobox", { name: "Select account", exact: true })
+                ).toBeVisible();
+                await expect(page.getByRole("option", { name: "Default" })).toBeVisible();
+                await expectMainRowHeight("popup owned");
+                await page.keyboard.press("Escape");
+
+                await allocationCell.dblclick();
+                const invalidAllocation = allocationCell.getByRole("textbox");
+                await invalidAllocation.fill("101");
+                await expect(invalidAllocation).toHaveValue("101");
+                await expectMainRowHeight("allocation draft");
+                await invalidAllocation.press("Escape");
+
+                await row.locator('[data-cell="tags"]').dblclick();
+                const tags = row.getByTestId("tags-editable");
+                const searchTags = page.getByPlaceholder("Search tags...");
+                await expect(searchTags).toBeFocused();
+                for (const tagName of [
+                    "Long household groceries",
+                    "Annual insurance renewals",
+                    "Shared travel reimbursements",
+                    "Professional subscriptions"
+                ]) {
+                    await searchTags.fill(tagName);
+                    await page.getByTestId("create-tag-button").click();
+                    await expect(tags).toContainText(tagName);
+                    await expectMainRowHeight(`long tags: ${tagName}`);
+                }
+                await expectMainRowHeight("long tags with popup owned");
+                await searchTags.press("Escape");
+
+                const transactionId = await row.getAttribute("data-transaction-id");
+                if (transactionId == null) throw new Error("transaction has no stable identity");
+                const actionsCell = transactionGridCell(row, "actions");
+                await actionsCell.click({ position: { x: 1, y: 1 } });
+                await actionsCell.press("Enter");
+                const inspector = await openTransactionInspector(page);
+                await expect(inspector.getByTestId("notes-editable")).toHaveAttribute(
+                    "data-transaction-owner",
+                    transactionId
+                );
+                await expectMainRowHeight("actions and persistent inspector");
+                await inspector
+                    .getByRole("button", { name: "Close transaction inspector" })
+                    .click();
+                await expectMainRowHeight("actions after inspector close");
+            });
 
             await settleClearOfTheGrid();
         });
 
-        /**
-         * UR-012: "the resting appearance is unchanged … a row at rest looks exactly as it did
-         * before", and the requirement closes by saying a change that alters resting appearance
-         * does not satisfy it.
-         *
-         * The proof is positional rather than a stored screenshot: a committed baseline image would
-         * have to be regenerated on any unrelated theme or font change, and would then assert
-         * whatever it was last regenerated from. What UR-012 actually forbids is the CONTROLS
-         * moving, so this pins the geometry that the enlargement could plausibly disturb — each
-         * control's own drawn box, in the row's coordinate space — against the values measured on
-         * the pre-change build.
-         */
-        test("UR-012: enlarging the hit areas moves nothing that was drawn", async ({ page }) => {
+        /** The fixed outer row owns geometry while staged controls remain vertically centered. */
+        test("Task 70: inner controls stay centered inside the fixed main row", async ({
+            page
+        }) => {
             await createNewIdentity(page);
             await goToTransactions(page);
             await createTestTransaction(page, {
@@ -3111,67 +3428,44 @@ test.describe("Transactions", () => {
             await page.mouse.move(0, 0);
             await page.locator("body").click({ position: { x: 2, y: 2 } });
 
-            /**
-             * Offsets and sizes measured on the pre-change build, relative to the row's top edge so
-             * the assertion does not depend on where the table happens to sit on the page.
-             *
-             * The three text inputs are absent by design: their boxes DO grow, which is the
-             * mechanism, and their drawn appearance is pinned instead by the text baseline below.
-             */
-            const RESTING_GEOMETRY = [
-                { selector: '[data-cell="checkbox"] [role="checkbox"]', top: 20, height: 16 },
-                { selector: '[data-cell="date"] button', top: 16, height: 24 },
-                { selector: '[data-cell="account"] button', top: 14, height: 28 },
-                { selector: '[data-testid="status-editable"]', top: 12, height: 32 },
-                { selector: '[data-cell^="allocation:"] button', top: 12, height: 32 }
-            ] as const;
+            const restingDisplays = [
+                '[data-cell="checkbox"] [role="checkbox"]',
+                '[data-testid="date-display"]',
+                '[data-testid="description-display"]',
+                '[data-cell="account"] > span',
+                '[data-cell="tags"] span',
+                '[data-cell="status"] > span',
+                '[data-cell^="allocation:"] [data-testid^="allocation-cell-"]',
+                '[data-cell="amount"] > span'
+            ];
 
-            for (const { selector, top, height } of RESTING_GEOMETRY) {
-                const measured = await row.evaluate((rowNode, target) => {
+            for (const selector of restingDisplays) {
+                const centerOffset = await row.evaluate((rowNode, target) => {
                     const element = rowNode.querySelector(target);
                     if (element == null) return null;
                     const box = element.getBoundingClientRect();
                     const rowBox = rowNode.getBoundingClientRect();
-                    return {
-                        top: Math.round(box.top - rowBox.top),
-                        height: Math.round(box.height)
-                    };
+                    return box.top + box.height / 2 - (rowBox.top + rowBox.height / 2);
                 }, selector);
-                expect(measured, `${selector} is present`).not.toBeNull();
-                expect(measured, `${selector} rests where it always did`).toEqual({ top, height });
+                expect(centerOffset, `${selector} is present`).not.toBeNull();
+                expect(Math.abs(centerOffset ?? Number.POSITIVE_INFINITY), selector).toBeLessThan(
+                    1
+                );
             }
 
-            // The text inputs grow, so their box cannot pin them; this pins the content band the
-            // text is centred in instead.
-            //
-            // Note what this does and does not catch, since the obvious reading is wrong: an
-            // `<input>` centres its single line within its content box, so the padding's VALUE does
-            // not move the glyphs — measured, dropping it to 4px changes 0 pixels. Only an
-            // ASYMMETRIC padding moves them (30px/6px shifts the band centre 28 → 40). This
-            // assertion therefore guards the band's position and size; the symmetry itself is
-            // guarded by the arithmetic in `tests/unit/transactions/cell-hit-area.test.ts`.
-            for (const testId of ["date-editable", "description-editable", "amount-editable"]) {
-                const baseline = await row.evaluate((rowNode, id) => {
-                    const input = rowNode.querySelector(`[data-testid="${id}"]`);
-                    if (input == null) return null;
-                    const box = input.getBoundingClientRect();
-                    const rowBox = rowNode.getBoundingClientRect();
-                    const styles = getComputedStyle(input);
-                    return Math.round(box.top - rowBox.top + parseFloat(styles.paddingTop));
-                }, testId);
-                // 14px of row padding + the shared `Input` base's own 4px `py-1`.
-                expect(baseline, `${testId} text baseline`).toBe(18);
-            }
+            await expect(row.getByTestId("date-editable")).toHaveCount(0);
+            await expect(row.getByTestId("description-editable")).toHaveCount(0);
+            await expect(row.getByTestId("status-editable")).toHaveCount(0);
+            await expect(row.getByTestId("amount-editable")).toHaveCount(0);
         });
 
         /**
          * UR-012: "Existing per-cell behaviour is retained."
          *
-         * Regression test for the defect this requirement's own fix introduced. The tags cell is the
-         * only cell whose activation overlay sits on an ancestor of a SECOND interactive control —
-         * the tag pill's remove button. Because the overlay is positioned and the button was not, the
-         * overlay painted above it: the "×" became unclickable, the tag survived, and the chooser
-         * opened instead.
+         * Regression test for a defect an earlier full-cell hit-area implementation introduced. Its
+         * tags activation overlay sat above the tag pill's remove button, so the "×" became
+         * unclickable, the tag survived, and the chooser opened instead. The spreadsheet geometry
+         * removes that overlay, but must retain the recovered descendant behavior.
          *
          * The fixture is the whole point. The committed edge-click test uses a transaction with no
          * tags, so the pill never exists in it and three green campaign runs were entirely consistent
@@ -3179,9 +3473,10 @@ test.describe("Transactions", () => {
          * — which is exactly the state no test in the suite had constructed.
          */
         test("UR-012: a tag pill's remove button still removes its tag", async ({ page }) => {
+            const tagName = "Groceries for the whole extended household budget";
             await createNewIdentity(page);
             await goToTags(page);
-            await createTag(page, { name: "Groceries" });
+            await createTag(page, { name: tagName });
             await goToTransactions(page);
             await createTestTransaction(page, {
                 description: "Pill Removal Grocer",
@@ -3189,27 +3484,67 @@ test.describe("Transactions", () => {
             });
 
             const row = page.locator('[data-testid="transaction-row"]').first();
-            const tagsCell = row.getByTestId("tags-editable");
+            const tagsCell = row.locator('[data-cell="tags"]');
+            const tagsEditor = row.getByTestId("tags-editable");
             const searchInput = page.getByPlaceholder("Search tags...");
 
-            await test.step("put a tag on the row", async () => {
-                await tagsCell.click();
+            await test.step("put a tag on the row while its editor is active", async () => {
+                await tagsCell.dblclick();
+                await expect(tagsCell).toHaveAttribute("data-cell-content", "editor");
                 await expect(searchInput).toBeVisible({ timeout: 15_000 });
-                await page.getByRole("option", { name: "Groceries", exact: true }).click();
-                await expect(tagsCell).toContainText("Groceries");
-                // Dismiss by clicking another cell, not Escape: the picker's Escape handler is bound
-                // to its search input and selecting an option moves focus off it, so the key never
-                // arrives. Pre-existing defect in `InlineEditableTags`, out of scope here.
-                await row.getByTestId("date-editable").click();
-                await expect(searchInput).toHaveCount(0);
+                await page.getByRole("option", { name: tagName, exact: true }).click();
+                await expect(tagsEditor).toContainText(tagName);
+            });
+
+            await test.step("keyboard focus reveals the clipped remove button in both themes", async () => {
+                const tagStrip = tagsEditor.locator("[data-tag-strip]");
+                const removeButton = row.getByRole("button", { name: `Remove ${tagName}` });
+                const initialGeometry = await tagStrip.evaluate((strip, buttonLabel) => {
+                    const button = [...strip.querySelectorAll("button")].find(
+                        (candidate) => candidate.getAttribute("aria-label") === buttonLabel
+                    );
+                    if (button == null) return null;
+                    const stripBox = strip.getBoundingClientRect();
+                    const buttonBox = button.getBoundingClientRect();
+                    return {
+                        buttonRight: buttonBox.right,
+                        stripRight: stripBox.right
+                    };
+                }, `Remove ${tagName}`);
+                if (initialGeometry == null) throw new Error("remove button geometry is missing");
+                expect(initialGeometry.buttonRight).toBeGreaterThan(initialGeometry.stripRight);
+
+                for (const theme of ["light", "dark"] as const) {
+                    await page.emulateMedia({ colorScheme: theme });
+                    // Tab is controller-owned while editing and exits to the next canonical cell.
+                    // Direct focus still exercises the browser's overflow reveal for this descendant.
+                    await removeButton.focus();
+                    await expect(removeButton).toBeFocused();
+                    const focusedGeometry = await removeButton.evaluate((button) => {
+                        const strip = button.closest("[data-tag-strip]");
+                        if (!(strip instanceof HTMLElement)) return null;
+                        const buttonBox = button.getBoundingClientRect();
+                        const stripBox = strip.getBoundingClientRect();
+                        return {
+                            inside:
+                                buttonBox.left >= stripBox.left && buttonBox.right <= stripBox.right
+                        };
+                    });
+                    expect(focusedGeometry, `${theme} focused remove geometry`).toEqual({
+                        inside: true
+                    });
+                }
+                await page.emulateMedia({ colorScheme: "light" });
             });
 
             await test.step("the remove button is the topmost element at its own centre", async () => {
                 // The defect was a stacking-order fault, so assert the stack directly. Without this,
                 // a future change could make the click work by accident while leaving the button
                 // buried for anyone using a different input method.
-                const topmostIsTheButton = await row.evaluate((rowNode) => {
-                    const button = rowNode.querySelector('[aria-label="Remove Groceries"]');
+                const topmostIsTheButton = await row.evaluate((rowNode, name) => {
+                    const button = [...rowNode.querySelectorAll("button")].find(
+                        (candidate) => candidate.getAttribute("aria-label") === `Remove ${name}`
+                    );
                     if (button == null) return null;
                     const box = button.getBoundingClientRect();
                     const atCentre = document.elementFromPoint(
@@ -3217,25 +3552,27 @@ test.describe("Transactions", () => {
                         box.y + box.height / 2
                     );
                     return atCentre != null && button.contains(atCentre);
-                });
+                }, tagName);
                 expect(topmostIsTheButton, "remove button is not covered").toBe(true);
             });
 
-            await test.step("clicking it removes the tag and does not open the chooser", async () => {
+            await test.step("clicking it removes the tag from the active editor", async () => {
                 // A real mouse click at the button's centre, rather than `locator.click()`, because
                 // the defect is precisely about which element receives a click at that coordinate.
                 const box = await row
-                    .getByRole("button", { name: "Remove Groceries" })
+                    .getByRole("button", { name: `Remove ${tagName}` })
                     .boundingBox();
                 if (box == null) throw new Error("remove button is not laid out");
                 await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 
-                await expect(tagsCell).not.toContainText("Groceries");
-                await expect(row.getByRole("button", { name: "Remove Groceries" })).toHaveCount(0);
-                // The failure mode was the click falling through to the cell, which opens the
-                // chooser. Asserting the tag is gone alone would not catch a variant that both
-                // removed the tag AND opened the picker.
-                await expect(searchInput).toHaveCount(0);
+                await expect(tagsEditor).not.toContainText(tagName);
+                await expect(row.getByRole("button", { name: `Remove ${tagName}` })).toHaveCount(0);
+                await expect(searchInput).toBeVisible();
+                await searchInput.press("Escape");
+                await expect(tagsCell).toHaveAttribute("data-cell-content", "display");
+                await expect(tagsCell).toBeFocused();
+                await expect(tagsEditor).toHaveCount(0);
+                await expect(tagsCell).toContainText("Add tags...");
             });
         });
     });

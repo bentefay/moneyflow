@@ -17,5 +17,11 @@ export {
     type InlineEditableTagsProps,
     type TagOption
 } from "./InlineEditableTags";
-export { PersonAllocationCell, type PersonAllocationCellProps } from "./PersonAllocationCell";
+export {
+    allocationPresentation,
+    PersonAllocationCell,
+    type PersonAllocationCellProps,
+    PersonAllocationDisplay,
+    type PersonAllocationDisplayProps
+} from "./PersonAllocationCell";
 export { TransactionGridCell, type TransactionGridCellProps } from "./TransactionGridCell";

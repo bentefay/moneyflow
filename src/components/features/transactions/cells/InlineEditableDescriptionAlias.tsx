@@ -1,24 +1,64 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import { createPortal } from "react-dom";
 
+import type { TransactionId } from "@/components/features/transactions/table-model/ids";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-import { RESTING_CELL_CHROME } from "./cell-chrome";
-import { INPUT_CELL_HIT_AREA } from "./cell-hit-area";
+import { RESTING_CELL_CHROME, TRANSACTION_GRID_EDITOR_INLINE_CHROME } from "./cell-chrome";
+import {
+    TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED,
+    type TransactionGridEditorCommitResult,
+    type TransactionGridEditorLifecycle,
+    useTransactionGridEditorLifecycle,
+    useTransactionGridEditorPortalRef,
+    useTransactionGridNativeBlurCommit
+} from "./editor-lifecycle";
 
 export interface DescriptionAliasOption {
     id: string;
     name: string;
 }
 
+export interface ImportedDescriptionProvenance {
+    readonly ariaDescription: string;
+    readonly tooltip: string;
+}
+
+export interface DescriptionAliasDisplayProps {
+    readonly className?: string;
+    readonly descriptionAliasId?: string;
+    readonly originalDescription?: string;
+    readonly value: string;
+    readonly "data-testid"?: string;
+}
+
+export function importedDescriptionProvenance(
+    value: string,
+    descriptionAliasId?: string,
+    originalDescription?: string
+): ImportedDescriptionProvenance | null {
+    if (
+        descriptionAliasId == null ||
+        originalDescription == null ||
+        originalDescription === value
+    ) {
+        return null;
+    }
+    return {
+        ariaDescription: `Original imported description: ${originalDescription}`,
+        tooltip: originalDescription
+    };
+}
+
 export interface DescriptionAliasEditOrigin {
     readonly element: HTMLInputElement;
     readonly container: HTMLDivElement;
+    readonly gridcell: HTMLDivElement | null;
     readonly selectionStart: number;
     readonly selectionEnd: number;
 }
@@ -32,14 +72,24 @@ export interface InlineEditableDescriptionAliasProps {
     originalDescription?: string;
     /** Available final real aliases for autocomplete. */
     availableAliases: DescriptionAliasOption[];
-    /** Commit edited text on Enter or blur. */
-    onCommitText: (text: string, origin: DescriptionAliasEditOrigin) => void;
-    /** Select an existing final real alias. */
-    onSelectAlias: (aliasId: string, origin: DescriptionAliasEditOrigin) => void;
+    /** Commit edited text on Enter or blur and report the actual mutation outcome. */
+    onCommitText: (
+        text: string,
+        origin: DescriptionAliasEditOrigin
+    ) => TransactionGridEditorCommitResult;
+    /** Select an existing final real alias and report the actual mutation outcome. */
+    onSelectAlias: (
+        aliasId: string,
+        origin: DescriptionAliasEditOrigin
+    ) => TransactionGridEditorCommitResult;
     /** Notify the container when the field gains (`true`) or loses (`false`) edit focus. */
     onEditingChange?: (editing: boolean) => void;
+    /** Reports the controller-owned autocomplete independently from edit focus. */
+    onPopupOpenChange?: (popup: "listbox", open: boolean) => void;
+    /** Stable row owner stamped on the portaled autocomplete. */
+    ownerRowId?: TransactionId;
     /** Registers the stable input element with the workspace focus coordinator. */
-    onInputElementChange?: (element: HTMLInputElement | null) => void;
+    onInputElementChange?: (element: HTMLInputElement | null) => void | (() => void);
     className?: string;
     inputClassName?: string;
     placeholder?: string;
@@ -51,12 +101,35 @@ function captureEditOrigin(
     element: HTMLInputElement,
     container: HTMLDivElement
 ): DescriptionAliasEditOrigin {
+    const closestGridcell = container.closest('[role="gridcell"]');
+    const gridcell = closestGridcell instanceof HTMLDivElement ? closestGridcell : null;
     return {
         element,
         container,
+        gridcell,
         selectionStart: element.selectionStart ?? element.value.length,
         selectionEnd: element.selectionEnd ?? element.value.length
     };
+}
+
+/** Restore the live editor when it survived the modal, otherwise return focus to its outer cell. */
+export function restoreDescriptionAliasEditOrigin(origin: DescriptionAliasEditOrigin): void {
+    const replacement = origin.gridcell?.querySelector<HTMLInputElement>(
+        'input[aria-label="Transaction description"]'
+    );
+    const element = origin.element.isConnected ? origin.element : replacement;
+    if (element?.isConnected) {
+        const restoreSelection = (): void => {
+            if (element.isConnected && element.ownerDocument.activeElement === element) {
+                element.setSelectionRange(origin.selectionStart, origin.selectionEnd);
+            }
+        };
+        element.focus({ preventScroll: true });
+        restoreSelection();
+        queueMicrotask(restoreSelection);
+        return;
+    }
+    if (origin.gridcell?.isConnected) origin.gridcell.focus({ preventScroll: true });
 }
 
 function ImportedDescriptionTooltip({
@@ -64,11 +137,17 @@ function ImportedDescriptionTooltip({
     originalDescription
 }: {
     readonly children: ReactElement;
-    readonly originalDescription: string;
+    readonly originalDescription?: string;
 }) {
     const [open, setOpen] = useState(false);
+    const hasProvenance = originalDescription != null;
     return (
-        <Tooltip open={open} onOpenChange={setOpen}>
+        <Tooltip
+            open={hasProvenance && open}
+            onOpenChange={(nextOpen) => {
+                if (hasProvenance) setOpen(nextOpen);
+            }}
+        >
             <TooltipTrigger
                 asChild
                 onBlur={() => setOpen(false)}
@@ -76,8 +155,39 @@ function ImportedDescriptionTooltip({
             >
                 {children}
             </TooltipTrigger>
-            <TooltipContent>{originalDescription}</TooltipContent>
+            {hasProvenance ? <TooltipContent>{originalDescription}</TooltipContent> : null}
         </Tooltip>
+    );
+}
+
+/** Resting alias presentation with the same imported provenance as the editor. */
+export function DescriptionAliasDisplay({
+    className,
+    descriptionAliasId,
+    originalDescription,
+    value,
+    "data-testid": testId
+}: DescriptionAliasDisplayProps) {
+    const provenance = importedDescriptionProvenance(
+        value,
+        descriptionAliasId,
+        originalDescription
+    );
+    const content = (
+        <span
+            aria-description={provenance?.ariaDescription}
+            className={cn("min-w-0 flex-1 truncate text-sm font-medium", className)}
+            data-testid={testId}
+        >
+            {value}
+        </span>
+    );
+    return provenance == null ? (
+        content
+    ) : (
+        <ImportedDescriptionTooltip originalDescription={provenance.tooltip}>
+            {content}
+        </ImportedDescriptionTooltip>
     );
 }
 
@@ -90,6 +200,8 @@ export function InlineEditableDescriptionAlias({
     onCommitText,
     onSelectAlias,
     onEditingChange,
+    onPopupOpenChange,
+    ownerRowId,
     onInputElementChange,
     className,
     inputClassName,
@@ -100,17 +212,38 @@ export function InlineEditableDescriptionAlias({
     const [localValue, setLocalValue] = useState(value);
     const [isFocused, setIsFocused] = useState(false);
     const [hasEdited, setHasEdited] = useState(false);
+    const [hasSubmitted, setHasSubmitted] = useState(false);
     const [isAutocompleteDismissed, setIsAutocompleteDismissed] = useState(false);
     const [activeOptionIndex, setActiveOptionIndex] = useState<number | null>(null);
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const popupOwnershipOpen = useRef(false);
     const submittedRef = useRef(false);
+    const submittedResultRef = useRef<TransactionGridEditorCommitResult>(
+        TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED
+    );
+    const externalExitValidationResult = useRef<TransactionGridEditorCommitResult | null>(null);
+    const submittedCanonicalRef = useRef<{
+        readonly descriptionAliasId?: string;
+        readonly value: string;
+    } | null>(null);
     const listboxId = useId();
+    const publishNativeBlurCommit = useTransactionGridNativeBlurCommit();
+    const registerEditorPortal = useTransactionGridEditorPortalRef<HTMLDivElement>();
     const registerInput = useCallback(
         (element: HTMLInputElement | null) => {
+            if (element == null) {
+                inputRef.current = null;
+                onInputElementChange?.(null);
+                return;
+            }
             inputRef.current = element;
-            onInputElementChange?.(element);
+            const unregister = onInputElementChange?.(element);
+            return () => {
+                if (inputRef.current === element) inputRef.current = null;
+                unregister?.();
+            };
         },
         [onInputElementChange]
     );
@@ -124,7 +257,23 @@ export function InlineEditableDescriptionAlias({
             : [];
     }, [availableAliases, displayedValue, hasEdited, isAutocompleteDismissed, isFocused]);
     const isAutocompleteOpen =
-        isFocused && hasEdited && !isAutocompleteDismissed && filteredAliases.length > 0;
+        !hasSubmitted &&
+        isFocused &&
+        hasEdited &&
+        !isAutocompleteDismissed &&
+        filteredAliases.length > 0;
+    const closePopupOwnership = useCallback(() => {
+        if (!popupOwnershipOpen.current) return;
+        popupOwnershipOpen.current = false;
+        onPopupOpenChange?.("listbox", false);
+    }, [onPopupOpenChange]);
+
+    useLayoutEffect(() => {
+        if (!isAutocompleteOpen) return;
+        popupOwnershipOpen.current = true;
+        onPopupOpenChange?.("listbox", true);
+        return closePopupOwnership;
+    }, [closePopupOwnership, isAutocompleteOpen, onPopupOpenChange]);
 
     useEffect(() => {
         if (!isAutocompleteOpen) return;
@@ -146,13 +295,53 @@ export function InlineEditableDescriptionAlias({
         };
     }, [isAutocompleteOpen]);
 
-    const commitOnce = useCallback(() => {
+    const commitOnce = useCallback((): TransactionGridEditorCommitResult => {
         const input = inputRef.current;
         const container = containerRef.current;
-        if (!input || !container || submittedRef.current) return;
+        if (!input || !container) return TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
+        if (submittedRef.current) return submittedResultRef.current;
         submittedRef.current = true;
-        if (localValue !== value) onCommitText(localValue, captureEditOrigin(input, container));
-    }, [localValue, onCommitText, value]);
+        submittedCanonicalRef.current = { descriptionAliasId, value };
+        const result =
+            localValue === value
+                ? TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED
+                : onCommitText(localValue, captureEditOrigin(input, container));
+        submittedResultRef.current = result;
+        if (!result.ok) {
+            submittedRef.current = false;
+            return result;
+        }
+        setHasSubmitted(true);
+        return result;
+    }, [descriptionAliasId, localValue, onCommitText, value]);
+
+    const cancelEdit = useCallback(() => {
+        submittedRef.current = true;
+        setHasSubmitted(true);
+        submittedResultRef.current = TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
+        setLocalValue(value);
+        setHasEdited(false);
+        setActiveOptionIndex(null);
+        setIsAutocompleteDismissed(true);
+    }, [value]);
+    const editorLifecycle = useMemo<TransactionGridEditorLifecycle>(
+        () => ({
+            automation: {
+                draftText: localValue,
+                field: "descriptionAlias",
+                originalText: value
+            },
+            beginExternalExitValidation: () => {
+                externalExitValidationResult.current = null;
+            },
+            cancel: cancelEdit,
+            commit: commitOnce,
+            externalExitValidation: "blur",
+            readExternalExitValidation: () => externalExitValidationResult.current
+        }),
+        [cancelEdit, commitOnce, localValue, value]
+    );
+    useTransactionGridEditorLifecycle(editorLifecycle);
 
     const selectAlias = useCallback(
         (option: DescriptionAliasOption) => {
@@ -160,14 +349,21 @@ export function InlineEditableDescriptionAlias({
             const container = containerRef.current;
             if (!input || !container || submittedRef.current) return;
             submittedRef.current = true;
+            setHasSubmitted(true);
+            submittedCanonicalRef.current = { descriptionAliasId, value };
             setLocalValue(option.name);
             setHasEdited(false);
             setActiveOptionIndex(null);
             setIsAutocompleteDismissed(true);
-            onSelectAlias(option.id, captureEditOrigin(input, container));
-            input.blur();
+            submittedResultRef.current = onSelectAlias(
+                option.id,
+                captureEditOrigin(input, container)
+            );
+            queueMicrotask(() => {
+                if (input.isConnected && input.ownerDocument.activeElement === input) input.blur();
+            });
         },
-        [onSelectAlias]
+        [descriptionAliasId, onSelectAlias, value]
     );
 
     const handleKeyDown = useCallback(
@@ -214,6 +410,8 @@ export function InlineEditableDescriptionAlias({
                 event.preventDefault();
                 setLocalValue(value);
                 submittedRef.current = true;
+                setHasSubmitted(true);
+                submittedResultRef.current = TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
                 inputRef.current?.blur();
             }
         },
@@ -239,36 +437,57 @@ export function InlineEditableDescriptionAlias({
                 setActiveOptionIndex(null);
                 setIsAutocompleteDismissed(false);
                 submittedRef.current = false;
+                setHasSubmitted(false);
             }}
             onKeyDown={handleKeyDown}
             onFocus={() => {
+                const submittedCanonical = submittedCanonicalRef.current;
+                const returningFromSubmission = submittedRef.current;
+                const returningFromRejectedSubmission = !submittedResultRef.current.ok;
                 submittedRef.current = false;
-                setLocalValue(value);
+                setHasSubmitted(false);
+                submittedResultRef.current = TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
+                submittedCanonicalRef.current = null;
+                const canonicalChangedSinceSubmission =
+                    submittedCanonical != null &&
+                    (submittedCanonical.value !== value ||
+                        submittedCanonical.descriptionAliasId !== descriptionAliasId);
+                if (
+                    (!returningFromSubmission && !returningFromRejectedSubmission) ||
+                    canonicalChangedSinceSubmission
+                ) {
+                    setLocalValue(value);
+                }
                 setIsFocused(true);
                 setHasEdited(false);
                 setActiveOptionIndex(null);
                 setIsAutocompleteDismissed(false);
                 onEditingChange?.(true);
             }}
-            onBlur={() => {
+            onBlur={(event) => {
                 setIsFocused(false);
                 setHasEdited(false);
                 setActiveOptionIndex(null);
-                commitOnce();
-                onEditingChange?.(false);
+                const result = commitOnce();
+                externalExitValidationResult.current = result;
+                const controllerHandledBlur =
+                    publishNativeBlurCommit?.(result, event.relatedTarget) ?? false;
+                if (isAutocompleteOpen) closePopupOwnership();
+                if (result.ok) {
+                    onEditingChange?.(false);
+                    return;
+                }
+                if (!controllerHandledBlur) {
+                    queueMicrotask(() => inputRef.current?.focus({ preventScroll: true }));
+                }
             }}
             onClick={(event) => event.stopPropagation()}
             disabled={disabled}
             data-testid={testId}
             className={cn(
                 "h-7 text-sm",
-                // UR-012: the field accepts a click anywhere in its cell. The alias autocomplete is
-                // positioned from `containerRef`, the wrapper below, whose box this does not touch —
-                // so the dropdown still opens exactly where it did.
-                INPUT_CELL_HIT_AREA,
                 RESTING_CELL_CHROME,
-                "hover:bg-accent/30",
-                "focus:border-input focus:bg-background focus-visible:ring-2",
+                TRANSACTION_GRID_EDITOR_INLINE_CHROME,
                 disabled && "cursor-not-allowed opacity-50",
                 inputClassName,
                 className
@@ -277,27 +496,29 @@ export function InlineEditableDescriptionAlias({
         />
     );
 
-    const showTooltip =
-        !!descriptionAliasId && !!originalDescription && originalDescription !== value;
+    const provenance = importedDescriptionProvenance(
+        value,
+        descriptionAliasId,
+        originalDescription
+    );
 
     return (
         <div ref={containerRef} className="min-w-0">
-            {showTooltip ? (
-                <ImportedDescriptionTooltip originalDescription={originalDescription}>
-                    {inputElement}
-                </ImportedDescriptionTooltip>
-            ) : (
-                inputElement
-            )}
+            <ImportedDescriptionTooltip originalDescription={provenance?.tooltip}>
+                {inputElement}
+            </ImportedDescriptionTooltip>
 
             {isAutocompleteOpen &&
                 typeof document !== "undefined" &&
                 createPortal(
                     <div
+                        ref={registerEditorPortal}
                         id={listboxId}
                         role="listbox"
                         aria-label="Description aliases"
                         data-testid="description-alias-options"
+                        data-owned-by-row={ownerRowId}
+                        data-owned-by-field="description"
                         className="bg-popover text-popover-foreground fixed z-[9999] max-h-[300px] overflow-y-auto rounded-md border p-1 shadow-lg"
                         style={{
                             top: dropdownPosition.top,

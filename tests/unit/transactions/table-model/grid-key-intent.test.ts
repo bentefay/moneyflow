@@ -13,7 +13,8 @@ import {
     transactionGridKeyContext,
     transactionGridKeyIntent,
     type TransactionGridKeyCellContext,
-    type TransactionGridKeyContext
+    type TransactionGridKeyContext,
+    type TransactionGridKeyMode
 } from "@/components/features/transactions/table-model/grid-key-intent";
 import {
     asTransactionId,
@@ -24,6 +25,13 @@ const NAVIGATING: TransactionGridKeyContext = {
     cell: editableTransactionGridKeyCell(),
     mode: "navigating"
 };
+
+function keyContext(mode: TransactionGridKeyMode): TransactionGridKeyContext {
+    const cell = editableTransactionGridKeyCell();
+    return mode === "interacting-grid-editor"
+        ? { cell, editorEntry: "full", mode }
+        : { cell, mode };
+}
 
 function key(
     value: string,
@@ -134,15 +142,7 @@ describe("transaction grid key intent", () => {
         ["inspecting", "Enter", "native"],
         ["interacting-inspector", "Enter", "native"]
     ] as const)("maps %s + Enter to %s", (mode, pressed, expected) => {
-        expect(
-            transactionGridKeyIntent(
-                {
-                    cell: { activation: "none", editable: true },
-                    mode
-                },
-                key(pressed)
-            ).kind
-        ).toBe(expected);
+        expect(transactionGridKeyIntent(keyContext(mode), key(pressed)).kind).toBe(expected);
     });
 
     it("enters quick edit for printable input and leaves F2 unbound", () => {
@@ -191,11 +191,8 @@ describe("transaction grid key intent", () => {
 
     it("layers Escape through popup, edit, navigation, and parked state", () => {
         expect(
-            transactionGridKeyIntent(
-                { cell: { activation: "none", editable: true }, mode: "interacting-grid-editor" },
-                key("Escape")
-            )
-        ).toEqual({ kind: "close-interaction" });
+            transactionGridKeyIntent(keyContext("interacting-grid-editor"), key("Escape"))
+        ).toEqual({ kind: "cancel-popup-edit" });
         expect(
             transactionGridKeyIntent(
                 { cell: { activation: "none", editable: true }, mode: "editing-quick" },
@@ -266,6 +263,49 @@ describe("transaction grid key intent", () => {
         });
     });
 
+    it.each([
+        [
+            "quick",
+            "ArrowUp",
+            false,
+            { direction: "up", kind: "commit-and-move", preserveEntry: "quick" }
+        ],
+        ["quick", "ArrowDown", true, { direction: "down", kind: "commit-and-extend" }],
+        [
+            "full",
+            "ArrowLeft",
+            false,
+            { direction: "left", kind: "commit-and-move", preserveEntry: "full" }
+        ],
+        ["full", "ArrowRight", true, { direction: "right", kind: "commit-and-extend" }]
+    ] as const)(
+        "owns popup Alt movement for %s entry via %s shift=%s",
+        (editorEntry, pressed, shiftKey, expected) => {
+            expect(
+                transactionGridKeyIntent(
+                    {
+                        cell: editableTransactionGridKeyCell(),
+                        editorEntry,
+                        mode: "interacting-grid-editor"
+                    },
+                    key(pressed, { altKey: true, shiftKey })
+                )
+            ).toEqual(expected);
+        }
+    );
+
+    it("keeps popup plain arrows and inspector-owned Alt arrows native", () => {
+        expect(
+            transactionGridKeyIntent(keyContext("interacting-grid-editor"), key("ArrowDown"))
+        ).toEqual({ kind: "native" });
+        expect(
+            transactionGridKeyIntent(
+                keyContext("interacting-inspector"),
+                key("ArrowDown", { altKey: true })
+            )
+        ).toEqual({ kind: "native" });
+    });
+
     it("keeps grid movement for quick edit and modifier extension", () => {
         const quick: TransactionGridKeyContext = {
             cell: { activation: "none", editable: true },
@@ -316,12 +356,9 @@ describe("transaction grid key intent", () => {
         ["interacting-inspector", true, { kind: "native" }],
         ["inspecting", false, { kind: "native" }]
     ] as const)("maps %s Tab shift=%s", (mode, shiftKey, expected) => {
-        expect(
-            transactionGridKeyIntent(
-                { cell: { activation: "none", editable: true }, mode },
-                key("Tab", { shiftKey })
-            )
-        ).toEqual(expected);
+        expect(transactionGridKeyIntent(keyContext(mode), key("Tab", { shiftKey }))).toEqual(
+            expected
+        );
     });
 
     it("opens the date calendar only from forward full-edit Tab", () => {
@@ -335,6 +372,31 @@ describe("transaction grid key intent", () => {
             popup: "calendar"
         });
         expect(transactionGridKeyIntent(dateEditor, key("Tab", { shiftKey: true }))).toEqual({
+            direction: "reverse",
+            kind: "traverse-tab"
+        });
+    });
+
+    it("limits native forward Tab to Actions while reverse and checkbox Tab stay canonical", () => {
+        const actions = {
+            cell: activationTransactionGridKeyCell("inspector"),
+            mode: "navigating"
+        } as const;
+        const checkbox = {
+            cell: activationTransactionGridKeyCell("checkbox"),
+            mode: "navigating"
+        } as const;
+
+        expect(transactionGridKeyIntent(actions, key("Tab"))).toEqual({ kind: "native" });
+        expect(transactionGridKeyIntent(actions, key("Tab", { shiftKey: true }))).toEqual({
+            direction: "reverse",
+            kind: "traverse-tab"
+        });
+        expect(transactionGridKeyIntent(checkbox, key("Tab"))).toEqual({
+            direction: "forward",
+            kind: "traverse-tab"
+        });
+        expect(transactionGridKeyIntent(checkbox, key("Tab", { shiftKey: true }))).toEqual({
             direction: "reverse",
             kind: "traverse-tab"
         });
@@ -389,16 +451,26 @@ describe("transaction grid key intent", () => {
         ).toEqual({ kind: "native" });
     });
 
+    it("preserves all four Arrow commands while exposing parked selection", () => {
+        for (const [pressed, direction] of [
+            ["ArrowDown", "down"],
+            ["ArrowLeft", "left"],
+            ["ArrowRight", "right"],
+            ["ArrowUp", "up"]
+        ] as const) {
+            expect(
+                transactionGridKeyIntent(
+                    { cell: { activation: "none", editable: true }, mode: "parked" },
+                    key(pressed)
+                )
+            ).toEqual({
+                kind: "expose-selection",
+                then: { direction, kind: "move" }
+            });
+        }
+    });
+
     it("preserves the requested command while establishing or exposing selection", () => {
-        expect(
-            transactionGridKeyIntent(
-                { cell: { activation: "none", editable: true }, mode: "parked" },
-                key("ArrowRight")
-            )
-        ).toEqual({
-            kind: "expose-selection",
-            then: { direction: "right", kind: "move" }
-        });
         expect(
             transactionGridKeyIntent(
                 { cell: { activation: "none", editable: true }, mode: "idle" },
@@ -432,7 +504,7 @@ describe("transaction grid key intent", () => {
         "does not reinterpret composition-ending %s before the consumed barrier resumes",
         (pressed) => {
             const sequence = asTransactionCompositionSequence(12);
-            const consumed = { kind: "consumed", sequence } as const;
+            const consumed = { kind: "consumed", resume: "editing", sequence } as const;
 
             expect(
                 transactionGridKeyIntent({ ...NAVIGATING, composition: consumed }, key(pressed))
@@ -458,6 +530,7 @@ describe("transaction grid key intent", () => {
                 {
                     ...NAVIGATING,
                     composition: {
+                        emptyCompletion: "editing",
                         kind: "active",
                         preview: "",
                         sequence: asTransactionCompositionSequence(1)

@@ -3,9 +3,9 @@
 /**
  * Shared field-rule editor (HS-007 / P17B).
  *
- * ONE accessible, controlled editor that powers the Automations page now and is structured so P17C
- * can mount the SAME component inside a contextual popup later (nothing here assumes a page layout;
- * `descriptionEditable` and the `onApply*` callbacks are the only surface-specific seams). It covers
+ * ONE accessible, controlled editor shared by the Automations page and the transaction inspector.
+ * Nothing here assumes a page layout; `descriptionEditable`, portal registration, and the `onApply*`
+ * callbacks are the only surface-specific seams. It covers
  * the field selector, optional amount and/or account constraints, the four apply modes with an
  * explanatory tooltip, the mode-specific value editors, inline validation, delete, and apply-all /
  * apply-new actions.
@@ -16,6 +16,7 @@
  */
 
 import { Bot } from "lucide-react";
+import { useCallback, type RefCallback } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -66,6 +67,8 @@ export interface FieldRuleEditorProps {
     readonly className?: string;
     /** Stable id prefix so multiple editors on a page keep unique control ids. */
     readonly idPrefix?: string;
+    /** Registers portaled select surfaces when an inspector owns this editor. */
+    readonly registerPortal?: RefCallback<HTMLDivElement>;
 }
 
 const FIELD_LABELS: Readonly<Record<RuleField, string>> = {
@@ -99,9 +102,14 @@ export function FieldRuleEditor(props: FieldRuleEditorProps): React.JSX.Element 
         onApplyNew,
         saveDisabled,
         className,
-        idPrefix = "field-rule"
+        idPrefix = "field-rule",
+        registerPortal
     } = props;
 
+    const registerSelectPortal = useCallback(
+        (element: HTMLDivElement | null) => registerPortal?.(element),
+        [registerPortal]
+    );
     const set = (partial: Partial<RuleEditorDraft>): void =>
         onDraftChange({ ...draft, ...partial });
 
@@ -141,7 +149,7 @@ export function FieldRuleEditor(props: FieldRuleEditorProps): React.JSX.Element 
                     <SelectTrigger data-testid="rule-field" id={fieldId}>
                         <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent ref={registerSelectPortal}>
                         {FIELD_OPTIONS.map((field) => (
                             <SelectItem key={field} value={field}>
                                 {FIELD_LABELS[field]}
@@ -249,7 +257,7 @@ export function FieldRuleEditor(props: FieldRuleEditorProps): React.JSX.Element 
                                 >
                                     <SelectValue placeholder="Select account" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent ref={registerSelectPortal}>
                                     {accounts.map((account) => (
                                         <SelectItem key={account.id} value={account.id}>
                                             {account.label}
@@ -279,6 +287,7 @@ export function FieldRuleEditor(props: FieldRuleEditorProps): React.JSX.Element 
                         aliases={aliases}
                         error={errors.aliasId}
                         onChange={(value) => set({ aliasId: value })}
+                        registerPortal={registerSelectPortal}
                         value={draft.aliasId}
                     />
                 ) : null}
@@ -295,6 +304,7 @@ export function FieldRuleEditor(props: FieldRuleEditorProps): React.JSX.Element 
                                     : [...draft.tagIds, tagId]
                             })
                         }
+                        registerPortal={registerSelectPortal}
                         selected={draft.tagIds}
                         tags={tags}
                     />
@@ -341,7 +351,7 @@ export function FieldRuleEditor(props: FieldRuleEditorProps): React.JSX.Element 
                     <SelectTrigger className="w-48" data-testid="rule-apply-mode" id={modeId}>
                         <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent ref={registerSelectPortal}>
                         {APPLY_MODES.map((applyMode) => (
                             <SelectItem key={applyMode} value={applyMode}>
                                 {applyModeLabel(applyMode)}
@@ -397,80 +407,102 @@ export function FieldRuleEditor(props: FieldRuleEditorProps): React.JSX.Element 
     );
 }
 
-function AliasValueEditor(props: {
+function AliasValueEditor({
+    aliasId,
+    aliases,
+    error,
+    onChange,
+    registerPortal,
+    value
+}: {
     readonly aliasId: string;
     readonly aliases: readonly RuleEditorOption[];
     readonly value: string;
     readonly onChange: (value: string) => void;
+    readonly registerPortal?: RefCallback<HTMLDivElement>;
     readonly error?: string;
 }): React.JSX.Element {
+    const registerSelectPortal = useCallback(
+        (element: HTMLDivElement | null) => registerPortal?.(element),
+        [registerPortal]
+    );
     return (
         <div className="space-y-1.5">
-            <Label htmlFor={props.aliasId}>Description alias to apply</Label>
-            <Select value={props.value} onValueChange={props.onChange}>
-                <SelectTrigger
-                    aria-invalid={props.error != null}
-                    data-testid="rule-alias"
-                    id={props.aliasId}
-                >
+            <Label htmlFor={aliasId}>Description alias to apply</Label>
+            <Select value={value} onValueChange={onChange}>
+                <SelectTrigger aria-invalid={error != null} data-testid="rule-alias" id={aliasId}>
                     <SelectValue placeholder="Select alias" />
                 </SelectTrigger>
-                <SelectContent>
-                    {props.aliases.map((alias) => (
+                <SelectContent ref={registerSelectPortal}>
+                    {aliases.map((alias) => (
                         <SelectItem key={alias.id} value={alias.id}>
                             {alias.label}
                         </SelectItem>
                     ))}
                 </SelectContent>
             </Select>
-            {props.error ? (
+            {error ? (
                 <p className="text-destructive text-xs" data-testid="rule-alias-error" role="alert">
-                    {props.error}
+                    {error}
                 </p>
             ) : null}
         </div>
     );
 }
 
-function TagsValueEditor(props: {
+function TagsValueEditor({
+    error,
+    idPrefix,
+    mode,
+    onModeChange,
+    onToggle,
+    registerPortal,
+    selected,
+    tags
+}: {
     readonly tags: readonly RuleEditorOption[];
     readonly selected: readonly string[];
     readonly mode: TagRuleMode;
     readonly onModeChange: (mode: TagRuleMode) => void;
     readonly onToggle: (tagId: string) => void;
     readonly idPrefix: string;
+    readonly registerPortal?: RefCallback<HTMLDivElement>;
     readonly error?: string;
 }): React.JSX.Element {
-    const modeId = `${props.idPrefix}-tag-mode`;
+    const modeId = `${idPrefix}-tag-mode`;
+    const registerSelectPortal = useCallback(
+        (element: HTMLDivElement | null) => registerPortal?.(element),
+        [registerPortal]
+    );
     return (
         <div className="space-y-2">
             <div className="space-y-1.5">
                 <Label htmlFor={modeId}>Tag mode</Label>
                 <Select
-                    value={props.mode}
-                    onValueChange={(value) => props.onModeChange(value === "set" ? "set" : "add")}
+                    value={mode}
+                    onValueChange={(value) => onModeChange(value === "set" ? "set" : "add")}
                 >
                     <SelectTrigger className="w-40" data-testid="rule-tag-mode" id={modeId}>
                         <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent ref={registerSelectPortal}>
                         <SelectItem value="add">Add tags</SelectItem>
                         <SelectItem value="set">Set tags (clear existing)</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Tags to apply">
-                {props.tags.length === 0 ? (
+                {tags.length === 0 ? (
                     <p className="text-muted-foreground text-xs">No tags available.</p>
                 ) : (
-                    props.tags.map((tag) => {
-                        const isSelected = props.selected.includes(tag.id);
+                    tags.map((tag) => {
+                        const isSelected = selected.includes(tag.id);
                         return (
                             <Button
                                 aria-pressed={isSelected}
                                 data-testid={`rule-tag-${tag.id}`}
                                 key={tag.id}
-                                onClick={() => props.onToggle(tag.id)}
+                                onClick={() => onToggle(tag.id)}
                                 size="sm"
                                 type="button"
                                 variant={isSelected ? "default" : "outline"}
@@ -481,9 +513,9 @@ function TagsValueEditor(props: {
                     })
                 )}
             </div>
-            {props.error ? (
+            {error ? (
                 <p className="text-destructive text-xs" data-testid="rule-tags-error" role="alert">
-                    {props.error}
+                    {error}
                 </p>
             ) : null}
         </div>

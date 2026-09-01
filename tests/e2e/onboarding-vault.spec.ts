@@ -4,10 +4,18 @@
 
 import { type Browser, type Page, expect, test } from "@playwright/test";
 
-import { createNewIdentity, goToAccounts, goToSettings, goToTags, reloadPage } from "./helpers";
+import {
+    createNewIdentity,
+    goToAccounts,
+    goToPeople,
+    goToSettings,
+    goToTags,
+    reloadPage
+} from "./helpers";
 
 test.describe("Onboarding", () => {
-    test("creates and selects a vault as part of onboarding", async ({ page }) => {
+    test("creates, selects and initializes a vault as part of onboarding", async ({ page }) => {
+        test.setTimeout(60_000);
         const trpcRequests: Array<{ method: string; url: string; body: string | null }> = [];
         page.on("request", (request) => {
             if (request.url().includes("/api/trpc/")) {
@@ -32,6 +40,17 @@ test.describe("Onboarding", () => {
 
             // The vault selector should no longer show the placeholder label.
             await expect(page.getByRole("button", { name: /select vault/i })).not.toBeVisible();
+        });
+
+        await test.step("initialize the default account with full ownership", async () => {
+            await goToAccounts(page);
+            const defaultAccount = page.getByRole("row").filter({ hasText: "Default" });
+            await expect(defaultAccount).toContainText("Me (100%)");
+        });
+
+        await test.step("initialize the default person", async () => {
+            await goToPeople(page);
+            await expect(page.getByText("Me", { exact: true })).toBeVisible();
         });
 
         await test.step("verify authenticated input uses signed POST bodies, never URLs", async () => {
@@ -144,20 +163,6 @@ test.describe("Onboarding", () => {
             // Chromium arms its save prompt when the interacted form becomes unreachable after a
             // successful request, so the credential form must not survive onto the next screen.
             await expect(page.getByTestId("recovery-phrase-credential")).toHaveCount(0);
-        });
-    });
-
-    test("new vault has default person and account with ownership", async ({ page }) => {
-        await test.step("create identity with automatic vault creation", async () => {
-            await createNewIdentity(page);
-        });
-
-        await test.step("verify default account has Me as 100% owner", async () => {
-            await goToAccounts(page);
-
-            // Default account should exist and show "Me (100%)" as owner
-            await expect(page.getByText("Default", { exact: true })).toBeVisible();
-            await expect(page.getByText("Me (100%)")).toBeVisible();
         });
     });
 });

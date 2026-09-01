@@ -12,30 +12,41 @@
  * with an explicit locale rather than inheriting the host's.
  */
 
-import type { Browser, Page } from "@playwright/test";
+import type { Browser, Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
-import { createNewIdentity, goToSettings, goToTransactions } from "./helpers";
+import {
+    activateTransactionEditor,
+    createNewIdentity,
+    expectTransactionDateDisplay,
+    goToSettings,
+    goToTransactions,
+    transactionGridCell
+} from "./helpers";
 import { addEmptyTransaction } from "./helpers/settlement";
 
-/** The date cell of a freshly added transaction row. */
-async function addRowDateCell(page: Page) {
+/** The freshly added transaction row whose description editor Add explicitly activates. */
+async function addRow(page: Page): Promise<Locator> {
     const row = page.locator(`[data-transaction-id="${await addEmptyTransaction(page)}"]`);
     await expect(row).toBeVisible();
-    return row.getByTestId("date-editable");
+    await expect(row.getByTestId("description-editable")).toBeFocused();
+    return row;
 }
 
-/**
- * Open a vault in a context pinned to `locale`, then hand the transactions
- * page to the caller.
- */
+/** Choose a presentation on the settings page. */
+async function chooseDateFormat(page: Page, label: RegExp): Promise<void> {
+    await page.getByRole("combobox", { name: /date format/i }).click();
+    await page.getByRole("option", { name: label }).click();
+}
+
+/** Open a vault in a context pinned to `locale`, then hand the transactions page to the caller. */
 async function withLocale(
     browser: Browser,
     locale: string,
     body: (page: Page) => Promise<void>
 ): Promise<void> {
-    // Brisbane throughout: the reported environment, and the zone that would
-    // expose any date that shifts by time zone rather than staying a calendar date.
+    // Brisbane throughout: the reported environment, and the zone that would expose any date that
+    // shifts by time zone rather than staying a calendar date.
     const context = await browser.newContext({ locale, timezoneId: "Australia/Brisbane" });
     const page = await context.newPage();
     try {
@@ -49,54 +60,49 @@ async function withLocale(
 
 test.describe("UR-007: dates display and parse in the browser's locale", () => {
     test("a day-first viewer's typed date is stored as the day they meant", async ({ browser }) => {
-        // The frozen text's own example: for an Australian-English viewer,
-        // 03/08 is the third of August, not the eighth of March. Day and month
-        // are both <= 12 here, which is exactly where a transposition hides.
         await withLocale(browser, "en-AU", async (page) => {
-            const dateCell = await addRowDateCell(page);
+            const row = await addRow(page);
+            const dateEditor = await activateTransactionEditor(row, "date");
+            await dateEditor.fill("03/08/25");
+            await transactionGridCell(row, "description").click();
+            await expectTransactionDateDisplay(row, "3/8/2025");
 
-            await dateCell.click();
-            await dateCell.fill("03/08/26");
-            await dateCell.press("Tab");
-
-            // Re-focusing shows the editing presentation of what was stored.
-            await dateCell.click();
-            await expect(dateCell).toHaveValue("3/8/2026");
+            // Re-projecting the committed value through an unambiguous format proves that 03/08 was
+            // stored as 3 August rather than the transposed 8 March.
+            await goToSettings(page);
+            await chooseDateFormat(page, /year first/i);
+            await goToTransactions(page);
+            await expectTransactionDateDisplay(row, "2025-08-03");
         });
     });
 
     test("a month-first viewer's identical keystrokes mean the other date", async ({ browser }) => {
         await withLocale(browser, "en-US", async (page) => {
-            const dateCell = await addRowDateCell(page);
+            const row = await addRow(page);
+            const dateEditor = await activateTransactionEditor(row, "date");
+            await dateEditor.fill("03/08/25");
+            await transactionGridCell(row, "description").click();
+            await expectTransactionDateDisplay(row, "3/8/2025");
 
-            await dateCell.click();
-            await dateCell.fill("03/08/26");
-            await dateCell.press("Tab");
-
-            await dateCell.click();
-            await expect(dateCell).toHaveValue("3/8/2026");
-
-            // Same text, but it denotes 8 March, so the resting compact form
-            // orders month first and shows no year for a current-year date.
-            await dateCell.press("Escape");
-            await expect(dateCell).toHaveValue("3/8");
+            await goToSettings(page);
+            await chooseDateFormat(page, /year first/i);
+            await goToTransactions(page);
+            await expectTransactionDateDisplay(row, "2025-03-08");
         });
     });
 
     test("the editing presentation carries the year in full", async ({ browser }) => {
         await withLocale(browser, "en-AU", async (page) => {
-            const dateCell = await addRowDateCell(page);
+            const row = await addRow(page);
+            const dateEditor = await activateTransactionEditor(row, "date");
+            await dateEditor.fill("15/06/25");
+            await transactionGridCell(row, "description").click();
+            await expectTransactionDateDisplay(row, "15/6/2025");
 
-            await dateCell.click();
-            await dateCell.fill("15/06/25");
-            await dateCell.press("Tab");
-
-            await dateCell.click();
-            const editing = await dateCell.inputValue();
-
-            // A two-digit year cannot say which century it means, and editing is
-            // where that matters: what the field shows is what gets typed back.
-            expect(editing).toBe("15/6/2025");
+            const reopenedEditor = await activateTransactionEditor(row, "date");
+            await expect(reopenedEditor).toHaveValue("15/6/2025");
+            await reopenedEditor.press("Escape");
+            await expectTransactionDateDisplay(row, "15/6/2025");
         });
     });
 
@@ -104,55 +110,33 @@ test.describe("UR-007: dates display and parse in the browser's locale", () => {
         browser
     }) => {
         await withLocale(browser, "en-AU", async (page) => {
-            const dateCell = await addRowDateCell(page);
+            const row = await addRow(page);
+            const pastEditor = await activateTransactionEditor(row, "date");
+            await pastEditor.fill("15/06/25");
+            await transactionGridCell(row, "description").click();
+            await expectTransactionDateDisplay(row, "15/6/2025");
 
-            await dateCell.click();
-            await dateCell.fill("15/06/25");
-            await dateCell.press("Tab");
-            await expect(dateCell).toHaveValue("15/6/2025");
-
-            // A date in the current year drops the year entirely.
-            const currentYear = new Date().getFullYear() % 100;
-            await dateCell.click();
-            await dateCell.fill(`03/08/${String(currentYear).padStart(2, "0")}`);
-            await dateCell.press("Tab");
-            await expect(dateCell).toHaveValue("3/8");
+            const currentYear = await page.evaluate(() => new Date().getFullYear() % 100);
+            const currentEditor = await activateTransactionEditor(row, "date");
+            await currentEditor.fill(`03/08/${String(currentYear).padStart(2, "0")}`);
+            await transactionGridCell(row, "description").click();
+            await expectTransactionDateDisplay(row, "3/8");
         });
     });
 
     test("natural language entry still works", async ({ browser }) => {
         await withLocale(browser, "en-AU", async (page) => {
-            const dateCell = await addRowDateCell(page);
-
-            // A month name is unambiguous in any field order, so this asserts
-            // the natural-language path survived, not the numeric one. The year
-            // is pinned to the past so the resting form is the D/M/YY one
-            // regardless of when the suite runs.
-            await dateCell.click();
-            await dateCell.fill("25 December 2023");
-            await dateCell.press("Tab");
-
-            await expect(dateCell).toHaveValue("25/12/2023");
+            const row = await addRow(page);
+            const dateEditor = await activateTransactionEditor(row, "date");
+            await dateEditor.fill("25 December 2023");
+            await transactionGridCell(row, "description").click();
+            await expectTransactionDateDisplay(row, "25/12/2023");
         });
     });
 });
 
 test.describe("UR-007: a chosen date format overrides the browser", () => {
-    /**
-     * Choose a presentation on the settings page.
-     *
-     * The option's accessible name carries both its label and its example, so the pattern matches
-     * the label alone rather than the whole string.
-     */
-    async function chooseDateFormat(page: Page, label: RegExp): Promise<void> {
-        await page.getByRole("combobox", { name: /date format/i }).click();
-        await page.getByRole("option", { name: label }).click();
-    }
-
     test("a day-first choice beats a month-first browser", async ({ browser }) => {
-        // The reported environment, reproduced: the browser reports United States English while
-        // the viewer is in Brisbane. Nothing the browser exposes knows that, which is why the
-        // setting exists.
         const context = await browser.newContext({
             locale: "en-US",
             timezoneId: "Australia/Brisbane"
@@ -163,19 +147,16 @@ test.describe("UR-007: a chosen date format overrides the browser", () => {
             await createNewIdentity(page);
             await goToTransactions(page);
 
-            // Before choosing, the browser's own order is what shows.
-            const beforeCell = await addRowDateCell(page);
-            await beforeCell.click();
-            await beforeCell.fill("1988-01-27");
-            await beforeCell.press("Tab");
-            await expect(beforeCell).toHaveValue("1/27/1988");
+            const row = await addRow(page);
+            const dateEditor = await activateTransactionEditor(row, "date");
+            await dateEditor.fill("1988-01-27");
+            await transactionGridCell(row, "description").click();
+            await expectTransactionDateDisplay(row, "1/27/1988");
 
             await goToSettings(page);
             await chooseDateFormat(page, /day first/i);
-
             await goToTransactions(page);
-            const afterCell = page.getByTestId("date-editable").first();
-            await expect(afterCell).toHaveValue("27/1/1988");
+            await expectTransactionDateDisplay(row, "27/1/1988");
         } finally {
             await context.close();
         }
@@ -193,17 +174,14 @@ test.describe("UR-007: a chosen date format overrides the browser", () => {
             await chooseDateFormat(page, /year first/i);
 
             await goToTransactions(page);
-            const dateCell = await addRowDateCell(page);
-            await dateCell.click();
-            await dateCell.fill("1988-01-27");
-            await dateCell.press("Tab");
-            await expect(dateCell).toHaveValue("1988-01-27");
+            const row = await addRow(page);
+            const dateEditor = await activateTransactionEditor(row, "date");
+            await dateEditor.fill("1988-01-27");
+            await transactionGridCell(row, "description").click();
+            await expectTransactionDateDisplay(row, "1988-01-27");
 
             await page.reload();
-
-            // Stored against the viewer in the vault, so it is still in force after a cold load
-            // rather than living only in this tab.
-            await expect(page.getByTestId("date-editable").first()).toHaveValue("1988-01-27");
+            await expectTransactionDateDisplay(row, "1988-01-27");
         } finally {
             await context.close();
         }

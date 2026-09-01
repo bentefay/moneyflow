@@ -88,7 +88,17 @@ describe("transaction table pending Add focus", () => {
             transactions: createTransactions(3)
         });
 
-        expect(document.activeElement).toBe(screen.getAllByTestId("description-editable")[1]);
+        const targetRow = document.querySelector<HTMLElement>(
+            '[data-transaction-id="transaction-1"]'
+        );
+        if (targetRow == null) throw new Error("the requested transaction row did not mount");
+        const targetEditor = targetRow.querySelector<HTMLInputElement>(
+            '[data-testid="description-editable"]'
+        );
+        if (targetEditor == null) throw new Error("the requested description editor did not mount");
+
+        expect(document.activeElement).toBe(targetEditor);
+        expect(screen.getAllByTestId("description-editable")).toEqual([targetEditor]);
         expect(controller.getPendingRequest()).toBeNull();
         expect(controller.cellSelectionAtom.get()).toEqual([
             {

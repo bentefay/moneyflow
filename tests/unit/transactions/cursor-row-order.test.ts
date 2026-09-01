@@ -14,6 +14,7 @@
  * Keeping them apart matters: a reader who assumes both bite will later merge or drop one.
  */
 
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -26,13 +27,41 @@ import {
     isTransactionRowSelected,
     setTransactionRowsSelected
 } from "@/components/features/transactions/table-model";
-import type { Transaction } from "@/lib/crdt/schema";
-import type { TransactionCursor } from "@/lib/crdt/transaction-cursor";
+import type { Transaction, TransactionInput } from "@/lib/crdt/schema";
+import {
+    buildTransactionIndex,
+    createTransactionCursor,
+    type TransactionCursor
+} from "@/lib/crdt/transaction-cursor";
+import { asMinorUnits } from "@/lib/domain/currency";
+
+import { populateStore } from "../crdt/transaction-cursor-fixtures";
 
 const MATCHING_ROWS = 10_000;
 
 function rowId(index: number): string {
     return `tx-${index.toString().padStart(5, "0")}`;
+}
+
+function sameDateTransaction(index: number): TransactionInput {
+    return {
+        accountId: "acc-1",
+        allocations: {},
+        amount: asMinorUnits(-1000),
+        creationInstant: Temporal.Instant.fromEpochMilliseconds(1_700_000_000_000 + index),
+        date: Temporal.PlainDate.from("2026-08-24"),
+        deletedAt: undefined,
+        description: rowId(index),
+        descriptionAliasId: undefined,
+        id: rowId(index),
+        importId: "",
+        importRowIndex: index,
+        notes: "",
+        originalAmount: undefined,
+        statusId: "status-for-review",
+        suspectedDuplicates: [],
+        tagIds: []
+    };
 }
 
 /**
@@ -82,6 +111,33 @@ describe("transactionRowOrderFromCursor: positions", () => {
 
         expect(order.indexOf(asTransactionId(rowId(9_999)))).toBe(9_999);
         expect(rowsBuilt()).toBe(0);
+    });
+
+    it("resolves many expanded rows with one ordering visit per matching row", () => {
+        const transactionCount = 500;
+        let visits = 0;
+        const cursor = createTransactionCursor(
+            buildTransactionIndex(
+                populateStore(
+                    Array.from({ length: transactionCount }, (_unused, index) =>
+                        sameDateTransaction(index)
+                    )
+                )
+            ),
+            {},
+            { onTransactionVisited: () => (visits += 1) }
+        );
+        visits = 0;
+        const order = transactionRowOrderFromCursor(cursor);
+        const expandedIds = new Set(
+            Array.from({ length: 20 }, (_unused, index) => asTransactionId(rowId(index * 25)))
+        );
+
+        const indexes = order.indexesOf(expandedIds);
+
+        expect(indexes).toHaveLength(20);
+        expect(indexes).toEqual([...indexes].sort((left, right) => left - right));
+        expect(visits).toBe(transactionCount);
     });
 });
 

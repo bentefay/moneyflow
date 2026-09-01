@@ -17,6 +17,7 @@
 import { act } from "@testing-library/react";
 import { Temporal } from "temporal-polyfill";
 
+import type { AllocationColumn } from "@/components/features/transactions/allocation-columns";
 import {
     createTransactionCellSelectionAtom,
     createTransactionGridWorkspaceController,
@@ -30,13 +31,7 @@ import type { TransactionInput, TransactionStore } from "@/lib/crdt/schema";
 import { buildTransactionIndex, createTransactionCursor } from "@/lib/crdt/transaction-cursor";
 import { asMinorUnits } from "@/lib/domain/currency";
 
-/**
- * The row height `TransactionTable` estimates with, which is also a collapsed row's real height.
- *
- * Kept in step with `ROW_HEIGHT` there deliberately: tests that scroll by whole rows need the two to
- * agree, or their arithmetic silently drifts. Do not read this as the *measured* height in a test
- * about the estimate — see the note on `measuredRowHeight`.
- */
+/** The single fixed transaction-row geometry shared with production. */
 export const HARNESS_ROW_HEIGHT = 57;
 
 /** Viewport height, in whole rows, so the expected window size is arithmetic rather than a guess. */
@@ -47,34 +42,16 @@ export const HARNESS_VIEWPORT_HEIGHT = HARNESS_ROW_HEIGHT * HARNESS_VIEWPORT_ROW
 /** The overscan `TransactionTable` configures. */
 export const HARNESS_OVERSCAN = 5;
 
-/** How this harness answers `offsetHeight` for a row at a given absolute index. */
-export interface VirtualGridLayoutOptions {
-    /**
-     * The height a row actually renders at, which is **not** the same thing as the height the grid
-     * estimates it at.
-     *
-     * Defaulting this to `HARNESS_ROW_HEIGHT` — the grid's own estimate — makes every row measure
-     * exactly as guessed, and that silently disables every measurement-driven code path in the
-     * virtualizer: `resizeItem` early-returns on `delta === 0`, so no re-measurement, no total-size
-     * growth and no scroll adjustment can ever occur. A test written against that default cannot
-     * observe any of them, however real the virtualizer otherwise is. Pass real heights to exercise
-     * them; the production grid estimates 44 while rows render at 57, 75 and 103.
-     */
-    readonly measuredRowHeight?: (index: number) => number;
-    /** Records every scroll the *virtualizer* performs, i.e. every scroll adjustment it applies. */
-    readonly onProgrammaticScroll?: (top: number) => void;
-}
-
 /**
- * Gives jsdom enough layout for the real virtualizer to work, and returns a cleanup.
+ * Gives jsdom fixed production-shaped geometry for the real virtualizer, and returns a cleanup.
  *
- * The scroll container is identified by the `overflow-auto` class `TransactionTable` puts on it, and
- * measured rows by the `data-index` attribute the virtualizer itself writes. Everything else keeps a
- * zero height, so nothing else can accidentally become a viewport.
+ * The scroll container is identified by the `overflow-auto` class `TransactionTable` puts on it.
+ * Rows always report the same 57px box as production; there is deliberately no variable-height or
+ * element-measurement seam left for tests to revive.
  */
-export function installVirtualGridLayout(options: VirtualGridLayoutOptions = {}): () => void {
+export function installVirtualGridLayout(): () => void {
     const isScrollContainer = (element: HTMLElement) => element.classList.contains("overflow-auto");
-    const measuredRowHeight = options.measuredRowHeight ?? (() => HARNESS_ROW_HEIGHT);
+    const isVirtualRow = (element: HTMLElement) => element.dataset.index != null;
 
     /** The height the grid itself has declared for its row group, i.e. the scrollable content. */
     const declaredContentHeight = (container: HTMLElement): number => {
@@ -82,12 +59,21 @@ export function installVirtualGridLayout(options: VirtualGridLayoutOptions = {})
         return rowGroup == null ? 0 : Number.parseFloat(rowGroup.style.height) || 0;
     };
 
-    const restore = replaceOnHtmlElementPrototype({
+    return replaceOnHtmlElementPrototype({
+        getBoundingClientRect: {
+            writable: true,
+            value: function getBoundingClientRectStandIn(this: HTMLElement) {
+                if (isScrollContainer(this)) {
+                    return new DOMRect(0, 0, 1_000, HARNESS_VIEWPORT_HEIGHT);
+                }
+                if (isVirtualRow(this)) return new DOMRect(0, 0, 1_000, HARNESS_ROW_HEIGHT);
+                return new DOMRect();
+            }
+        },
         offsetHeight: {
             get(this: HTMLElement) {
                 if (isScrollContainer(this)) return HARNESS_VIEWPORT_HEIGHT;
-                const index = this.dataset.index;
-                return index == null ? 0 : measuredRowHeight(Number(index));
+                return isVirtualRow(this) ? HARNESS_ROW_HEIGHT : 0;
             }
         },
         offsetWidth: { get: () => 1_000 },
@@ -104,14 +90,9 @@ export function installVirtualGridLayout(options: VirtualGridLayoutOptions = {})
                 return isScrollContainer(this) ? declaredContentHeight(this) : 0;
             }
         },
-        // jsdom implements no scrolling, so `scrollTo` — which is how react-virtual's `elementScroll`
-        // moves the container — is either absent or a no-op.
-        //
-        // The `scroll` event is fired in a *later* task, deliberately, because that is what a browser
-        // does. Firing it synchronously delivers it while React is still inside the effect that asked
-        // for the scroll, and react-virtual's `useFlushSync: true` then calls `flushSync` from inside
-        // a lifecycle — the React warning the E2E scale test fails the whole run on. That warning
-        // would be an artefact of an impatient stand-in rather than anything the product does.
+        // jsdom implements no scrolling, so `scrollTo` — which is how the real virtualizer moves the
+        // container — is either absent or a no-op. The browser delivers its `scroll` event later, so
+        // the stand-in does too rather than re-entering React from the applying effect.
         scrollTo: {
             writable: true,
             value: function scrollToStandIn(
@@ -122,78 +103,11 @@ export function installVirtualGridLayout(options: VirtualGridLayoutOptions = {})
                     typeof scrollOptions === "number"
                         ? scrollOptions
                         : (scrollOptions?.top ?? this.scrollTop);
-                // The only route react-virtual has to move the container, so every call is a scroll
-                // the *virtualizer* performed — which is what `applyScrollAdjustment` does.
-                options.onProgrammaticScroll?.(top);
                 this.scrollTop = top;
                 setTimeout(() => this.dispatchEvent(new Event("scroll")), 0);
             }
         }
     });
-
-    const restoreResizeObserver = installMeasuringResizeObserver();
-
-    return () => {
-        restoreResizeObserver();
-        restore();
-    };
-}
-
-/**
- * A `ResizeObserver` that actually reports a size, because jsdom has none at all.
- *
- * This is load-bearing far beyond its size. react-virtual's `measureElement` ref measures
- * synchronously **only when `!isScrolling`**; while a scroll is in flight it merely calls
- * `observer.observe(node)` and waits for the observer to report. With no `ResizeObserver` the
- * virtualizer's own `observer` getter returns `null`, so rows mounted during a scroll are **never
- * measured** and keep their estimate forever. That silently disables `resizeItem`, dynamic
- * measurement, total-size correction and the whole scroll-adjustment path — every measurement-driven
- * behaviour the grid has — while leaving the virtualizer otherwise real, so tests look like they are
- * exercising it. A no-op stub is no better: it makes `observe` succeed and then never reports.
- *
- * Sizes come from `offsetHeight`, which this harness already answers, and are delivered in a later
- * task because that is when a browser delivers them.
- */
-function installMeasuringResizeObserver(): () => void {
-    const previous = Reflect.get(globalThis, "ResizeObserver") as unknown;
-
-    class MeasuringResizeObserver {
-        private readonly targets = new Set<Element>();
-
-        constructor(private readonly callback: ResizeObserverCallback) {}
-
-        observe(target: Element): void {
-            this.targets.add(target);
-            setTimeout(() => this.report(target), 0);
-        }
-
-        unobserve(target: Element): void {
-            this.targets.delete(target);
-        }
-
-        disconnect(): void {
-            this.targets.clear();
-        }
-
-        private report(target: Element): void {
-            if (!this.targets.has(target) || !target.isConnected) return;
-            const blockSize = target instanceof HTMLElement ? target.offsetHeight : 0;
-            const entry = {
-                target,
-                borderBoxSize: [{ blockSize, inlineSize: 0 }],
-                contentBoxSize: [{ blockSize, inlineSize: 0 }],
-                contentRect: new DOMRect(0, 0, 0, blockSize),
-                devicePixelContentBoxSize: [{ blockSize, inlineSize: 0 }]
-            };
-            // The callback shape react-virtual reads: `entry.borderBoxSize[0].blockSize`.
-            this.callback([entry] as unknown as ResizeObserverEntry[], this as never);
-        }
-    }
-
-    Reflect.set(globalThis, "ResizeObserver", MeasuringResizeObserver);
-    return () => {
-        Reflect.set(globalThis, "ResizeObserver", previous);
-    };
 }
 
 /**
@@ -279,7 +193,9 @@ function testTransactionCursor(rows: readonly TransactionRowData[]) {
         accountId: row.accountId ?? "account-test",
         allocations: {},
         amount: asMinorUnits(row.amount),
-        creationInstant: Temporal.Instant.fromEpochMilliseconds(1_700_000_000_000 + index),
+        // The production cursor sorts equal-date rows newest-first. Decreasing fixture instants keeps
+        // its canonical order aligned with the caller's row-window order.
+        creationInstant: Temporal.Instant.fromEpochMilliseconds(1_700_000_000_000 - index),
         date: Temporal.PlainDate.from(row.date),
         deletedAt: undefined,
         description: row.description,
@@ -293,23 +209,34 @@ function testTransactionCursor(rows: readonly TransactionRowData[]) {
         suspectedDuplicates: [],
         tagIds: row.tags?.map((tag) => tag.id) ?? []
     }));
-    return createTransactionCursor(buildTransactionIndex(buildFakeTransactionStore(transactions)));
+    // Insert oldest-first so every newer row lands at index zero instead of making the 10,000-row
+    // harness scan the full same-day bucket for each insertion.
+    return createTransactionCursor(
+        buildTransactionIndex(buildFakeTransactionStore(transactions.toReversed()))
+    );
 }
 
 /** Publishes a new real cursor projection into an existing direct-table test controller. */
 export function updateTestTransactionGridController(
     controller: TransactionGridWorkspaceController,
-    rows: readonly TransactionRowData[]
+    rows: readonly TransactionRowData[],
+    allocationColumns: readonly AllocationColumn[] = []
 ): void {
-    controller.updateProjection(testTransactionCursor(rows), transactionColumnIds([]));
+    controller.updateProjection(
+        testTransactionCursor(rows),
+        transactionColumnIds(allocationColumns)
+    );
 }
 
 /** A real controller and cursor projection for direct TransactionTable component tests. */
-export function createTestTransactionGridController(rows: readonly TransactionRowData[]) {
+export function createTestTransactionGridController(
+    rows: readonly TransactionRowData[],
+    allocationColumns: readonly AllocationColumn[] = []
+) {
     const controller = createTransactionGridWorkspaceController(
         createTransactionCellSelectionAtom()
     );
-    updateTestTransactionGridController(controller, rows);
+    updateTestTransactionGridController(controller, rows, allocationColumns);
     return controller;
 }
 

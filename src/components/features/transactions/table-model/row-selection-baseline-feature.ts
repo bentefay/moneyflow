@@ -98,6 +98,8 @@ export interface TransactionSelectionAnchor {
 export interface TransactionRowOrder {
     /** Position of a row in the presented order, or `-1` when it is not in it. */
     readonly indexOf: (transactionId: TransactionId) => number;
+    /** Positions of several rows in one matching-order traversal, sorted by position. */
+    readonly indexesOf: (transactionIds: ReadonlySet<TransactionId>) => readonly number[];
     /** Every row in an inclusive span of that order, in order. */
     readonly slice: (fromIndex: number, toIndexInclusive: number) => Iterable<TransactionId>;
 }
@@ -109,6 +111,13 @@ export function transactionRowOrderFromIds(
     const indexById = new Map(orderedRowIds.map((rowId, index) => [rowId, index]));
     return {
         indexOf: (transactionId) => indexById.get(transactionId) ?? -1,
+        indexesOf: (transactionIds) =>
+            [...transactionIds]
+                .flatMap((transactionId) => {
+                    const index = indexById.get(transactionId);
+                    return index == null ? [] : [index];
+                })
+                .sort((left, right) => left - right),
         slice: (fromIndex, toIndexInclusive) => orderedRowIds.slice(fromIndex, toIndexInclusive + 1)
     };
 }

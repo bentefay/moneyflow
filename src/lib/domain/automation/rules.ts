@@ -170,6 +170,26 @@ export interface RuleMatchSubject {
     readonly isManual: boolean;
 }
 
+export interface RuleMatchTransactionFacts {
+    readonly accountId: string;
+    readonly amount: MoneyMinorUnits;
+    readonly description: string;
+    readonly importId: string | undefined;
+    readonly resolvedAliasName: string | null;
+}
+
+/** Project imported provenance or a resolved manual alias into the match engine's canonical subject. */
+export function projectRuleMatchSubject(facts: RuleMatchTransactionFacts): RuleMatchSubject {
+    const isManual = facts.importId == null;
+    const candidate = isManual ? facts.resolvedAliasName : facts.description;
+    return {
+        accountId: facts.accountId,
+        amount: facts.amount,
+        descriptionText: candidate != null && candidate.length > 0 ? candidate : null,
+        isManual
+    };
+}
+
 /** Whether a manual transaction is eligible for rules of the given field. */
 export function fieldAppliesToManual(field: RuleField): boolean {
     switch (field) {

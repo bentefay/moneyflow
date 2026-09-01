@@ -11,8 +11,44 @@ mutation semantics, row-checkbox selection, filters, sync, presence identity, an
 automation business rules.
 
 Implementation authority is active from source commit `67227d06de0545ea5f95e7ba827b670f8b0aa97a`
-plus approved amendment commit `417e103def4e2a2b07caf7171a8e467de9e3bfab`. Independent post-commit
-verification passed for both source identities; product slices must remain within that authority.
+plus approved amendment commit `417e103def4e2a2b07caf7171a8e467de9e3bfab` and direct-user Amendments
+002 and 003. Independent post-commit verification passed for both immutable source identities;
+product slices must remain within the combined authority.
+
+### Task 108 correction authority
+
+The prior green gates proved only the transitional implementation. Complete the mode correction in
+this exact order:
+
+1. **109 — Make editing mode authoritative:** production DOM/controller contracts for visible
+   selection, parked/hidden selection, and editing across Date, Description/Alias, Account, Status,
+   Tags, Amount, and Allocations; quick/full edit, commit/cancel/exit, real editor focus, no dropped
+   initial text, checkbox/actions activation-only, and removal or containment of legacy bypasses.
+2. **110 — Repair reconciliation focus:** terminal after-grid sidecar consumption; BODY and
+   nonfocusable-external blur ordering; header and unrelated row-owned portal retirement; direct
+   structural reveal before focus.
+3. **111 — Correct presence:** navigation publishes row viewing, actual editing publishes the exact
+   field, expanded Notes publishes and renders, and a real 89-character invitee allocation field
+   round-trips.
+4. **112 — Restore navigation:** arrows target canonical wrappers including Actions; Tab or explicit
+   activation reaches descendants; invert the predecessor Expand-arrow test.
+5. **113 — Geometry and evidence:** continuous Notes vertical borders in light/dark; full localized
+   Date including four-digit year in display/edit; honest armed Delete exact width with
+   geometry-only mutations.
+6. **114 — Final verification:** update the ledger and mutation matrix; run focused and full gates,
+   owned manual browser review, exact independent review, and final path/digest attestations.
+
+Evidence must exercise production participants rather than inert stand-ins. Every regression must
+fail on old behavior or an isolated neutralizing mutation. Geometry mutations must preserve copy and
+text. Save artifacts under `/tmp/task108-*`, print actual computed state/geometry before asserting,
+and repeat load-sensitive focused E2E without retries. Never use unsafe Playwright modes, reset the
+shared database, delete history, alter frozen Task 88 behavior, commit, or push.
+
+Baseline provenance is HEAD `9be122b1313f3770ab30deee81562a9a74a00d8f`, 46 status paths, canonical
+digest `7b5a632043e9528d3d85a5d2375d3551f8f713de896133c7c2486f627f11680c`, re-attested after
+stopping writers and restoring only inspected `AGENTS.md`/`next-env.d.ts` drift. Campaigns and
+mutations must report path count and the canonical path-NUL-bytes-NUL SHA-256 before and after, and
+stop on unexpected path or byte drift.
 
 ### Vertical slices
 
@@ -480,6 +516,455 @@ four-worker retry-free E2E tests. Evidence is preserved under
 `AGENTS.md` and `next-env.d.ts` drift was inspected and precisely restored after browser/build work.
 No dependency, import picker, editor-family, inspector, notes, automation, copy, status, frozen
 spec, agent configuration, commit, or push change was admitted.
+
+### Product slice 3A styling amendment — spreadsheet-cell handback
+
+Direct user instruction on 2026-08-25 authorizes
+`specs/016-transaction-grid-interaction-inspector/amendments/002-google-sheets-grid-treatment.md`,
+replacing only the earlier resting-appearance preservation clause. The grid now uses contiguous
+square header/body tracks, subtle single-width rules, outer-gridcell
+hover/focus/selection/validation/presence paint, and one shared 57px main-row DOM and virtualizer
+estimate. Inner staged controls retain their live editor behavior but no longer paint competing
+resting borders, radii, fills, focus rings, or validation rings.
+
+Tags clip to one line, allocation validation and field presence are layout neutral, and actions stay
+inside the fixed main row. Browser coverage measures light/dark computed paint, exact track
+alignment through horizontal scrolling, coordinate hit ownership, descendant activation counts,
+accessible control uniqueness, exact row geometry across selection, popup, validation, long-tag,
+presence, and expanded-notes states, and one roving gridcell stop. The bounded checkbox target is
+the only retained negative hit area and remains inside its own row and track.
+
+This handback remains a partial Task 12 presentation slice. Native-control-only display/editor
+migration, inspector-owned notes, fixed virtualization without legacy expanded-row measurement,
+automation migration, complete gesture/copy semantics, concise status semantics, and superseded-code
+deletion remain deferred to their existing slices. The styling authorization opens no additional
+human approval gate and creates no claim that every editor family is display-first.
+
+### Spreadsheet-cell review cycle 1 — rejected; focused correction scope
+
+Independent review rejected the first handback on exactly three Medium findings. The correction
+scope is closed to Tasks 76–78:
+
+1. move the direct-user styling decision to `amendments/002-google-sheets-grid-treatment.md`, give
+   it its exact Amendment 002 title, update all mutable authority accounting, and prove Amendment
+   001 and 002 remain distinct without changing the executable 146+1 registry;
+2. suppress outer focus/focus-within paint while the retained range is parked, without changing its
+   tab stop, hidden selection semantics, or exact wrapper re-entry restoration; and
+3. remove the nested rounded fill and native focus outline from the existing-rule robot, replacing
+   them with a layout-neutral affordance while preserving its domain color, semantics, activation,
+   popup behavior, and 57px row geometry.
+
+No other speculative descendant chrome, editor-family lifecycle, virtualization measurement, notes,
+inspector, automation semantics, or frozen base source change is admitted by this cycle.
+
+### Spreadsheet-cell verification gate — deterministic duplicate traversal oracle
+
+The first cycle-one full-unit gate measured the wall-clock duplicate scaling ratio as
+`3.0429263184511073` against `< 3`; an immediate quiet full-suite rerun passed. This is
+scheduler-load sensitivity in the timing oracle, not evidence of a Task 70 or duplicate-algorithm
+regression. The correction adds optional duplicate-detection traversal instrumentation and replaces
+the timing ratio with existing-row visit counts for 100/200/400 rows at one row per day. It
+preserves the independent three-second smoke test.
+
+The deterministic oracle must keep exact match-count assertions, positive visit counts, and
+successive visit ratios below three. A behavior-preserving all-pairs instrumentation mutation must
+retain the matches while producing approximately 10k/40k/160k visits and failing near a ratio of
+four. The restored implementation must pass 20 independent one-worker focused processes and 10
+retry-free 32-worker shuffled full-unit runs with distinct seeds and unchanged tree identity before
+the ordinary full verification gates.
+
+The shuffled campaign must also own every asynchronous property-test promise. A test that starts
+`fc.asyncProperty` without awaiting `fc.assert` can be reported complete while its iterations mutate
+shared same-file fixtures during later tests. Any such discarded promise found by the required seed
+campaign is a harness defect, must be corrected across all identical call sites, and restarts the
+campaign on the corrected tree.
+
+### Spreadsheet-cell verification cycle 2 — Add reveal reconciliation
+
+The changed-set cycle-2 campaign failed 53/54 at the date-filter arm of “Add reveals an ordinary row
+through every excluding filter class”. The preserved runner transcript records stable target
+`886e4b4a-05e6-4cc8-964c-a7b3bc36706d` absent for the full 15-second latch ceiling while filters had
+already settled to All time, the toolbar showed one transaction, and the pre-existing default row
+held focus. The original Playwright error-context was removed before this correction and is not
+available evidence.
+
+The controller root cause is an intermediate structural projection after filter reset but before the
+new CRDT row materializes. Reconciliation treated every absent pending target as disappearance,
+completed the reveal command into idle or its reconciled origin, and therefore discarded the exact
+Add target before the insertion projection arrived. The correction separates column validity from
+row materialization: a removed target column and a focus-phase row disappearance still abort
+immediately, but a reveal-phase missing row retains the same command, target, phase, pins, and
+reconciled neutral or engaged origin on the new generation. Controller publication retains the
+original `acceptedAt`, so repeated absent-target generations cannot extend the absolute
+materialization deadline.
+
+The Add harness accepts explicit known pre-existing transaction IDs and excludes their union with
+currently mounted IDs. The excluding-filter matrix owns one cumulative Set, passes it before every
+Add, rejects every returned duplicate before adding it, settles filter clear and the exact toolbar
+count, then requires exactly one focused Description row carrying the fresh stable ID. The ordinary
+unfiltered multi-Add path retains the opposite branch with the same freshness contract.
+
+Negative evidence is stored outside the repository. Restoring the old reveal disappearance branch
+fails all three new reveal-before-materialization unit directions; deferring insertion by one task
+after filter reset passes the corrected browser journey and fails the old reconciliation at the date
+arm; removing known-ID/freshness protection while forcing old origin restoration also fails that
+arm. Every temporary product/helper mutation was restored to its exact pre-mutation SHA-256 bytes.
+
+Final evidence must run only after this ledger text is frozen: focused controller/reconciliation/Add
+coverage; 50 four-worker retry-free repetitions of the formerly failing focused browser test; 10
+independent retry-free changed-set runs; three independent full four-worker E2E runs; the complete
+Task 79 deterministic mutation, 20-process, and seeds 79001–79010 campaign; the Task 80 seed-79006,
+positive/opposite storage, and store-bypass mutation checks; scoped formatting, typecheck, lint,
+build, full unit, full E2E, and diff checks. Each run must attest the same canonical
+path-NUL-bytes-NUL digest before and after; any tree drift restarts that campaign.
+
+### Tasks 82–87 exceptional bounded correction
+
+The orchestrator authorized one further correction cycle against the frozen Task 70 handback at HEAD
+`9be122b1313f3770ab30deee81562a9a74a00d8f`, exactly 35 paths, canonical digest
+`4e135a077261334ee27e4d61f02dac8b2a24ce7ede4ef1a433329863d0714b3f`. This exception is limited to six
+verified findings: stale Amendment 001 accounting, rebased engaged-origin abort focus, reveal
+deadline extension, nested account/status hover paint, invisible parked action-descendant focus, and
+an undersized actions track. Duplicate instrumentation containment, old complexity commentary, the
+frozen base sources, and the executable 146+1 registry remain outside this authority.
+
+The correction design is:
+
+- Task 82 records Amendment 001 commit `417e103def4e2a2b07caf7171a8e467de9e3bfab`, tree
+  `72f583fbcdcf6539fbeb438bdfebc287a4cd20bd`, passed post-commit verification, and resumed product
+  authority in both mutable accounting files. Amendment 002 stays distinct and non-executable;
+  regression coverage rejects stale pending/paused wording and cross-amendment contamination.
+- Task 83 carries a grid-owned engaged origin's current-generation canonical focus as abort-only
+  fallback. The target retains exclusive focus authority while pending; same-generation abort keeps
+  exact captured DOM/scroll/window restoration, newer-generation abort never restores stale raw
+  coordinates, and neutral or parked/external origins cannot schedule grid focus. Timeout and
+  post-materialization focus failure have separate directions.
+- Task 84 captures `materializationDeadlineAt` once at command acceptance, preserves it over every
+  rebase, schedules from that value, and makes `markRevealApplied` synchronously abort with
+  `load-failed` at or after the deadline. Callback-first late failure and just-before success prove
+  both sides.
+- Task 85 places light/dark transparent hover utilities after primitive hover utilities so account
+  and status controls remain transparent while the owning gridcell keeps its hover paint.
+- Task 86 gives parked Expand and Delete descendants an explicit solid focus-visible outline while
+  preserving the unpainted parked wrapper, one roving gridcell stop, native Tab boundaries, retained
+  range restoration, activation, and pointer behavior.
+- Task 87 makes both active template authorities use a 120px actions track. Browser geometry must
+  mount duplicate, Expand, and Delete together, keep each control inside the track without overlap,
+  retain exact 57px rows, align header/body before and after horizontal scroll, and activate each
+  control.
+
+Before the final campaign freeze, each new guard must be mutation-graded outside the repository:
+restore stale Amendment 001 status; remove and prematurely apply abort fallback focus; remove the
+synchronous deadline check; remove hover neutralizers; remove the parked descendant indicator;
+restore parked outer paint; and restore the 88px actions track. Every mutation failure is preserved
+outside the repository and every source restored to exact bytes. Final evidence then runs on one
+unchanged canonical digest with before/after attestations: focused unit and browser targets, the
+Task 81 50-repeat and ten changed-set campaigns, three full E2E runs, the complete Task 79 and Task
+80 campaigns, scoped formatting, typecheck, lint, build, full unit, full E2E, and
+diff/process/generated state checks. No repository edit, commit, push, or implementor-owned manual
+smoke is permitted after that freeze.
+
+### Task 88 bounded realtime fixture correction
+
+The ordinary full-unit gate on the frozen 39-path Tasks 82–87 tree repeatedly failed at
+`realtime-origin-controls.test.ts:152`. This is a separately authorized fixture/oracle correction,
+not a semantic finding against Tasks 82–87. The third request was a real global PostgREST
+`vault_ops?select=id,vault_id` enumeration. RLS evaluates `realtime_grant_allows` for every
+candidate row, and the shared development database contained 298,217 leaked append-only operations.
+Under full-suite load PostgREST twice returned HTTP 500 / SQLSTATE 57014 at the authenticated
+eight-second statement timeout; isolated runs passed because they did not reach that load.
+
+The leak and security-oracle defects are coupled. `cleanUpVaultFixtures` omitted `vault_ops`, then
+ran multi-statement psql without fail-fast behavior. The append-only operation FK made the final
+vault delete fail, but psql continued and exited successfully, leaving operations and vaults behind.
+Meanwhile the foreign vault had no operation, so the foreign-denial assertion was vacuous.
+
+The bounded correction is:
+
+- retain both the own and foreign operation IDs seeded by the fixture and independently prove both
+  rows exist through a fixture-scoped superuser query;
+- replace the global enumeration with a URL-encoded PostgREST candidate set over exactly the own and
+  foreign vault IDs, assert HTTP 200 before parsing, require an array, require the own operation,
+  reject the foreign operation, and require every returned row to belong to the granted vault;
+- clean fixture operations before grants, memberships, and vaults inside one `BEGIN`/`COMMIT` psql
+  transaction with `ON_ERROR_STOP`; transactionally disable only the named append-only user trigger
+  around the fixture-scoped operation delete so FK enforcement remains active for the remainder;
+- add a cleanup regression that creates an isolated vault, operation, grant, and second membership,
+  proves each exists, calls cleanup, requires fixture-scoped counts of all four tables to be zero,
+  and proves the suite's unrelated own and foreign operations still exist.
+
+Negative and bootstrap evidence must remain outside the repository. Removing the operation delete
+must make the cleanup regression fail closed on the `vault_ops_vault_id_fkey` or nonzero counts. A
+fresh throwaway database in the existing Postgres container must receive the complete Supabase
+preamble, all migrations under `ON_ERROR_STOP=1`, and an inventory identical to live. A temporary
+PostgREST instance against only that database must show the corrected candidate-set response, then a
+throwaway-only SELECT-policy bypass must expose the seeded foreign operation and fail the security
+oracle. Restore the policy, stop the temporary service, drop only the named throwaway database, and
+prove the shared database identity, relevant policy digest, and exact table counts are unchanged.
+
+Before final campaigns, update this ledger and progress, scope oxfmt to authored files, then freeze
+the new path set and canonical path-NUL-bytes-NUL digest. Final evidence requires 20 independent
+focused candidate-set runs against the polluted shared database; three ordinary full-unit runs;
+shuffled seeds 79001–79010 at 32 workers; every Tasks 82–87 focused, mutation, and browser campaign;
+Task 81's 50-repeat, ten literal changed-set, and three full E2E campaigns; Task 79 and Task 80
+positive and mutation campaigns; typecheck, lint, format check, build, full unit, full retry-free
+E2E, diff, process, generated-state, and duplicate final-digest checks. No repository edit, commit,
+push, broad shared-data cleanup, or manual smoke is permitted after the freeze.
+
+### Task 95 final review correction
+
+The orchestrator authorized one bounded correction cycle for ten independently verified final-review
+findings against the Task 88 handback. The correction preserves the existing interaction model while
+closing focus ownership, explicit activation, field-attributed presence, descendant focus, action
+track, nested date chrome, and expanded-notes geometry defects:
+
+- F1–F3 and the delayed ownership race preserve reconciliation-owned failure/editing state through a
+  real gridcell focus, retain an after-grid abort fallback across an empty reveal rebase, reveal a
+  newer-generation offscreen origin before focusing it, and retire delayed fallback focus when a
+  connected external control owns focus.
+- F4 marks account, status, and allocation controls as explicit full-edit activators so gridcell
+  Enter and true blank-background double-click open their full editor without widening generic
+  legacy activation behavior.
+- F5 projects collaborator identity by field through `editingByField` and selects each cell's
+  outline color from the collaborator editing that exact field, while retaining row/avatar ordering.
+- F6–F7 give checked and unchecked parked checkboxes and tag-remove controls inset focus-visible
+  outlines that survive clipped gridcell geometry. F9 applies the complete neutral resting chrome to
+  the nested date trigger in both themes.
+- F8 keeps duplicate, Expand, and armed Delete controls inside the unchanged 120px actions track,
+  preserves the 57px main row, and uses a contained 48px `Delete` action.
+- F10 makes the expanded notes row use the same gapless, border-aligned grid tracks as the header
+  and main row, with the intended 16px inset inside the spanning notes cell and no horizontal
+  scroll-width growth on expansion.
+
+Every correction has a direct negative grade under `/tmp/task95-*`: controller-owned focus
+suppression, deferred after-grid fallback, reveal-before-focus, delayed external ownership, explicit
+activation, field projection and per-field rendering, parked checkbox focus, tag-remove focus, armed
+Delete, date-trigger chrome, and legacy expanded-notes gap/padding each make their named focused
+regression fail. All mutations were restored before final verification. Final verification is
+serial: targeted formatting, typecheck, lint, format check, build, full unit, full retry-free E2E,
+diff check, generated-file normalization, process/file-descriptor inspection, and duplicate
+canonical digest attestation. No commit or push is authorized in this cycle.
+
+### Tasks 108–113 authoritative interaction-mode correction
+
+The earlier green Task 3A, Task 70, Tasks 82–88, and Task 95 gates verified a transitional mixed
+surface: canonical controller state and outer-gridcell paint coexisted with permanently mounted
+legacy controls whose independent focus, draft, navigation, and presence behavior could still
+contradict the controller. Those gates did not complete the three production interaction modes or
+the editor-family migration, and must not be cited as evidence that visible selection, hidden
+selection, and editing were authoritative across the real grid.
+
+This correction begins from HEAD `9be122b1313f3770ab30deee81562a9a74a00d8f`, exactly 46 changed
+paths, and canonical path-NUL-bytes-NUL digest
+`7b5a632043e9528d3d85a5d2375d3551f8f713de896133c7c2486f627f11680c`. Work is ordered and gated as
+follows:
+
+1. Task 109 makes controller editing authoritative for date, description/alias, account, status,
+   tags, amount, and allocation, including quick-entry initial text and full commit/cancel/movement;
+   checkbox and Actions remain activation cells.
+2. Task 110 repairs terminal after-grid fallback consumption, external/BODY blur ordering,
+   header/portal ownership scope, and reveal-before-focus for direct offscreen reconciliation.
+3. Task 111 derives production presence from controller mode: navigation publishes row viewing, only
+   actual editing publishes exact field editing, expanded Notes retains exact field attribution, and
+   real 89-character allocation identifiers round-trip across peers.
+4. Task 112 removes legacy nested arrow authority so every arrow target is the canonical outer
+   gridcell, including Actions, while Tab and explicit activation retain child reachability.
+5. Task 113 restores exact 48px armed-Delete evidence, full localized Date containment, and
+   light/dark expanded-Notes vertical-rule continuity without changing the 120px Actions track or
+   57px row.
+
+Each task closes only after focused production-path tests pass with real participants. Every new
+guard is graded against predecessor behavior or an isolated neutralizing mutation, with failures
+preserved under `/tmp/task108-*` and exact byte restoration before the passing rerun. After all five
+focused tasks, Task 114 owns targeted formatting, format check, lint, typecheck, build, full unit,
+full E2E, diff check, manual light/dark keyboard review, independent review, generated-file
+normalization, and duplicate final path/count/digest attestations. No commit, push, shared-Supabase
+reset, historical-row deletion, Task 88 cleanup change, or unsafe Playwright mode is authorized.
+
+Task 111 is closed by client-lifecycle correction rather than a weakened peer barrier. Raw frame,
+connection-order, grant, token, and page-lifecycle controls proved peer envelopes reached the owner
+until Supabase Realtime's five-client-Presence-calls-per-30-second limiter closed the channel.
+Outbound publication must therefore remain latest-state coalesced and strictly separated by eight
+seconds between actual sends, with no pre-subscribe send and no pending teardown publication. The
+focused burst oracle must bound send count and preserve the final state; delay-removal and
+trailing-drop mutations must fail. The unchanged two-identity-plus-duplicate-tab production journey
+must pass retry-free with no `ClientPresenceRateLimitReached` log in its acceptance window. Task 114
+remains separate and is not started by this closure.
+
+### Task 118 Gate 9 full-E2E correction
+
+Task 118 closes the 46-failure Task 114 Gate 9 result without broadening one timeout signature into
+one cause. The independently verified split is 30 stale display-first test oracles and 16
+product-backed resting-surface regressions. Affected journeys resolve stable transaction identities,
+activate the canonical outer gridcell before locating an editor, and assert commit/cancel through
+the resting display branch. Production preserves compact same-year dates, full-year editing and
+other-year rest, imported-description and original-amount provenance, stable rule-proposal hosts,
+invalid-editor focus, and alias-modal focus restoration.
+
+Residual full-suite failures are corrected independently: filtered import drag uses a stable
+transaction-id row after a disconnected virtual role locator was measured; rule-robot journeys use
+outer-cell keyboard activation after the locator centre was measured on the nested robot button;
+tags geometry addresses the display descendant through the stable proposal anchor; and description
+edits select exactly one rule surface, using the existing robot when a matching rule exists and a
+proposal only when unmatched. The dual-popover predecessor must fail because the proposal intercepts
+the robot's apply control, then pass after exact restoration.
+
+Closure requires retry-free focused coverage, four parallel repetitions of the four residual tests,
+format, lint, typecheck, production build, full unit/integration, and one complete 203-test
+retry-free four-worker E2E run. Preserve evidence under `/tmp/task118-*`; the independent six-repeat
+acceptance campaign remains Task 114's responsibility. After exact writers stop, normalize only
+inspected Next-generated `AGENTS.md` and `next-env.d.ts` drift, re-attest the frozen identity, and
+hand back without commit or push.
+
+### Task 119 Gate 9 filtered-row drag correction
+
+Task 119 closes the fresh Task 114 Gate 9 import-overlay failure independently of Task 118's earlier
+row-locator correction. The preserved failing UI contained the expected filtered transaction, but
+that eventual snapshot did not establish the synthetic event's dispatch-time ancestry. Four-worker
+diagnostics must report whether the row is connected, contained by the stable transaction drop
+target, and canceled by the product handler before any production change is considered.
+
+Measured failing dispatches were disconnected, outside the owner, and not default-prevented while
+their `DataTransfer` still exposed `Files`; every passing dispatch was connected, contained, and
+default-prevented. The correction is therefore test-only: resolve the current transaction row and
+dispatch its drag event synchronously inside one evaluation of the stable outer owner, retrying only
+while the current descendant is absent and requiring owner cancellation before asserting the
+overlay. This preserves nested-row bubbling coverage without relying on a detachable leaf locator.
+
+Closure requires predecessor failure under four-worker repetition, a diagnostic repetition proving
+the disconnected-node mechanism, at least 32 corrected retry-free four-worker repetitions, scoped
+and repository formatting/lint/typecheck/build gates, the complete unit/integration suite, and one
+complete 203-test retry-free four-worker E2E run. Preserve evidence under `/tmp/task119-*`;
+normalize only inspected generated files after exact writers stop, attest the post-ledger identity,
+and hand back without commit or push. Task 114 retains authority for its independent acceptance
+campaign.
+
+### Task 125 final Task 114 blocker correction
+
+Task 125 is a bounded correction chain, not a replacement acceptance campaign. Its completed units
+must preserve the mode-complete interaction contract while closing the final reviewer blockers:
+
+- atomic editor validation, commit, cancellation, and movement use one controller transition and do
+  not duplicate a save through the following blur; continuous quick/full editing survives mounted,
+  offscreen, Checkbox, and Actions destinations, and the pure reducer owns the complete composition
+  start/update/end and finalized-grapheme lifecycle;
+- popup Presence and focus restoration remain tied to the exact editing owner, and outbound Presence
+  rate limiting is measured at the actual transport invocation boundary with reconnect and teardown
+  unable to emit stale trailing state;
+- programmatic Add carries one exact-address Description-only deferred-Presence gate from pending
+  activation through fulfilled editing. Focus, timers, and `isTrusted` do not release it; only a
+  captured pointer, key, or `beforeinput` gesture in that exact editor, or editor exit, can clear
+  it;
+- registration invalidation is narrow: unrelated and unregister cell/editor/row/after-grid churn
+  does not bump the broad snapshot, while one exact pending or reconciliation authority wakes once.
+  Row query fallback and after-grid-only reconciliation remain intact.
+
+The source-authorized Task 115 mutation is part of the closure evidence. On the 85-path mutation
+window at HEAD `9be122b1313f3770ab30deee81562a9a74a00d8f`, replace only
+`if (activationDescendant) onActivationDescendantFocus?.();` with
+`if (activationDescendant) return;`. The exact focused Vitest case “already parked before native
+forward Tab” must fail with `navigating` instead of `parked`, then pass after byte-for-byte
+restoration. Immutable evidence is sealed read-only under
+`/tmp/task125-task115-activation-descendant-mutation-20260827/`. The pre/post canonical
+path-NUL-bytes-NUL SHA-256 is `b9c0d80365423dde25af3c4c2264b90c64ead80690058b5a6c7e2e7d809aa6a3`;
+the exact restored `TransactionRow.tsx` SHA-256 is
+`fd2d7aa89fc6adc2d015735cea86eadc5d9f44376a5f4776bbd1f85f31fb5108`. No commit, push, generated-file,
+or database-state change is admitted by this mutation unit.
+
+Task 125's final implementation matrix closes the remaining popup lifecycle defects without
+weakening layered Escape. Portal/listbox/calendar ownership returns to the retained editor before
+that editor finishes; account, status, tags, date, and allocation paths use controller-authoritative
+ownership and focus restoration. Activating an already-selected status is an explicit successful
+selection for pointer, Enter, and Space even though Radix does not emit `onValueChange` for an
+unchanged value. Mutation-grade unit coverage proves popup-before-editor ordering and same-value
+selection completion; the production canonical Example H browser journey passes with `For Review`
+already selected.
+
+The 88-path matrix at canonical digest
+`45908eee4d490aeb27c9967e7f08a3ee309b90f459c1e45e4ebbee0a0aeffb37` passed scoped formatting,
+repository format/typecheck/lint/build, all 3,114 passing unit/integration tests with 2 skipped, and
+all 203 retry-free four-worker E2E tests. Fresh Task 114 acceptance then invalidated that evidence
+by confirming an uncovered TGI-IME-005 defect: a grid-origin empty/cancelled composition crossed the
+consumed late-key barrier but resumed `editing`, leaving an empty editor instead of restoring
+canonical navigation. The earlier matrix remains historical diagnosis only and cannot close
+Task 125.
+
+The correction gives active and consumed composition states typed empty-completion authority. A
+composition that starts from grid ownership carries `navigating`; one that starts inside an existing
+editor carries `editing`. Empty `compositionend` preserves that authority through the consumed
+barrier; the resume microtask exits through controller `finishEditing` only for `navigating`,
+without calling editor commit/cancel or mutating domain state. Finalized authoritative or fallback
+insertion always resumes editing. Production-shaped reactive DOM coverage must prove the grid-origin
+editor unmounts and its gridcell regains focus, the composition-ending Enter remains consumed, and
+the existing-editor opposite branch remains mounted. A controller-resume mutation must fail the new
+DOM regression and exact restoration must pass.
+
+After any additional confirmed Task 114 findings are incorporated, update the mutable ledgers,
+freeze a new canonical path-NUL-bytes-NUL identity, and restart the complete Task 125 matrix from
+Gate 1. No prior matrix gate is reusable. Exact writers must stop before generated-file inspection
+or normalization; no commit, push, shared-database history change, unsafe Playwright mode, or
+unrelated process termination is authorized.
+
+### Task 125 Task 6 Phase 2 lifecycle correction
+
+The Phase 1 correction at HEAD `9be122b1313f3770ab30deee81562a9a74a00d8f`, 96-path canonical digest
+`32a6440b79b08f201eb97bf1fb79ebcd5e14c26c963479d0c3f65d18df8c165b`, is rejected. Its original
+volatile evidence path `/tmp/task125-task6-popup-phase1-correction-20260827/` is no longer present
+after session/machine turnover; only the transcript-preserved post-seal attestation remains
+historical context and no Phase 1 artifact may be reused or claimed revalidated. Independent review
+confirmed two cell-exit defects that its final campaign did not contain:
+
+1. A genuine click-only exit whose editor validation returns `retained` can still execute the
+   destination Add, checkbox, or action click. The click lifecycle must consume both `retained` and
+   `rejected`; only rejection should explicitly refocus the retained editor.
+2. External invalid Amount, Date, and Allocation exits focus the destination first, run production
+   blur validation, retain editor ownership, and then invoke explicit validation a second time. Blur
+   validation ownership must be represented explicitly so the wrapper classifies the post-focus
+   state without repeating the editor lifecycle call.
+
+The bounded correction begins with `TransactionGridCell.tsx` and production-shaped tests. Extend
+scope only when a failing regression proves that the cell-local lifecycle API is insufficient. Tests
+must prove exact validation/commit/action counts, not only final focus or write state: invalid
+Amount/Date/Allocation across genuine click-only and pointer exits; retained listbox-to-modal Add
+and checkbox exits; valid accepted counterparts; internal-grid, portal, multi-pointer, lost-capture,
+and mouse/touch/pen preservation. Extend the existing shared-alias E2E journey with a real
+open-listbox to checkbox/modal handoff and retained editor restoration.
+
+The implementation must grade each new oracle red on the rejected behavior and green after exact
+restoration, then run the applicable preservation unit suites and repeated focused Chromium journey.
+Phase 2 scope review rejected the first 14-path handback despite matching hashes and digest:
+generated `AGENTS.md` drift remained; click-only invalid Amount and Allocation exact-count arms were
+absent; accepted external blur-owned Amount, Date, and Allocation classification lacked complete
+exact-count opposite paths; and the final unit log carried unresolved React `act(...)` warnings.
+Those blockers must be corrected and mutation-graded before evidence authorization.
+
+After exact writers stop, normalize only inspected generated `next-env.d.ts`/`AGENTS.md` drift,
+freeze a new canonical path-NUL-bytes-NUL identity, and seal a distinct self-contained evidence
+bundle. Because the earlier volatile bundle is absent, Phase 2 evidence must carry complete current
+source snapshots, status membership, red-first output, pre/mutated/restored identities and hashes,
+and final checks; the old attestation is historical context only. A fresh independent reviewer must
+verify source hashes, evidence integrity, mutation causality, repeated checks, and final identity
+before Task 6 is accepted. No full matrix, commit, push, shared database/service work, or Tasks
+7/8/9/30/36 is authorized during this correction.
+
+Independent acceptance rejected the first sealed Phase 2 bundle despite passing code, mutation,
+unit, static, and UI-behaviour review. Its provenance note falsely claimed no database/service
+action: the exact E2E journey necessarily registered a user, created a vault/membership/snapshot,
+and attempted sync against the configured shared local Supabase. Independent scratch replays also
+required a `turbopack.root` source adaptation and wrote to that shared stack, so they were neither
+byte-equivalent nor database-isolated. No cleanup is authorized because exact inserted rows were not
+retained and shared history must not be guessed or deleted.
+
+Closure now requires a new self-contained evidence revision. Run the byte-identical frozen app from
+a scratch-local dependency installation against a separately provisioned disposable Supabase CLI
+project with a unique project ID, unique API/DB/Studio/Inbucket/analytics ports, isolated
+credentials, and hard preflight aborts for every shared URL, port, container ID, and project ID.
+Attest the actual Next process environment and isolated container identity; capture run-scoped
+before/after database state and browser/server health; run the exact Chromium selector without
+source/config adaptation; and stop/delete only the disposable project with no backup. The revised
+provenance must explicitly declare isolated disposable database writes and supersede the false
+no-database-action claim. A fresh reviewer must verify the revised evidence and unchanged product
+source before Task 6 acceptance.
 
 ## Notes
 

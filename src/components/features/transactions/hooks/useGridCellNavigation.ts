@@ -53,7 +53,7 @@ function focusCellElement(cell: Element): boolean {
         cell.querySelector<HTMLElement>(
             'input:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
         ) ??
-        (cell as HTMLElement);
+        (cell instanceof HTMLElement ? cell : null);
 
     if (focusable && typeof focusable.focus === "function") {
         focusable.focus();

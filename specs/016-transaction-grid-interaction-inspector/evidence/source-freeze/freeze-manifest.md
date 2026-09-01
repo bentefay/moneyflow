@@ -9,7 +9,10 @@
 - Human approval: `APPROVED 2026-08-24`
 - Source-only commit: `67227d06de0545ea5f95e7ba827b670f8b0aa97a`
 - Source amendment 001: `APPROVED; DEDICATED COMMIT COMPLETE; POST-COMMIT VERIFICATION PASSED`
-- Product implementation authority: `ACTIVE FROM BASE SOURCE PLUS TGI-AMD-001`
+- Source amendment 002: `DIRECT USER DECISION; BOUNDED RESTING VISUAL TREATMENT`
+- Source amendment 003: `DIRECT USER DECISION; UNIFIED ALT NAVIGATION AND POPUP ESCAPE`
+- Product implementation authority:
+  `ACTIVE FROM BASE SOURCE PLUS TGI-AMD-001 AND DIRECT-USER AMENDMENTS 002 AND 003`
 
 No product, test, package-manifest, dependency, configuration, prior frozen-spec, or agent-rule
 change is admitted by this proposal manifest.
@@ -55,6 +58,25 @@ on 2026-08-24 through the source-gate prompt. Dedicated commit
 contains the approved amendment identity and exactly the five authorized amendment/accounting paths.
 Independent post-commit verification passed, so product authority is active. The amendment
 acceptance record remains separate from the unchanged 146-key base registry.
+
+## Source amendment 002
+
+Direct user instruction on 2026-08-25 authorized `amendments/002-google-sheets-grid-treatment.md`,
+titled “Amendment 002: Google Sheets Grid Treatment”. It overrides only the prior resting visual
+treatment for the bounded shared geometry/chrome slice and creates no new approval gate. It has no
+executable acceptance ID, does not change the 146 base records or the one executable Amendment 001
+record, and does not modify the four frozen base source files.
+
+## Source amendment 003
+
+Direct user instruction on 2026-09-01 authorized
+`amendments/003-unified-grid-navigation-popup-escape.md`, titled “Amendment 003: Unified Grid
+Navigation and Popup Escape”. It supersedes only the scoped keyboard and top-level grid-editor popup
+Escape clauses: Alt/Option arrows use the canonical reducer/controller path from every cell/editor
+owner, Alt/Option+Shift extends the canonical range, and one Escape cancels the complete top-level
+popup/editor while nested Create Account Selects retain their own arrows and first Escape. It has no
+executable acceptance ID, creates no approval gate, leaves the 146 base records plus the one
+executable Amendment 001 record unchanged, and does not modify the four frozen base source files.
 
 ## Mutable accounting files
 
@@ -130,8 +152,9 @@ commit contains the approved eight source/accounting paths.
 Product slice 2A review cycle 1 was then rejected. It found an authority conflict, not merely an
 implementation defect: neutral `idle` under `TGI-STATE-001` and `TGI-INSP-005` conflicts with an
 unconditional reading of the one-cell/focus rules in `TGI-RECON-002` and `TGI-RECON-003`. Code
-correction is paused. A consolidated implementation correction list follows only after `TGI-AMD-001`
-is independently reviewed, human-approved, and committed as a source-only amendment.
+correction was paused until `TGI-AMD-001` was independently reviewed, human-approved, committed as
+source-only amendment `417e103def4e2a2b07caf7171a8e467de9e3bfab`, and post-commit verified. Those
+gates passed, so product authority is active.
 
 Amendment review cycle 1 stopped before semantic grading because the recorded source-tree identity
 had one extra trailing character. The accounting now uses canonical tree

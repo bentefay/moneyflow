@@ -37,7 +37,10 @@ import {
 import {
     persistUserDateFormat,
     type PersistUserDateFormatInput,
-    readUserDateFormat
+    persistUserTransactionInspectorOpen,
+    type PersistUserTransactionInspectorOpenInput,
+    readUserDateFormat,
+    readUserTransactionInspectorOpen
 } from "./display-preferences";
 import {
     type CreateFieldRuleInput,
@@ -1262,6 +1265,22 @@ export function useUserDateFormat(pubkeyHash: string | null): DateFormatPreferen
 export function usePersistDateFormat(): (input: PersistUserDateFormatInput) => void {
     return useInternalVaultAction(
         (state, input: PersistUserDateFormatInput) => persistUserDateFormat(state, input),
+        []
+    );
+}
+
+/** Read whether a user's transaction inspector is open, defaulting to open. */
+export function useUserTransactionInspectorOpen(pubkeyHash: string | null): boolean {
+    return useInternalVaultSelector((state) => readUserTransactionInspectorOpen(state, pubkeyHash));
+}
+
+/** Persist whether a user's transaction inspector is open for `pubkeyHash`. */
+export function usePersistTransactionInspectorOpen(): (
+    input: PersistUserTransactionInspectorOpenInput
+) => void {
+    return useInternalVaultAction(
+        (state, input: PersistUserTransactionInspectorOpenInput) =>
+            persistUserTransactionInspectorOpen(state, input),
         []
     );
 }

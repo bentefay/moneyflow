@@ -30,6 +30,17 @@ export {
 } from "./presence";
 export { awaitVaultPersistence, reloadPage } from "./persistence";
 export {
+    activateTransactionEditor,
+    allocationGridCell,
+    expectTransactionCellDisplay,
+    expectTransactionDateDisplay,
+    openTransactionInspector,
+    rowsWithDisplayedDescription,
+    stableTransactionRow,
+    transactionGridCell,
+    type EditableTransactionColumn
+} from "./transaction-grid";
+export {
     goToAccounts,
     goToAutomations,
     goToImportNew,

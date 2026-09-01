@@ -5,6 +5,7 @@ import {
     asTransactionGridCommandId,
     beginTransactionPendingActivation,
     cancelTransactionPendingActivation,
+    fulfillTransactionPendingActivation,
     INACTIVE_TRANSACTION_COMPOSITION,
     NO_TRANSACTION_CONTINUOUS_EDIT,
     type NonEmptyTransactionGridSelection,
@@ -14,6 +15,7 @@ import { createTransactionProjectionSnapshot } from "@/components/features/trans
 import {
     reconcileTransactionGridProjection,
     resolveTransactionGridFailure,
+    transactionInspectorBindingEquals,
     type TransactionGridOperationError,
     type TransactionGridReconciliationResult
 } from "@/components/features/transactions/table-model/grid-reconciliation";
@@ -88,6 +90,35 @@ function emptyReconciliation(generation: number): TransactionGridReconciliationR
         state: { kind: "idle", selection: [] }
     };
 }
+
+describe("transaction inspector binding equality", () => {
+    it("distinguishes automation rule fields from each other and other binding kinds", () => {
+        const tags = { field: "tags", kind: "automation" } as const;
+
+        expect(transactionInspectorBindingEquals(tags, tags)).toBe(true);
+        expect(
+            transactionInspectorBindingEquals(tags, {
+                field: "descriptionAlias",
+                kind: "automation"
+            })
+        ).toBe(false);
+        expect(
+            transactionInspectorBindingEquals(tags, {
+                field: "allocation",
+                kind: "automation"
+            })
+        ).toBe(false);
+        expect(transactionInspectorBindingEquals(tags, { action: "notes", kind: "action" })).toBe(
+            false
+        );
+        expect(
+            transactionInspectorBindingEquals(tags, {
+                columnId: "description",
+                kind: "field"
+            })
+        ).toBe(false);
+    });
+});
 
 describe("transaction grid structural reconciliation", () => {
     it.each([
@@ -526,6 +557,77 @@ describe("transaction grid structural reconciliation", () => {
         expect(result.value.pins).toEqual({ kind: "pending-only", transactionId: "target" });
     });
 
+    it("retains a neutral reveal command across an absent-target generation until it materializes", () => {
+        const target = asTransactionId("target");
+        const pending = beginTransactionPendingActivation({
+            acceptedCommandId: asTransactionGridCommandId("command"),
+            current: { kind: "idle", selection: [] },
+            phase: "reveal",
+            projectionGeneration: asTransactionProjectionGeneration(1),
+            target: { columnId: "description", transactionId: target }
+        });
+        const beforeMaterialization = reconcileTransactionGridProjection({
+            nextProjection: projection([asTransactionId("existing")], ["description"], 2),
+            previousProjection: projection([], ["description"], 1),
+            previousState: pending
+        });
+
+        expect(beforeMaterialization).toMatchObject({
+            ok: true,
+            value: { state: { kind: "pending-activation" } }
+        });
+        if (
+            !beforeMaterialization.ok ||
+            beforeMaterialization.value.state.kind !== "pending-activation"
+        ) {
+            return;
+        }
+        expect(beforeMaterialization.value.state).toMatchObject({
+            acceptedCommandId: "command",
+            phase: "reveal",
+            projectionGeneration: 2,
+            target: { columnId: "description", transactionId: "target" }
+        });
+        expect(beforeMaterialization.value.pins).toEqual({
+            kind: "pending-only",
+            transactionId: "target"
+        });
+
+        const materialized = reconcileTransactionGridProjection({
+            nextProjection: projection([asTransactionId("existing"), target], ["description"], 3),
+            previousProjection: projection([asTransactionId("existing")], ["description"], 2),
+            previousState: beforeMaterialization.value.state
+        });
+
+        expect(materialized).toMatchObject({
+            ok: true,
+            value: { state: { kind: "pending-activation" } }
+        });
+        if (!materialized.ok || materialized.value.state.kind !== "pending-activation") return;
+        expect(materialized.value.state).toMatchObject({
+            acceptedCommandId: "command",
+            phase: "reveal",
+            projectionGeneration: 3,
+            target: { columnId: "description", transactionId: "target" }
+        });
+        expect(
+            fulfillTransactionPendingActivation(
+                materialized.value.state,
+                {
+                    acceptedCommandId: materialized.value.state.acceptedCommandId,
+                    projectionGeneration: materialized.value.state.projectionGeneration
+                },
+                { kind: "navigating" }
+            )
+        ).toMatchObject({
+            ok: true,
+            value: {
+                kind: "navigating",
+                selection: [{ anchorRowId: "target", focusRowId: "target" }]
+            }
+        });
+    });
+
     it.each(["transaction", "column"])(
         "aborts a neutral pending target when its exact %s disappears without fallback",
         (removedPart) => {
@@ -561,7 +663,38 @@ describe("transaction grid structural reconciliation", () => {
         }
     );
 
-    it("returns the reconciled engaged origin when the pending target fails", () => {
+    it("aborts a reveal immediately when its target column is removed", () => {
+        const target = asTransactionId("target");
+        const indexReads: string[] = [];
+        const pending = beginTransactionPendingActivation({
+            acceptedCommandId: asTransactionGridCommandId("command"),
+            current: { kind: "idle", selection: [] },
+            phase: "reveal",
+            projectionGeneration: asTransactionProjectionGeneration(1),
+            target: { columnId: "description", transactionId: target }
+        });
+
+        expect(
+            reconcileTransactionGridProjection({
+                nextProjection: projection([target], ["amount"], 2, (id) => indexReads.push(id)),
+                previousProjection: projection([target], ["description"], 1),
+                previousState: pending
+            })
+        ).toEqual({
+            ok: true,
+            value: {
+                cancelledDraft: false,
+                cancelledPopup: false,
+                focus: { kind: "none" },
+                generation: 2,
+                pins: { kind: "clear" },
+                state: { kind: "idle", selection: [] }
+            }
+        });
+        expect(indexReads).toEqual([]);
+    });
+
+    it("returns the reconciled engaged origin when a focus-phase target disappears", () => {
         const origin = asTransactionId("origin");
         const replacement = asTransactionId("replacement");
         const pending = beginTransactionPendingActivation({
@@ -573,7 +706,7 @@ describe("transaction grid structural reconciliation", () => {
                     state: navigating(origin, "description")
                 }
             },
-            phase: "reveal",
+            phase: "focus",
             projectionGeneration: asTransactionProjectionGeneration(1),
             target: { columnId: "amount", transactionId: asTransactionId("missing-target") }
         });
@@ -595,7 +728,7 @@ describe("transaction grid structural reconciliation", () => {
         });
     });
 
-    it("returns neutral idle when the engaged origin reconciles through an empty result", () => {
+    it("returns neutral idle when a focus-phase origin reconciles through an empty result", () => {
         const origin = asTransactionId("origin");
         const pending = beginTransactionPendingActivation({
             acceptedCommandId: asTransactionGridCommandId("command"),
@@ -606,7 +739,7 @@ describe("transaction grid structural reconciliation", () => {
                     state: navigating(origin, "description")
                 }
             },
-            phase: "reveal",
+            phase: "focus",
             projectionGeneration: asTransactionProjectionGeneration(1),
             target: { columnId: "description", transactionId: asTransactionId("target") }
         });
@@ -620,6 +753,181 @@ describe("transaction grid structural reconciliation", () => {
         if (!result.ok) return;
         expect(result.value.state).toEqual({ kind: "idle", selection: [] });
         expect(result.value.pins).toEqual({ kind: "clear" });
+    });
+
+    it("defers after-grid focus when an engaged reveal origin reconciles through empty", () => {
+        const origin = asTransactionId("origin");
+        const target = asTransactionId("target");
+        const pending = beginTransactionPendingActivation({
+            acceptedCommandId: asTransactionGridCommandId("command"),
+            current: {
+                kind: "engaged-origin",
+                snapshot: {
+                    focusOwner: { kind: "grid" },
+                    state: navigating(origin, "description")
+                }
+            },
+            phase: "reveal",
+            projectionGeneration: asTransactionProjectionGeneration(1),
+            target: { columnId: "description", transactionId: target }
+        });
+
+        const result = reconcileTransactionGridProjection({
+            nextProjection: projection([], ["description"], 2),
+            previousProjection: projection([origin], ["description"], 1),
+            previousState: pending
+        });
+
+        expect(result.ok).toBe(true);
+        if (!result.ok || result.value.state.kind !== "pending-activation") return;
+        expect(result.value.state).toMatchObject({
+            acceptedCommandId: "command",
+            origin: { kind: "neutral" },
+            phase: "reveal",
+            projectionGeneration: 2,
+            target: { columnId: "description", transactionId: "target" }
+        });
+        expect(result.value.focus).toEqual({ kind: "none" });
+        expect(result.value.pendingAbortFocus).toEqual({ kind: "after-grid" });
+        expect(result.value.pins).toEqual({ kind: "pending-only", transactionId: "target" });
+    });
+
+    it("retains a parked origin range while a reveal target is absent and after it appears", () => {
+        const origin = asTransactionId("origin");
+        const extent = asTransactionId("extent");
+        const target = asTransactionId("target");
+        const retainedSelection = [
+            {
+                anchorColumnId: "description",
+                anchorRowId: origin,
+                focusColumnId: "amount",
+                focusRowId: extent,
+                operation: "include"
+            }
+        ] satisfies NonEmptyTransactionGridSelection;
+        const pending = beginTransactionPendingActivation({
+            acceptedCommandId: asTransactionGridCommandId("command"),
+            current: {
+                kind: "engaged-origin",
+                snapshot: {
+                    focusOwner: { kind: "external" },
+                    state: { kind: "parked", selection: retainedSelection }
+                }
+            },
+            phase: "reveal",
+            projectionGeneration: asTransactionProjectionGeneration(1),
+            target: { columnId: "description", transactionId: target }
+        });
+        const beforeMaterialization = reconcileTransactionGridProjection({
+            nextProjection: projection([origin, extent], ["description", "amount"], 2),
+            previousProjection: projection([origin, extent], ["description", "amount"], 1),
+            previousState: pending
+        });
+
+        expect(beforeMaterialization).toMatchObject({
+            ok: true,
+            value: { state: { kind: "pending-activation", origin: { kind: "engaged" } } }
+        });
+        if (
+            !beforeMaterialization.ok ||
+            beforeMaterialization.value.state.kind !== "pending-activation" ||
+            beforeMaterialization.value.state.origin.kind !== "engaged"
+        ) {
+            return;
+        }
+        expect(beforeMaterialization.value.state).toMatchObject({
+            acceptedCommandId: "command",
+            phase: "reveal",
+            projectionGeneration: 2,
+            target: { columnId: "description", transactionId: "target" }
+        });
+        expect(beforeMaterialization.value.state.origin.snapshot).toEqual({
+            focusOwner: { kind: "external" },
+            state: { kind: "parked", selection: retainedSelection }
+        });
+        expect(beforeMaterialization.value.pins).toEqual({
+            activeTransactionId: "origin",
+            kind: "active-and-pending",
+            pendingTransactionId: "target"
+        });
+
+        const materialized = reconcileTransactionGridProjection({
+            nextProjection: projection([origin, extent, target], ["description", "amount"], 3),
+            previousProjection: projection([origin, extent], ["description", "amount"], 2),
+            previousState: beforeMaterialization.value.state
+        });
+
+        expect(materialized).toMatchObject({
+            ok: true,
+            value: { state: { kind: "pending-activation", origin: { kind: "engaged" } } }
+        });
+        if (
+            !materialized.ok ||
+            materialized.value.state.kind !== "pending-activation" ||
+            materialized.value.state.origin.kind !== "engaged"
+        ) {
+            return;
+        }
+        expect(materialized.value.state.origin.snapshot).toEqual({
+            focusOwner: { kind: "external" },
+            state: { kind: "parked", selection: retainedSelection }
+        });
+        expect(materialized.value.state.target.transactionId).toBe(target);
+    });
+
+    it("retains a navigating origin while a reveal target is absent", () => {
+        const origin = asTransactionId("origin");
+        const target = asTransactionId("target");
+        const originState = {
+            continuous: NO_TRANSACTION_CONTINUOUS_EDIT,
+            kind: "navigating",
+            selection: [
+                {
+                    anchorColumnId: "description",
+                    anchorRowId: origin,
+                    focusColumnId: "description",
+                    focusRowId: origin,
+                    operation: "include"
+                }
+            ]
+        } satisfies TransactionGridInteractionState;
+        const pending = beginTransactionPendingActivation({
+            acceptedCommandId: asTransactionGridCommandId("command"),
+            current: {
+                kind: "engaged-origin",
+                snapshot: { focusOwner: { kind: "grid" }, state: originState }
+            },
+            phase: "reveal",
+            projectionGeneration: asTransactionProjectionGeneration(1),
+            target: { columnId: "amount", transactionId: target }
+        });
+        const result = reconcileTransactionGridProjection({
+            nextProjection: projection([origin], ["description", "amount"], 2),
+            previousProjection: projection([origin], ["description", "amount"], 1),
+            previousState: pending
+        });
+
+        expect(result).toMatchObject({
+            ok: true,
+            value: { state: { kind: "pending-activation", origin: { kind: "engaged" } } }
+        });
+        if (
+            !result.ok ||
+            result.value.state.kind !== "pending-activation" ||
+            result.value.state.origin.kind !== "engaged"
+        ) {
+            return;
+        }
+        expect(result.value.state.origin.snapshot).toEqual({
+            focusOwner: { kind: "grid" },
+            state: originState
+        });
+        expect(result.value.state).toMatchObject({
+            acceptedCommandId: "command",
+            phase: "reveal",
+            projectionGeneration: 2,
+            target: { columnId: "amount", transactionId: "target" }
+        });
     });
 
     it("rebases the engaged origin before continuing exact pending target work", () => {

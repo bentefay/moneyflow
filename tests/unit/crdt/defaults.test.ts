@@ -349,17 +349,21 @@ describe("initializeVaultDefaults", () => {
         mirror.setState((draft: VaultInput) => {
             draft.userDisplayPreferences["viewer-a"] = {
                 pubkeyHash: "viewer-a",
-                dateFormat: "dayFirst"
+                dateFormat: "dayFirst",
+                transactionInspectorOpen: false
             };
             draft.userDisplayPreferences["viewer-b"] = {
                 pubkeyHash: "viewer-b",
-                dateFormat: "monthFirst"
+                dateFormat: "monthFirst",
+                transactionInspectorOpen: true
             };
         });
 
         const state = mirror.getState();
         expect(state.userDisplayPreferences["viewer-a"]?.dateFormat).toBe("dayFirst");
+        expect(state.userDisplayPreferences["viewer-a"]?.transactionInspectorOpen).toBe(false);
         expect(state.userDisplayPreferences["viewer-b"]?.dateFormat).toBe("monthFirst");
+        expect(state.userDisplayPreferences["viewer-b"]?.transactionInspectorOpen).toBe(true);
     });
 
     it("does not overwrite existing preferences", () => {

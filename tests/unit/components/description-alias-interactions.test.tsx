@@ -1,11 +1,20 @@
 import { fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { DescriptionAliasChangeModal } from "@/components/features/description-aliases/DescriptionAliasChangeModal";
 import { planDescriptionAliasCommit } from "@/components/features/description-aliases/descriptionAliasInteraction";
 import { useDescriptionAliasLookup } from "@/components/features/description-aliases/useDescriptionAliasLookup";
-import { InlineEditableDescriptionAlias } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
+import { TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS } from "@/components/features/transactions/cells/editor-lifecycle";
+import {
+    DescriptionAliasDisplay,
+    InlineEditableDescriptionAlias,
+    restoreDescriptionAliasEditOrigin
+} from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
+import type {
+    DescriptionAliasEditOrigin,
+    InlineEditableDescriptionAliasProps
+} from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
 import {
     createDescriptionAliasLookup,
     type DescriptionAliasCollection
@@ -120,8 +129,12 @@ describe("InlineEditableDescriptionAlias", () => {
     ];
 
     it("keeps native click caret and lazily opens with no selected option", () => {
-        const commit = vi.fn();
-        const select = vi.fn();
+        const commit = vi.fn<InlineEditableDescriptionAliasProps["onCommitText"]>(
+            () => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS
+        );
+        const select = vi.fn<InlineEditableDescriptionAliasProps["onSelectAlias"]>(
+            () => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS
+        );
         const gridKey = vi.fn();
         render(
             <div onKeyDown={gridKey}>
@@ -135,8 +148,8 @@ describe("InlineEditableDescriptionAlias", () => {
                 <InlineEditableDescriptionAlias
                     value="Ca"
                     availableAliases={options}
-                    onCommitText={vi.fn()}
-                    onSelectAlias={vi.fn()}
+                    onCommitText={vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS)}
+                    onSelectAlias={vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS)}
                     data-testid="second-description"
                 />
             </div>
@@ -166,9 +179,48 @@ describe("InlineEditableDescriptionAlias", () => {
         expect(gridKey).toHaveBeenCalledOnce();
     });
 
+    it("publishes popup ownership in the same commit that mounts the listbox", () => {
+        const ownershipObservedAtLayout: boolean[] = [];
+        let popupOwned = false;
+
+        function PopupOwnershipProbe() {
+            const [inputRevision, setInputRevision] = useState(0);
+            useLayoutEffect(() => {
+                if (document.querySelector('[role="listbox"]') != null) {
+                    ownershipObservedAtLayout.push(popupOwned);
+                }
+            }, [inputRevision]);
+            return (
+                <div onInput={() => setInputRevision((current) => current + 1)}>
+                    <InlineEditableDescriptionAlias
+                        value="Ca"
+                        availableAliases={options}
+                        onCommitText={vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS)}
+                        onSelectAlias={vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS)}
+                        onPopupOpenChange={(popup, open) => {
+                            if (popup === "listbox") popupOwned = open;
+                        }}
+                    />
+                </div>
+            );
+        }
+
+        render(<PopupOwnershipProbe />);
+        const input = screen.getByRole("textbox", { name: "Transaction description" });
+        fireEvent.focus(input);
+        fireEvent.input(input, { target: { value: "C" } });
+
+        expect(screen.getByRole("listbox", { name: "Description aliases" })).toBeInTheDocument();
+        expect(ownershipObservedAtLayout).toEqual([true]);
+    });
+
     it("accepts keyboard and pointer options without a blur commit", () => {
-        const keyboardCommit = vi.fn();
-        const keyboardSelect = vi.fn();
+        const keyboardCommit = vi.fn<InlineEditableDescriptionAliasProps["onCommitText"]>(
+            () => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS
+        );
+        const keyboardSelect = vi.fn<InlineEditableDescriptionAliasProps["onSelectAlias"]>(
+            () => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS
+        );
         const view = render(
             <InlineEditableDescriptionAlias
                 value="Ca"
@@ -187,8 +239,12 @@ describe("InlineEditableDescriptionAlias", () => {
         expect(keyboardCommit).not.toHaveBeenCalled();
 
         view.unmount();
-        const pointerCommit = vi.fn();
-        const pointerSelect = vi.fn();
+        const pointerCommit = vi.fn<InlineEditableDescriptionAliasProps["onCommitText"]>(
+            () => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS
+        );
+        const pointerSelect = vi.fn<InlineEditableDescriptionAliasProps["onSelectAlias"]>(
+            () => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS
+        );
         render(
             <InlineEditableDescriptionAlias
                 value="Ca"
@@ -208,8 +264,38 @@ describe("InlineEditableDescriptionAlias", () => {
         expect(pointerCommit).not.toHaveBeenCalled();
     });
 
-    it("commits Enter and blur exactly once and exposes only differing imported provenance", () => {
-        const commit = vi.fn();
+    it("exposes differing imported provenance on the resting description", () => {
+        const view = render(
+            <DescriptionAliasDisplay
+                value="Friendly café"
+                descriptionAliasId="alias"
+                originalDescription="Imported raw"
+                data-testid="resting-description"
+            />
+        );
+        const display = screen.getByTestId("resting-description");
+        expect(display).toHaveAttribute(
+            "aria-description",
+            "Original imported description: Imported raw"
+        );
+        expect(display).toHaveAttribute("data-state", "closed");
+
+        view.rerender(
+            <DescriptionAliasDisplay
+                value="Imported raw"
+                descriptionAliasId="alias"
+                originalDescription="Imported raw"
+                data-testid="resting-description"
+            />
+        );
+        expect(screen.getByTestId("resting-description")).not.toHaveAttribute("data-state");
+        expect(screen.getByTestId("resting-description")).not.toHaveAttribute("aria-description");
+    });
+
+    it("commits Enter and blur once and retains its input when provenance disappears", () => {
+        const commit = vi.fn<InlineEditableDescriptionAliasProps["onCommitText"]>(
+            () => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS
+        );
         const view = render(
             <InlineEditableDescriptionAlias
                 value="Raw"
@@ -217,7 +303,7 @@ describe("InlineEditableDescriptionAlias", () => {
                 originalDescription="Imported raw"
                 availableAliases={[]}
                 onCommitText={commit}
-                onSelectAlias={vi.fn()}
+                onSelectAlias={vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS)}
             />
         );
         const input = screen.getByRole("textbox", { name: "Transaction description" });
@@ -232,16 +318,46 @@ describe("InlineEditableDescriptionAlias", () => {
         view.rerender(
             <InlineEditableDescriptionAlias
                 value="Same"
-                descriptionAliasId="alias"
                 originalDescription="Same"
                 availableAliases={[]}
-                onCommitText={vi.fn()}
-                onSelectAlias={vi.fn()}
+                onCommitText={vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS)}
+                onSelectAlias={vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS)}
             />
         );
-        expect(
-            screen.getByRole("textbox", { name: "Transaction description" })
-        ).not.toHaveAttribute("data-state");
+        const retainedInput = screen.getByRole("textbox", {
+            name: "Transaction description"
+        });
+        expect(retainedInput).toBe(input);
+        fireEvent.focus(retainedInput);
+        expect(retainedInput).toHaveValue("Same");
+        expect(retainedInput).toHaveAttribute("data-state", "closed");
+    });
+
+    it("closes its popup ownership before reporting a blur-finished edit", () => {
+        const lifecycleEvents: string[] = [];
+        render(
+            <InlineEditableDescriptionAlias
+                value="Ca"
+                availableAliases={options}
+                onCommitText={vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS)}
+                onSelectAlias={vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS)}
+                onEditingChange={(editing) => {
+                    lifecycleEvents.push(editing ? "editing-open" : "editing-closed");
+                }}
+                onPopupOpenChange={(popup, open) => {
+                    lifecycleEvents.push(`${popup}-${open ? "open" : "closed"}`);
+                }}
+            />
+        );
+        const input = screen.getByRole("textbox", { name: "Transaction description" });
+        fireEvent.focus(input);
+        fireEvent.change(input, { target: { value: "C" } });
+        expect(screen.getByRole("listbox")).toBeInTheDocument();
+        lifecycleEvents.length = 0;
+
+        fireEvent.blur(input);
+
+        expect(lifecycleEvents.slice(0, 2)).toEqual(["listbox-closed", "editing-closed"]);
     });
 
     it("does no alias filtering for inactive virtual rows and filters only the edited cell", () => {
@@ -266,8 +382,8 @@ describe("InlineEditableDescriptionAlias", () => {
                         key={index}
                         value={`Raw ${index}`}
                         availableAliases={manyOptions}
-                        onCommitText={vi.fn()}
-                        onSelectAlias={vi.fn()}
+                        onCommitText={vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS)}
+                        onSelectAlias={vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS)}
                         data-testid={`large-description-${index}`}
                     />
                 ))}
@@ -286,15 +402,70 @@ describe("InlineEditableDescriptionAlias", () => {
 });
 
 describe("DescriptionAliasChangeModal", () => {
+    it("returns focus to the outer gridcell after the editor unmounts", () => {
+        const gridcell = document.createElement("div");
+        gridcell.setAttribute("role", "gridcell");
+        gridcell.tabIndex = 0;
+        const container = document.createElement("div");
+        const input = document.createElement("input");
+        container.append(input);
+        gridcell.append(container);
+        document.body.append(gridcell);
+        const origin: DescriptionAliasEditOrigin = {
+            container,
+            element: input,
+            gridcell,
+            selectionEnd: 2,
+            selectionStart: 2
+        };
+
+        container.remove();
+        restoreDescriptionAliasEditOrigin(origin);
+
+        expect(gridcell).toHaveFocus();
+        gridcell.remove();
+    });
+
+    it("restores a registered replacement editor before falling back to its gridcell", () => {
+        const gridcell = document.createElement("div");
+        gridcell.setAttribute("role", "gridcell");
+        gridcell.tabIndex = 0;
+        const originalContainer = document.createElement("div");
+        const originalInput = document.createElement("input");
+        originalContainer.append(originalInput);
+        gridcell.append(originalContainer);
+        document.body.append(gridcell);
+        const origin: DescriptionAliasEditOrigin = {
+            container: originalContainer,
+            element: originalInput,
+            gridcell,
+            selectionEnd: 4,
+            selectionStart: 1
+        };
+        originalContainer.remove();
+        const replacementContainer = document.createElement("div");
+        const replacementInput = document.createElement("input");
+        replacementInput.setAttribute("aria-label", "Transaction description");
+        replacementInput.value = "Target";
+        replacementContainer.append(replacementInput);
+        gridcell.append(replacementContainer);
+
+        restoreDescriptionAliasEditOrigin(origin);
+
+        expect(replacementInput).toHaveFocus();
+        expect(replacementInput.selectionStart).toBe(1);
+        expect(replacementInput.selectionEnd).toBe(4);
+        gridcell.remove();
+    });
+
     it("uses exact choices, focuses the first action and suppresses double submission", async () => {
-        const justThis = vi.fn();
+        const onDecision = vi.fn();
         render(
             <DescriptionAliasChangeModal
                 open
                 mode="change"
                 onClose={vi.fn()}
-                onJustThis={justThis}
-                onAll={vi.fn()}
+                onDecision={onDecision}
                 onRestoreFocus={vi.fn()}
             />
         );
@@ -304,12 +475,12 @@ describe("DescriptionAliasChangeModal", () => {
         expect(screen.getByRole("button", { name: "Cancel" })).toBeVisible();
         fireEvent.click(first);
         fireEvent.click(first);
-        expect(justThis).toHaveBeenCalledOnce();
+        expect(onDecision).toHaveBeenCalledOnce();
+        expect(onDecision).toHaveBeenCalledWith("one");
     });
 
     it("cancels without an action and restores the originating focus", async () => {
-        const justThis = vi.fn();
-        const all = vi.fn();
+        const onDecision = vi.fn();
 
         function Harness() {
             const [open, setOpen] = useState(true);
@@ -320,8 +491,7 @@ describe("DescriptionAliasChangeModal", () => {
                         open={open}
                         mode="remove"
                         onClose={() => setOpen(false)}
-                        onJustThis={justThis}
-                        onAll={all}
+                        onDecision={onDecision}
                         onRestoreFocus={() =>
                             screen.getByRole("textbox", { name: "Origin" }).focus()
                         }
@@ -336,7 +506,6 @@ describe("DescriptionAliasChangeModal", () => {
         fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
         await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
         expect(screen.getByRole("textbox", { name: "Origin" })).toHaveFocus();
-        expect(justThis).not.toHaveBeenCalled();
-        expect(all).not.toHaveBeenCalled();
+        expect(onDecision).not.toHaveBeenCalled();
     });
 });

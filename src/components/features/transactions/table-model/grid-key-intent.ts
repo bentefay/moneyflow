@@ -53,11 +53,18 @@ export const NONEDITABLE_TRANSACTION_GRID_KEY_CELL: TransactionGridKeyCellContex
     editable: false
 };
 
-export interface TransactionGridKeyContext {
-    readonly mode: TransactionGridKeyMode;
-    readonly composition?: TransactionCompositionState;
-    readonly cell: TransactionGridKeyCellContext;
-}
+export type TransactionGridKeyContext =
+    | {
+          readonly mode: Exclude<TransactionGridKeyMode, "interacting-grid-editor">;
+          readonly composition?: TransactionCompositionState;
+          readonly cell: TransactionGridKeyCellContext;
+      }
+    | {
+          readonly mode: "interacting-grid-editor";
+          readonly editorEntry: TransactionEditEntry;
+          readonly composition?: TransactionCompositionState;
+          readonly cell: TransactionGridKeyCellContext;
+      };
 
 function keyCellContext(
     interaction: TransactionColumnInteractionMeta
@@ -93,10 +100,14 @@ export function transactionGridKeyContext(
         };
     }
     if (state.kind === "inspecting") return { cell, mode: "inspecting" };
-    return {
-        cell,
-        mode: state.owner === "grid-editor" ? "interacting-grid-editor" : "interacting-inspector"
-    };
+    if (state.owner === "grid-editor") {
+        return {
+            cell,
+            editorEntry: state.returnState.editor.entry,
+            mode: "interacting-grid-editor"
+        };
+    }
+    return { cell, mode: "interacting-inspector" };
 }
 
 export interface TransactionGridKeyEvent {
@@ -139,6 +150,7 @@ export type TransactionGridKeyIntent =
     | { readonly kind: "activate"; readonly activation: Exclude<TransactionCellActivation, "none"> }
     | { readonly kind: "park" }
     | { readonly kind: "cancel-edit" }
+    | { readonly kind: "cancel-popup-edit" }
     | { readonly kind: "close-interaction" }
     | { readonly kind: "close-inspector" }
     | { readonly kind: "open-interaction"; readonly popup: "calendar" }
@@ -227,9 +239,10 @@ function isPrintable(event: TransactionGridKeyEvent): boolean {
     );
 }
 
-function editEntry(mode: TransactionGridKeyMode): TransactionEditEntry | undefined {
-    if (mode === "editing-quick") return "quick";
-    if (mode === "editing-full") return "full";
+function editEntry(context: TransactionGridKeyContext): TransactionEditEntry | undefined {
+    if (context.mode === "editing-quick") return "quick";
+    if (context.mode === "editing-full") return "full";
+    if (context.mode === "interacting-grid-editor") return context.editorEntry;
     return undefined;
 }
 
@@ -238,7 +251,7 @@ function movementIntent(
     direction: CellSelectionDirection,
     extend: boolean
 ): TransactionGridKeyIntent {
-    const entry = editEntry(context.mode);
+    const entry = editEntry(context);
     if (entry != null) {
         if (context.mode === "editing-full" && !context.cell.editable) {
             return extend
@@ -257,7 +270,7 @@ function targetedMovementIntent(
     target: TransactionNavigationTarget,
     extend: boolean
 ): TransactionGridKeyIntent {
-    const entry = editEntry(context.mode);
+    const entry = editEntry(context);
     if (entry != null) {
         return extend
             ? { kind: "commit-and-extend-to", target }
@@ -286,7 +299,7 @@ function asFollowUpIntent(
 function enterIntent(context: TransactionGridKeyContext): TransactionGridKeyIntent {
     if (context.mode === "idle") return { kind: "establish" };
     if (context.mode === "parked") return { kind: "expose-selection" };
-    const entry = editEntry(context.mode);
+    const entry = editEntry(context);
     if (entry != null) {
         return { direction: "down", kind: "commit-and-move", preserveEntry: entry };
     }
@@ -300,9 +313,8 @@ function enterIntent(context: TransactionGridKeyContext): TransactionGridKeyInte
 }
 
 function escapeIntent(mode: TransactionGridKeyMode): TransactionGridKeyIntent {
-    if (mode === "interacting-grid-editor" || mode === "interacting-inspector") {
-        return { kind: "close-interaction" };
-    }
+    if (mode === "interacting-grid-editor") return { kind: "cancel-popup-edit" };
+    if (mode === "interacting-inspector") return { kind: "close-interaction" };
     if (mode === "editing-quick" || mode === "editing-full") {
         return { kind: "cancel-edit" };
     }
@@ -359,10 +371,16 @@ export function transactionGridKeyIntent(
     if (event.key === "F2") return { kind: "native" };
     if (event.key === "Escape") return escapeIntent(context.mode);
 
-    if (context.mode === "interacting-grid-editor" || context.mode === "interacting-inspector") {
+    if (context.mode === "interacting-grid-editor") {
+        const direction = ARROW_DIRECTIONS[event.key];
+        if (event.altKey && direction != null && !isPrimaryModified(event)) {
+            return movementIntent(context, direction, event.shiftKey);
+        }
         return { kind: "native" };
     }
-    if (context.mode === "inspecting") return { kind: "native" };
+    if (context.mode === "interacting-inspector" || context.mode === "inspecting") {
+        return { kind: "native" };
+    }
 
     const primary = isPrimaryModified(event);
     if (primary && event.key.toLowerCase() === "c") {
@@ -373,6 +391,13 @@ export function transactionGridKeyIntent(
     }
     if (event.key === "Enter") return enterIntent(context);
     if (event.key === "Tab") {
+        if (
+            context.mode === "navigating" &&
+            context.cell.activation === "inspector" &&
+            !event.shiftKey
+        ) {
+            return { kind: "native" };
+        }
         if (
             context.mode === "editing-full" &&
             context.cell.editable &&

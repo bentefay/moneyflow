@@ -72,6 +72,11 @@ export interface DuplicateDetectionConfig {
     minConfidence: number;
 }
 
+/** Opt-in observability seam for deterministic traversal-cost assertions. */
+export interface DuplicateDetectionInstrumentation {
+    readonly onExistingTransactionVisited: () => void;
+}
+
 /**
  * Default duplicate detection configuration.
  * Extends DEFAULT_DUPLICATE_DETECTION_SETTINGS with algorithm-specific settings.
@@ -217,12 +222,14 @@ export function checkDuplicate(
  * @param newTransactions - New/imported transactions
  * @param existingTransactions - Existing transactions to check against
  * @param config - Detection configuration
+ * @param instrumentation - Optional traversal observer for deterministic complexity tests
  * @returns List of duplicate matches
  */
 export function detectDuplicates(
     newTransactions: DuplicateCheckTransaction[],
     existingTransactions: DuplicateCheckTransaction[],
-    config: DuplicateDetectionConfig = DEFAULT_DUPLICATE_CONFIG
+    config: DuplicateDetectionConfig = DEFAULT_DUPLICATE_CONFIG,
+    instrumentation?: DuplicateDetectionInstrumentation
 ): DuplicateMatch[] {
     if (newTransactions.length === 0 || existingTransactions.length === 0) {
         return [];
@@ -243,6 +250,7 @@ export function detectDuplicates(
 
         // Advance window start past transactions that are too old
         while (windowStart < sortedExisting.length) {
+            instrumentation?.onExistingTransactionVisited();
             const existingDate = Temporal.PlainDate.from(sortedExisting[windowStart].date);
             const daysDiff = existingDate.until(newDate, { largestUnit: "day" }).days;
             if (daysDiff <= config.maxDateDiffDays) {
@@ -255,6 +263,7 @@ export function detectDuplicates(
         let bestMatch: DuplicateMatch | null = null;
 
         for (let i = windowStart; i < sortedExisting.length; i++) {
+            instrumentation?.onExistingTransactionVisited();
             const existingTx = sortedExisting[i];
             const existingDate = Temporal.PlainDate.from(existingTx.date);
             const daysDiff = newDate.until(existingDate, { largestUnit: "day" }).days;

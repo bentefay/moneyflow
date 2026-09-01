@@ -33,6 +33,7 @@ import {
     type FieldRule,
     type FieldRuleWireObject,
     isNewerTransactionDate,
+    projectRuleMatchSubject,
     type RuleMatchSubject
 } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -75,50 +76,23 @@ export function readActiveFieldRules(state: VaultState): readonly FieldRule[] {
 // ============================================================================
 
 /**
- * Resolve the text the match engine keys on for one transaction.
- *
- * - Imported rows (`importId != null`): the exact raw imported text (empty projects to `null`,
- *   matching nothing). Provenance is preserved — the raw description is never rewritten.
- * - Manual rows (`importId == null`): the manual grid stores the user's typed text as a description
- *   ALIAS, leaving the raw description empty. Project the alias's resolved (symlink-followed) NAME
- *   so tag and whole-allocation rules can key on what the user actually sees. A manual row with no
- *   alias (or a dangling one) projects to `null` and matches nothing. See Q-P17D-01.
- *
- * `isManual` (below) still gates eligibility purely on `importId`, so description-alias rules remain
- * excluded from manual rows via `fieldAppliesToManual` regardless of this projection.
- */
-function descriptionTextForMatching(
-    transaction: Transaction,
-    aliases: VaultState["descriptionAliases"]
-): string | null {
-    if (transaction.importId != null) {
-        return transaction.description != null && transaction.description.length > 0
-            ? transaction.description
-            : null;
-    }
-    const aliasId = transaction.descriptionAliasId;
-    if (aliasId == null) return null;
-    const resolved = resolveAlias(aliasId, aliases);
-    return resolved != null && resolved.name.length > 0 ? resolved.name : null;
-}
-
-/**
- * Project a stored transaction into the engine's match subject.
- *
- * `descriptionText` comes from {@link descriptionTextForMatching}. `isManual` (no `importId`) gates
- * eligibility: description-alias rules never touch manual rows, while tag and whole-allocation rules
- * do. See Q-P17A-MANUAL-MATCH / Q-P17D-01.
+ * Project a stored transaction into the engine's canonical match subject. Imported rows retain raw
+ * provenance; manual rows resolve their visible alias before the shared domain projection applies
+ * manual-field eligibility.
  */
 function subjectForTransaction(
     transaction: Transaction,
     aliases: VaultState["descriptionAliases"]
 ): RuleMatchSubject {
-    return {
-        descriptionText: descriptionTextForMatching(transaction, aliases),
+    const aliasId = transaction.descriptionAliasId;
+    const resolvedAlias = aliasId == null ? null : resolveAlias(aliasId, aliases);
+    return projectRuleMatchSubject({
         accountId: transaction.accountId,
         amount: transaction.amount,
-        isManual: transaction.importId == null
-    };
+        description: transaction.description,
+        importId: transaction.importId,
+        resolvedAliasName: resolvedAlias?.name ?? null
+    });
 }
 
 function targetForTransaction(

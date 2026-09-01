@@ -106,7 +106,7 @@ describe("UR-011: the header checkbox covers rows beyond the window the grid hol
         expect(TOTAL_TRANSACTIONS / 2).toBeGreaterThan(TRANSACTION_ROW_WINDOW_ROWS);
     });
 
-    it("restores the page-held window when a real pending target focus fails", async () => {
+    it("restores the page-held window without stealing external focus after target focus fails", async () => {
         await renderTransactionsPage();
         await waitFor(() =>
             expect(screen.getAllByTestId("transaction-row").length).toBeGreaterThan(0)
@@ -127,10 +127,9 @@ describe("UR-011: the header checkbox covers rows beyond the window the grid hol
             this: HTMLElement,
             options?: FocusOptions
         ) {
-            const row = this.closest<HTMLElement>("[data-transaction-id]");
             if (
                 this.getAttribute("data-cell") === "actions" &&
-                row?.getAttribute("data-transaction-id") === "tx-1599"
+                this.getAttribute("data-cell-transaction-id") === "tx-1599"
             ) {
                 failedTarget.observed = true;
                 nativeFocus.call(external, options);
@@ -141,15 +140,16 @@ describe("UR-011: the header checkbox covers rows beyond the window the grid hol
 
         try {
             fireEvent.keyDown(origin, { ctrlKey: true, key: "End" });
-            await waitFor(() =>
-                expect(controller.getSnapshot().failure).toMatchObject({ kind: "focus-failed" })
-            );
 
-            expect(failedTarget.observed).toBe(true);
+            await waitFor(() => expect(failedTarget.observed).toBe(true));
             await waitFor(() => expect(gridTrace.windowStarts.at(-1)).toBe(0));
             expect(controller.getPendingRequest()).toBeNull();
+            expect(controller.getSnapshot()).toMatchObject({
+                failure: null,
+                interactionKind: "parked"
+            });
             expect(controller.cellSelectionAtom.get()).toEqual(originSelection);
-            expect(document.activeElement).toBe(origin);
+            expect(document.activeElement).toBe(external);
         } finally {
             focusSpy.mockRestore();
             external.remove();

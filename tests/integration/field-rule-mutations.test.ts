@@ -1,7 +1,15 @@
+import { LoroMap } from "loro-crdt";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import { insertManualDescriptionAliasedTransaction } from "@/lib/crdt/description-aliases";
+import {
+    persistUserDateFormat,
+    persistUserTransactionInspectorOpen,
+    readUserDateFormat,
+    readUserTransactionInspectorOpen,
+    toTransactionInspectorOpen
+} from "@/lib/crdt/display-preferences";
 import {
     createFieldRule,
     deleteFieldRule,
@@ -14,7 +22,7 @@ import {
     applyFieldRulesToAllTransactions,
     applyFieldRulesToNewerTransactions
 } from "@/lib/crdt/field-rules";
-import { createVaultMirror } from "@/lib/crdt/mirror";
+import { createVaultMirror, createVaultMirrorFromSnapshot } from "@/lib/crdt/mirror";
 import {
     findTransactionInStore,
     insertTransaction,
@@ -28,6 +36,26 @@ const OTHER_ACCOUNT = "account-2";
 const DATE = Temporal.PlainDate.from("2026-07-25");
 const CREATION = Temporal.Instant.from("2026-07-25T00:00:00Z");
 const DESCRIPTION = "COFFEE SHOP 123";
+
+function rawViewerPreference(
+    doc: ReturnType<typeof createVaultMirror>["doc"],
+    pubkeyHash: string
+): LoroMap {
+    const preference = doc.getMap("userDisplayPreferences").get(pubkeyHash);
+    if (!(preference instanceof LoroMap)) {
+        throw new Error(`Expected raw display preference for ${pubkeyHash}`);
+    }
+    return preference;
+}
+
+function installRawViewerPreference(
+    doc: ReturnType<typeof createVaultMirror>["doc"],
+    pubkeyHash: string
+): LoroMap {
+    const preference = doc.getMap("userDisplayPreferences").setContainer(pubkeyHash, new LoroMap());
+    preference.set("pubkeyHash", pubkeyHash);
+    return preference;
+}
 
 function locationOf(transactionId: string, date: Temporal.PlainDate = DATE): TransactionLocation {
     return { accountId: ACCOUNT, date, transactionId };
@@ -294,6 +322,392 @@ describe("field-rule CRUD mutations", () => {
             const choice = readUserAutomationChoice(vault.mirror.getState(), "unknown");
             expect(choice.field).toBe("tags");
             expect(choice.useAccountScope).toBe(false);
+        });
+    });
+
+    describe("per-viewer display preferences", () => {
+        it("reads unknown viewers and unvalidated inspector values as open", () => {
+            const vault = createVaultMirror();
+
+            expect(readUserTransactionInspectorOpen(vault.mirror.getState(), null)).toBe(true);
+            expect(
+                readUserTransactionInspectorOpen(vault.mirror.getState(), "unknown-viewer")
+            ).toBe(true);
+            expect(toTransactionInspectorOpen(undefined)).toBe(true);
+            expect(toTransactionInspectorOpen("closed")).toBe(true);
+            expect(toTransactionInspectorOpen(0)).toBe(true);
+            expect(vault.mirror.getState().userDisplayPreferences).toEqual({});
+
+            vault.mirror.dispose();
+        });
+
+        it.each([
+            ["an absent inspector field", undefined],
+            ["an invalid raw inspector field", "closed"]
+        ])("hydrates %s as open without normalising the existing record", (_, rawValue) => {
+            const source = createVaultMirror();
+            source.mirror.setState((state: VaultState) => {
+                persistUserDateFormat(state, {
+                    pubkeyHash: "legacy-viewer",
+                    dateFormat: "dayFirst"
+                });
+            });
+            const sourcePreference = rawViewerPreference(source.doc, "legacy-viewer");
+            if (rawValue !== undefined) {
+                sourcePreference.set("transactionInspectorOpen", rawValue);
+                source.doc.commit({ origin: "legacy:display-preference" });
+            }
+            const sourceVersion = source.doc.version().encode();
+            const hydrated = createVaultMirrorFromSnapshot(source.doc.export({ mode: "snapshot" }));
+            const hydratedPreference = rawViewerPreference(hydrated.doc, "legacy-viewer");
+            const versionBeforeRead = hydrated.doc.version().encode();
+            const updateBeforeRead = hydrated.doc.export({ mode: "update" });
+            const keysBeforeRead = hydratedPreference.keys();
+
+            expect(hydrated.doc.version().encode()).toEqual(sourceVersion);
+            expect(
+                readUserTransactionInspectorOpen(hydrated.mirror.getState(), "legacy-viewer")
+            ).toBe(true);
+            expect(hydrated.doc.version().encode()).toEqual(versionBeforeRead);
+            expect(hydrated.doc.export({ mode: "update" })).toEqual(updateBeforeRead);
+            expect(hydratedPreference.keys()).toEqual(keysBeforeRead);
+            expect(hydratedPreference.get("transactionInspectorOpen")).toBe(rawValue);
+
+            hydrated.mirror.dispose();
+            source.mirror.dispose();
+        });
+
+        it("stores an explicit open value after closed and reloads that stored value", () => {
+            const vault = createVaultMirror();
+            vault.mirror.setState((state: VaultState) => {
+                persistUserTransactionInspectorOpen(state, {
+                    pubkeyHash: "viewer",
+                    transactionInspectorOpen: false
+                });
+            });
+            expect(rawViewerPreference(vault.doc, "viewer").get("transactionInspectorOpen")).toBe(
+                false
+            );
+
+            vault.mirror.setState((state: VaultState) => {
+                persistUserTransactionInspectorOpen(state, {
+                    pubkeyHash: "viewer",
+                    transactionInspectorOpen: true
+                });
+            });
+            const rawPreference = rawViewerPreference(vault.doc, "viewer");
+            expect(rawPreference.keys()).toContain("transactionInspectorOpen");
+            expect(rawPreference.get("transactionInspectorOpen")).toBe(true);
+
+            const reopened = createVaultMirrorFromSnapshot(vault.doc.export({ mode: "snapshot" }));
+            expect(readUserTransactionInspectorOpen(reopened.mirror.getState(), "viewer")).toBe(
+                true
+            );
+            expect(
+                rawViewerPreference(reopened.doc, "viewer").get("transactionInspectorOpen")
+            ).toBe(true);
+
+            reopened.mirror.dispose();
+            vault.mirror.dispose();
+        });
+
+        it("omits undefined sibling fields when creating a viewer record", () => {
+            const dateVault = createVaultMirror();
+            dateVault.mirror.setState((state: VaultState) => {
+                persistUserDateFormat(state, {
+                    pubkeyHash: "date-viewer",
+                    dateFormat: "dayFirst"
+                });
+            });
+            expect(rawViewerPreference(dateVault.doc, "date-viewer").keys().sort()).toEqual([
+                "dateFormat",
+                "pubkeyHash"
+            ]);
+
+            const inspectorVault = createVaultMirror();
+            inspectorVault.mirror.setState((state: VaultState) => {
+                persistUserTransactionInspectorOpen(state, {
+                    pubkeyHash: "inspector-viewer",
+                    transactionInspectorOpen: false
+                });
+            });
+            expect(
+                rawViewerPreference(inspectorVault.doc, "inspector-viewer").keys().sort()
+            ).toEqual(["pubkeyHash", "transactionInspectorOpen"]);
+
+            inspectorVault.mirror.dispose();
+            dateVault.mirror.dispose();
+        });
+
+        it("mutates one viewer field at a time and isolates different viewers", () => {
+            const vault = createVaultMirror();
+
+            vault.mirror.setState((state: VaultState) => {
+                persistUserTransactionInspectorOpen(state, {
+                    pubkeyHash: "viewer-a",
+                    transactionInspectorOpen: false
+                });
+                persistUserDateFormat(state, {
+                    pubkeyHash: "viewer-a",
+                    dateFormat: "dayFirst"
+                });
+                persistUserDateFormat(state, {
+                    pubkeyHash: "viewer-b",
+                    dateFormat: "monthFirst"
+                });
+                persistUserTransactionInspectorOpen(state, {
+                    pubkeyHash: "viewer-b",
+                    transactionInspectorOpen: true
+                });
+            });
+
+            const state = vault.mirror.getState();
+            expect(readUserTransactionInspectorOpen(state, "viewer-a")).toBe(false);
+            expect(readUserDateFormat(state, "viewer-a")).toBe("dayFirst");
+            expect(readUserTransactionInspectorOpen(state, "viewer-b")).toBe(true);
+            expect(readUserDateFormat(state, "viewer-b")).toBe("monthFirst");
+
+            vault.mirror.dispose();
+        });
+
+        it.each(["date then inspector", "inspector then date"])(
+            "preserves unknown viewer fields when writing %s",
+            (order) => {
+                const source = createVaultMirror();
+                const sourcePreference = installRawViewerPreference(source.doc, "future-viewer");
+                sourcePreference.set("dateFormat", "automatic");
+                sourcePreference.set("futureField", "future-value");
+                source.doc.commit({ origin: "future:display-preference" });
+
+                const vault = createVaultMirrorFromSnapshot(
+                    source.doc.export({ mode: "snapshot" })
+                );
+                if (order === "date then inspector") {
+                    vault.mirror.setState((state: VaultState) => {
+                        persistUserDateFormat(state, {
+                            pubkeyHash: "future-viewer",
+                            dateFormat: "dayFirst"
+                        });
+                    });
+                    vault.mirror.setState((state: VaultState) => {
+                        persistUserTransactionInspectorOpen(state, {
+                            pubkeyHash: "future-viewer",
+                            transactionInspectorOpen: false
+                        });
+                    });
+                } else {
+                    vault.mirror.setState((state: VaultState) => {
+                        persistUserTransactionInspectorOpen(state, {
+                            pubkeyHash: "future-viewer",
+                            transactionInspectorOpen: false
+                        });
+                    });
+                    vault.mirror.setState((state: VaultState) => {
+                        persistUserDateFormat(state, {
+                            pubkeyHash: "future-viewer",
+                            dateFormat: "dayFirst"
+                        });
+                    });
+                }
+
+                const rawPreference = rawViewerPreference(vault.doc, "future-viewer");
+                expect(rawPreference.keys()).toEqual(
+                    expect.arrayContaining([
+                        "pubkeyHash",
+                        "dateFormat",
+                        "transactionInspectorOpen",
+                        "futureField"
+                    ])
+                );
+                expect(rawPreference.get("dateFormat")).toBe("dayFirst");
+                expect(rawPreference.get("transactionInspectorOpen")).toBe(false);
+                expect(rawPreference.get("futureField")).toBe("future-value");
+
+                vault.mirror.dispose();
+                source.mirror.dispose();
+            }
+        );
+
+        it("preserves unknown viewer fields across concurrent date and inspector writes", () => {
+            const base = createVaultMirror();
+            base.mirror.setState((state: VaultState) => {
+                persistUserDateFormat(state, {
+                    pubkeyHash: "future-viewer",
+                    dateFormat: "automatic"
+                });
+            });
+            const basePreference = rawViewerPreference(base.doc, "future-viewer");
+            basePreference.set("futureField", "future-value");
+            base.doc.commit({ origin: "future:display-preference" });
+            const snapshot = base.doc.export({ mode: "snapshot" });
+            const datePeer = createVaultMirrorFromSnapshot(snapshot);
+            const inspectorPeer = createVaultMirrorFromSnapshot(snapshot);
+            const dateBase = datePeer.doc.version();
+            const inspectorBase = inspectorPeer.doc.version();
+
+            datePeer.mirror.setState((state: VaultState) => {
+                persistUserDateFormat(state, {
+                    pubkeyHash: "future-viewer",
+                    dateFormat: "monthFirst"
+                });
+            });
+            inspectorPeer.mirror.setState((state: VaultState) => {
+                persistUserTransactionInspectorOpen(state, {
+                    pubkeyHash: "future-viewer",
+                    transactionInspectorOpen: false
+                });
+            });
+            const dateUpdate = datePeer.doc.export({ mode: "update", from: dateBase });
+            const inspectorUpdate = inspectorPeer.doc.export({
+                mode: "update",
+                from: inspectorBase
+            });
+            const dateThenInspector = createVaultMirrorFromSnapshot(snapshot);
+            const inspectorThenDate = createVaultMirrorFromSnapshot(snapshot);
+            dateThenInspector.doc.import(dateUpdate);
+            dateThenInspector.doc.import(inspectorUpdate);
+            inspectorThenDate.doc.import(inspectorUpdate);
+            inspectorThenDate.doc.import(dateUpdate);
+
+            for (const merged of [dateThenInspector, inspectorThenDate]) {
+                const rawPreference = rawViewerPreference(merged.doc, "future-viewer");
+                expect(rawPreference.get("futureField")).toBe("future-value");
+                expect(rawPreference.keys()).toContain("futureField");
+                expect(
+                    merged.mirror.getState().userDisplayPreferences["future-viewer"]
+                ).toMatchObject({
+                    dateFormat: "monthFirst",
+                    transactionInspectorOpen: false
+                });
+            }
+
+            for (const vault of [
+                base,
+                datePeer,
+                inspectorPeer,
+                dateThenInspector,
+                inspectorThenDate
+            ]) {
+                vault.mirror.dispose();
+            }
+        });
+
+        it("merges concurrent first writes to different fields for the same viewer", () => {
+            const base = createVaultMirror();
+            const snapshot = base.doc.export({ mode: "snapshot" });
+            const left = createVaultMirrorFromSnapshot(snapshot);
+            const right = createVaultMirrorFromSnapshot(snapshot);
+            const leftBase = left.doc.version();
+            const rightBase = right.doc.version();
+
+            left.mirror.setState((state: VaultState) => {
+                persistUserDateFormat(state, {
+                    pubkeyHash: "viewer",
+                    dateFormat: "dayFirst"
+                });
+            });
+            right.mirror.setState((state: VaultState) => {
+                persistUserTransactionInspectorOpen(state, {
+                    pubkeyHash: "viewer",
+                    transactionInspectorOpen: false
+                });
+            });
+            const leftUpdate = left.doc.export({ mode: "update", from: leftBase });
+            const rightUpdate = right.doc.export({ mode: "update", from: rightBase });
+            const leftThenRight = createVaultMirrorFromSnapshot(snapshot);
+            const rightThenLeft = createVaultMirrorFromSnapshot(snapshot);
+            leftThenRight.doc.import(leftUpdate);
+            leftThenRight.doc.import(rightUpdate);
+            rightThenLeft.doc.import(rightUpdate);
+            rightThenLeft.doc.import(leftUpdate);
+
+            for (const merged of [leftThenRight, rightThenLeft]) {
+                const preferences = merged.mirror.getState().userDisplayPreferences;
+                expect(Object.keys(preferences)).toEqual(["viewer"]);
+                expect(preferences.viewer).toMatchObject({
+                    pubkeyHash: "viewer",
+                    dateFormat: "dayFirst",
+                    transactionInspectorOpen: false
+                });
+            }
+
+            for (const vault of [base, left, right, leftThenRight, rightThenLeft]) {
+                vault.mirror.dispose();
+            }
+        });
+
+        it("converges concurrent same-field writes with CRDT LWW semantics", () => {
+            const sameFieldBase = createVaultMirror();
+            sameFieldBase.mirror.setState((state: VaultState) => {
+                persistUserDateFormat(state, {
+                    pubkeyHash: "viewer",
+                    dateFormat: "automatic"
+                });
+            });
+            const sameFieldSnapshot = sameFieldBase.doc.export({ mode: "snapshot" });
+            const closePeer = createVaultMirrorFromSnapshot(sameFieldSnapshot);
+            const openPeer = createVaultMirrorFromSnapshot(sameFieldSnapshot);
+            const closeBase = closePeer.doc.version();
+            const openBase = openPeer.doc.version();
+            closePeer.mirror.setState((state: VaultState) => {
+                persistUserTransactionInspectorOpen(state, {
+                    pubkeyHash: "viewer",
+                    transactionInspectorOpen: false
+                });
+            });
+            openPeer.mirror.setState((state: VaultState) => {
+                persistUserTransactionInspectorOpen(state, {
+                    pubkeyHash: "viewer",
+                    transactionInspectorOpen: true
+                });
+            });
+            const closePreference = rawViewerPreference(closePeer.doc, "viewer");
+            const openPreference = rawViewerPreference(openPeer.doc, "viewer");
+            expect(closePreference.keys()).toContain("transactionInspectorOpen");
+            expect(closePreference.get("transactionInspectorOpen")).toBe(false);
+            expect(openPreference.keys()).toContain("transactionInspectorOpen");
+            expect(openPreference.get("transactionInspectorOpen")).toBe(true);
+            expect(closePeer.doc.version().encode()).not.toEqual(closeBase.encode());
+            expect(openPeer.doc.version().encode()).not.toEqual(openBase.encode());
+
+            const closeUpdate = closePeer.doc.export({ mode: "update", from: closeBase });
+            const openUpdate = openPeer.doc.export({ mode: "update", from: openBase });
+            expect(closeUpdate.length).toBeGreaterThan(0);
+            expect(openUpdate.length).toBeGreaterThan(0);
+
+            const closeThenOpen = createVaultMirrorFromSnapshot(sameFieldSnapshot);
+            const openThenClose = createVaultMirrorFromSnapshot(sameFieldSnapshot);
+            closeThenOpen.doc.import(closeUpdate);
+            closeThenOpen.doc.import(openUpdate);
+            openThenClose.doc.import(openUpdate);
+            openThenClose.doc.import(closeUpdate);
+
+            const closeThenOpenPreference = rawViewerPreference(closeThenOpen.doc, "viewer");
+            const openThenClosePreference = rawViewerPreference(openThenClose.doc, "viewer");
+            expect(closeThenOpenPreference.keys()).toContain("transactionInspectorOpen");
+            expect(openThenClosePreference.keys()).toContain("transactionInspectorOpen");
+            const firstRawWinner = closeThenOpenPreference.get("transactionInspectorOpen");
+            if (typeof firstRawWinner !== "boolean") {
+                throw new Error("Expected the converged raw inspector preference to be boolean");
+            }
+            const secondRawWinner = openThenClosePreference.get("transactionInspectorOpen");
+            expect(secondRawWinner).toBe(firstRawWinner);
+            expect(
+                readUserTransactionInspectorOpen(closeThenOpen.mirror.getState(), "viewer")
+            ).toBe(firstRawWinner);
+            expect(
+                readUserTransactionInspectorOpen(openThenClose.mirror.getState(), "viewer")
+            ).toBe(firstRawWinner);
+
+            for (const vault of [
+                sameFieldBase,
+                closePeer,
+                openPeer,
+                closeThenOpen,
+                openThenClose
+            ]) {
+                vault.mirror.dispose();
+            }
         });
     });
 

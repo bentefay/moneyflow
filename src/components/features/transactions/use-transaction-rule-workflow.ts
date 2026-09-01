@@ -28,6 +28,7 @@ import {
     useActiveFieldRules,
     useActivePeople,
     useActiveTags,
+    useAccounts,
     useApplyFieldRules,
     useApplyFieldRulesToTransaction,
     useFieldRuleActions,
@@ -38,6 +39,7 @@ import {
 import { type BulkFieldRuleEntry } from "@/lib/crdt/field-rules";
 import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import { type RuleMatchSubject } from "@/lib/domain/automation/rules";
+import { resolveAccountCurrency } from "@/lib/domain/currency";
 
 import { type RuleEditorOption } from "../automations/FieldRuleEditor";
 import { draftFromRule, mutationErrorToFieldErrors } from "../automations/rule-editor-data";
@@ -105,6 +107,7 @@ export function useTransactionRuleWorkflow(params: {
 
     const rules = useActiveFieldRules();
     const accountsRecord = useActiveAccounts();
+    const allAccountsRecord = useAccounts();
     const tagsRecord = useActiveTags();
     const peopleRecord = useActivePeople();
     const aliasesCollection = useActiveDescriptionAliases();
@@ -117,7 +120,11 @@ export function useTransactionRuleWorkflow(params: {
     const applyToTransaction = useApplyFieldRulesToTransaction();
     const persistPreference = usePersistAutomationPreference();
 
-    const currencyCode = preferences?.defaultCurrency ?? "USD";
+    const subjectAccount = allAccountsRecord[subject.accountId];
+    const currencyCode = resolveAccountCurrency(
+        typeof subjectAccount === "object" ? subjectAccount.currency : undefined,
+        preferences?.defaultCurrency
+    ).code;
 
     const robotState = useMemo(
         () => computeFieldRuleRobotState(rules, subject, current),

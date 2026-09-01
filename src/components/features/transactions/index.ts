@@ -20,6 +20,11 @@ export {
     type TransactionGridWorkspaceProps,
     useTransactionGridWorkspace
 } from "./TransactionGridWorkspace";
+export {
+    TransactionInspector,
+    type TransactionInspectorProps,
+    type TransactionInspectorTransaction
+} from "./TransactionInspector";
 export { TransactionTable, type TransactionTableProps } from "./TransactionTable";
 export {
     pendingFocusDescriptionId,

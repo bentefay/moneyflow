@@ -21,7 +21,11 @@ import {
     useState
 } from "react";
 
-import { DescriptionAliasChangeModal } from "@/components/features/description-aliases/DescriptionAliasChangeModal";
+import {
+    DescriptionAliasChangeModal,
+    type DescriptionAliasModalDecision,
+    type DescriptionAliasModalGridOwner
+} from "@/components/features/description-aliases/DescriptionAliasChangeModal";
 import {
     planDescriptionAliasCommit,
     type DescriptionAliasTargetIntent
@@ -36,6 +40,7 @@ import {
     TransactionFilters,
     type TransactionFiltersState,
     TransactionGridWorkspace,
+    TransactionInspector,
     type TransactionRowData,
     TransactionTable,
     TransactionTableToolbar,
@@ -47,17 +52,17 @@ import {
     type RetainedHistoricalAllocationPeople,
     retainHistoricalAllocationPersonIds
 } from "@/components/features/transactions/allocation-columns";
+import {
+    TRANSACTION_GRID_EDITOR_COMMIT_FAILURE,
+    TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS,
+    TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED,
+    type TransactionGridEditorCommitResult
+} from "@/components/features/transactions/cells/editor-lifecycle";
+import { restoreDescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
 import type { DescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
 import { transactionRowOrderFromCursor } from "@/components/features/transactions/cursor-row-order";
-import {
-    allocationValueChanged,
-    formatAmountForRuleLabel,
-    tagSetChanged
-} from "@/components/features/transactions/field-rule-proposal-state";
-import {
-    computeFieldRuleRobotState,
-    type RobotCurrentValue
-} from "@/components/features/transactions/field-rule-robot-state";
+import { tagSetChanged } from "@/components/features/transactions/field-rule-proposal-state";
+import type { RobotCurrentValue } from "@/components/features/transactions/field-rule-robot-state";
 import {
     useTransactionGridController,
     useTransactionGridControllerSnapshot
@@ -70,8 +75,12 @@ import {
     withPinnedTransactionRows
 } from "@/components/features/transactions/row-window";
 import {
+    activeTransactionGridAddress,
     asTransactionId,
+    isAllocationColumnId,
     isTransactionRowSelected,
+    personIdOfAllocationColumn,
+    transactionGridPresence,
     type MatchingTransactionRows,
     NO_TRANSACTION_ROWS_SELECTED,
     selectedTransactionRowCount,
@@ -85,18 +94,17 @@ import {
     revealExistingTransaction,
     type TransactionRevealIntent
 } from "@/components/features/transactions/transaction-reveal-intent";
-import { TransactionRuleProposal } from "@/components/features/transactions/TransactionRuleProposal";
-import { TransactionRuleRobot } from "@/components/features/transactions/TransactionRuleRobot";
 import { useVaultPresenceContext as useVaultPresence } from "@/components/providers/vault-presence-provider";
 import { useToast } from "@/components/ui/toast";
+import { usePubkeyHash } from "@/hooks/use-identity";
 /** Threshold for showing warning when selecting all */
 const LARGE_SELECTION_THRESHOLD = 500;
 
 import { Temporal } from "temporal-polyfill";
 
+import { allocationPresenceField } from "@/lib/crdt/allocations";
 import {
     useActiveAccounts,
-    useActiveFieldRules,
     useActivePeople,
     useActiveTags,
     useDescriptionAliases,
@@ -105,18 +113,24 @@ import {
     useStatuses,
     useTransactionActions,
     useTransactionIndex,
+    usePersistTransactionInspectorOpen,
+    useUserTransactionInspectorOpen,
     useVaultAction
 } from "@/lib/crdt/context";
 import type { DescriptionAliasTarget } from "@/lib/crdt/description-aliases";
+import {
+    findTransactionsInStore,
+    updateTransaction as updateTransactionInStore
+} from "@/lib/crdt/mutations";
 import { resolveMemberDisplayName, resolvePersonDisplayName } from "@/lib/crdt/person";
-import type { Account, Person, Status, Tag, Transaction } from "@/lib/crdt/schema";
+import type { Account, Person, Status, Tag, TagInput, Transaction } from "@/lib/crdt/schema";
 import {
     createTransactionCursor,
     type TransactionCursor,
     type TransactionFilter
 } from "@/lib/crdt/transaction-cursor";
 import { getNextTagColor } from "@/lib/domain";
-import { type RuleField, type RuleMatchSubject } from "@/lib/domain/automation/rules";
+import { projectRuleMatchSubject } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 /**
@@ -135,6 +149,58 @@ function materializeAliasTarget(target: DescriptionAliasTargetIntent): Descripti
     return target.kind === "existing"
         ? target
         : { kind: "new", aliasId: generateId(), name: target.name };
+}
+
+function materializeCreatedTag(tag: {
+    readonly id: string;
+    readonly name: string;
+    readonly color?: string;
+}): TagInput {
+    return {
+        id: tag.id,
+        name: tag.name,
+        color: tag.color,
+        parentTagId: "",
+        isTransfer: false,
+        deletedAt: undefined
+    };
+}
+
+type DescriptionAliasModalRequest =
+    | {
+          readonly kind: "change";
+          readonly transactionId: TransactionId;
+          readonly expectedAliasId: string;
+          readonly target: DescriptionAliasTargetIntent;
+          readonly origin: DescriptionAliasEditOrigin;
+      }
+    | {
+          readonly kind: "remove";
+          readonly transactionId: TransactionId;
+          readonly expectedAliasId: string;
+          readonly origin: DescriptionAliasEditOrigin;
+      };
+
+type DescriptionAliasModalState =
+    | { readonly phase: "closed" }
+    | {
+          readonly phase: "open" | "closing" | "stale";
+          readonly request: DescriptionAliasModalRequest;
+      };
+
+export function authorizedAliasModalRequest<Request>(
+    accepted: boolean,
+    request: Request
+): Request | null {
+    return accepted ? request : null;
+}
+
+function descriptionAliasCommitResult(mutation: {
+    readonly ok: boolean;
+}): TransactionGridEditorCommitResult {
+    return mutation.ok
+        ? TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS
+        : TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
 }
 
 /**
@@ -187,6 +253,9 @@ function TransactionsPageContent() {
     const searchParams = useSearchParams();
     const gridController = useTransactionGridWorkspace();
     const gridSnapshot = useTransactionGridControllerSnapshot(gridController);
+    const pubkeyHash = usePubkeyHash();
+    const preferredInspectorOpen = useUserTransactionInspectorOpen(pubkeyHash);
+    const persistInspectorOpen = usePersistTransactionInspectorOpen();
     const requestedTransactionId = searchParams.get(SOURCE_TRANSACTION_PARAM);
     const { stageImportFile } = useImportFileTransfer();
 
@@ -215,16 +284,45 @@ function TransactionsPageContent() {
         unnestDuplicate
     } = useTransactionActions();
 
-    // Legacy vault actions for non-transaction mutations
-    const addTag = useVaultAction((state, tag: { id: string; name: string; color: string }) => {
-        state.tags[tag.id] = {
-            id: tag.id,
-            name: tag.name,
-            color: tag.color,
-            parentTagId: "",
-            isTransfer: false
-        } as unknown as (typeof state.tags)[string];
-    });
+    // Locally-created tags and the transaction assignment share one validated CRDT action.
+    const commitTransactionTags = useVaultAction(
+        (
+            state,
+            input: {
+                readonly location: {
+                    readonly accountId: string;
+                    readonly date: Temporal.PlainDate;
+                    readonly transactionId: string;
+                };
+                readonly tagIds: readonly string[];
+                readonly createdTags: readonly {
+                    readonly id: string;
+                    readonly name: string;
+                    readonly color?: string;
+                }[];
+            }
+        ): TransactionGridEditorCommitResult => {
+            const transactions = findTransactionsInStore(state.transactions, input.location);
+            if (transactions.length === 0) return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
+            if (
+                transactions.every(
+                    (transaction) => tagSetChanged(input.tagIds, transaction.tagIds ?? []) === false
+                )
+            ) {
+                return TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
+            }
+
+            const tagsDraft: Record<string, TagInput> = state.tags;
+            for (const tag of input.createdTags) {
+                tagsDraft[tag.id] = materializeCreatedTag(tag);
+            }
+            updateTransactionInStore(state.transactions, {
+                location: input.location,
+                updates: { tagIds: [...input.tagIds] }
+            });
+            return TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS;
+        }
+    );
 
     // Description alias mutations
     const {
@@ -261,6 +359,12 @@ function TransactionsPageContent() {
     const [revealIntent, setRevealIntent] = useState<TransactionRevealIntent | null>(null);
     const transactionTableContainerRef = useRef<HTMLDivElement>(null);
 
+    // The encrypted per-viewer preference initializes and remotely controls the controller's runtime
+    // panel state. A layout effect prevents the default-open value from painting closed first.
+    useLayoutEffect(() => {
+        gridController.setInspectorPanelOpen(preferredInspectorOpen);
+    }, [gridController, preferredInspectorOpen]);
+
     // Selection over the whole matching result set, held as a baseline plus exceptions so that
     // "every matching transaction" is a constant-size value rather than a list of every id. Owned
     // here and handed to the grid's table instance as controlled state, because the bulk-edit
@@ -284,7 +388,12 @@ function TransactionsPageContent() {
 
     // Row-level presence from the shared Loro ephemeral session (HS-003). Publishing focus is a
     // side effect of navigating the table, never of rendering it, so presence cannot loop.
-    const { snapshot: presenceSnapshot, setPresenceState, clearPresenceFocus } = useVaultPresence();
+    const {
+        snapshot: presenceSnapshot,
+        isConnected: isPresenceConnected,
+        setPresenceState,
+        clearPresenceFocus
+    } = useVaultPresence();
     const presenceByTransactionId = presenceSnapshot.byTransactionId;
 
     // Row presence names members, never their pubkeyHash (UR-003).
@@ -293,18 +402,43 @@ function TransactionsPageContent() {
         [allPeople]
     );
 
-    // Focus inside a cell counts as editing; focus on the row chrome is merely viewing. The manager
-    // drops no-op updates, so landing on the same cell twice costs nothing.
-    const handleTransactionFieldFocus = useCallback(
-        (transactionId: string, field: string | undefined) => {
-            setPresenceState(
-                field == null
-                    ? { transactionId, editing: false }
-                    : { transactionId, field, editing: true }
-            );
-        },
-        [setPresenceState]
-    );
+    // Canonical grid presence comes from the same interaction state that owns selection and editing.
+    // DOM focus alone cannot distinguish a selected wrapper from its live editor.
+    useEffect(() => {
+        if (!isPresenceConnected) return;
+        const projectedPresence = transactionGridPresence(
+            gridController.getInteractionState(),
+            gridSnapshot.deferredPresence
+        );
+        if (projectedPresence.kind === "none") {
+            clearPresenceFocus();
+            return;
+        }
+        if (projectedPresence.kind === "viewing") {
+            setPresenceState({
+                editing: false,
+                transactionId: projectedPresence.transactionId
+            });
+            return;
+        }
+        const field = isAllocationColumnId(projectedPresence.columnId)
+            ? allocationPresenceField(personIdOfAllocationColumn(projectedPresence.columnId))
+            : projectedPresence.columnId;
+        setPresenceState({
+            editing: true,
+            field,
+            transactionId: projectedPresence.transactionId
+        });
+    }, [
+        clearPresenceFocus,
+        gridController,
+        gridSnapshot.activeTransactionId,
+        gridSnapshot.deferredPresence,
+        gridSnapshot.editor,
+        gridSnapshot.interactionKind,
+        isPresenceConnected,
+        setPresenceState
+    ]);
 
     // Leaving the page must retract focus; otherwise a peer sees a stale indicator until expiry.
     useEffect(() => clearPresenceFocus, [clearPresenceFocus]);
@@ -481,6 +615,33 @@ function TransactionsPageContent() {
         },
         [transactionIndex]
     );
+    const isTransactionCanonicallyLive = useCallback(
+        (transactionId: TransactionId): boolean => findTransaction(transactionId) != null,
+        [findTransaction]
+    );
+    const persistInspectorPreference = useCallback(
+        (open: boolean) => {
+            if (pubkeyHash == null) return;
+            persistInspectorOpen({ pubkeyHash, transactionInspectorOpen: open });
+        },
+        [persistInspectorOpen, pubkeyHash]
+    );
+    const handleInspectorOpenChange = useCallback(
+        (open: boolean) => {
+            if (!open) gridController.parkExternalFocus();
+            gridController.setInspectorPanelOpen(open);
+            if (open) queueMicrotask(() => gridController.revealInspector());
+            persistInspectorPreference(open);
+        },
+        [gridController, persistInspectorPreference]
+    );
+    const handleInspectorOpenRequest = useCallback(() => {
+        gridController.setInspectorPanelOpen(true);
+        persistInspectorPreference(true);
+    }, [gridController, persistInspectorPreference]);
+    const handleInspectorInsideClose = useCallback(() => {
+        persistInspectorPreference(false);
+    }, [persistInspectorPreference]);
 
     useEffect(() => {
         if (selectedCount > LARGE_SELECTION_THRESHOLD) {
@@ -607,233 +768,62 @@ function TransactionsPageContent() {
         [windowTransactions, accounts, statuses, tags, aliasLookup]
     );
 
-    const activeFieldRules = useActiveFieldRules();
-
-    // Per-row inputs for the inline rule robots. The match subject faithfully mirrors the engine's
-    // own projection (raw imported description, account, amount, importId => isManual) so the robots'
-    // drift detection agrees with what applying the rule would actually do. Description rules exclude
-    // manual rows via the matcher; tags/allocation rules include them (frozen `:294-295`). The three
-    // per-field current values let each robot compare "implied" against "current". The alias is
-    // resolved through symlinks to a final real alias id, matching the id a rule implies.
-    const accountName = useCallback(
-        (accountId: string): string => {
-            const account = accounts[accountId];
-            return typeof account === "object" ? account.name : "this account";
-        },
-        [accounts]
-    );
-
-    const accountCurrency = useCallback(
-        (accountId: string): string => {
-            const account = accounts[accountId];
-            return typeof account === "object" && account.currency != null
-                ? account.currency
-                : "USD";
-        },
-        [accounts]
-    );
-
-    const robotContextById = useMemo(() => {
-        const byId = new Map<
-            string,
-            {
-                readonly subject: RuleMatchSubject;
-                readonly currentAliasId: string | null;
-                readonly currentTagIds: readonly string[];
-                readonly currentAllocations: Readonly<Record<string, number>>;
-                readonly referenceDate: Temporal.PlainDate;
-                /** This row's amount, formatted for the frozen "only if $x" restriction label. */
-                readonly amountLabel: string;
-                /** This row's account name, for the "only this account" restriction label. */
-                readonly accountLabel: string;
-            }
-        >();
-        for (const tx of windowTransactions.rows) {
+    const automationContextFor = useCallback(
+        (transaction: Transaction) => {
             const resolvedAlias =
-                tx.descriptionAliasId != null
-                    ? (aliasLookup.resolve(tx.descriptionAliasId) ?? null)
+                transaction.descriptionAliasId != null
+                    ? (aliasLookup.resolve(transaction.descriptionAliasId) ?? null)
                     : null;
-            const resolvedAliasId = resolvedAlias?.id ?? null;
-            // Mirror the engine's projection (`descriptionTextForMatching`): imported rows key on the
-            // raw imported text; manual rows have no raw text and key on their resolved alias name so
-            // tag/allocation robots surface. A manual row with no alias matches nothing.
-            const descriptionText =
-                tx.importId != null
-                    ? tx.description != null && tx.description.length > 0
-                        ? tx.description
-                        : null
-                    : resolvedAlias != null && resolvedAlias.name.length > 0
-                      ? resolvedAlias.name
-                      : null;
             const currentAllocations: Record<string, number> = {};
             for (const [personId, value] of Object.entries(
-                materializeAllocationRecord(tx.allocations)
+                materializeAllocationRecord(transaction.allocations)
             )) {
                 if (typeof value === "number") currentAllocations[personId] = value;
             }
-            byId.set(tx.id, {
-                subject: {
-                    descriptionText,
-                    accountId: tx.accountId,
-                    amount: tx.amount,
-                    isManual: tx.importId == null
-                },
-                currentAliasId: resolvedAliasId,
-                currentTagIds: tx.tagIds ?? [],
-                currentAllocations,
-                referenceDate: tx.date,
-                amountLabel: formatAmountForRuleLabel(tx.amount, accountCurrency(tx.accountId)),
-                accountLabel: accountName(tx.accountId)
+            const account = accounts[transaction.accountId];
+            const subject = projectRuleMatchSubject({
+                accountId: transaction.accountId,
+                amount: transaction.amount,
+                description: transaction.description,
+                importId: transaction.importId,
+                resolvedAliasName: resolvedAlias?.name ?? null
             });
-        }
-        return byId;
-    }, [accountCurrency, accountName, aliasLookup, windowTransactions]);
-
-    const [autoOpenRobotTxId, setAutoOpenRobotTxId] = useState<string | null>(null);
-
-    /**
-     * The one field the user has just changed, if any (UR-009).
-     *
-     * The frozen text asks for the creation controls to appear when a field IS CHANGED, not for
-     * every row that happens to lack a rule — so this is a single pending edit, cleared once the
-     * user applies or dismisses it. Holding exactly one means a table of any size shows at most one
-     * proposal, and no row carries the surface at rest.
-     */
-    const [pendingRuleEdit, setPendingRuleEdit] = useState<{
-        readonly transactionId: string;
-        readonly field: RuleField;
-    } | null>(null);
-
-    const notePendingRuleEdit = useCallback((transactionId: string, field: RuleField) => {
-        setPendingRuleEdit({ transactionId, field });
-    }, []);
-
-    const clearPendingRuleEdit = useCallback(() => setPendingRuleEdit(null), []);
-
-    const renderDescriptionRobot = useCallback(
-        (transactionId: string, context: { readonly isEditing: boolean }): React.ReactNode => {
-            const entry = robotContextById.get(transactionId);
-            if (entry == null) return null;
-
-            // Every field's current value; the description robot hides while its cell is edited,
-            // tags/allocation robots stay put. Each robot is mounted only when a rule of that field
-            // actually matches, so unmatched rows carry no extra hooks (bounded at scale).
-            const currents: ReadonlyArray<{
-                readonly current: RobotCurrentValue;
-                readonly isEditing: boolean;
-                readonly autoOpenable: boolean;
-            }> = [
+            const currents: readonly RobotCurrentValue[] = [
                 {
-                    current: { field: "descriptionAlias", currentAliasId: entry.currentAliasId },
-                    isEditing: context.isEditing,
-                    autoOpenable: true
+                    currentAliasId: resolvedAlias?.id ?? null,
+                    field: "descriptionAlias"
                 },
                 {
-                    current: { field: "tags", currentTagIds: entry.currentTagIds },
-                    isEditing: false,
-                    autoOpenable: false
+                    currentTagIds: transaction.tagIds ?? [],
+                    field: "tags"
                 },
                 {
-                    current: { field: "allocation", currentAllocations: entry.currentAllocations },
-                    isEditing: false,
-                    autoOpenable: false
+                    currentAllocations,
+                    field: "allocation"
                 }
             ];
-
-            return (
-                <>
-                    {currents.map(({ current, isEditing, autoOpenable }) => {
-                        if (
-                            computeFieldRuleRobotState(activeFieldRules, entry.subject, current)
-                                .kind === "none"
-                        ) {
-                            return null;
-                        }
-                        return (
-                            <TransactionRuleRobot
-                                autoOpen={autoOpenable && autoOpenRobotTxId === transactionId}
-                                current={current}
-                                isEditing={isEditing}
-                                key={current.field}
-                                onAutoOpenHandled={() => setAutoOpenRobotTxId(null)}
-                                referenceDate={entry.referenceDate}
-                                subject={entry.subject}
-                                transactionId={transactionId}
-                            />
-                        );
-                    })}
-                </>
-            );
+            return {
+                accountLabel: typeof account === "object" ? account.name : "this account",
+                currents,
+                referenceDate: transaction.date,
+                subject
+            };
         },
-        [activeFieldRules, autoOpenRobotTxId, robotContextById]
+        [accounts, aliasLookup]
     );
-
-    /**
-     * Wrap a rule-backed cell in the creation/update controls when THAT cell is the one the user
-     * just changed (UR-009, frozen `:249-256` and `:287-289`).
-     *
-     * Every other cell renders untouched, so the controls appear next to the edit and nowhere else.
-     * The `subject` and per-field current values are the same projections the robot uses, so both
-     * surfaces agree on what "already matches a rule" means.
-     */
-    const renderRuleProposal = useCallback(
-        (
-            transactionId: string,
-            field: RuleField,
-            context: { readonly isEditing: boolean },
-            cell: React.ReactNode,
-            anchorClassName: string | undefined,
-            style: React.CSSProperties | undefined
-        ): React.ReactNode => {
-            const entry = robotContextById.get(transactionId);
-            if (entry == null) {
-                return (
-                    <div className={anchorClassName} style={style}>
-                        {cell}
-                    </div>
-                );
-            }
-
-            const current: RobotCurrentValue =
-                field === "descriptionAlias"
-                    ? { field: "descriptionAlias", currentAliasId: entry.currentAliasId }
-                    : field === "tags"
-                      ? { field: "tags", currentTagIds: entry.currentTagIds }
-                      : { field: "allocation", currentAllocations: entry.currentAllocations };
-
-            // ONE element type at this position, whether or not this cell is the pending edit.
-            //
-            // React reconciles by element type per position, so returning a bare `div` in one state
-            // and a `TransactionRuleProposal` in the other would unmount and remount the entire
-            // subtree — including the cell being edited — every time `pendingRuleEdit` flips. That
-            // is exactly what closed the tag dropdown mid-edit in revision 01: the flip happens on
-            // the dropdown's own `onSave`, while it is still open. Passing `isPending` instead of
-            // branching keeps the element type stable, so the cell is never remounted and the
-            // dropdown, caret and selection all survive.
-            return (
-                <TransactionRuleProposal
-                    accountLabel={entry.accountLabel}
-                    amountLabel={entry.amountLabel}
-                    anchorClassName={anchorClassName}
-                    anchorStyle={style}
-                    current={current}
-                    isEditing={context.isEditing}
-                    isPending={
-                        pendingRuleEdit != null &&
-                        pendingRuleEdit.transactionId === transactionId &&
-                        pendingRuleEdit.field === field
-                    }
-                    onDismiss={clearPendingRuleEdit}
-                    referenceDate={entry.referenceDate}
-                    rowId={transactionId}
-                    subject={entry.subject}
-                >
-                    {cell}
-                </TransactionRuleProposal>
-            );
-        },
-        [clearPendingRuleEdit, pendingRuleEdit, robotContextById]
-    );
+    const inspectorTransaction = useMemo(() => {
+        const activeTransactionId = gridSnapshot.activeTransactionId;
+        if (activeTransactionId == null) return null;
+        const transaction = findTransaction(activeTransactionId);
+        return transaction == null
+            ? null
+            : {
+                  automation: automationContextFor(transaction),
+                  description: transaction.description,
+                  id: transaction.id,
+                  notes: transaction.notes
+              };
+    }, [automationContextFor, findTransaction, gridSnapshot.activeTransactionId]);
 
     const activeAllocationPeople = useMemo(
         () =>
@@ -891,6 +881,7 @@ function TransactionsPageContent() {
     useTransactionGridController({
         controller: gridController,
         cursor,
+        isTransactionCanonicallyLive,
         selectableColumnIds
     });
 
@@ -951,6 +942,7 @@ function TransactionsPageContent() {
         // independent bulk-operation state and is not touched.
         gridController.beginActivation({
             entry: "full",
+            presence: "defer-add-until-editor-gesture",
             target: {
                 columnId: "description",
                 transactionId: asTransactionId(transactionId)
@@ -1070,44 +1062,153 @@ function TransactionsPageContent() {
                 .filter((t): t is Tag & { $cid: string } => typeof t === "object")
                 .map((t) => t.color);
             const color = getNextTagColor(usedColors);
-            addTag({ id, name, color });
             return { id, name, color };
         },
-        [addTag, tags]
+        [tags]
+    );
+    const handleTransactionTagsCommit = useCallback(
+        (
+            transactionId: TransactionId,
+            tagIds: string[],
+            createdTags: readonly {
+                readonly id: string;
+                readonly name: string;
+                readonly color?: string;
+            }[]
+        ): TransactionGridEditorCommitResult => {
+            const transaction = findTransaction(transactionId);
+            if (transaction == null) return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
+            if (!tagSetChanged(tagIds, transaction.tagIds ?? [])) {
+                return TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
+            }
+            return commitTransactionTags({
+                location: {
+                    accountId: transaction.accountId,
+                    date: transaction.date,
+                    transactionId: transaction.id
+                },
+                tagIds,
+                createdTags
+            });
+        },
+        [commitTransactionTags, findTransaction]
     );
 
     // Description alias state for modal
-    const [aliasModalState, setAliasModalState] = useState<{
-        open: boolean;
-        mode: "change" | "remove";
-        transactionId: string;
-        target?: DescriptionAliasTargetIntent;
-    }>({ open: false, mode: "change", transactionId: "" });
-    const aliasModalOriginRef = useRef<DescriptionAliasEditOrigin | null>(null);
+    const [aliasModalState, setAliasModalState] = useState<DescriptionAliasModalState>({
+        phase: "closed"
+    });
+    const activeAliasModalRequest =
+        aliasModalState.phase === "open" || aliasModalState.phase === "closing"
+            ? aliasModalState.request
+            : null;
+
+    const openAliasModal = useCallback(
+        (request: DescriptionAliasModalRequest): boolean => {
+            const accepted = gridController.setEditorInteraction(
+                { columnId: "description", transactionId: request.transactionId },
+                "modal",
+                true
+            );
+            const authorizedRequest = authorizedAliasModalRequest(accepted, request);
+            if (authorizedRequest == null) return false;
+            setAliasModalState({ phase: "open", request: authorizedRequest });
+            return true;
+        },
+        [gridController]
+    );
+
+    const registerAliasModalPortal = useCallback(
+        (element: HTMLDivElement | null) => {
+            if (element == null || activeAliasModalRequest == null) return;
+            return gridController.registerEditorPortal(
+                {
+                    columnId: "description",
+                    transactionId: activeAliasModalRequest.transactionId
+                },
+                element
+            );
+        },
+        [activeAliasModalRequest, gridController]
+    );
+    const aliasModalGridOwner = useMemo<DescriptionAliasModalGridOwner | undefined>(
+        () =>
+            activeAliasModalRequest == null
+                ? undefined
+                : {
+                      portalRef: registerAliasModalPortal,
+                      transactionId: activeAliasModalRequest.transactionId
+                  },
+        [activeAliasModalRequest, registerAliasModalPortal]
+    );
 
     const closeAliasModal = useCallback(() => {
-        setAliasModalState({ open: false, mode: "change", transactionId: "" });
-    }, []);
+        if (aliasModalState.phase !== "open") return;
+        const { request } = aliasModalState;
+        const returnedToEditor = gridController.setEditorInteraction(
+            { columnId: "description", transactionId: request.transactionId },
+            "modal",
+            false
+        );
+        setAliasModalState(returnedToEditor ? { phase: "closing", request } : { phase: "closed" });
+    }, [aliasModalState, gridController]);
 
     const restoreAliasModalFocus = useCallback(() => {
-        const origin = aliasModalOriginRef.current;
-        aliasModalOriginRef.current = null;
-        if (!origin) return;
-        const element = origin.element.isConnected
-            ? origin.element
-            : origin.container.querySelector<HTMLInputElement>(
-                  'input[aria-label="Transaction description"]'
-              );
-        if (!element) return;
-        element.focus({ preventScroll: true });
-        element.setSelectionRange(origin.selectionStart, origin.selectionEnd);
-    }, []);
+        if (aliasModalState.phase !== "closing") return;
+        restoreDescriptionAliasEditOrigin(aliasModalState.request.origin);
+        setAliasModalState({ phase: "closed" });
+    }, [aliasModalState]);
+
+    const aliasModalRequestStillOwnsController = useMemo(() => {
+        if (aliasModalState.phase !== "open") return true;
+        const requestTransaction = findTransaction(aliasModalState.request.transactionId);
+        if (
+            gridSnapshot.interactionKind !== "interacting" ||
+            gridSnapshot.activeTransactionId !== aliasModalState.request.transactionId ||
+            requestTransaction?.descriptionAliasId !== aliasModalState.request.expectedAliasId
+        ) {
+            return false;
+        }
+        const interaction = gridController.getInteractionState();
+        const activeAddress =
+            interaction.kind === "interacting" && interaction.owner === "grid-editor"
+                ? activeTransactionGridAddress(interaction.selection)
+                : null;
+        return (
+            interaction.kind === "interacting" &&
+            interaction.owner === "grid-editor" &&
+            interaction.popup === "modal" &&
+            activeAddress?.columnId === "description" &&
+            activeAddress.transactionId === aliasModalState.request.transactionId
+        );
+    }, [
+        aliasModalState,
+        findTransaction,
+        gridController,
+        gridSnapshot.activeTransactionId,
+        gridSnapshot.interactionKind
+    ]);
+    if (aliasModalState.phase === "open" && !aliasModalRequestStillOwnsController) {
+        setAliasModalState({ phase: "stale", request: aliasModalState.request });
+    }
+    useLayoutEffect(() => {
+        if (aliasModalState.phase !== "stale") return;
+        gridController.setEditorInteraction(
+            { columnId: "description", transactionId: aliasModalState.request.transactionId },
+            "modal",
+            false
+        );
+    }, [aliasModalState, gridController]);
 
     // Handle description commit text (user typed and pressed Enter/blurred)
     const handleDescriptionCommitText = useCallback(
-        (txId: string, text: string, origin: DescriptionAliasEditOrigin) => {
+        (
+            txId: TransactionId,
+            text: string,
+            origin: DescriptionAliasEditOrigin
+        ): TransactionGridEditorCommitResult => {
             const tx = findTransaction(txId);
-            if (!tx) return;
+            if (!tx) return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
 
             const location = { accountId: tx.accountId, date: tx.date, transactionId: tx.id };
             const intent = planDescriptionAliasCommit({
@@ -1117,56 +1218,66 @@ function TransactionsPageContent() {
             });
             switch (intent.kind) {
                 case "none":
-                    return;
+                    return TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
                 case "assign":
-                    if (intent.target.kind === "existing") {
-                        assignDescriptionAlias({ location, aliasId: intent.target.aliasId });
-                    } else {
-                        assignDescriptionAliasByExactName({
-                            location,
-                            newAliasId: generateId(),
-                            name: intent.target.name
-                        });
-                    }
-                    // A newly assigned alias may now differ from a matching rule; let the robot
-                    // open so the user can update the rule (P17C alias-edit -> update rule).
-                    setAutoOpenRobotTxId(txId);
-                    // And, per frozen `:249-252`, offer to CREATE a rule when the row's description
-                    // text matches none yet. The proposal decides which of the two applies.
-                    notePendingRuleEdit(txId, "descriptionAlias");
-                    return;
+                    return descriptionAliasCommitResult(
+                        intent.target.kind === "existing"
+                            ? assignDescriptionAlias({
+                                  location,
+                                  aliasId: intent.target.aliasId
+                              })
+                            : assignDescriptionAliasByExactName({
+                                  location,
+                                  newAliasId: generateId(),
+                                  name: intent.target.name
+                              })
+                    );
                 case "rename-one":
-                    renameDescriptionAlias({ aliasId: intent.aliasId, name: intent.name });
-                    return;
+                    return descriptionAliasCommitResult(
+                        renameDescriptionAlias({ aliasId: intent.aliasId, name: intent.name })
+                    );
                 case "change-one":
-                    if (!tx.descriptionAliasId) return;
-                    changeOneDescriptionAlias({
-                        location,
-                        expectedAliasId: tx.descriptionAliasId,
-                        target: materializeAliasTarget(intent.target)
-                    });
-                    setAutoOpenRobotTxId(txId);
-                    notePendingRuleEdit(txId, "descriptionAlias");
-                    return;
+                    return tx.descriptionAliasId == null
+                        ? TRANSACTION_GRID_EDITOR_COMMIT_FAILURE
+                        : descriptionAliasCommitResult(
+                              changeOneDescriptionAlias({
+                                  location,
+                                  expectedAliasId: tx.descriptionAliasId,
+                                  target: materializeAliasTarget(intent.target)
+                              })
+                          );
                 case "remove-one":
-                    if (!tx.descriptionAliasId) return;
-                    removeOneDescriptionAlias({
-                        location,
-                        expectedAliasId: tx.descriptionAliasId
-                    });
-                    return;
+                    return tx.descriptionAliasId == null
+                        ? TRANSACTION_GRID_EDITOR_COMMIT_FAILURE
+                        : descriptionAliasCommitResult(
+                              removeOneDescriptionAlias({
+                                  location,
+                                  expectedAliasId: tx.descriptionAliasId
+                              })
+                          );
                 case "confirm-change":
-                    aliasModalOriginRef.current = origin;
-                    setAliasModalState({
-                        open: true,
-                        mode: "change",
+                    if (tx.descriptionAliasId == null) {
+                        return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
+                    }
+                    openAliasModal({
+                        kind: "change",
                         transactionId: txId,
-                        target: intent.target
+                        expectedAliasId: tx.descriptionAliasId,
+                        target: intent.target,
+                        origin
                     });
-                    return;
+                    return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
                 case "confirm-remove":
-                    aliasModalOriginRef.current = origin;
-                    setAliasModalState({ open: true, mode: "remove", transactionId: txId });
+                    if (tx.descriptionAliasId == null) {
+                        return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
+                    }
+                    openAliasModal({
+                        kind: "remove",
+                        transactionId: txId,
+                        expectedAliasId: tx.descriptionAliasId,
+                        origin
+                    });
+                    return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
             }
         },
         [
@@ -1175,84 +1286,82 @@ function TransactionsPageContent() {
             findTransaction,
             assignDescriptionAliasByExactName,
             changeOneDescriptionAlias,
-            notePendingRuleEdit,
             removeOneDescriptionAlias,
-            renameDescriptionAlias
+            renameDescriptionAlias,
+            openAliasModal
         ]
     );
 
     // Handle selecting an existing alias from dropdown
     const handleDescriptionSelectAlias = useCallback(
-        (txId: string, aliasId: string, origin: DescriptionAliasEditOrigin) => {
+        (
+            txId: TransactionId,
+            aliasId: string,
+            origin: DescriptionAliasEditOrigin
+        ): TransactionGridEditorCommitResult => {
             const alias = availableAliasOptions.find((option) => option.id === aliasId);
-            if (alias) handleDescriptionCommitText(txId, alias.name, origin);
+            return alias == null
+                ? TRANSACTION_GRID_EDITOR_COMMIT_FAILURE
+                : handleDescriptionCommitText(txId, alias.name, origin);
         },
         [availableAliasOptions, handleDescriptionCommitText]
     );
 
-    // Modal: "just this one" handler
-    const handleAliasJustThis = useCallback(() => {
-        const { transactionId, mode, target } = aliasModalState;
-        const tx = findTransaction(transactionId);
-        if (!tx) {
+    const handleAliasDecision = useCallback(
+        (decision: DescriptionAliasModalDecision) => {
+            if (aliasModalState.phase !== "open") return;
+            const { request } = aliasModalState;
+            const tx = findTransaction(request.transactionId);
+            const currentAliasId = tx?.descriptionAliasId;
+            if (
+                tx == null ||
+                currentAliasId == null ||
+                currentAliasId !== request.expectedAliasId
+            ) {
+                closeAliasModal();
+                return;
+            }
+            const location = { accountId: tx.accountId, date: tx.date, transactionId: tx.id };
+            const mutation = (() => {
+                if (request.kind === "remove") {
+                    return decision === "one"
+                        ? removeOneDescriptionAlias({
+                              location,
+                              expectedAliasId: currentAliasId
+                          })
+                        : removeAllDescriptionAliases(currentAliasId);
+                }
+                if (decision === "one") {
+                    return changeOneDescriptionAlias({
+                        location,
+                        expectedAliasId: currentAliasId,
+                        target: materializeAliasTarget(request.target)
+                    });
+                }
+                const realCurrentId = aliasLookup.resolve(currentAliasId)?.id ?? currentAliasId;
+                return changeAllDescriptionAliases({
+                    sourceAliasId: realCurrentId,
+                    target: materializeAliasTarget(request.target)
+                });
+            })();
+            gridController.publishAutomationEditorCommit(
+                { columnId: "description", transactionId: request.transactionId },
+                descriptionAliasCommitResult(mutation)
+            );
             closeAliasModal();
-            return;
-        }
-        const currentAliasId = tx.descriptionAliasId;
-        if (!currentAliasId) {
-            closeAliasModal();
-            return;
-        }
-        const location = { accountId: tx.accountId, date: tx.date, transactionId: tx.id };
-        if (mode === "remove") {
-            removeOneDescriptionAlias({ location, expectedAliasId: currentAliasId });
-        } else if (target) {
-            changeOneDescriptionAlias({
-                location,
-                expectedAliasId: currentAliasId,
-                target: materializeAliasTarget(target)
-            });
-        }
-        closeAliasModal();
-    }, [
-        aliasModalState,
-        changeOneDescriptionAlias,
-        closeAliasModal,
-        findTransaction,
-        removeOneDescriptionAlias
-    ]);
-
-    // Modal: "all" handler
-    const handleAliasAll = useCallback(() => {
-        const { transactionId, mode, target } = aliasModalState;
-        const tx = findTransaction(transactionId);
-        if (!tx) {
-            closeAliasModal();
-            return;
-        }
-        const currentAliasId = tx.descriptionAliasId;
-        if (!currentAliasId) {
-            closeAliasModal();
-            return;
-        }
-        if (mode === "remove") {
-            removeAllDescriptionAliases(currentAliasId);
-        } else if (target) {
-            const realCurrentId = aliasLookup.resolve(currentAliasId)?.id ?? currentAliasId;
-            changeAllDescriptionAliases({
-                sourceAliasId: realCurrentId,
-                target: materializeAliasTarget(target)
-            });
-        }
-        closeAliasModal();
-    }, [
-        aliasModalState,
-        aliasLookup,
-        changeAllDescriptionAliases,
-        closeAliasModal,
-        findTransaction,
-        removeAllDescriptionAliases
-    ]);
+        },
+        [
+            aliasLookup,
+            aliasModalState,
+            changeAllDescriptionAliases,
+            changeOneDescriptionAlias,
+            closeAliasModal,
+            findTransaction,
+            gridController,
+            removeAllDescriptionAliases,
+            removeOneDescriptionAlias
+        ]
+    );
 
     // Handle single transaction delete
     const handleSingleDelete = useCallback(
@@ -1355,13 +1464,7 @@ function TransactionsPageContent() {
                     updates.tags.length > 0 && typeof updates.tags[0] === "string"
                         ? (updates.tags as unknown as string[])
                         : updates.tags.map((t) => (typeof t === "string" ? t : t.id));
-                transactionUpdates.tagIds = tagIds;
-                // A tag change is exactly the gesture the frozen text offers a rule for. Note it
-                // only when the set really changed, so re-committing an identical set is not
-                // treated as an edit.
-                if (tagSetChanged(tagIds, tx.tagIds ?? [])) {
-                    notePendingRuleEdit(tx.id, "tags");
-                }
+                if (tagSetChanged(tagIds, tx.tagIds ?? [])) transactionUpdates.tagIds = tagIds;
             }
 
             // Only call updateTransaction if we have updates
@@ -1378,15 +1481,21 @@ function TransactionsPageContent() {
                 });
             }
         },
-        [findTransaction, updateTransaction, moveTransaction, notePendingRuleEdit]
+        [findTransaction, updateTransaction, moveTransaction]
+    );
+    const handleInspectorNotesChange = useCallback(
+        (transactionId: TransactionId, notes: string) => {
+            handleTransactionUpdate(transactionId, { notes });
+        },
+        [handleTransactionUpdate]
     );
 
     const handleTransactionAllocationUpdate = useCallback(
-        (id: string, personId: string, value: number) => {
+        (id: string, personId: string, value: number): TransactionGridEditorCommitResult => {
             const transaction = findTransaction(id);
-            if (!transaction) return;
+            if (transaction == null) return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
 
-            setTransactionAllocation({
+            const result = setTransactionAllocation({
                 location: {
                     accountId: transaction.accountId,
                     date: transaction.date,
@@ -1395,14 +1504,12 @@ function TransactionsPageContent() {
                 personId,
                 value
             });
-            // Frozen `:292-293`: an allocation rule covers the WHOLE percentage set, so changing any
-            // one person's column proposes a rule for the row's complete set.
-            const previous = materializeAllocationRecord(transaction.allocations)[personId];
-            if (allocationValueChanged(previous, value)) {
-                notePendingRuleEdit(transaction.id, "allocation");
-            }
+            if (!result.ok) return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
+            return result.value.changed
+                ? TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS
+                : TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
         },
-        [findTransaction, notePendingRuleEdit, setTransactionAllocation]
+        [findTransaction, setTransactionAllocation]
     );
 
     // Tag options for filter/bulk edit (with label for FilterOption)
@@ -1478,7 +1585,10 @@ function TransactionsPageContent() {
     );
 
     return (
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden p-6">
+        <div
+            className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto p-6"
+            data-testid="transactions-page-scroll-region"
+        >
             {/* Filters */}
             <TransactionFilters
                 filters={filters}
@@ -1489,55 +1599,76 @@ function TransactionsPageContent() {
                 availableStatuses={statusOptions}
             />
 
-            {/* Transaction Table */}
-            <ImportDropTarget
-                ariaLabel="Transactions table file drop target"
-                className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border"
-                containerRef={transactionTableContainerRef}
-                onFileAccepted={handleAcceptedImportFile}
-                testId="transaction-import-drop-target"
+            <div
+                className={`grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 ${
+                    gridSnapshot.inspectorPanelOpen
+                        ? "min-h-[15rem] grid-rows-[minmax(8rem,1fr)_minmax(6rem,min(18rem,40%))] overflow-x-hidden overflow-y-auto xl:grid-cols-[minmax(0,1fr)_clamp(18rem,24vw,24rem)] xl:grid-rows-1 xl:overflow-hidden"
+                        : "min-h-[28rem] grid-rows-[minmax(0,1fr)] overflow-hidden xl:grid-cols-1 xl:grid-rows-1"
+                }`}
+                data-testid="transaction-grid-shell"
             >
-                {/* Toolbar with Add button and counts */}
-                <TransactionTableToolbar
-                    onAddClick={handleAddTransaction}
-                    selectedCount={selectedCount}
-                    totalCount={cursor.count}
-                    isFiltered={hasActiveFilters(filters)}
-                />
+                {/* Transaction Table */}
+                <ImportDropTarget
+                    ariaLabel="Transactions table file drop target"
+                    className={`flex min-w-0 flex-col overflow-hidden rounded-lg border xl:min-h-0 ${
+                        gridSnapshot.inspectorPanelOpen ? "min-h-0" : "min-h-[28rem]"
+                    }`}
+                    containerRef={transactionTableContainerRef}
+                    onFileAccepted={handleAcceptedImportFile}
+                    testId="transaction-import-drop-target"
+                >
+                    {/* Toolbar with Add button and counts */}
+                    <TransactionTableToolbar
+                        onAddClick={handleAddTransaction}
+                        inspectorOpen={gridSnapshot.inspectorPanelOpen}
+                        onInspectorOpenChange={handleInspectorOpenChange}
+                        automationPending={gridSnapshot.automation.proposal?.renderable === true}
+                        selectedCount={selectedCount}
+                        totalCount={cursor.count}
+                        isFiltered={hasActiveFilters(filters)}
+                    />
 
-                {/* Table */}
-                <TransactionTable
+                    {/* Table */}
+                    <TransactionTable
+                        controller={gridController}
+                        rowWindow={rowWindow}
+                        matchingRowCount={cursor.count}
+                        onVisibleRowRangeChange={handleVisibleRowRangeChange}
+                        scrollToRowIndex={scrollToRowIndex}
+                        onScrollToRowIndexApplied={handleScrollToRowIndexApplied}
+                        rowOrder={rowOrder}
+                        rowSelection={rowSelection}
+                        onRowSelectionChange={setRowSelection}
+                        matchingRowsChange={matchingRowsChange}
+                        onMatchingSetReconciled={handleMatchingSetReconciled}
+                        allocationColumns={allocationColumnModel.columns}
+                        presenceByTransactionId={presenceByTransactionId}
+                        resolveMemberName={resolveMemberName}
+                        onInspectorOpenRequest={handleInspectorOpenRequest}
+                        onTransactionBlur={handleTransactionBlur}
+                        availableAccounts={accountOptions}
+                        availableStatuses={statusOptionsForInlineEdit}
+                        availableTags={tagOptionsForInlineEdit}
+                        onCreateTag={handleCreateTag}
+                        onTransactionTagsCommit={handleTransactionTagsCommit}
+                        availableAliases={availableAliasOptions}
+                        onDescriptionCommitText={handleDescriptionCommitText}
+                        onDescriptionSelectAlias={handleDescriptionSelectAlias}
+                        onTransactionDelete={handleSingleDelete}
+                        onResolveDuplicate={handleResolveDuplicate}
+                        onTransactionUpdate={handleTransactionUpdate}
+                        onTransactionAllocationUpdate={handleTransactionAllocationUpdate}
+                    />
+                </ImportDropTarget>
+
+                <TransactionInspector
                     controller={gridController}
-                    rowWindow={rowWindow}
-                    matchingRowCount={cursor.count}
-                    onVisibleRowRangeChange={handleVisibleRowRangeChange}
-                    scrollToRowIndex={scrollToRowIndex}
-                    onScrollToRowIndexApplied={handleScrollToRowIndexApplied}
-                    rowOrder={rowOrder}
-                    rowSelection={rowSelection}
-                    onRowSelectionChange={setRowSelection}
-                    matchingRowsChange={matchingRowsChange}
-                    onMatchingSetReconciled={handleMatchingSetReconciled}
-                    allocationColumns={allocationColumnModel.columns}
-                    presenceByTransactionId={presenceByTransactionId}
-                    resolveMemberName={resolveMemberName}
-                    onTransactionFieldFocus={handleTransactionFieldFocus}
-                    onTransactionBlur={handleTransactionBlur}
-                    availableAccounts={accountOptions}
-                    availableStatuses={statusOptionsForInlineEdit}
-                    availableTags={tagOptionsForInlineEdit}
-                    onCreateTag={handleCreateTag}
-                    availableAliases={availableAliasOptions}
-                    onDescriptionCommitText={handleDescriptionCommitText}
-                    onDescriptionSelectAlias={handleDescriptionSelectAlias}
-                    onTransactionDelete={handleSingleDelete}
-                    onResolveDuplicate={handleResolveDuplicate}
-                    onTransactionUpdate={handleTransactionUpdate}
-                    onTransactionAllocationUpdate={handleTransactionAllocationUpdate}
-                    renderDescriptionRobot={renderDescriptionRobot}
-                    renderRuleProposal={renderRuleProposal}
+                    open={gridSnapshot.inspectorPanelOpen}
+                    transaction={inspectorTransaction}
+                    onNotesChange={handleInspectorNotesChange}
+                    onRequestClose={handleInspectorInsideClose}
                 />
-            </ImportDropTarget>
+            </div>
 
             {/* Bulk Edit Toolbar */}
             {selectedCount > 0 && (
@@ -1558,12 +1689,12 @@ function TransactionsPageContent() {
 
             {/* Description Alias Change Modal */}
             <DescriptionAliasChangeModal
-                open={aliasModalState.open}
+                open={aliasModalState.phase === "open"}
                 onClose={closeAliasModal}
-                mode={aliasModalState.mode}
-                onJustThis={handleAliasJustThis}
-                onAll={handleAliasAll}
+                mode={activeAliasModalRequest?.kind ?? "change"}
+                onDecision={handleAliasDecision}
                 onRestoreFocus={restoreAliasModalFocus}
+                gridOwner={aliasModalGridOwner}
             />
         </div>
     );
