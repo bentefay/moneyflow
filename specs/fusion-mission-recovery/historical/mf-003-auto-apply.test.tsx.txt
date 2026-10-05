@@ -1,0 +1,422 @@
+/**
+ * Auto-apply behaviour of the SHIPPED `TransactionRuleProposal` (UR-009, frozen `:263-266`).
+ *
+ * These mount the real component, with only `useFieldRuleProposal` and the presentational
+ * `FieldRuleProposal` mocked — so the `shouldShow` gate, the focus listener, the live focus read and
+ * the auto-apply effect are all shipped code.
+ *
+ * Why this file exists at all. Revision 05's unit cases defined their own local `watches`/`paints`
+ * helpers and imported nothing from the component, so the fix they existed to pin could be reverted
+ * with the suite green (review F-12). Revision 06's first replacement drove the pure predicate but
+ * never the effect that CONSUMES it — so reverting the live re-read again left the suite green.
+ *
+ * The discriminating question is not "does the predicate answer correctly" but "does the component
+ * decide from it at the moment it writes". Only mounting the component asks that.
+ *
+ * And mounting it is still not sufficient. Revision 06's cases here mounted the real component and
+ * asserted both directions, and MEASURED green against the revision 06 component they were written
+ * to fail — because every one of them began with focus already at `<body>`, outside the row. A
+ * defect whose mechanism is "two conditions are never true at the same instant" is invisible when
+ * both are true from the first tick. The starting state has to be the one the user starts in.
+ *
+ * Each revision's tests were one level closer and still had a gap one step along: rev 05 drove local
+ * helpers, rev 06's first attempt drove the predicate but not the effect, rev 06's second drove the
+ * effect from an unreachable starting state. Check the initial conditions, not just the assertions.
+ */
+
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { TransactionRuleProposal } from "@/components/features/transactions/TransactionRuleProposal";
+import { type RuleMatchSubject } from "@/lib/domain/automation/rules";
+import { asMinorUnits } from "@/lib/domain/currency";
+
+const apply = vi.fn(() => true);
+
+/**
+ * The apply mode the mocked workflow reports. Mutable so one file can drive all four frozen modes
+ * through the SAME shipped gate rather than asserting the predicate separately (MF-003).
+ */
+let mockApplyMode = "updatingAll";
+
+vi.mock("@/components/features/transactions/use-field-rule-proposal", () => ({
+    useFieldRuleProposal: () => ({
+        proposal: { kind: "create", field: "tags", descriptionText: "COFFEE SHOP 123" },
+        draft: { applyMode: mockApplyMode, field: "tags" },
+        errors: {},
+        accounts: [],
+        tags: [],
+        people: [],
+        aliases: [],
+        currencyCode: "USD",
+        setDraft: vi.fn(),
+        apply
+    })
+}));
+
+vi.mock("@/components/features/transactions/FieldRuleProposal", () => ({
+    // The presentational body is stubbed, but its ONE outward-facing affordance — the tick that
+    // confirms explicitly — is kept wired to the real `onConfirm` the container passes down, so the
+    // manual modes and the explicit-confirm race can be driven through shipped code (MF-003).
+    FieldRuleProposal: (props: { readonly onConfirm: () => void }) => (
+        <div data-testid="proposal-body">
+            <button data-testid="proposal-confirm" onClick={props.onConfirm} type="button">
+                tick
+            </button>
+        </div>
+    )
+}));
+
+const SUBJECT: RuleMatchSubject = {
+    descriptionText: "COFFEE SHOP 123",
+    accountId: "acct-1",
+    amount: asMinorUnits(-450),
+    isManual: false
+};
+
+/**
+ * The proposal inside a real transaction row, with a focusable control in the row and one outside
+ * it, so focus can genuinely move between them.
+ */
+function tree(isEditing: boolean): React.JSX.Element {
+    return (
+        <>
+            <div data-testid="transaction-row" data-transaction-id="tx-1">
+                <input data-testid="in-row" />
+                <TransactionRuleProposal
+                    accountLabel="Checking"
+                    amountLabel="-$4.50"
+                    current={{ field: "tags", currentTagIds: ["tag-1"] }}
+                    isEditing={isEditing}
+                    isPending={true}
+                    onDismiss={vi.fn()}
+                    referenceDate={{ toString: () => "2026-07-01" } as never}
+                    rowId="tx-1"
+                    subject={SUBJECT}
+                >
+                    <span />
+                </TransactionRuleProposal>
+            </div>
+            <input data-testid="outside" />
+            {/* A surface this row OWNS but that portals outside its DOM subtree — the tag picker. */}
+            <input data-owned-by-row="tx-1" data-testid="own-portal" />
+            {/* Another row's owned portal: focus landing here HAS left this row. */}
+            <input data-owned-by-row="tx-2" data-testid="other-portal" />
+        </>
+    );
+}
+
+function renderInRow(props: { readonly isEditing: boolean }) {
+    return render(tree(props.isEditing));
+}
+
+function focusOn(testId: string): void {
+    const element = document.querySelector(`[data-testid="${testId}"]`);
+    if (element instanceof HTMLElement) element.focus();
+}
+
+describe("the automatic modes decide from LIVE focus, not a remembered observation", () => {
+    beforeEach(() => {
+        apply.mockClear();
+        apply.mockReturnValue(true);
+        mockApplyMode = "updatingAll";
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    // The reviewer's measured F-11 sequence. Focus leaves the row while the edit is still open, so
+    // the observation is recorded; the user then returns to the row before the edit surface closes.
+    // Revision 05 applied here, writing a rule with the row focused and no chance to dismiss.
+    it("does NOT apply when focus left during the edit but has returned by the time it closes", async () => {
+        const { rerender } = renderInRow({ isEditing: true });
+
+        // Focus leaves the row mid-edit — the wake-up flag is set.
+        focusOn("outside");
+        await vi.advanceTimersByTimeAsync(10);
+
+        // The user comes back into the row, then the edit surface closes.
+        focusOn("in-row");
+        await vi.advanceTimersByTimeAsync(10);
+        rerender(tree(false));
+        await vi.advanceTimersByTimeAsync(10);
+
+        // The row holds focus, so the frozen condition is NOT satisfied and nothing may be written.
+        expect(apply).not.toHaveBeenCalled();
+    });
+
+    // The positive direction as the user actually performs it: the edit BEGINS with the caret in the
+    // row, and the click away both moves focus out and closes the edit surface.
+    //
+    // Starting focus inside the row is what makes this discriminating, and the reason it exists as a
+    // separate case from the one below. Revision 06 needed two conditions — a remembered "focus was
+    // seen outside" flag and a live re-read — to hold at the same instant, and they never did: the
+    // flag is set inside a deferred task, so at the first evaluation focus is genuinely outside but
+    // the flag is unset, and once the flag lands focus has moved on. A test that begins with focus
+    // ALREADY outside the row cannot see that, because both conditions are then trivially true
+    // together from the first tick. This one starts where the user starts, so the condition has to
+    // change while the component is watching.
+    it("applies when the edit began with focus in the row and the user then clicks away", async () => {
+        const { rerender } = renderInRow({ isEditing: true });
+        focusOn("in-row");
+        await vi.advanceTimersByTimeAsync(10);
+
+        // One gesture: focus leaves the row and the edit surface closes.
+        focusOn("outside");
+        rerender(tree(false));
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(apply).toHaveBeenCalledTimes(1);
+    });
+
+    it("DOES apply once the edit has closed and focus is genuinely outside the row", async () => {
+        renderInRow({ isEditing: false });
+
+        focusOn("outside");
+        await vi.advanceTimersByTimeAsync(10);
+
+        await waitFor(() => {
+            expect(apply).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    it("does not apply while the edit is still in progress, even with focus outside", async () => {
+        renderInRow({ isEditing: true });
+
+        focusOn("outside");
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(apply).not.toHaveBeenCalled();
+    });
+
+    // `confirm` is a dependency of the listener effect, so the listeners tear down and re-register
+    // whenever it changes — and each registration runs its own mount-time evaluation. Every one of
+    // those sees a row that has genuinely lost focus, so `appliedRef` is the ONLY thing standing
+    // between one gesture and a burst of writes.
+    //
+    // That is worth a test rather than a sentence in evidence. Deleting the guard and re-running this
+    // case MEASURES 3 applies at the blur and 8 after five further renders, so a rule the user asked
+    // for once would be created eight times.
+    it("writes exactly once no matter how often the listeners re-register", async () => {
+        const { rerender } = renderInRow({ isEditing: true });
+        focusOn("in-row");
+        await vi.advanceTimersByTimeAsync(10);
+
+        focusOn("outside");
+        rerender(tree(false));
+        await vi.advanceTimersByTimeAsync(10);
+
+        for (let index = 0; index < 5; index += 1) {
+            rerender(tree(false));
+            await vi.advanceTimersByTimeAsync(10);
+        }
+
+        expect(apply).toHaveBeenCalledTimes(1);
+    });
+});
+
+// ============================================================================
+// MF-003: the remaining timing evidence the contract matrix cites
+//
+// Everything below drives the SAME shipped gate as the cases above — no predicate is asserted in
+// isolation. These record measured behaviour, including the places where the shipped component has
+// no cancellation fence; MF-003 changes no runtime code, so a gap is written down, not closed.
+// ============================================================================
+
+describe("MF-003 timing: only the automatic modes key on the blur", () => {
+    beforeEach(() => {
+        apply.mockClear();
+        apply.mockReturnValue(true);
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(() => {
+        mockApplyMode = "updatingAll";
+        vi.useRealTimers();
+    });
+
+    // AC-M1 / AC-M2. `updateAll` and `updateNew` are the "you have to click the tick" half of the
+    // frozen four (`:263-266`). The blur gesture is identical to the applying cases above; the only
+    // difference is the mode, so this pins that the prefix — not the scope — decides timing.
+    for (const mode of ["updateAll", "updateNew"] as const) {
+        it(`does not write on blur in manual mode ${mode}`, async () => {
+            mockApplyMode = mode;
+            const { rerender } = renderInRow({ isEditing: true });
+            focusOn("in-row");
+            await vi.advanceTimersByTimeAsync(10);
+
+            focusOn("outside");
+            rerender(tree(false));
+            await vi.advanceTimersByTimeAsync(10);
+
+            expect(apply).not.toHaveBeenCalled();
+        });
+    }
+
+    // AC-M3. The explicit tick stays available in a manual mode — the controls are not inert, they
+    // are waiting. This drives the container's own `confirm` through the presentational body's
+    // `onConfirm`, not a hand-rolled call.
+    it("writes on the explicit tick in a manual mode, exactly once", async () => {
+        mockApplyMode = "updateNew";
+        renderInRow({ isEditing: false });
+        await vi.advanceTimersByTimeAsync(10);
+
+        const tick = screen.getByTestId("proposal-confirm");
+        fireEvent.click(tick);
+        fireEvent.click(tick);
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(apply).toHaveBeenCalledTimes(1);
+    });
+
+    // AC-M4. The tick is available in an AUTOMATIC mode too, and racing it against the queued
+    // deferred callback must still write once: `appliedRef` is the only thing that makes those two
+    // paths idempotent with respect to each other.
+    it("writes once when an explicit tick races the queued automatic callback", async () => {
+        renderInRow({ isEditing: false });
+
+        // Queue the deferred evaluation, but do not let it run yet.
+        focusOn("outside");
+        fireEvent.click(screen.getByTestId("proposal-confirm"));
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(apply).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("MF-003 timing: what counts as leaving the row", () => {
+    beforeEach(() => {
+        apply.mockClear();
+        apply.mockReturnValue(true);
+        mockApplyMode = "updatingAll";
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    /** Start with the caret in the row, then move it to `target` with the edit surface closing. */
+    async function leaveRowFor(target: string): Promise<void> {
+        const { rerender } = renderInRow({ isEditing: true });
+        focusOn("in-row");
+        await vi.advanceTimersByTimeAsync(10);
+        focusOn(target);
+        rerender(tree(false));
+        await vi.advanceTimersByTimeAsync(10);
+    }
+
+    // AC-X1. Focus landing on a surface THIS row owns but that portals out of its DOM subtree — the
+    // tag picker is the shipped instance — has not left the row.
+    it("treats this row's own portal as still inside the row", async () => {
+        await leaveRowFor("own-portal");
+        expect(apply).not.toHaveBeenCalled();
+    });
+
+    // AC-X2. Another row's portal is genuinely elsewhere, so the identity comparison matters: a
+    // bare boolean marker would have read this as "still here".
+    it("treats another row's portal as having left the row", async () => {
+        await leaveRowFor("other-portal");
+        expect(apply).toHaveBeenCalledTimes(1);
+    });
+
+    // AC-X3. Moving between two controls inside the same row is not the frozen gesture.
+    it("does not write when focus moves within the row", async () => {
+        const { rerender } = renderInRow({ isEditing: true });
+        focusOn("outside");
+        await vi.advanceTimersByTimeAsync(10);
+        focusOn("in-row");
+        rerender(tree(false));
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(apply).not.toHaveBeenCalled();
+    });
+
+    // AC-X4. Clicking non-focusable chrome blurs to `<body>`: `focusout` fires and no `focusin`
+    // does. This is one of the three gestures a `focusin`-only listener missed.
+    it("writes when the row blurs to the document body", async () => {
+        const { rerender } = renderInRow({ isEditing: true });
+        focusOn("in-row");
+        await vi.advanceTimersByTimeAsync(10);
+
+        const active = document.activeElement;
+        if (active instanceof HTMLElement) active.blur();
+        rerender(tree(false));
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(document.activeElement).toBe(document.body);
+        expect(apply).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("MF-003 timing: rejection, retry and stale queued work", () => {
+    beforeEach(() => {
+        apply.mockClear();
+        apply.mockReturnValue(true);
+        mockApplyMode = "updatingAll";
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    // AC-R1. Validation rejecting the write must NOT consume the one-shot guard, or the user would
+    // be left with controls that can never be satisfied. The retry here is a second blur gesture,
+    // because that is what actually re-runs the deferred evaluation.
+    //
+    // MEASURED, and deliberately not asserted as "exactly one attempt": because the guard is released
+    // on rejection, EVERY queued evaluation of that one gesture retries. A single click away queues
+    // three (the `focusout`, the `focusin` on the new target, and the re-registered effect's own
+    // mount-time call), so a rejected draft MEASURES 3 `apply` attempts for one user gesture. That is
+    // recorded here as behaviour, not tightened — MF-003 changes no runtime code. The invariant the
+    // user actually depends on is the one asserted below: rejection leaves the controls open, and the
+    // corrected draft then writes exactly once more.
+    it("keeps the controls open after a rejected write and applies on a later gesture", async () => {
+        apply.mockReturnValue(false);
+        const { rerender } = renderInRow({ isEditing: true });
+        focusOn("in-row");
+        await vi.advanceTimersByTimeAsync(10);
+
+        focusOn("outside");
+        rerender(tree(false));
+        await vi.advanceTimersByTimeAsync(10);
+
+        const rejectedAttempts = apply.mock.calls.length;
+        expect(rejectedAttempts).toBeGreaterThanOrEqual(1);
+        // Rejected, so the controls are still painted for the user to correct the restriction.
+        expect(screen.getByTestId("proposal-body")).toBeTruthy();
+
+        // The user corrects the draft; the next gesture succeeds, and the guard then holds.
+        apply.mockReturnValue(true);
+        focusOn("in-row");
+        await vi.advanceTimersByTimeAsync(10);
+        focusOn("outside");
+        await vi.advanceTimersByTimeAsync(10);
+
+        expect(apply).toHaveBeenCalledTimes(rejectedAttempts + 1);
+    });
+
+    // AC-R2. MEASURED GAP, recorded not fixed. The effect cleanup removes both listeners but never
+    // clears the `window.setTimeout` a listener has already queued, and the deferred callback reads
+    // refs that outlive the component. After unmount the anchor ref is null, which the focus
+    // predicate reads as "no row holds focus" — so the queued callback still writes.
+    //
+    // The unmount here is the shipped "pending replacement" path: the page holds ONE pending rule
+    // edit, so editing another cell flips `isPending` false and tears this instance down.
+    it("still runs a queued automatic write after the proposal has unmounted", async () => {
+        const { unmount } = renderInRow({ isEditing: false });
+
+        // Queue the deferred evaluation, then tear the proposal down before it fires.
+        focusOn("outside");
+        unmount();
+        expect(apply).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(10);
+
+        // Recording the measured outcome: the write is NOT cancelled by unmounting.
+        expect(apply).toHaveBeenCalledTimes(1);
+    });
+});

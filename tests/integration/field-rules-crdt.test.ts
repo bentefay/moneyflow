@@ -393,6 +393,60 @@ describe("field-rule application at import and bulk operations", () => {
         expect(applied?.descriptionAliasId).toBe("alias-manual");
     });
 
+    it("keys an imported row on its RAW description even after it is renamed by an alias", () => {
+        // Q-P17D-01's converse: the alias-name projection is for MANUAL rows only. An imported row
+        // whose display text has been changed to an alias still matches on the raw imported text,
+        // because `descriptionTextForMatching` branches on `importId != null` first. Provenance is
+        // preserved: matching never follows the row's own display alias.
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            const display = createDescriptionAlias(state, {
+                aliasId: "alias-display",
+                name: "Nice Coffee Place"
+            });
+            if (!display.ok) throw new Error("display alias seed failed");
+            insertTransaction(state.transactions, {
+                transaction: txInput({
+                    id: "t-renamed",
+                    importId: "import-1",
+                    descriptionAliasId: "alias-display"
+                })
+            });
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-raw",
+                    field: "tags",
+                    descriptionText: DESCRIPTION,
+                    tagMode: "add",
+                    tagIds: ["raw-match"]
+                })
+            );
+            // A rule keyed on the DISPLAYED name must not match an imported row.
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-display",
+                    field: "tags",
+                    accountId: ACCOUNT,
+                    descriptionText: "Nice Coffee Place",
+                    tagMode: "add",
+                    tagIds: ["display-match"]
+                })
+            );
+            applyFieldRulesToImport(state, { importId: "import-1" });
+        });
+
+        const applied = findTransactionInStore(
+            vault.mirror.getState().transactions,
+            locationOf("t-renamed")
+        );
+        expect([...(applied?.tagIds ?? [])]).toEqual(["raw-match"]);
+        // The display alias is untouched, and the raw description is never rewritten.
+        expect(applied?.descriptionAliasId).toBe("alias-display");
+        expect(applied?.description).toBe(DESCRIPTION);
+    });
+
     it("excludes rules with an invalid complete allocation set (rejected at decode, no mutation)", () => {
         const vault = createVaultMirror();
         vault.mirror.setState((state: VaultState) => {
@@ -475,5 +529,59 @@ describe("field-rule application at import and bulk operations", () => {
             ...(findTransactionInStore(vault.mirror.getState().transactions, locationOf("t-older"))
                 ?.tagIds ?? [])
         ]).toEqual(["seen"]);
+    });
+
+    /**
+     * All three bulk entry points filter on `deletedAt == null` before matching. Without this the
+     * exclusion is only implied by the source; a soft-deleted row that still received rule writes
+     * would resurrect financial data the user removed.
+     */
+    it("never applies rules to a soft-deleted transaction through any bulk entry point", () => {
+        const newer = DATE.add({ days: 1 });
+        const vault = createVaultMirror();
+
+        let importEntries: ReturnType<typeof applyFieldRulesToImport> = [];
+        let newerEntries: ReturnType<typeof applyFieldRulesToNewerTransactions> = [];
+        let allEntries: ReturnType<typeof applyFieldRulesToAllTransactions> = [];
+
+        vault.mirror.setState((state: VaultState) => {
+            insertTransaction(state.transactions, {
+                transaction: txInput({ id: "t-live", date: newer, importId: "import-1" })
+            });
+            insertTransaction(state.transactions, {
+                transaction: txInput({
+                    id: "t-deleted",
+                    date: newer,
+                    importId: "import-1",
+                    deletedAt: CREATION
+                })
+            });
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-tags",
+                    field: "tags",
+                    descriptionText: DESCRIPTION,
+                    tagMode: "add",
+                    tagIds: ["seen"]
+                })
+            );
+            importEntries = applyFieldRulesToImport(state, { importId: "import-1" });
+            newerEntries = applyFieldRulesToNewerTransactions(state, { referenceDate: DATE });
+            allEntries = applyFieldRulesToAllTransactions(state);
+        });
+
+        // Each entry point saw exactly the one live row.
+        for (const entries of [importEntries, newerEntries, allEntries]) {
+            expect(entries.map((entry) => entry.location.transactionId)).toEqual(["t-live"]);
+        }
+
+        const store = vault.mirror.getState().transactions;
+        expect([
+            ...(findTransactionInStore(store, locationOf("t-live", newer))?.tagIds ?? [])
+        ]).toEqual(["seen"]);
+        expect([
+            ...(findTransactionInStore(store, locationOf("t-deleted", newer))?.tagIds ?? [])
+        ]).toEqual([]);
     });
 });
