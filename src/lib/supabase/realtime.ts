@@ -276,7 +276,6 @@ export class VaultRealtimeSync {
                 if (generation !== this.generation || this.channel !== channel) return;
                 if (status === "SUBSCRIBED") {
                     this.isSubscribed = true;
-                    if (this.purpose === "presence") void this.updatePresence();
                     if (connectedOnce) void options.onReconnect?.();
                     connectedOnce = true;
                     resolve();

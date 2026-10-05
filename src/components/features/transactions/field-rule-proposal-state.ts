@@ -21,6 +21,10 @@
  * Total and side-effect-free.
  */
 
+import type {
+    RuleEditorDraft,
+    RuleEditorFieldErrors
+} from "@/components/features/automations/rule-editor-model";
 import {
     fieldAppliesToManual,
     type FieldRule,
@@ -61,6 +65,20 @@ export function formatAmountForRuleLabel(
  * `descriptionText` is carried on the proposal because it is the exact text the rule keys on, and a
  * proposal is only ever produced when that text exists.
  */
+export interface RuleProposalDraftGeneration {
+    readonly semanticKey: string;
+}
+
+export interface RuleProposalDraftOverride {
+    readonly generation: RuleProposalDraftGeneration;
+    readonly draft: RuleEditorDraft;
+}
+
+export interface RuleProposalErrorOverride {
+    readonly generation: RuleProposalDraftGeneration;
+    readonly errors: RuleEditorFieldErrors;
+}
+
 export type FieldRuleProposalState =
     | { readonly kind: "none" }
     | {
@@ -75,51 +93,25 @@ export type FieldRuleProposalState =
           readonly rule: FieldRule;
       };
 
-/**
- * Whether the currently-focused element still counts as being "in" a transaction row.
- *
- * Frozen `:263-266` triggers the automatic apply modes when THE ROW loses focus, so this is the
- * predicate that decides the gesture. It is a question about focus STATE, not about focus events —
- * which is the distinction that matters, because the two are not interchangeable:
- *
- * - A blur that lands on `<body>` (pressing Enter in a cell, tabbing off the document, clicking
- *   non-focusable page chrome) fires `focusout` and **no `focusin` at all**. A listener watching
- *   only `focusin` is deaf to three of the four ways a row actually loses focus.
- * - The proposal mounts only once the cell's edit surface has closed, so it can arm a listener
- *   AFTER the very transition it is waiting for. Reading the state answers correctly whenever it is
- *   asked, and so does not depend on having existed when the event fired.
- *
- * `active` is `document.activeElement`, which is `null` before first paint and `<body>` when nothing
- * is focused; both mean no row holds focus. Portaled surfaces a row owns — its tag picker, its own
- * popover — count as inside that row, and `ownerRowId` compares identity so another row's picker
- * does not read as this one.
- */
-export function isFocusStillInRow(input: {
-    readonly active: Element | null;
-    readonly row: Element | null;
-    readonly rowId: string | null;
-    /** Resolves the row id an element's owning portal declares, or `null` if it declares none. */
-    readonly ownerRowId: (element: Element) => string | null;
-}): boolean {
-    const { active, row, rowId, ownerRowId } = input;
-    if (row == null) return false;
-    if (active == null) return false;
-    if (row.contains(active)) return true;
-    const owner = ownerRowId(active);
-    return owner != null && owner === rowId;
+/** Canonical tag-set representation: duplicate references collapse and order is irrelevant. */
+export function canonicalTagIds(tagIds: readonly string[]): readonly string[] {
+    return [...new Set(tagIds)].sort();
 }
 
 /**
- * Whether a tag edit actually changed the set, ignoring order.
+ * Whether a tag edit actually changed the canonical set.
  *
- * A proposal is offered for a CHANGE. Re-committing the same tags — which the inline cell does on
- * every dropdown interaction, including toggling a tag off and back on — is not a change, and
- * offering a rule for it would put controls in front of a user who did nothing.
+ * A proposal is offered for a CHANGE. Re-committing the same tags — including malformed legacy
+ * arrays with duplicate references in a different order — is not a change, and offering a rule for
+ * it would put controls in front of a user who did nothing.
  */
 export function tagSetChanged(next: readonly string[], previous: readonly string[]): boolean {
-    if (next.length !== previous.length) return true;
-    const remaining = new Set(previous);
-    return !next.every((id) => remaining.delete(id));
+    const canonicalNext = canonicalTagIds(next);
+    const canonicalPrevious = canonicalTagIds(previous);
+    return (
+        canonicalNext.length !== canonicalPrevious.length ||
+        canonicalNext.some((id, index) => id !== canonicalPrevious[index])
+    );
 }
 
 /**

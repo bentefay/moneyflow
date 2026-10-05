@@ -7,6 +7,8 @@
  * them while a selection is open. Everything here is therefore derived from domain identity.
  */
 
+import type { RuleField } from "@/lib/domain/automation/rules";
+
 /**
  * A transaction's stable identity, as stored in the CRDT.
  *
@@ -24,6 +26,32 @@ export type TransactionId = string & { readonly [TransactionIdBrand]: true };
  */
 export function asTransactionId(value: string): TransactionId {
     return value as TransactionId;
+}
+
+/**
+ * The workspace-owned revision of canonical row and selectable-column identity and order.
+ *
+ * A number keeps monotonic comparison cheap; the brand prevents a row index, render counter, or
+ * virtualizer version from being accepted as structural authority.
+ */
+declare const TransactionProjectionGenerationBrand: unique symbol;
+export type TransactionProjectionGeneration = number & {
+    readonly [TransactionProjectionGenerationBrand]: true;
+};
+
+/** Tags a finite non-negative workspace generation. */
+export function asTransactionProjectionGeneration(value: number): TransactionProjectionGeneration {
+    if (!Number.isSafeInteger(value) || value < 0) {
+        throw new Error("transaction projection generation must be a non-negative safe integer");
+    }
+    return value as TransactionProjectionGeneration;
+}
+
+/** The next structural generation. Value-only writes and held-window movement must not call this. */
+export function nextTransactionProjectionGeneration(
+    current: TransactionProjectionGeneration
+): TransactionProjectionGeneration {
+    return asTransactionProjectionGeneration(current + 1);
 }
 
 /**
@@ -71,8 +99,8 @@ export function allocationColumnId(personId: string): AllocationTransactionColum
  * Read off `TransactionRow.tsx`, not inferred from the column list, because the two do not
  * correspond one-to-one and the difference is load-bearing:
  *
- * - There is **no `actions` marker**. The actions column is an unmarked container holding two
- *   separately-marked controls, `expand` and `delete`.
+ * - `actions` is the stable selectable identity of the actions column. Its `expand` and `delete`
+ *   descendants retain their own control markers for legacy activation paths.
  * - `notes` is not a column at all. It lives on the expanded second row, spanning
  *   `gridColumn: 2 / -1`.
  *
@@ -87,6 +115,7 @@ export const TRANSACTION_CELL_MARKERS = [
     "tags",
     "status",
     "amount",
+    "actions",
     "expand",
     "delete",
     "notes"
@@ -97,12 +126,7 @@ export type FixedTransactionCellMarker = (typeof TRANSACTION_CELL_MARKERS)[numbe
 /** Every `data-cell` value the grid emits. */
 export type TransactionCellMarker = FixedTransactionCellMarker | AllocationTransactionColumnId;
 
-/**
- * The markers inside the actions column.
- *
- * The column itself carries no marker, so a caller wanting to address its controls needs these
- * rather than the column id.
- */
+/** The legacy control markers nested inside the stable `actions` gridcell. */
 export const ACTIONS_COLUMN_CELL_MARKERS = ["expand", "delete"] as const;
 
 /** The marker on the expanded notes row, which no column owns. */
@@ -113,6 +137,13 @@ export function isAllocationColumnId(
     columnId: TransactionColumnId
 ): columnId is AllocationTransactionColumnId {
     return columnId.startsWith("allocation:");
+}
+
+/** The automation field, if any, declared by one canonical transaction column identity. */
+export function transactionColumnAutomationField(columnId: TransactionColumnId): RuleField | null {
+    if (columnId === "description") return "descriptionAlias";
+    if (columnId === "tags") return "tags";
+    return isAllocationColumnId(columnId) ? "allocation" : null;
 }
 
 /** The person whose allocation an allocation column presents. */

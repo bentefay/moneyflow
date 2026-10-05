@@ -37,6 +37,7 @@ import {
     allocationColumnId,
     type AllocationTransactionColumnId,
     asTransactionId,
+    transactionColumnAutomationField,
     type TransactionColumnId,
     type TransactionId
 } from "./ids";
@@ -60,7 +61,7 @@ const TAGS_TRACK = "140px";
 const STATUS_TRACK = "110px";
 const ALLOCATION_TRACK = "minmax(112px,128px)";
 const AMOUNT_TRACK = "112px";
-const ACTIONS_TRACK = "88px";
+const ACTIONS_TRACK = "120px";
 
 // ============================================================================
 // Clipboard value formatting
@@ -113,6 +114,100 @@ function copyAllocationPercentage(value: unknown): string {
         : EMPTY_COPY_VALUE;
 }
 
+const CHECKBOX_INTERACTION = {
+    activationKind: "checkbox",
+    automationField: null,
+    copyable: false,
+    editKind: "none",
+    focusable: true,
+    popupOwner: "none",
+    selectable: true
+} as const satisfies TransactionColumnMeta["interaction"];
+
+const DATE_INTERACTION = {
+    activationKind: "none",
+    automationField: null,
+    copyable: true,
+    editKind: "date",
+    focusable: true,
+    popupOwner: "grid-editor",
+    selectable: true
+} as const satisfies TransactionColumnMeta["interaction"];
+
+const DESCRIPTION_INTERACTION = {
+    activationKind: "none",
+    automationField: transactionColumnAutomationField("description"),
+    copyable: true,
+    editKind: "description",
+    focusable: true,
+    popupOwner: "grid-editor",
+    selectable: true
+} as const satisfies TransactionColumnMeta["interaction"];
+
+const ACCOUNT_INTERACTION = {
+    activationKind: "none",
+    automationField: null,
+    copyable: true,
+    editKind: "account",
+    focusable: true,
+    popupOwner: "grid-editor",
+    selectable: true
+} as const satisfies TransactionColumnMeta["interaction"];
+
+const TAGS_INTERACTION = {
+    activationKind: "none",
+    automationField: transactionColumnAutomationField("tags"),
+    copyable: true,
+    editKind: "tags",
+    focusable: true,
+    popupOwner: "grid-editor",
+    selectable: true
+} as const satisfies TransactionColumnMeta["interaction"];
+
+const STATUS_INTERACTION = {
+    activationKind: "none",
+    automationField: null,
+    copyable: true,
+    editKind: "status",
+    focusable: true,
+    popupOwner: "grid-editor",
+    selectable: true
+} as const satisfies TransactionColumnMeta["interaction"];
+
+function allocationInteraction(
+    columnId: AllocationTransactionColumnId
+): TransactionColumnMeta["interaction"] {
+    return {
+        activationKind: "none",
+        automationField: transactionColumnAutomationField(columnId),
+        copyable: true,
+        editKind: "allocation",
+        focusable: true,
+        popupOwner: "none",
+        selectable: true
+    };
+}
+
+const AMOUNT_INTERACTION = {
+    activationKind: "none",
+    automationField: null,
+    copyable: true,
+    editKind: "amount",
+    focusable: true,
+    popupOwner: "none",
+    selectable: true
+} as const satisfies TransactionColumnMeta["interaction"];
+
+const ACTIONS_INTERACTION = {
+    activationKind: "inspector",
+    automationField: null,
+    copyable: false,
+    editKind: "none",
+    focusable: true,
+    popupOwner: "none",
+    selectable: true
+} as const satisfies TransactionColumnMeta["interaction"];
+
 // ============================================================================
 // Fixed columns
 // ============================================================================
@@ -125,16 +220,13 @@ function fixedTransactionColumnsBefore() {
     return [
         transactionColumnHelper.display({
             id: "checkbox",
-            // Selection is a row property, not a cell value, so this column takes no part in cell
-            // ranges: a drag beginning on a checkbox would otherwise select a column of booleans
-            // that copy as nothing.
-            enableCellSelection: false,
             meta: {
                 align: "center",
                 cellMarker: "checkbox",
                 copyValue: () => EMPTY_COPY_VALUE,
                 editable: false,
-                gridTemplate: CHECKBOX_TRACK
+                gridTemplate: CHECKBOX_TRACK,
+                interaction: CHECKBOX_INTERACTION
             } satisfies TransactionColumnMeta
         }),
         transactionColumnHelper.accessor("date", {
@@ -147,7 +239,8 @@ function fixedTransactionColumnsBefore() {
                 // another locale, and this grid's host locale and time zone already disagree.
                 copyValue: copyString,
                 editable: true,
-                gridTemplate: DATE_TRACK
+                gridTemplate: DATE_TRACK,
+                interaction: DATE_INTERACTION
             } satisfies TransactionColumnMeta
         }),
         transactionColumnHelper.accessor(
@@ -160,7 +253,8 @@ function fixedTransactionColumnsBefore() {
                     cellMarker: "description",
                     copyValue: copyString,
                     editable: true,
-                    gridTemplate: DESCRIPTION_TRACK
+                    gridTemplate: DESCRIPTION_TRACK,
+                    interaction: DESCRIPTION_INTERACTION
                 } satisfies TransactionColumnMeta
             }
         ),
@@ -171,7 +265,8 @@ function fixedTransactionColumnsBefore() {
                 cellMarker: "account",
                 copyValue: copyString,
                 editable: true,
-                gridTemplate: ACCOUNT_TRACK
+                gridTemplate: ACCOUNT_TRACK,
+                interaction: ACCOUNT_INTERACTION
             } satisfies TransactionColumnMeta
         }),
         transactionColumnHelper.accessor((row) => row.tags ?? [], {
@@ -181,7 +276,8 @@ function fixedTransactionColumnsBefore() {
                 cellMarker: "tags",
                 copyValue: copyTags,
                 editable: true,
-                gridTemplate: TAGS_TRACK
+                gridTemplate: TAGS_TRACK,
+                interaction: TAGS_INTERACTION
             } satisfies TransactionColumnMeta
         }),
         transactionColumnHelper.accessor((row) => row.status ?? "", {
@@ -191,7 +287,8 @@ function fixedTransactionColumnsBefore() {
                 cellMarker: "status",
                 copyValue: copyString,
                 editable: true,
-                gridTemplate: STATUS_TRACK
+                gridTemplate: STATUS_TRACK,
+                interaction: STATUS_INTERACTION
             } satisfies TransactionColumnMeta
         })
     ];
@@ -206,22 +303,19 @@ function fixedTransactionColumnsAfter() {
                 cellMarker: "amount",
                 copyValue: copyAmount,
                 editable: true,
-                gridTemplate: AMOUNT_TRACK
+                gridTemplate: AMOUNT_TRACK,
+                interaction: AMOUNT_INTERACTION
             } satisfies TransactionColumnMeta
         }),
         transactionColumnHelper.display({
             id: "actions",
-            // Duplicate resolution, notes and delete: controls, not data. Nothing here copies, and
-            // a range that swept them up would paste blank trailing columns.
-            enableCellSelection: false,
             meta: {
                 align: "center",
-                // No marker of its own: the row renders this as an unmarked container holding
-                // `data-cell="expand"` and `data-cell="delete"`. See ACTIONS_COLUMN_CELL_MARKERS.
-                cellMarker: null,
+                cellMarker: "actions",
                 copyValue: () => EMPTY_COPY_VALUE,
                 editable: false,
-                gridTemplate: ACTIONS_TRACK
+                gridTemplate: ACTIONS_TRACK,
+                interaction: ACTIONS_INTERACTION
             } satisfies TransactionColumnMeta
         })
     ];
@@ -273,7 +367,8 @@ function allocationColumn(person: TransactionAllocationColumn) {
                 cellMarker: columnId,
                 copyValue: copyAllocationPercentage,
                 editable: true,
-                gridTemplate: ALLOCATION_TRACK
+                gridTemplate: ALLOCATION_TRACK,
+                interaction: allocationInteraction(columnId)
             } satisfies TransactionColumnMeta
         }
     );

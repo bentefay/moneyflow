@@ -188,14 +188,15 @@ describe("the grid presents every matching row and holds a bounded window", () =
 
         const firstRow = renderedRow(0);
         if (firstRow == null) throw new Error("Expected the first row to render");
-        const description = firstRow.querySelector<HTMLInputElement>(
-            '[data-testid="description-editable"]'
+        const descriptionCell = firstRow.querySelector<HTMLElement>(
+            '[role="gridcell"][data-cell="description"]'
         );
-        if (description == null) throw new Error("Expected the first row to hold a description");
+        if (descriptionCell == null)
+            throw new Error("Expected the first row to hold a Description gridcell");
         // A real focus. `fireEvent.focus` does not move `document.activeElement` in jsdom, so the
         // pin would have nothing to pin and the test would pass without testing anything.
-        act(() => description.focus());
-        expect(document.activeElement).toBe(description);
+        act(() => descriptionCell.focus());
+        expect(document.activeElement).toBe(descriptionCell);
 
         scrollGridTo(5_000 * HARNESS_ROW_HEIGHT);
 
@@ -204,7 +205,7 @@ describe("the grid presents every matching row and holds a bounded window", () =
         // caret, and the window is still bounded while holding it.
         expect(renderedRow(0)).not.toBeNull();
         expect(mountedRowIndexes()).toContain(0);
-        expect(document.activeElement).toBe(description);
+        expect(document.activeElement).toBe(descriptionCell);
         expect(largestWindowSize()).toBeLessThanOrEqual(TRANSACTION_ROW_WINDOW_ROWS + 1);
     });
 });

@@ -204,8 +204,8 @@ describe("identity roundtrip", () => {
         expect(restored.pubkeyHash).toBe(original.pubkeyHash);
     });
 
-    it("property: roundtrip always produces same identity", () => {
-        fc.assert(
+    it("property: roundtrip always produces same identity", async () => {
+        await fc.assert(
             fc.asyncProperty(fc.constant(null), async () => {
                 const original = await createIdentity();
                 mockSessionStorage.clear();

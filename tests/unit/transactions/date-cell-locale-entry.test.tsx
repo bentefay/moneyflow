@@ -101,6 +101,39 @@ describe("date entry follows the viewer's locale", () => {
 
         expect(onSave).not.toHaveBeenCalled();
     });
+
+    it("replaces a different typed draft with an explicit saved-day choice", async () => {
+        withLocale("en-US");
+        const { input, onSave } = renderCell("2026-01-15");
+        fireEvent.focus(input);
+        fireEvent.change(input, { target: { value: "1/20/2026" } });
+        fireEvent.click(screen.getByRole("button", { name: "Open calendar" }));
+
+        const selectedDay = document.querySelector<HTMLButtonElement>(
+            'button[data-selected-single="true"]'
+        );
+        if (selectedDay == null) throw new Error("expected the selected calendar day");
+        fireEvent.click(selectedDay);
+
+        expect(onSave).toHaveBeenCalledOnce();
+        expect(onSave).toHaveBeenCalledWith("2026-01-15");
+    });
+
+    it("commits the saved day once when it is already the current draft", async () => {
+        withLocale("en-US");
+        const { input, onSave } = renderCell("2026-01-15");
+        fireEvent.focus(input);
+        fireEvent.click(screen.getByRole("button", { name: "Open calendar" }));
+
+        const selectedDay = document.querySelector<HTMLButtonElement>(
+            'button[data-selected-single="true"]'
+        );
+        if (selectedDay == null) throw new Error("expected the selected calendar day");
+        fireEvent.click(selectedDay);
+
+        expect(onSave).toHaveBeenCalledOnce();
+        expect(onSave).toHaveBeenCalledWith("2026-01-15");
+    });
 });
 
 describe("the editing presentation carries a four-digit year", () => {

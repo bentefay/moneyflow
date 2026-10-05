@@ -40,29 +40,38 @@ import { cn } from "@/lib/utils";
 import { AccountOption } from "../accounts";
 import { type AllocationColumn, buildTransactionGridTemplate } from "./allocation-columns";
 import type { StatusOption, TagOption } from "./cells";
+import { TRANSACTION_GRID_HEADER_CELL_CHROME } from "./cells/cell-chrome";
 import { CheckboxCell } from "./cells/CheckboxCell";
+import type { TransactionGridEditorCommitResult } from "./cells/editor-lifecycle";
 import type { DescriptionAliasEditOrigin } from "./cells/InlineEditableDescriptionAlias";
-import { useGridCellNavigation } from "./hooks/useGridCellNavigation";
+import {
+    useTransactionGridControllerSnapshot,
+    type TransactionGridEditorProjection,
+    type TransactionGridWorkspaceController
+} from "./hooks/useTransactionGridController";
 import type { TransactionRowWindow, TransactionVisibleRange } from "./row-window";
 import {
-    applyTransactionCellKeyIntent,
     applyTransactionMatchingSetChange,
     asTransactionId,
     buildTransactionTableColumns,
     type MatchingTransactionRows,
-    readFocusedControlBoundary,
+    NONEDITABLE_TRANSACTION_GRID_KEY_CELL,
     TRANSACTION_CELL_SELECTION_OPTIONS,
-    transactionCellKeyIntent,
+    transactionGridKeyIntent,
     transactionCellSelectionRowKey,
     transactionCopyOnKeyDown,
+    transactionSelectedCellMarkersFromRowKey,
     type TransactionRowOrder,
     type TransactionRowSelection,
     transactionGridTemplateColumns,
     transactionTableFeatures,
-    transactionTableRowId
+    transactionTableRowId,
+    type TransactionId
 } from "./table-model";
+import { TRANSACTION_MAIN_ROW_HEIGHT_PX } from "./transaction-row-geometry";
 import {
     TransactionRow,
+    type TransactionGridRowSurface,
     type TransactionRowData,
     type TransactionRowPresence
 } from "./TransactionRow";
@@ -79,6 +88,8 @@ import { TransactionVirtualRows } from "./TransactionVirtualRows";
 export const TRANSACTION_GRID_TEMPLATE = buildTransactionGridTemplate(0);
 
 export interface TransactionTableProps {
+    /** Workspace authority for interaction state, projection generation and cell selection. */
+    controller: TransactionGridWorkspaceController;
     /**
      * The rows the grid holds, each with its absolute position in the matching order.
      *
@@ -118,8 +129,8 @@ export interface TransactionTableProps {
     /**
      * The new matching result set, when it has changed since the last reconciliation, else `null`.
      *
-     * Row selection is re-derived against it and cell selection is dropped; see
-     * `table-model/matching-set.ts` for why the two answers differ.
+     * Row selection is re-derived against it. Cell selection is reconciled separately by the
+     * workspace's structural projection authority; see `table-model/matching-set.ts`.
      */
     matchingRowsChange: MatchingTransactionRows | null;
     /** Reports that {@link TransactionTableProps.matchingRowsChange} has been applied. */
@@ -134,64 +145,46 @@ export interface TransactionTableProps {
     availableStatuses?: StatusOption[];
     /** Available tags for inline editing */
     availableTags?: TagOption[];
-    /** Callback when a new tag should be created */
+    /** Materialize a new tag in the editor draft without mutating the vault. */
     onCreateTag?: (name: string) => Promise<TagOption>;
+    /** Commit selected tag IDs and locally-created tags in one vault mutation. */
+    onTransactionTagsCommit?: (
+        transactionId: TransactionId,
+        tagIds: string[],
+        createdTags: readonly TagOption[]
+    ) => TransactionGridEditorCommitResult;
     /** Available description aliases for autocomplete */
     availableAliases?: import("./cells/InlineEditableDescriptionAlias").DescriptionAliasOption[];
     /** Callback when user commits description text */
     onDescriptionCommitText?: (
-        txId: string,
+        transactionId: TransactionId,
         text: string,
         origin: DescriptionAliasEditOrigin
-    ) => void;
+    ) => TransactionGridEditorCommitResult;
     /** Callback when user selects an existing alias from dropdown */
     onDescriptionSelectAlias?: (
-        txId: string,
+        transactionId: TransactionId,
         aliasId: string,
         origin: DescriptionAliasEditOrigin
-    ) => void;
-    /**
-     * Stable ID of a transaction whose description input should take keyboard focus as soon as its
-     * row mounts. The table pins that row into the virtual range so a row outside the visible
-     * window still mounts and can be focused, rather than the request being silently dropped.
-     */
-    focusDescriptionTransactionId?: string | null;
-    /** Reports that the {@link focusDescriptionTransactionId} request landed, so it can be cleared. */
-    onFocusDescriptionApplied?: () => void;
+    ) => TransactionGridEditorCommitResult;
     /** Callback when a transaction is clicked */
     onTransactionClick?: (id: string) => void;
     /** Callback when a transaction row receives focus */
     onTransactionFocus?: (id: string) => void;
-    /** Callback when focus lands in a specific cell, identified by its stable field name */
-    onTransactionFieldFocus?: (id: string, field: string | undefined) => void;
+    /** Makes the persistent inspector visible before actions-cell keyboard focus enters it. */
+    onInspectorOpenRequest?: () => void;
     /** Callback when focus leaves the table entirely */
     onTransactionBlur?: () => void;
     /** Callback when transaction is updated */
     onTransactionUpdate?: (id: string, updates: Partial<TransactionRowData>) => void;
-    /**
-     * Wrap a rule-backed cell of a given transaction so a change to it can offer to become an
-     * automation rule (UR-009). Forwarded per row exactly like {@link renderDescriptionRobot}.
-     */
-    renderRuleProposal?: (
-        transactionId: string,
-        field: "descriptionAlias" | "tags" | "allocation",
-        context: { readonly isEditing: boolean },
-        cell: React.ReactNode,
-        anchorClassName: string | undefined,
-        style: React.CSSProperties | undefined
-    ) => React.ReactNode;
-    /**
-     * Render the inline description-rule robot for a given transaction. The table forwards each
-     * row's live editing state so the affordance can hide while the description is being edited.
-     */
-    renderDescriptionRobot?: (
-        transactionId: string,
-        context: { readonly isEditing: boolean }
-    ) => React.ReactNode;
     /** Person-specific allocation columns shared by the header and every row */
     allocationColumns?: readonly AllocationColumn[];
     /** Callback for one validated person allocation edit */
-    onTransactionAllocationUpdate?: (id: string, personId: string, value: number) => void;
+    onTransactionAllocationUpdate?: (
+        id: string,
+        personId: string,
+        value: number
+    ) => TransactionGridEditorCommitResult;
     /** Callback when a transaction should be deleted */
     onTransactionDelete?: (id: string) => void;
     /** Callback when a duplicate is resolved (kept) */
@@ -203,24 +196,12 @@ export interface TransactionTableProps {
 /** No allocation columns, as one module-level constant so the columns memo has a stable default. */
 const NO_ALLOCATION_COLUMNS: readonly AllocationColumn[] = [];
 
-/**
- * The `data-cell` markers of one row's selected cells.
- *
- * Asked of the cells rather than derived from the selection's rectangles, so a column that opts out
- * of selection cannot appear here and the answer cannot disagree with the feature's own geometry. For
- * every column that takes part in a range, the marker and the column id are the same string.
- */
-function selectedCellMarkersOfRow(row: {
-    readonly getAllCells: () => readonly {
-        readonly column: { readonly id: string };
-        readonly getIsSelected: () => boolean;
-    }[];
-}): ReadonlySet<string> {
-    const markers = new Set<string>();
-    for (const cell of row.getAllCells()) {
-        if (cell.getIsSelected()) markers.add(cell.column.id);
-    }
-    return markers;
+export function isExactTransactionGridEditorPortal(
+    controller: TransactionGridWorkspaceController,
+    element: Element,
+    editor: TransactionGridEditorProjection | null
+): boolean {
+    return editor != null && controller.isRegisteredEditorPortalTarget(editor.address, element);
 }
 
 /**
@@ -246,12 +227,19 @@ function TransactionTableHeader({
 }: TransactionTableHeaderProps) {
     return (
         <div
-            className="bg-muted sticky top-0 z-10 grid min-w-fit items-center gap-4 border-b px-4 py-2 text-sm font-medium"
+            className="bg-muted border-border/60 sticky top-0 z-10 grid min-w-fit items-stretch gap-0 border-t border-l p-0 text-sm font-medium"
             style={{ gridTemplateColumns }}
             role="row"
+            aria-rowindex={1}
         >
             {/* Checkbox column */}
-            <div data-testid="header-checkbox" role="columnheader" aria-label="Select all">
+            <div
+                data-testid="header-checkbox"
+                className={cn(TRANSACTION_GRID_HEADER_CELL_CHROME, "justify-center p-0")}
+                role="columnheader"
+                aria-label="Select all"
+                aria-colindex={1}
+            >
                 <CheckboxCell
                     checked={isAllSelected}
                     indeterminate={isSomeSelected}
@@ -259,35 +247,73 @@ function TransactionTableHeader({
                     ariaLabel={
                         isAllSelected ? "Deselect all transactions" : "Select all transactions"
                     }
-                    // The header is `py-2` against the data row's `py-3`, so it is 20px shorter.
-                    // Its activation area must be sized for its own row or it reaches past the
-                    // header's bottom edge and into the first transaction's checkbox cell.
+                    // The checkbox target is sized to this 37px header cell and cannot reach the
+                    // first transaction row beneath the contiguous rule.
                     rowGeometry="header"
                 />
             </div>
-            <div role="columnheader">Date</div>
-            <div className="truncate" role="columnheader">
+            <div
+                className={TRANSACTION_GRID_HEADER_CELL_CHROME}
+                role="columnheader"
+                aria-colindex={2}
+            >
+                Date
+            </div>
+            <div
+                className={cn(TRANSACTION_GRID_HEADER_CELL_CHROME, "truncate")}
+                role="columnheader"
+                aria-colindex={3}
+            >
                 Description
             </div>
-            <div className="truncate" role="columnheader">
+            <div
+                className={cn(TRANSACTION_GRID_HEADER_CELL_CHROME, "truncate")}
+                role="columnheader"
+                aria-colindex={4}
+            >
                 Account
             </div>
-            <div role="columnheader">Tags</div>
-            <div role="columnheader">Status</div>
-            {allocationColumns.map((column) => (
+            <div
+                className={TRANSACTION_GRID_HEADER_CELL_CHROME}
+                role="columnheader"
+                aria-colindex={5}
+            >
+                Tags
+            </div>
+            <div
+                className={TRANSACTION_GRID_HEADER_CELL_CHROME}
+                role="columnheader"
+                aria-colindex={6}
+            >
+                Status
+            </div>
+            {allocationColumns.map((column, index) => (
                 <div
                     key={column.personId}
-                    className="truncate text-right"
+                    className={cn(
+                        TRANSACTION_GRID_HEADER_CELL_CHROME,
+                        "justify-end truncate text-right"
+                    )}
                     title={`${column.label} allocation percentage`}
                     role="columnheader"
+                    aria-colindex={index + 7}
                 >
                     {column.label} %
                 </div>
             ))}
-            <div className="text-right" role="columnheader">
+            <div
+                className={cn(TRANSACTION_GRID_HEADER_CELL_CHROME, "justify-end text-right")}
+                role="columnheader"
+                aria-colindex={allocationColumns.length + 7}
+            >
                 Amount
             </div>
-            <div role="columnheader" aria-label="Actions" />
+            <div
+                className={TRANSACTION_GRID_HEADER_CELL_CHROME}
+                role="columnheader"
+                aria-label="Actions"
+                aria-colindex={allocationColumns.length + 8}
+            />
         </div>
     );
 }
@@ -311,6 +337,7 @@ function EmptyState() {
  * Transaction Table component with virtualization over the whole matching set.
  */
 export function TransactionTable({
+    controller,
     rowWindow,
     matchingRowCount,
     onVisibleRowRangeChange,
@@ -327,22 +354,19 @@ export function TransactionTable({
     availableStatuses = [],
     availableTags = [],
     onCreateTag,
+    onTransactionTagsCommit,
     availableAliases = [],
     onDescriptionCommitText,
     onDescriptionSelectAlias,
-    focusDescriptionTransactionId = null,
-    onFocusDescriptionApplied,
     onTransactionClick,
     onTransactionFocus,
-    onTransactionFieldFocus,
+    onInspectorOpenRequest,
     onTransactionBlur,
     onTransactionUpdate,
     allocationColumns = NO_ALLOCATION_COLUMNS,
     onTransactionAllocationUpdate,
     onTransactionDelete,
     onResolveDuplicate,
-    renderDescriptionRobot,
-    renderRuleProposal,
     className
 }: TransactionTableProps) {
     // The scroll container, held as state rather than only as a ref. `TransactionVirtualRows` needs
@@ -350,11 +374,51 @@ export function TransactionTable({
     // its `scrollElement` prop. A `useState`-backed callback ref costs one extra render on mount and
     // gets the virtualizer a real viewport to measure.
     const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
-    const [focusedId, setFocusedId] = useState<string | null>(null);
-    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-
-    // Grid cell navigation for arrow up/down between cells
-    const { handleGridKeyDown } = useGridCellNavigation();
+    const controllerSnapshot = useTransactionGridControllerSnapshot(controller);
+    const handleScrollElementChange = useCallback(
+        (element: HTMLDivElement | null) => {
+            setScrollElement(element);
+            controller.registerScrollElement(element);
+        },
+        [controller]
+    );
+    const handleAfterGridElementChange = useCallback(
+        (element: HTMLButtonElement | null) => controller.registerAfterGridElement(element),
+        [controller]
+    );
+    const handleAfterGridKeyDown = useCallback(
+        (event: React.KeyboardEvent<HTMLButtonElement>) => {
+            if (
+                event.key !== "ArrowDown" &&
+                event.key !== "ArrowLeft" &&
+                event.key !== "ArrowRight" &&
+                event.key !== "ArrowUp"
+            ) {
+                return;
+            }
+            const parkedActiveAddress = controller.getSnapshot().parkedActiveAddress;
+            if (parkedActiveAddress == null) return;
+            const intent = transactionGridKeyIntent(
+                { cell: NONEDITABLE_TRANSACTION_GRID_KEY_CELL, mode: "parked" },
+                {
+                    altKey: event.altKey,
+                    ctrlKey: event.ctrlKey,
+                    isComposing: event.nativeEvent.isComposing,
+                    key: event.key,
+                    keyCode: event.keyCode,
+                    metaKey: event.metaKey,
+                    shiftKey: event.shiftKey
+                }
+            );
+            if (intent.kind === "native") return;
+            // Arrow movement does not consult the viewport-row count; that input is for page targets.
+            const result = controller.dispatchCellIntent(parkedActiveAddress, intent, 0);
+            if (!result.ok || result.value.kind !== "handled") return;
+            event.preventDefault();
+            event.stopPropagation();
+        },
+        [controller]
+    );
 
     // v9 requires a reference-stable `columns` array, and the people are the only thing that changes
     // it — exactly the memoisation boundary `buildAllocationColumnModel` already has upstream.
@@ -369,27 +433,8 @@ export function TransactionTable({
     const tableOptions = useMemo(
         () => ({
             ...TRANSACTION_CELL_SELECTION_OPTIONS,
+            atoms: { cellSelection: controller.cellSelectionAtom },
             columns,
-            // Cell ranges are keyboard-only here, because mousedown in a rangeable cell is already
-            // claimed by a control — a drag-to-select range would fight the gesture it shares.
-            //
-            // Stated accurately, because the shorter version of this claim ("every cell is a live
-            // input, so mousedown places a caret") is overstated and was corrected: of the eight
-            // rangeable columns only date, description and amount are text inputs where mousedown
-            // places a caret. Account is a combobox, tags and allocation are buttons, and status is
-            // a Radix `SelectTrigger` — there mousedown opens a popover instead. Either way the
-            // gesture belongs to the control, which is why the conclusion holds for all of them;
-            // it just does not hold for the reason originally given.
-            //
-            // Drag and disjoint Ctrl/Cmd ranges are **not wired in this port**, which is a different
-            // statement from "omitted" and the accurate one: multi-cell selection is entirely new
-            // here. At the pre-port commit `git grep -iE 'cellSelection|selectedCells|anchorCell|
-            // onMouseDown'` across `src` returns nothing, so there was no cell-range behaviour to
-            // preserve and nothing regressed. The honest residue is that the capability's APIs *are*
-            // installed — `selectAllCells`, `getSelectionStartHandler` and `getSelectionExtendHandler`
-            // all exist on the table — and are deliberately left unbound, so the feature is partly
-            // wired rather than absent.
-            enableCellSelectionDrag: false,
             data: rowWindow.rows,
             features: transactionTableFeatures,
             getRowId: transactionTableRowId,
@@ -397,7 +442,14 @@ export function TransactionTable({
             onRowSelectionBaselineChange: onRowSelectionChange,
             state: { rowSelectionBaseline: rowSelection }
         }),
-        [columns, matchingRowCount, onRowSelectionChange, rowSelection, rowWindow]
+        [
+            controller.cellSelectionAtom,
+            columns,
+            matchingRowCount,
+            onRowSelectionChange,
+            rowSelection,
+            rowWindow
+        ]
     );
 
     // The default, unnarrowed subscription, deliberately. A narrowed selector stops `useTable` from
@@ -428,12 +480,14 @@ export function TransactionTable({
             ),
         [rowWindow]
     );
+    const visibleColumnCount = table.getVisibleLeafColumns().length;
+    const ariaRowCount = matchingRowCount + 1;
 
     /**
      * The columns whose cells can be part of a range, read off the table rather than re-listed.
      *
-     * The checkbox and actions columns opt out in their own column defs, so asking the table keeps
-     * this from drifting away from them.
+     * Checkbox and actions now participate as stable activation-cell identities; hidden or removed
+     * columns remain absent because this derives from the table's visible leaves.
      */
     const rangeableColumnIds = useMemo(
         () =>
@@ -453,8 +507,8 @@ export function TransactionTable({
      * the single-cell state real without competing with anything the user already does. `field` is
      * the cell's stable `data-cell` marker, which for every rangeable column *is* the column id.
      *
-     * Focus landing anywhere else in the row — the checkbox, an action button, the notes row, or the
-     * row's own chrome — drops the selection rather than leaving a stale anchor behind. A stale anchor
+     * Focus landing anywhere else in the row — a legacy activation descendant or the row's own
+     * chrome — drops the selection rather than leaving a stale anchor behind. A stale anchor
      * is worse than none: the next Shift+arrow would extend a range from a cell the caret is not in.
      *
      * `TransactionRow` calls this only for a focus target inside the row's own DOM, which is what keeps
@@ -466,61 +520,32 @@ export function TransactionTable({
      */
     const applyFocusedCell = useCallback(
         (transactionId: string, marker: string | null) => {
-            if (marker != null && rangeableColumnIds.has(marker)) {
-                table.setFocusedCell(transactionId, marker);
-                return;
-            }
-            table.resetCellSelection(true);
+            controller.setFocusedCell(
+                transactionId,
+                marker != null && rangeableColumnIds.has(marker) ? marker : null
+            );
         },
-        [rangeableColumnIds, table]
+        [controller, rangeableColumnIds]
     );
 
     /**
-     * The grid's own keyboard gestures, ahead of cell-to-cell focus navigation.
-     *
-     * Two claims, both narrow:
-     *
-     * - **Shift+arrow** extends the cell range, but only once the caret has run out of room in that
-     *   direction — inside a text control with text left to select, the control keeps the key. That
-     *   is the same boundary convention plain arrows already follow.
-     * - **Ctrl/Cmd+C** copies the range, but only when it spans more than one cell and no text is
-     *   selected anywhere. See `copy-intent.ts`.
-     *
-     * A plain arrow is deliberately *not* routed to `moveCellSelection`. Focus navigation already
-     * moves the caret and `applyFocusedCell` re-anchors on arrival, so one keystroke would otherwise
-     * have two owners that can disagree: `useGridCellNavigation` sends Down from a description into
-     * that row's expanded notes, while `moveCellSelection("down")` goes to the next row — leaving the
-     * range pointing at a cell the caret is not in.
+     * The table owns only the browser clipboard effect. Cell navigation, extension, and Escape are
+     * canonical controller commands at the gridcell boundary; handling them here would create a
+     * second selection owner after editor and popup events bubble.
      */
     const handleKeyDown = useCallback(
         (event: React.KeyboardEvent<HTMLDivElement>) => {
-            // The control is read off the event's **target**, not `document.activeElement`. By the
-            // time a keystroke bubbles up here a cell's own handler may already have moved focus —
-            // Escape in a description cell reverts its value and blurs — and reading the live focus
-            // would then see `document.body`, conclude "not a text control", and clear the whole
-            // selection on a keystroke the cell had already consumed. The target is where the key was
-            // delivered, which is the control that owned it.
+            if (event.defaultPrevented) return;
             const control = event.target instanceof Element ? event.target : null;
-            const intent = transactionCellKeyIntent(event, readFocusedControlBoundary(control));
-            const claimed = intent.kind === "move" ? ({ kind: "ignore" } as const) : intent;
-            if (applyTransactionCellKeyIntent(table, claimed, () => setFocusedId(null))) {
-                event.preventDefault();
-                return;
-            }
-
             const payload = transactionCopyOnKeyDown(table, event, {
                 activeElement: control,
                 selection: window.getSelection()
             });
-            if (payload != null) {
-                event.preventDefault();
-                void navigator.clipboard.writeText(payload.text);
-                return;
-            }
-
-            handleGridKeyDown(event);
+            if (payload == null) return;
+            event.preventDefault();
+            void navigator.clipboard.writeText(payload.text);
         },
-        [handleGridKeyDown, table]
+        [table]
     );
 
     /**
@@ -548,33 +573,77 @@ export function TransactionTable({
      */
     const handleGridBlur = useCallback(
         (event: React.FocusEvent<HTMLDivElement>) => {
+            const grid = event.currentTarget;
             const next = event.relatedTarget;
-            if (next instanceof Node && event.currentTarget.contains(next)) return;
-            onTransactionBlur?.();
+            if (next instanceof Node && grid.contains(next)) return;
+            if (controller.isRegisteredInspectorOwnedTarget(next)) return;
+            if (
+                next instanceof Element &&
+                isExactTransactionGridEditorPortal(
+                    controller,
+                    next,
+                    controller.getSnapshot().editor
+                )
+            ) {
+                return;
+            }
+            // An active editor's blur validation owns the first microtask even when relatedTarget
+            // already names a real external control. Parking it synchronously would unmount an invalid
+            // editor before its queued refocus can restore authority. Exact editor popups retain that
+            // validation ownership while interacting. Other lifecycles still park now: pending focus
+            // redirection relies on synchronous retirement to stay a stale request rather than publishing
+            // a focus-failed result before this handler's reconciliation microtask.
+            const state = controller.getInteractionState();
+            const editorOwnsValidation =
+                state.kind === "editing" ||
+                (state.kind === "interacting" && state.owner === "grid-editor");
+            if (next == null) controller.retireDelayedFocus();
+            else if (!editorOwnsValidation) controller.parkExternalFocus();
+            queueMicrotask(() => {
+                queueMicrotask(() => {
+                    const active = grid.ownerDocument.activeElement;
+                    if (active instanceof Node && grid.contains(active)) return;
+                    if (controller.isRegisteredInspectorOwnedTarget(active)) return;
+                    if (
+                        active instanceof Element &&
+                        isExactTransactionGridEditorPortal(
+                            controller,
+                            active,
+                            controller.getSnapshot().editor
+                        )
+                    ) {
+                        return;
+                    }
+                    controller.parkExternalFocus();
+                    onTransactionBlur?.();
+                });
+            });
         },
-        [onTransactionBlur]
+        [controller, onTransactionBlur]
     );
 
-    const focusedIndex = focusedId == null ? undefined : rowIndexById.get(focusedId);
-    const focusDescriptionIndex =
-        focusDescriptionTransactionId == null
-            ? undefined
-            : rowIndexById.get(focusDescriptionTransactionId);
-    // Both the row that currently holds focus and the row that has been asked to take focus must
-    // stay mounted regardless of scroll position: unmounting the former loses the caret, and
-    // unmounting the latter means the focus request never lands at all.
+    const controllerPinnedIndexes = useMemo(
+        () =>
+            controllerSnapshot.pins.flatMap((pin) => {
+                const index = rowIndexById.get(pin.transactionId);
+                return index == null ? [] : [index];
+            }),
+        [controllerSnapshot.pins, rowIndexById]
+    );
+    // Active-origin and pending-target rows stay mounted regardless of scroll position: unmounting
+    // the former loses the caret, while unmounting the latter prevents registration and fulfillment.
     const extractVirtualRange = useCallback(
         (range: Range) => {
             const visibleIndexes = defaultRangeExtractor(range);
-            const pinnedIndexes = [focusedIndex, focusDescriptionIndex].filter(
-                (index): index is number => index != null && !visibleIndexes.includes(index)
+            const pinnedIndexes = controllerPinnedIndexes.filter(
+                (index) => !visibleIndexes.includes(index)
             );
             if (pinnedIndexes.length === 0) return visibleIndexes;
             return [...new Set([...visibleIndexes, ...pinnedIndexes])].sort(
                 (left, right) => left - right
             );
         },
-        [focusDescriptionIndex, focusedIndex]
+        [controllerPinnedIndexes]
     );
 
     // Keyboard shortcuts for duplicate resolution and deletion
@@ -608,6 +677,7 @@ export function TransactionTable({
             // page sees and costs a `contains` rather than a walk over the loaded rows.
             const target = event.target;
             if (!(target instanceof Node) || !scrollElement?.contains(target)) return;
+            if (target instanceof Element && target.matches('[role="gridcell"]')) return;
 
             // Don't handle if user is typing in an input
             if (
@@ -618,11 +688,13 @@ export function TransactionTable({
                 return;
             }
 
-            // Exactly one selected row, resolved from the selection itself and the matching order
-            // rather than from the rows the grid happens to hold. The count was always over the
-            // whole matching set while the lookup was over the loaded rows, so a selected row
-            // scrolled out of the window simply stopped resolving and the keystroke did nothing.
-            const targetId = focusedId ?? resolveSingleSelectedRowId();
+            // Actual DOM focus on legacy row chrome wins, without making that row canonical cell
+            // authority. Otherwise use the canonical active cell, then exactly one selected row
+            // resolved from the matching order rather than only the rows the grid currently holds.
+            const targetId =
+                controllerSnapshot.focusRetentionTransactionId ??
+                controllerSnapshot.activeTransactionId ??
+                resolveSingleSelectedRowId();
             if (targetId == null) return;
 
             const transaction = table
@@ -664,7 +736,8 @@ export function TransactionTable({
         document.addEventListener("keydown", handleRowShortcutKeyDown);
         return () => document.removeEventListener("keydown", handleRowShortcutKeyDown);
     }, [
-        focusedId,
+        controllerSnapshot.activeTransactionId,
+        controllerSnapshot.focusRetentionTransactionId,
         matchingRowCount,
         onResolveDuplicate,
         onTransactionDelete,
@@ -691,19 +764,6 @@ export function TransactionTable({
         [table]
     );
 
-    // Handle expand/collapse for notes
-    const handleToggleExpand = useCallback((id: string) => {
-        setExpandedIds((prev) => {
-            const next = new Set(prev);
-            if (next.has(id)) {
-                next.delete(id);
-            } else {
-                next.add(id);
-            }
-            return next;
-        });
-    }, []);
-
     // Handle shift-click on checkbox for range selection. The order is the cursor's, so the range
     // covers rows that are neither rendered nor paged in.
     const handleCheckboxShiftClick = useCallback(
@@ -717,42 +777,7 @@ export function TransactionTable({
         table.toggleAllMatchingRowsSelected();
     }, [table]);
 
-    /**
-     * A collapsed row's height, which is what the virtualizer estimates every unmeasured row at.
-     *
-     * 57px is measured in the running app and recorded in `cells/cell-hit-area.ts`: the row is
-     * `px-4 py-3` with a `border-b`, and that file's geometry table reads `row | 219, 57`. This was
-     * 44 — 23% short of a row that had already been measured and written down elsewhere in the same
-     * component tree — which made the scrollable extent 23% short of the content it represents, and
-     * gave every first measurement a non-zero delta to correct.
-     *
-     * Dynamic measurement still corrects it, and still has to: an expanded notes row is 75px or
-     * 103px, and one constant cannot be right for all three. The estimate only has to be right for
-     * the common row, which is the collapsed one.
-     *
-     * ## Why this is a constant and not `estimateSize: (index) => …`
-     *
-     * TanStack Virtual passes the index, so the estimate *could* return 75 or 103 for a row whose
-     * notes are expanded — `expandedIds` is right here in this component. It deliberately does not,
-     * and the reason is worth stating because the omission looks like an oversight:
-     *
-     * - Three real heights exist (57 collapsed, 75 and 103 expanded), so index-awareness would be
-     *   right for the expanded rows and would leave the collapsed ones exactly as they are. The
-     *   collapsed row is the overwhelming majority, and it is the one this constant now matches.
-     * - The estimate governs only the guess for rows that have **not been measured yet**. Expansion
-     *   is a gesture the user makes on a row that is on screen, and an on-screen row is measured —
-     *   so the rows whose height index-awareness would fix are precisely the rows whose real height
-     *   the virtualizer already knows.
-     * - It was proposed as a fix for the trailing-gap defect and investigated at length. The
-     *   per-row geometry from the browser diagnostic ruled it out: `translateY` deltas equalled
-     *   `offsetHeight` exactly on the 75px and 103px rows, so the measurements those rows were
-     *   positioned from were already correct.
-     *
-     * If a future measurement shows the pre-measurement guess for expanded rows mattering, adding
-     * it is a small change. It should arrive with that measurement rather than on the argument
-     * above being reversed.
-     */
-    const ROW_HEIGHT = 57;
+    // The DOM and virtualizer share one fixed 57px data-row contract.
     const OVERSCAN = 5;
 
     // Wrapped so the leaf's contract stays unconditional. The leaf is outside the compiled tree, so
@@ -782,6 +807,23 @@ export function TransactionTable({
         [displayIndexByRowIndex, rowWindow]
     );
 
+    const handleDescriptionInputElementChange = useCallback(
+        (transactionId: TransactionId, element: HTMLInputElement | null) => {
+            const address = { columnId: "description", transactionId } as const;
+            if (element == null) {
+                controller.registerEditor(address, null);
+                return;
+            }
+            return controller.registerEditor(address, element);
+        },
+        [controller]
+    );
+    const handleRowElementChange = useCallback(
+        (transactionId: string, element: HTMLElement | null) =>
+            controller.registerRow(asTransactionId(transactionId), element),
+        [controller]
+    );
+
     /**
      * Renders one transaction row for the virtualizer, addressed by absolute matching-order index.
      *
@@ -790,65 +832,74 @@ export function TransactionTable({
      * would lose its memoization. Building the row up here keeps it in the compiled tree.
      */
     const renderRow = useCallback(
-        (index: number) => {
+        (index: number, isIdleEntryRow: boolean, viewportRowDistance: number) => {
             const displayIndex = displayIndexByRowIndex.get(index);
             const row = displayIndex == null ? undefined : rows[displayIndex];
             if (row == null || displayIndex == null) return null;
             const transaction = row.original;
+            const transactionId = asTransactionId(transaction.id);
+            const ariaRowIndex = index + 2;
+            const parkedActiveAddress = controllerSnapshot.parkedActiveAddress;
+            const gridCellSurface = {
+                cells: row.getAllCells(),
+                controller,
+                editor: controllerSnapshot.editor,
+                initialTabStopColumnId: isIdleEntryRow ? "checkbox" : null,
+                interactionKind: controllerSnapshot.interactionKind,
+                selectionVisibility: controllerSnapshot.selectionVisibility,
+                parkedTabStopColumnId:
+                    parkedActiveAddress?.transactionId === transaction.id
+                        ? parkedActiveAddress.columnId
+                        : null,
+                viewportRowDistance
+            } satisfies TransactionGridRowSurface;
             const rowElement = (selectedCellMarkers: ReadonlySet<string>) => (
                 <TransactionRow
                     selectedCellMarkers={selectedCellMarkers}
+                    gridCellSurface={gridCellSurface}
                     transaction={transaction}
+                    ariaRowIndex={ariaRowIndex}
                     presence={presenceByTransactionId[transaction.id]}
                     resolveMemberName={resolveMemberName}
                     isSelected={row.getIsSelected()}
-                    isExpanded={expandedIds.has(transaction.id)}
-                    focusDescriptionRequested={focusDescriptionTransactionId === transaction.id}
-                    onFocusDescriptionApplied={onFocusDescriptionApplied}
+                    suppressDescriptionFocusPresence={
+                        controllerSnapshot.pending?.kind === "edit" &&
+                        controllerSnapshot.pending.state.target.transactionId === transaction.id &&
+                        controllerSnapshot.pending.state.target.columnId === "description"
+                    }
+                    onDescriptionInputElementChange={handleDescriptionInputElementChange}
+                    onRowElementChange={handleRowElementChange}
                     availableAccounts={availableAccounts}
                     availableStatuses={availableStatuses}
                     availableTags={availableTags}
                     allocationColumns={allocationColumns}
                     gridTemplateColumns={gridTemplateColumns}
                     onCreateTag={onCreateTag}
+                    onTagsCommit={
+                        onTransactionTagsCommit == null
+                            ? undefined
+                            : (tagIds, createdTags) =>
+                                  onTransactionTagsCommit(transactionId, tagIds, createdTags)
+                    }
                     availableAliases={availableAliases}
                     onDescriptionCommitText={
                         onDescriptionCommitText
-                            ? (text, origin) =>
-                                  onDescriptionCommitText(transaction.id, text, origin)
+                            ? (text, origin) => onDescriptionCommitText(transactionId, text, origin)
                             : undefined
                     }
                     onDescriptionSelectAlias={
                         onDescriptionSelectAlias
                             ? (aliasId, origin) =>
-                                  onDescriptionSelectAlias(transaction.id, aliasId, origin)
-                            : undefined
-                    }
-                    renderDescriptionRobot={
-                        renderDescriptionRobot
-                            ? (ctx) => renderDescriptionRobot(transaction.id, ctx)
-                            : undefined
-                    }
-                    renderRuleProposal={
-                        renderRuleProposal
-                            ? (field, ctx, cell, anchorClassName, style) =>
-                                  renderRuleProposal(
-                                      transaction.id,
-                                      field,
-                                      ctx,
-                                      cell,
-                                      anchorClassName,
-                                      style
-                                  )
+                                  onDescriptionSelectAlias(transactionId, aliasId, origin)
                             : undefined
                     }
                     onClick={() => handleRowClick(transaction.id)}
-                    onFocus={() => {
-                        setFocusedId(transaction.id);
-                        onTransactionFocus?.(transaction.id);
-                    }}
-                    onFieldFocus={(field) => onTransactionFieldFocus?.(transaction.id, field)}
+                    onFocus={() => onTransactionFocus?.(transaction.id)}
                     onCellFocus={(marker) => applyFocusedCell(transaction.id, marker)}
+                    onInspectorOpenRequest={onInspectorOpenRequest}
+                    onActivationDescendantFocus={() =>
+                        controller.setFocusedActivation(transaction.id)
+                    }
                     onFieldUpdate={
                         onTransactionUpdate
                             ? (field, value) =>
@@ -871,7 +922,6 @@ export function TransactionTable({
                     }
                     onCheckboxChange={() => handleCheckboxChange(transaction.id)}
                     onCheckboxShiftClick={() => handleCheckboxShiftClick(transaction.id)}
-                    onToggleExpand={() => handleToggleExpand(transaction.id)}
                 />
             );
 
@@ -884,7 +934,14 @@ export function TransactionTable({
                     source={table.atoms.cellSelection}
                     selector={() => transactionCellSelectionRowKey(table, displayIndex)}
                 >
-                    {() => rowElement(selectedCellMarkersOfRow(row))}
+                    {(selectionRowKey) =>
+                        rowElement(
+                            transactionSelectedCellMarkersFromRowKey(
+                                selectionRowKey,
+                                gridCellSurface.cells.map((cell) => cell.column.id)
+                            )
+                        )
+                    }
                 </table.Subscribe>
             );
         },
@@ -895,27 +952,30 @@ export function TransactionTable({
             availableAliases,
             availableStatuses,
             availableTags,
+            controller,
+            controllerSnapshot.editor,
+            controllerSnapshot.interactionKind,
+            controllerSnapshot.parkedActiveAddress,
+            controllerSnapshot.pending,
+            controllerSnapshot.selectionVisibility,
             displayIndexByRowIndex,
-            expandedIds,
-            focusDescriptionTransactionId,
             gridTemplateColumns,
             handleCheckboxChange,
             handleCheckboxShiftClick,
+            handleDescriptionInputElementChange,
+            handleRowElementChange,
             handleRowClick,
-            handleToggleExpand,
             onCreateTag,
             onDescriptionCommitText,
             onDescriptionSelectAlias,
-            onFocusDescriptionApplied,
+            onInspectorOpenRequest,
             onResolveDuplicate,
             onTransactionAllocationUpdate,
             onTransactionDelete,
-            onTransactionFieldFocus,
             onTransactionFocus,
+            onTransactionTagsCommit,
             onTransactionUpdate,
             presenceByTransactionId,
-            renderDescriptionRobot,
-            renderRuleProposal,
             resolveMemberName,
             rows,
             table
@@ -924,44 +984,60 @@ export function TransactionTable({
 
     // After every hook, so a filter that matches nothing still reconciles the selections above.
     // Keyed on the matching count rather than on the rows the grid holds: those are a window, and an
-    // empty window over a non-empty result set is a scroll position, not an empty grid.
-    if (matchingRowCount === 0) {
-        return <EmptyState />;
-    }
-
+    // empty window over a non-empty result set is a scroll position, not an empty grid. The explicit
+    // after-grid fallback remains mounted in both branches so empty reconciliation can move focus
+    // somewhere deterministic rather than leaving it on a removed row or document.body.
     return (
         <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", className)}>
-            <div ref={setScrollElement} className="flex min-h-0 flex-1 flex-col overflow-auto">
+            {matchingRowCount === 0 ? (
+                <EmptyState />
+            ) : (
                 <div
-                    className="relative min-w-fit flex-1"
-                    role="grid"
-                    aria-label="Transactions"
-                    data-testid="transaction-table"
-                    onKeyDown={handleKeyDown}
-                    onBlur={handleGridBlur}
+                    ref={handleScrollElementChange}
+                    className="flex min-h-0 flex-1 scroll-pt-[37px] flex-col overflow-auto"
                 >
-                    <TransactionTableHeader
-                        allocationColumns={allocationColumns}
-                        gridTemplateColumns={gridTemplateColumns}
-                        isAllSelected={headerState === "all"}
-                        isSomeSelected={headerState === "some"}
-                        onSelectAll={handleSelectAll}
-                    />
+                    <div
+                        className="relative min-w-fit flex-1"
+                        role="grid"
+                        aria-label="Transactions"
+                        aria-rowcount={ariaRowCount}
+                        aria-colcount={visibleColumnCount}
+                        data-testid="transaction-table"
+                        onKeyDown={handleKeyDown}
+                        onBlur={handleGridBlur}
+                    >
+                        <TransactionTableHeader
+                            allocationColumns={allocationColumns}
+                            gridTemplateColumns={gridTemplateColumns}
+                            isAllSelected={headerState === "all"}
+                            isSomeSelected={headerState === "some"}
+                            onSelectAll={handleSelectAll}
+                        />
 
-                    <TransactionVirtualRows
-                        count={matchingRowCount}
-                        scrollElement={scrollElement}
-                        estimatedRowHeight={ROW_HEIGHT}
-                        overscan={OVERSCAN}
-                        rangeExtractor={extractVirtualRange}
-                        getRowKey={getRowKey}
-                        onVisibleRangeChange={handleVisibleRangeChange}
-                        scrollToRowIndex={scrollToRowIndex}
-                        onScrollToRowIndexApplied={handleScrollToRowIndexApplied}
-                        renderRow={renderRow}
-                    />
+                        <TransactionVirtualRows
+                            count={matchingRowCount}
+                            scrollElement={scrollElement}
+                            estimatedRowHeight={TRANSACTION_MAIN_ROW_HEIGHT_PX}
+                            overscan={OVERSCAN}
+                            rangeExtractor={extractVirtualRange}
+                            getRowKey={getRowKey}
+                            onVisibleRangeChange={handleVisibleRangeChange}
+                            scrollToRowIndex={scrollToRowIndex}
+                            onScrollToRowIndexApplied={handleScrollToRowIndexApplied}
+                            renderRow={renderRow}
+                        />
+                    </div>
                 </div>
-            </div>
+            )}
+            <button
+                ref={handleAfterGridElementChange}
+                type="button"
+                tabIndex={-1}
+                className="sr-only"
+                onKeyDown={handleAfterGridKeyDown}
+            >
+                After transactions
+            </button>
         </div>
     );
 }

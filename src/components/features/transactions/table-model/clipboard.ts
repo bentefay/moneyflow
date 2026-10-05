@@ -122,9 +122,13 @@ export function transactionSelectionAsClipboardPayload(
                 const column = columns[columnIndex];
                 if (column == null) continue;
                 const cell = cellsByColumnId[column.id];
-                // A cell the user cannot select is a cell they cannot have meant to copy. Asking
-                // the cell rather than the column def also honours a per-cell enable predicate.
                 if (cell == null || !cell.getCanSelect()) continue;
+                // Activation cells keep their coordinate in the rectangle so every copied row has
+                // the same shape, but contribute neither private control state nor a copied cell id.
+                if (column.columnDef.meta?.interaction.copyable === false) {
+                    fields.push("");
+                    continue;
+                }
 
                 cellIds.push(asTransactionCellId(cell.id));
                 fields.push(

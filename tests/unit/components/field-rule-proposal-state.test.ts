@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 
 import {
     allocationValueChanged,
+    canonicalTagIds,
     computeFieldRuleProposal,
     formatAmountForRuleLabel,
     hasProposableValue,
@@ -192,6 +193,10 @@ describe("computeFieldRuleProposal — nothing to propose", () => {
 });
 
 describe("tagSetChanged", () => {
+    it("canonicalizes order and duplicate references explicitly", () => {
+        expect(canonicalTagIds(["b", "a", "b", "a"])).toEqual(["a", "b"]);
+    });
+
     // Pins the guard that decides whether a tag commit counts as an edit at all. Without it, the
     // inline cell's re-commits would put creation controls in front of a user who changed nothing.
     it("reports no change when the same tags are re-committed", () => {
@@ -200,6 +205,11 @@ describe("tagSetChanged", () => {
 
     it("ignores order, since the cell does not preserve it", () => {
         expect(tagSetChanged(["b", "a"], ["a", "b"])).toBe(false);
+    });
+
+    it("ignores duplicate multiplicity and order in malformed legacy arrays", () => {
+        expect(tagSetChanged(["b", "a", "b"], ["a", "a", "b"])).toBe(false);
+        expect(tagSetChanged(["a"], ["a", "a"])).toBe(false);
     });
 
     it.each([

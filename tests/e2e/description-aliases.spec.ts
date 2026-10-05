@@ -5,15 +5,21 @@
  * Covers the management page CRUD and sidebar navigation.
  */
 
-import { expect, type Page, test } from "@playwright/test";
+import type { ElementHandle, Locator, Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import {
+    activateTransactionEditor,
     awaitVaultPersistence,
     createNewIdentity,
+    expectTransactionCellDisplay,
     goToImportNew,
     goToTransactions,
     goToTxDescriptions,
-    reloadPage
+    openTransactionInspector,
+    reloadPage,
+    rowsWithDisplayedDescription,
+    stableTransactionRow
 } from "./helpers";
 import { addEmptyTransaction } from "./helpers/settlement";
 
@@ -60,6 +66,64 @@ async function editAlias(page: Page, aliasName: string, newName: string): Promis
     await saveButton.click();
 }
 
+interface RetainedDescriptionEditor {
+    readonly element: ElementHandle<HTMLElement | SVGElement>;
+    readonly selectionEnd: number;
+    readonly selectionStart: number;
+}
+
+async function pinDescriptionEditor(
+    editor: Locator,
+    selectionStart: number,
+    selectionEnd: number
+): Promise<RetainedDescriptionEditor> {
+    await editor.evaluate(
+        (element, selection) => {
+            if (!(element instanceof HTMLInputElement))
+                throw new Error("Expected description input");
+            element.setSelectionRange(selection.start, selection.end);
+        },
+        { start: selectionStart, end: selectionEnd }
+    );
+    const element = await editor.elementHandle();
+    if (element == null) throw new Error("Expected description input handle");
+    return { element, selectionEnd, selectionStart };
+}
+
+async function expectRetainedDescriptionEditor(
+    row: Locator,
+    retained: RetainedDescriptionEditor,
+    value: string
+): Promise<void> {
+    await expect
+        .poll(() =>
+            retained.element.evaluate((element) => {
+                if (!(element instanceof HTMLInputElement)) {
+                    throw new Error("Expected retained description input");
+                }
+                return {
+                    connected: element.isConnected,
+                    focused: element.ownerDocument.activeElement === element,
+                    selectionEnd: element.selectionEnd,
+                    selectionStart: element.selectionStart,
+                    value: element.value
+                };
+            })
+        )
+        .toEqual({
+            connected: true,
+            focused: true,
+            selectionEnd: retained.selectionEnd,
+            selectionStart: retained.selectionStart,
+            value
+        });
+    const current = await row.getByTestId("description-editable").elementHandle();
+    if (current == null) throw new Error("Expected retained description input");
+    expect(
+        await retained.element.evaluate((element, candidate) => element === candidate, current)
+    ).toBe(true);
+}
+
 async function importDescriptionFixtures(
     page: Page,
     rows: ReadonlyArray<{ readonly date: string; readonly description: string }>
@@ -89,12 +153,6 @@ async function importDescriptionFixtures(
     await expect(importButton).toBeEnabled();
     await importButton.click();
     await expect(page).toHaveURL(/\/transactions/);
-}
-
-function descriptionInputFor(page: Page, accessibleRowName: RegExp) {
-    return page
-        .getByRole("row", { name: accessibleRowName })
-        .getByRole("textbox", { name: "Transaction description" });
 }
 
 // ============================================================================
@@ -205,14 +263,15 @@ test.describe("Description Aliases", () => {
             { date: "2026-07-01", description: "Imported novel" }
         ]);
 
-        const importedDescriptions = page.getByTestId("description-editable");
-        const partial = importedDescriptions.nth(0);
-        const exact = importedDescriptions.nth(1);
-        const novel = importedDescriptions.nth(2);
+        const importedRows = page.getByTestId("transaction-row");
+        const partialRow = await stableTransactionRow(importedRows.nth(0));
+        const exactRow = await stableTransactionRow(importedRows.nth(1));
+        const novelRow = await stableTransactionRow(importedRows.nth(2));
 
         await test.step("one pointer click focuses at the clicked start position", async () => {
+            const partial = await activateTransactionEditor(partialRow, "description");
             const box = await partial.boundingBox();
-            if (!box) throw new Error("Description input has no pointer box");
+            if (box == null) throw new Error("Description input has no pointer box");
             await page.mouse.click(box.x + 2, box.y + box.height / 2);
             await expect(partial).toBeFocused();
             await expect
@@ -220,7 +279,8 @@ test.describe("Description Aliases", () => {
                 .toBe(0);
         });
 
-        await test.step("autocomplete starts unselected and closed arrows resume the grid", async () => {
+        await test.step("autocomplete closes before proposal ownership and continuous movement resume", async () => {
+            const partial = partialRow.getByTestId("description-editable");
             await partial.fill("C");
             const options = page.getByRole("option");
             await expect(options).toHaveCount(2);
@@ -228,14 +288,35 @@ test.describe("Description Aliases", () => {
             await expect(options.nth(1)).toHaveAttribute("aria-selected", "false");
             await partial.press("ArrowDown");
             await expect(options.nth(0)).toHaveAttribute("aria-selected", "true");
-            await partial.press("Escape");
+            const retained = await pinDescriptionEditor(partial, 0, 1);
+            await partial.fill("Cafe");
+            await partial.evaluate((input: HTMLInputElement) => input.setSelectionRange(1, 3));
             await expect(page.getByRole("listbox", { name: "Description aliases" })).toHaveCount(0);
+            await expectRetainedDescriptionEditor(
+                partialRow,
+                { ...retained, selectionEnd: 3, selectionStart: 1 },
+                "Cafe"
+            );
+
             await partial.press("ArrowDown");
-            await expect(exact).toBeFocused();
+            await expectTransactionCellDisplay(partialRow, "description", "Cafe");
+            const inspector = await openTransactionInspector(page);
+            const proposal = inspector.getByTestId("description-rule-proposal");
+            await expect(proposal).toBeVisible();
+            await proposal.getByTestId("proposal-dismiss").click();
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
+
+            const unchanged = await activateTransactionEditor(partialRow, "description");
+            await unchanged.press("ArrowDown");
+            const continuedEditor = exactRow.getByTestId("description-editable");
+            await expect(continuedEditor).toBeFocused();
+            await expectTransactionCellDisplay(partialRow, "description", "Cafe");
+            await continuedEditor.press("Escape");
+            await expectTransactionCellDisplay(exactRow, "description");
         });
 
         await test.step("keyboard accept, exact typed match and novel blur commit seamlessly", async () => {
-            await partial.focus();
+            const partial = await activateTransactionEditor(partialRow, "description");
             await partial.fill("Coffee");
             await expect(page.getByRole("option", { name: "Coffee Shop" })).toHaveAttribute(
                 "aria-selected",
@@ -243,77 +324,108 @@ test.describe("Description Aliases", () => {
             );
             await partial.press("ArrowDown");
             await partial.press("Enter");
-            await expect(partial).toHaveValue("Coffee Shop");
+            await expectTransactionCellDisplay(partialRow, "description", "Coffee Shop");
 
+            const exact = await activateTransactionEditor(exactRow, "description");
             await exact.fill("Coffee Shop ");
             await exact.press("Enter");
-            await expect(exact).toHaveValue("Coffee Shop");
+            await expectTransactionCellDisplay(exactRow, "description", "Coffee Shop");
 
+            const novel = await activateTransactionEditor(novelRow, "description");
             await novel.fill("Fresh novel");
-            await page.getByText("Description", { exact: true }).click();
-            await expect(novel).toHaveValue("Fresh novel");
+            await page.getByRole("columnheader", { name: "Description", exact: true }).click();
+            await expectTransactionCellDisplay(novelRow, "description", "Fresh novel");
             await expect(page.getByRole("dialog")).toHaveCount(0);
 
-            await novel.fill("Fresh renamed");
-            await novel.press("Enter");
-            await expect(novel).toHaveValue("Fresh renamed");
+            const reopenedNovel = await activateTransactionEditor(novelRow, "description");
+            await reopenedNovel.fill("Fresh renamed");
+            await reopenedNovel.press("Enter");
+            await expectTransactionCellDisplay(novelRow, "description", "Fresh renamed");
             await expect(page.getByRole("dialog")).toHaveCount(0);
         });
 
         await test.step("imported provenance is accessible only when it differs", async () => {
+            const partial = await activateTransactionEditor(partialRow, "description");
+            await expect(
+                partialRow.getByRole("textbox", { name: "Transaction description" })
+            ).toBeFocused();
+            await expect(partial).toHaveValue("Coffee Shop");
             await partial.hover();
             await expect(
                 page.locator('[role="tooltip"]').filter({ hasText: "Cafe partial" })
             ).toBeVisible();
-            await expect(partial).toHaveAttribute("data-slot", "tooltip-trigger");
-            await expect(exact).toHaveAttribute("data-slot", "input");
-            await expect(exact).not.toHaveAttribute("data-state");
-        });
+            await partial.press("Escape");
+            await expectTransactionCellDisplay(partialRow, "description", "Coffee Shop");
 
-        await test.step("manual Add and alias edit retain distinct undo boundaries", async () => {
-            const pushedBodies: string[] = [];
-            page.on("request", (request) => {
-                if (request.url().includes("sync.pushOps"))
-                    pushedBodies.push(request.postData() ?? "");
-            });
-            const addedRowId = await addEmptyTransaction(page);
-            const addedRow = page.locator(`[data-transaction-id="${addedRowId}"]`);
-            const addedDescription = addedRow.getByTestId("description-editable");
-            await addedDescription.fill("Manual alias only");
-            await addedDescription.press("Enter");
-            const manual = descriptionInputFor(page, /Manual alias only/);
-            await expect(manual).toBeVisible();
-            await manual.hover();
+            const exact = await activateTransactionEditor(exactRow, "description");
+            await expect(exact).toBeVisible();
             await expect(
-                page.getByRole("tooltip").filter({ hasText: "Manual alias only" })
-            ).toHaveCount(0);
-
-            await page.getByRole("button", { name: "Undo" }).click();
-            await expect(descriptionInputFor(page, /Manual alias only/)).toHaveCount(0);
-            const restoredEmptyRow = page.locator(`[data-transaction-id="${addedRowId}"]`);
-            await expect(restoredEmptyRow).toBeVisible();
-            await expect(restoredEmptyRow.getByTestId("description-editable")).toHaveValue("");
-            await page.getByRole("button", { name: "Undo" }).click();
-            await expect(restoredEmptyRow).toHaveCount(0);
-
-            await page.getByRole("button", { name: "Redo" }).click();
-            await expect(restoredEmptyRow).toBeVisible();
-            await page.getByRole("button", { name: "Redo" }).click();
-            await expect(descriptionInputFor(page, /Manual alias only/)).toBeVisible();
-            await expect.poll(() => pushedBodies.length).toBeGreaterThan(0);
-            expect(pushedBodies.every((body) => !body.includes("Manual alias only"))).toBe(true);
+                exactRow.getByRole("textbox", { name: "Transaction description" })
+            ).toBeFocused();
+            await expect(exact).toHaveValue("Coffee Shop");
+            await expect(exact).toHaveAttribute("aria-expanded", "false");
+            await exact.hover();
+            await expect(
+                page.locator('[role="tooltip"]').filter({ hasText: "Coffee Shop" })
+            ).toHaveCount(0, { timeout: 3_000 });
+            await exact.press("Escape");
+            await expectTransactionCellDisplay(exactRow, "description", "Coffee Shop");
         });
+
+        const manualRow =
+            await test.step("manual Add and alias edit retain distinct undo boundaries", async () => {
+                const pushedBodies: string[] = [];
+                page.on("request", (request) => {
+                    if (request.url().includes("sync.pushOps"))
+                        pushedBodies.push(request.postData() ?? "");
+                });
+                const addedRowId = await addEmptyTransaction(page);
+                const addedRow = page.locator(`[data-transaction-id="${addedRowId}"]`);
+                const addedDescription = addedRow.getByTestId("description-editable");
+                await expect(addedDescription).toBeFocused();
+                await addedDescription.fill("Manual alias only");
+                await addedDescription.press("Enter");
+                await expectTransactionCellDisplay(addedRow, "description", "Manual alias only");
+
+                const manualEditor = await activateTransactionEditor(addedRow, "description");
+                await manualEditor.hover();
+                await expect(
+                    page.getByRole("tooltip").filter({ hasText: "Manual alias only" })
+                ).toHaveCount(0);
+                await manualEditor.press("Escape");
+                await expectTransactionCellDisplay(addedRow, "description", "Manual alias only");
+
+                await page.getByRole("button", { name: "Undo" }).click();
+                await expect(rowsWithDisplayedDescription(page, "Manual alias only")).toHaveCount(
+                    0
+                );
+                const restoredEmptyRow = page.locator(`[data-transaction-id="${addedRowId}"]`);
+                await expect(restoredEmptyRow).toBeVisible();
+                await expectTransactionCellDisplay(restoredEmptyRow, "description");
+                await page.getByRole("button", { name: "Undo" }).click();
+                await expect(restoredEmptyRow).toHaveCount(0);
+
+                await page.getByRole("button", { name: "Redo" }).click();
+                await expect(restoredEmptyRow).toBeVisible();
+                await page.getByRole("button", { name: "Redo" }).click();
+                await expectTransactionCellDisplay(
+                    restoredEmptyRow,
+                    "description",
+                    "Manual alias only"
+                );
+                await expect.poll(() => pushedBodies.length).toBeGreaterThan(0);
+                expect(pushedBodies.every((body) => !body.includes("Manual alias only"))).toBe(
+                    true
+                );
+                return restoredEmptyRow;
+            });
 
         await test.step("imported and manual alias state survives a hard refresh", async () => {
             await reloadPage(page);
-            await expect(descriptionInputFor(page, /Cafe partial/)).toHaveValue("Coffee Shop");
-            await expect(descriptionInputFor(page, /^Select transaction Coffee Shop/)).toHaveValue(
-                "Coffee Shop"
-            );
-            await expect(descriptionInputFor(page, /Imported novel/)).toHaveValue("Fresh renamed");
-            await expect(descriptionInputFor(page, /Manual alias only/)).toHaveValue(
-                "Manual alias only"
-            );
+            await expectTransactionCellDisplay(partialRow, "description", "Coffee Shop");
+            await expectTransactionCellDisplay(exactRow, "description", "Coffee Shop");
+            await expectTransactionCellDisplay(novelRow, "description", "Fresh renamed");
+            await expectTransactionCellDisplay(manualRow, "description", "Manual alias only");
         });
 
         // UR-002. The rows above are a discriminating fixture set: the manual row has an alias and
@@ -328,41 +440,28 @@ test.describe("Description Aliases", () => {
 
             // The reported defect: this row's only findable text is the alias the user can see.
             await searchFor("manual");
-            await expect(descriptionInputFor(page, /Manual alias only/)).toHaveValue(
-                "Manual alias only",
-                { timeout: 15_000 }
-            );
-            await expect(descriptionInputFor(page, /Imported novel/)).toHaveCount(0);
+            await expectTransactionCellDisplay(manualRow, "description", "Manual alias only");
+            await expect(novelRow).toHaveCount(0);
 
             // Case-insensitive both ways, and still substring.
             await searchFor("MANU");
-            await expect(descriptionInputFor(page, /Manual alias only/)).toHaveValue(
-                "Manual alias only",
-                { timeout: 15_000 }
-            );
+            await expectTransactionCellDisplay(manualRow, "description", "Manual alias only");
 
             // Found by its alias, whose text appears nowhere in the stored description.
             await searchFor("fresh");
-            await expect(descriptionInputFor(page, /Imported novel/)).toHaveValue("Fresh renamed", {
-                timeout: 15_000
-            });
-            await expect(descriptionInputFor(page, /Manual alias only/)).toHaveCount(0);
+            await expectTransactionCellDisplay(novelRow, "description", "Fresh renamed");
+            await expect(manualRow).toHaveCount(0);
 
             // The same row by its raw imported text, which the alias must not shadow.
             await searchFor("novel");
-            await expect(descriptionInputFor(page, /Imported novel/)).toHaveValue("Fresh renamed", {
-                timeout: 15_000
-            });
+            await expectTransactionCellDisplay(novelRow, "description", "Fresh renamed");
 
             await searchFor("no-such-description-ur-002");
-            await expect(descriptionInputFor(page, /Manual alias only/)).toHaveCount(0);
-            await expect(descriptionInputFor(page, /Imported novel/)).toHaveCount(0);
+            await expect(manualRow).toHaveCount(0);
+            await expect(novelRow).toHaveCount(0);
 
             await page.getByRole("button", { name: "Clear search" }).click();
-            await expect(descriptionInputFor(page, /Manual alias only/)).toHaveValue(
-                "Manual alias only",
-                { timeout: 15_000 }
-            );
+            await expectTransactionCellDisplay(manualRow, "description", "Manual alias only");
         });
     });
 
@@ -378,17 +477,40 @@ test.describe("Description Aliases", () => {
             { date: "2026-07-01", description: "Original B" }
         ]);
 
-        const descriptions = page.getByTestId("description-editable");
-        const first = descriptions.nth(0);
-        const second = descriptions.nth(1);
-        for (const input of [first, second]) {
+        const importedRows = page.getByTestId("transaction-row");
+        const firstRow = await stableTransactionRow(importedRows.nth(0));
+        const secondRow = await stableTransactionRow(importedRows.nth(1));
+        for (const row of [firstRow, secondRow]) {
+            const input = await activateTransactionEditor(row, "description");
             await input.fill("Shared ");
             await input.press("Enter");
-            await expect(input).toHaveValue("Shared");
+            await expectTransactionCellDisplay(row, "description", "Shared");
         }
 
-        await test.step("pointer target opens one trapped modal and Enter confirms the default", async () => {
+        await test.step("an open alias listbox hands off to the modal without selecting a row", async () => {
+            const first = await activateTransactionEditor(firstRow, "description");
             await first.fill("Tar");
+            await expect(page.getByRole("listbox", { name: "Description aliases" })).toBeVisible();
+            const retained = await pinDescriptionEditor(first, 1, 2);
+            const checkbox = secondRow.locator('[data-cell="checkbox"] button');
+            const checkboxStateBefore = await checkbox.getAttribute("data-state");
+
+            await checkbox.click();
+
+            await expect(page.getByRole("button", { name: "Change just this one" })).toBeFocused();
+            await expect.poll(() => checkbox.getAttribute("data-state")).toBe(checkboxStateBefore);
+            await expect(page.getByTestId("bulk-edit-toolbar")).toHaveCount(0, { timeout: 3_000 });
+            await page.getByRole("button", { name: "Cancel" }).click();
+            await expectRetainedDescriptionEditor(firstRow, retained, "Tar");
+            await first.press("Escape");
+            await expectTransactionCellDisplay(firstRow, "description", "Shared");
+            await expectTransactionCellDisplay(secondRow, "description", "Shared");
+        });
+
+        await test.step("pointer target opens one trapped modal and Enter confirms the default", async () => {
+            const first = await activateTransactionEditor(firstRow, "description");
+            await first.fill("Tar");
+            const retained = await pinDescriptionEditor(first, 1, 2);
             const target = page.getByRole("option", { name: "Target" });
             await target.click();
             const justThis = page.getByRole("button", { name: "Change just this one" });
@@ -399,68 +521,71 @@ test.describe("Description Aliases", () => {
             await page.keyboard.press("Tab");
             await expect(justThis).toBeFocused();
             await page.keyboard.press("Enter");
-            await expect(first).toHaveValue("Target");
-            await expect(second).toHaveValue("Shared");
-            await expect(first).toBeFocused();
+            await expectRetainedDescriptionEditor(firstRow, retained, "Target");
+            await expectTransactionCellDisplay(secondRow, "description", "Shared");
             await page.getByRole("button", { name: "Undo" }).click();
-            await expect(first).toHaveValue("Shared");
-            await expect(second).toHaveValue("Shared");
+            await expectTransactionCellDisplay(firstRow, "description", "Shared");
+            await expectTransactionCellDisplay(secondRow, "description", "Shared");
         });
 
         await test.step("novel blur offers Change all as one undoable action", async () => {
+            const first = await activateTransactionEditor(firstRow, "description");
             await first.fill("Unified");
-            await page.getByText("Description", { exact: true }).click();
+            const retained = await pinDescriptionEditor(first, 1, 4);
+            await page.getByRole("columnheader", { name: "Description", exact: true }).click();
             await expect(page.getByRole("button", { name: "Change just this one" })).toBeFocused();
             await page.getByRole("button", { name: "Change all" }).click();
-            await expect(first).toHaveValue("Unified");
-            await expect(second).toHaveValue("Unified");
+            await expectRetainedDescriptionEditor(firstRow, retained, "Unified");
+            await expectTransactionCellDisplay(secondRow, "description", "Unified");
             await page.getByRole("button", { name: "Undo" }).click();
-            await expect(first).toHaveValue("Shared");
-            await expect(second).toHaveValue("Shared");
+            await expectTransactionCellDisplay(firstRow, "description", "Shared");
+            await expectTransactionCellDisplay(secondRow, "description", "Shared");
         });
 
-        await test.step("remove cancellation writes nothing and restores exact caret", async () => {
+        await test.step("remove cancellation writes nothing and restores canonical cell focus", async () => {
+            const first = await activateTransactionEditor(firstRow, "description");
             await first.fill("");
+            const retained = await pinDescriptionEditor(first, 0, 0);
             await first.press("Enter");
             await expect(
                 page.getByRole("button", { name: "Remove from just this one" })
             ).toBeFocused();
             await page.getByRole("button", { name: "Cancel" }).click();
-            await expect(first).toBeFocused();
-            await expect(first).toHaveValue("Shared");
-            await expect
-                .poll(() => first.evaluate((input: HTMLInputElement) => input.selectionStart))
-                .toBe(0);
-            await expect(second).toHaveValue("Shared");
+            await expectRetainedDescriptionEditor(firstRow, retained, "");
+            await expectTransactionCellDisplay(secondRow, "description", "Shared");
         });
 
         await test.step("Remove from just this one is one complete undo step", async () => {
+            const first = await activateTransactionEditor(firstRow, "description");
             await first.fill("");
+            const retained = await pinDescriptionEditor(first, 0, 0);
             await first.press("Enter");
             await page.getByRole("button", { name: "Remove from just this one" }).click();
-            await expect(first).toHaveValue("Original A");
-            await expect(second).toHaveValue("Shared");
+            await expectRetainedDescriptionEditor(firstRow, retained, "Original A");
+            await expectTransactionCellDisplay(secondRow, "description", "Shared");
             await page.getByRole("button", { name: "Undo" }).click();
-            await expect(first).toHaveValue("Shared");
-            await expect(second).toHaveValue("Shared");
+            await expectTransactionCellDisplay(firstRow, "description", "Shared");
+            await expectTransactionCellDisplay(secondRow, "description", "Shared");
         });
 
         await test.step("Remove from all is one complete undo step", async () => {
+            const first = await activateTransactionEditor(firstRow, "description");
             await first.fill("");
+            const retained = await pinDescriptionEditor(first, 0, 0);
             await first.press("Enter");
             await page.getByRole("button", { name: "Remove from all" }).click();
-            await expect(first).toHaveValue("Original A");
-            await expect(second).toHaveValue("Original B");
+            await expectRetainedDescriptionEditor(firstRow, retained, "Original A");
+            await expectTransactionCellDisplay(secondRow, "description", "Original B");
             await page.getByRole("button", { name: "Undo" }).click();
-            await expect(first).toHaveValue("Shared");
-            await expect(second).toHaveValue("Shared");
+            await expectTransactionCellDisplay(firstRow, "description", "Shared");
+            await expectTransactionCellDisplay(secondRow, "description", "Shared");
             await page.getByRole("button", { name: "Redo" }).click();
-            await expect(first).toHaveValue("Original A");
-            await expect(second).toHaveValue("Original B");
+            await expectTransactionCellDisplay(firstRow, "description", "Original A");
+            await expectTransactionCellDisplay(secondRow, "description", "Original B");
             await page.getByRole("button", { name: "Undo" }).click();
             await reloadPage(page);
-            await expect(descriptions.nth(0)).toHaveValue("Shared");
-            await expect(descriptions.nth(1)).toHaveValue("Shared");
+            await expectTransactionCellDisplay(firstRow, "description", "Shared");
+            await expectTransactionCellDisplay(secondRow, "description", "Shared");
         });
     });
 
@@ -478,11 +603,14 @@ test.describe("Description Aliases", () => {
             { date: "2026-07-01", description: "Concurrent original B" }
         ]);
 
-        const descriptions = page.getByTestId("description-editable");
-        for (const input of [descriptions.nth(0), descriptions.nth(1)]) {
+        const importedRows = page.getByTestId("transaction-row");
+        const firstRow = await stableTransactionRow(importedRows.nth(0));
+        const secondRow = await stableTransactionRow(importedRows.nth(1));
+        for (const row of [firstRow, secondRow]) {
+            const input = await activateTransactionEditor(row, "description");
             await input.fill("Shared ");
             await input.press("Enter");
-            await expect(input).toHaveValue("Shared");
+            await expectTransactionCellDisplay(row, "description", "Shared");
         }
         await expect(page.getByRole("status", { name: "Saved" })).toBeVisible({
             timeout: 15_000
@@ -494,41 +622,42 @@ test.describe("Description Aliases", () => {
         await expect(duplicate.getByTestId("transaction-table-toolbar")).toBeVisible({
             timeout: 15_000
         });
-        const duplicateDescriptions = duplicate.getByTestId("description-editable");
-        await expect(duplicateDescriptions.nth(0)).toHaveValue("Shared");
-        await expect(duplicateDescriptions.nth(1)).toHaveValue("Shared");
+        const duplicateRows = duplicate.getByTestId("transaction-row");
+        const duplicateFirstRow = await stableTransactionRow(duplicateRows.nth(0));
+        const duplicateSecondRow = await stableTransactionRow(duplicateRows.nth(1));
+        await expectTransactionCellDisplay(duplicateFirstRow, "description", "Shared");
+        await expectTransactionCellDisplay(duplicateSecondRow, "description", "Shared");
 
         await test.step("remote management rename and local exact change converge", async () => {
             await goToTxDescriptions(duplicate);
             await startEditAlias(duplicate, "Shared");
             await duplicate.getByPlaceholder(/alias name/i).fill("Concurrent Shared");
 
-            const first = descriptions.nth(0);
+            const first = await activateTransactionEditor(firstRow, "description");
             await first.fill("Tar");
+            const retained = await pinDescriptionEditor(first, 1, 2);
             const targetOption = page.getByRole("option", { name: "Target" });
             await Promise.all([
                 duplicate.getByRole("button", { name: /save/i }).click(),
                 targetOption.click()
             ]);
             await page.getByRole("button", { name: "Change just this one" }).click();
-            await expect(first).toHaveValue("Target");
-            await expect(descriptions.nth(1)).toHaveValue("Concurrent Shared", {
-                timeout: 15_000
-            });
+            await expectRetainedDescriptionEditor(firstRow, retained, "Target");
+            await expectTransactionCellDisplay(secondRow, "description", "Concurrent Shared");
 
             await page.getByRole("button", { name: "Undo" }).click();
-            await expect(first).toHaveValue("Concurrent Shared");
-            await expect(descriptions.nth(1)).toHaveValue("Concurrent Shared");
+            await expectTransactionCellDisplay(firstRow, "description", "Concurrent Shared");
+            await expectTransactionCellDisplay(secondRow, "description", "Concurrent Shared");
             await expect(duplicate.locator('[data-alias-name="Concurrent Shared"]')).toHaveCount(1);
             await page.getByRole("button", { name: "Redo" }).click();
-            await expect(first).toHaveValue("Target");
+            await expectTransactionCellDisplay(firstRow, "description", "Target");
             await page.getByRole("button", { name: "Undo" }).click();
-            await expect(first).toHaveValue("Concurrent Shared");
-            await expect(descriptions.nth(1)).toHaveValue("Concurrent Shared");
+            await expectTransactionCellDisplay(firstRow, "description", "Concurrent Shared");
+            await expectTransactionCellDisplay(secondRow, "description", "Concurrent Shared");
         });
 
         await test.step("remote deletion wins over concurrent shared change-all without data loss", async () => {
-            const second = descriptions.nth(1);
+            const second = await activateTransactionEditor(secondRow, "description");
             await second.fill("Tar");
             await page.getByRole("option", { name: "Target" }).click();
             const managedRow = duplicate.locator('[data-alias-name="Concurrent Shared"]');
@@ -547,17 +676,17 @@ test.describe("Description Aliases", () => {
                 timeout: 15_000
             });
             await reloadPage(page);
-            await expect(second).toHaveValue("Concurrent original B", { timeout: 15_000 });
-            await expect(descriptions.nth(0)).toHaveValue("Concurrent original A");
+            await expectTransactionCellDisplay(secondRow, "description", "Concurrent original B");
+            await expectTransactionCellDisplay(firstRow, "description", "Concurrent original A");
             await expect(duplicate.locator('[data-alias-name="Concurrent Shared"]')).toHaveCount(0);
         });
 
         await test.step("offline local rename reconnects and keeps remote deletion outside undo", async () => {
             await context.setOffline(true);
-            const first = descriptions.nth(0);
+            const first = await activateTransactionEditor(firstRow, "description");
             await first.fill("Offline novel");
             await first.press("Enter");
-            await expect(first).toHaveValue("Offline novel");
+            await expectTransactionCellDisplay(firstRow, "description", "Offline novel");
             await context.setOffline(false);
             await expect(page.getByRole("status", { name: "Saved" })).toBeVisible({
                 timeout: 15_000
@@ -567,28 +696,21 @@ test.describe("Description Aliases", () => {
             // own local writes must be durable before this raw teardown.
             await awaitVaultPersistence(duplicate);
             await duplicate.goto("/transactions");
-            await expect(duplicate.getByTestId("description-editable").nth(0)).toHaveValue(
-                "Offline novel",
-                { timeout: 15_000 }
-            );
+            await expectTransactionCellDisplay(duplicateFirstRow, "description", "Offline novel");
             await page.getByRole("button", { name: "Undo" }).click();
-            await expect(first).toHaveValue("Concurrent original A");
-            await expect(descriptions.nth(1)).toHaveValue("Concurrent original B");
+            await expectTransactionCellDisplay(firstRow, "description", "Concurrent original A");
+            await expectTransactionCellDisplay(secondRow, "description", "Concurrent original B");
             await page.getByRole("button", { name: "Redo" }).click();
-            await expect(first).toHaveValue("Offline novel");
+            await expectTransactionCellDisplay(firstRow, "description", "Offline novel");
 
             await reloadPage(page);
             await reloadPage(duplicate);
-            await expect(page.getByTestId("description-editable").nth(0)).toHaveValue(
-                "Offline novel"
-            );
-            await expect(page.getByTestId("description-editable").nth(1)).toHaveValue(
-                "Concurrent original B"
-            );
-            await expect(duplicate.getByTestId("description-editable").nth(0)).toHaveValue(
-                "Offline novel"
-            );
-            await expect(duplicate.getByTestId("description-editable").nth(1)).toHaveValue(
+            await expectTransactionCellDisplay(firstRow, "description", "Offline novel");
+            await expectTransactionCellDisplay(secondRow, "description", "Concurrent original B");
+            await expectTransactionCellDisplay(duplicateFirstRow, "description", "Offline novel");
+            await expectTransactionCellDisplay(
+                duplicateSecondRow,
+                "description",
                 "Concurrent original B"
             );
         });

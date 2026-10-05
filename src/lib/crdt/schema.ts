@@ -29,6 +29,7 @@ import {
     DEFAULT_FILTER_SETTINGS,
     DEFAULT_FORMATTING_SETTINGS
 } from "@/lib/import/types";
+import { ACCOUNT_TYPES } from "@/types";
 
 import {
     DEFAULT_ACCOUNT_TYPE,
@@ -67,7 +68,7 @@ export const accountSchema = schema.LoroMap({
     accountNumber: schema.String({ required: false }),
     /** ISO 4217 currency code (e.g., "USD", "EUR", "JPY"). Optional - falls back to vault default if undefined. */
     currency: richSchema.CurrencyCode({ required: false }),
-    accountType: richSchema.StringEnum(["checking", "savings", "credit", "cash", "loan"], {
+    accountType: richSchema.StringEnum(ACCOUNT_TYPES, {
         defaultValue: DEFAULT_ACCOUNT_TYPE
     }),
     /** Balance in minor units for this account's currency (e.g., cents for USD, yen for JPY) */
@@ -409,7 +410,12 @@ export const userDisplayPreferenceSchema = schema.LoroMap({
      * never chosen — which follows the browser — rather than an explicit choice, and needs no
      * migration for vaults that predate the field.
      */
-    dateFormat: richSchema.StringEnum(DATE_FORMAT_PREFERENCES, { required: false })
+    dateFormat: richSchema.StringEnum(DATE_FORMAT_PREFERENCES, { required: false }),
+    /**
+     * Whether this viewer keeps the transaction inspector open. Optional so vaults and viewers that
+     * predate the field read as open without a storage migration.
+     */
+    transactionInspectorOpen: schema.Boolean({ required: false })
 });
 
 /**
@@ -462,7 +468,9 @@ export const vaultSchema = schema({
     userAutomationPreferences: schema.LoroMapRecord(userAutomationPreferenceSchema),
     // Per-viewer presentation choices, keyed by pubkeyHash. Additive in the same sense as the two
     // keys above: a vault without it hydrates an empty record.
-    userDisplayPreferences: schema.LoroMapRecord(userDisplayPreferenceSchema),
+    userDisplayPreferences: schema.LoroMapRecord(userDisplayPreferenceSchema, {
+        mergeableMapChildContainers: true
+    }),
     preferences: vaultPreferencesSchema
 });
 

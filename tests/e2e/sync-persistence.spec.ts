@@ -13,30 +13,21 @@ import { createNewIdentity, createTag, goToTags, goToTransactions, reloadPage } 
 
 test.describe("Sync Persistence", () => {
     test.describe("Sync Status Indicator", () => {
-        test("shows sync status in app header", async ({ page }) => {
+        test("shows Saved sync status in the app header", async ({ page }) => {
             await createNewIdentity(page);
 
-            await test.step("navigate to app page", async () => {
+            await test.step("navigate to an app page", async () => {
                 await goToTransactions(page);
             });
 
-            await test.step("verify sync status indicator exists", async () => {
-                // The sync status should be visible in the header
-                // It should show "Saved" when there are no pending changes
-                const syncStatus = page.locator('[role="status"]').first();
-                await expect(syncStatus).toBeVisible();
+            await test.step("show the sync status indicator", async () => {
+                await expect(page.getByRole("status").first()).toBeVisible();
             });
-        });
 
-        test("shows Saved state when no pending changes", async ({ page }) => {
-            await createNewIdentity(page);
-            await goToTransactions(page);
-
-            await test.step("verify Saved state", async () => {
-                // Wait for sync status indicator to show "Saved"
-                // This replaces hard-coded timeout with condition-based wait
-                const syncIndicator = page.getByRole("status", { name: /saved/i });
-                await expect(syncIndicator).toBeVisible({ timeout: 15000 });
+            await test.step("report Saved when no changes are pending", async () => {
+                await expect(page.getByRole("status", { name: /saved/i })).toBeVisible({
+                    timeout: 15000
+                });
             });
         });
     });

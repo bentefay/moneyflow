@@ -9,15 +9,19 @@
  * All key material is synthetic. No seed phrase, vault key or derived identity secret appears here.
  */
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { initCrypto } from "@/lib/crypto/keypair";
 import { derivePresenceKey } from "@/lib/crypto/presence-key";
-import { EphemeralPresenceManager, type PresenceSnapshot } from "@/lib/sync/presence";
+import {
+    EphemeralPresenceManager,
+    PRESENCE_PUBLISH_INTERVAL_MS,
+    type PresenceSnapshot
+} from "@/lib/sync/presence";
 import { PRESENCE_PROTOCOL_VERSION } from "@/lib/sync/presence-protocol";
 
 type PresenceEntry = { userId: string; joinedAt: string; lastSeen: string; payload?: unknown };
-type PresenceListener = (entries: PresenceEntry[]) => void;
+type PresenceListener = (entries: readonly PresenceEntry[]) => void;
 
 /**
  * A vault presence channel shared by every session subscribed to the same vault id. Sessions on
@@ -94,6 +98,9 @@ class FakeTransport {
     private channel: FakeChannel | null = null;
     private onPresence: PresenceListener | undefined;
     private onReconnect: (() => void | Promise<void>) | undefined;
+    private trackedPublications = 0;
+    private readonly publicationStarts: number[] = [];
+    private publicationBarriers: readonly Promise<void>[] = [];
 
     constructor(private readonly vaultId: string) {}
 
@@ -108,7 +115,21 @@ class FakeTransport {
     }
 
     async updatePresence(payload?: unknown): Promise<void> {
+        this.trackedPublications += 1;
+        this.publicationStarts.push(Date.now());
+        const [barrier, ...remainingBarriers] = this.publicationBarriers;
+        this.publicationBarriers = remainingBarriers;
         this.channel?.track(this.token, payload);
+        await barrier;
+    }
+
+    deferNextPublication(): () => void {
+        let release: () => void = () => undefined;
+        const barrier = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        this.publicationBarriers = [...this.publicationBarriers, barrier];
+        return release;
     }
 
     retractPresence(): void {
@@ -124,20 +145,29 @@ class FakeTransport {
      * Simulates a socket drop and re-establish. The tracked payload is lost, exactly as it is on a
      * real Realtime rejoin, so only a manager that republishes on `onReconnect` stays visible.
      */
-    async dropAndRejoin(): Promise<void> {
+    dropAndRejoin(): void {
         this.channel?.leave(this.token);
         this.channel = channelFor(this.vaultId);
         if (this.onPresence) this.channel.join(this.token, this.onPresence);
-        await this.onReconnect?.();
+        void this.onReconnect?.();
     }
 
     get subscribed(): boolean {
         return this.channel != null;
     }
+
+    get publicationCount(): number {
+        return this.trackedPublications;
+    }
+
+    get publicationStartedAt(): readonly number[] {
+        return this.publicationStarts;
+    }
 }
 
 const VAULT_A = "vault-a";
 const VAULT_B = "vault-b";
+const TEST_PUBLISH_INTERVAL_MS = 25;
 const HASH_A = "a".repeat(64);
 const HASH_B = "b".repeat(64);
 
@@ -159,12 +189,11 @@ async function connect(options: {
     let transport: FakeTransport | null = null;
     const manager = new EphemeralPresenceManager({
         ...options,
+        publishIntervalMs: TEST_PUBLISH_INTERVAL_MS,
         createTransport: (vaultId) => {
             const created = new FakeTransport(vaultId);
             transport = created;
-            // The manager only needs this structural surface; the real class adds credential
-            // lifecycle that has its own coverage in the P05 suites.
-            return created as unknown as never;
+            return created;
         }
     });
 
@@ -185,13 +214,21 @@ async function connect(options: {
 
 /** Lets queued publish/ingest promises settle before asserting. */
 async function settle(): Promise<void> {
-    for (let index = 0; index < 12; index++) await Promise.resolve();
+    await flushMicrotasks();
     await new Promise((resolve) => setTimeout(resolve, 5));
+    await flushMicrotasks();
+}
+
+async function flushMicrotasks(): Promise<void> {
     for (let index = 0; index < 12; index++) await Promise.resolve();
 }
 
 beforeAll(async () => {
     await initCrypto();
+});
+
+afterEach(() => {
+    vi.useRealTimers();
 });
 
 describe("encrypted authorized broadcast", () => {
@@ -209,7 +246,11 @@ describe("encrypted authorized broadcast", () => {
         await settle();
 
         expect(bob.latest.byTransactionId).toEqual({
-            "tx-1": { focusedBy: [HASH_A], editingBy: [HASH_A], fields: ["amount"] }
+            "tx-1": {
+                focusedBy: [HASH_A],
+                editingBy: [HASH_A],
+                editingByField: { amount: [HASH_A] }
+            }
         });
         expect(bob.latest.onlineIdentities).toEqual([HASH_A]);
         // Alice does not see her own session reflected back.
@@ -217,6 +258,133 @@ describe("encrypted authorized broadcast", () => {
 
         await alice.manager.disconnect();
         await bob.manager.disconnect();
+    });
+
+    it("coalesces a focus burst below the Presence channel rate limit", async () => {
+        channels.clear();
+        const alice = await connect({
+            vaultId: VAULT_A,
+            pubkeyHash: HASH_A,
+            presenceKey: KEY_A
+        });
+        const bob = await connect({ vaultId: VAULT_A, pubkeyHash: HASH_B, presenceKey: KEY_A });
+        await settle();
+
+        await Promise.all(
+            Array.from({ length: 12 }, (_, index) =>
+                alice.manager.setState({ transactionId: `tx-${index}`, editing: true })
+            )
+        );
+        await settle();
+
+        expect(PRESENCE_PUBLISH_INTERVAL_MS).toBeGreaterThan(7500);
+        expect(alice.transport.publicationCount).toBeLessThanOrEqual(3);
+        expect(bob.latest.byTransactionId).toEqual({
+            "tx-11": { focusedBy: [HASH_A], editingBy: [HASH_A], editingByField: {} }
+        });
+
+        await alice.manager.disconnect();
+        await bob.manager.disconnect();
+    });
+
+    it("spaces transport starts from the preceding actual invocation", async () => {
+        channels.clear();
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-08-27T00:00:00.000Z"));
+        const alice = await connect({
+            vaultId: VAULT_A,
+            pubkeyHash: HASH_A,
+            presenceKey: KEY_A
+        });
+        const releaseSecond = alice.transport.deferNextPublication();
+        const second = alice.manager.setState({
+            transactionId: "tx-second",
+            editing: true
+        });
+
+        await vi.advanceTimersByTimeAsync(TEST_PUBLISH_INTERVAL_MS);
+        expect(alice.transport.publicationStartedAt).toHaveLength(2);
+
+        const releaseThird = alice.transport.deferNextPublication();
+        const third = alice.manager.setState({
+            transactionId: "tx-third",
+            editing: true
+        });
+        await vi.advanceTimersByTimeAsync(TEST_PUBLISH_INTERVAL_MS * 3);
+        expect(alice.transport.publicationStartedAt).toHaveLength(2);
+
+        releaseSecond();
+        await flushMicrotasks();
+        expect(alice.transport.publicationStartedAt).toHaveLength(3);
+        const thirdStartedAt = alice.transport.publicationStartedAt[2];
+        if (thirdStartedAt == null) throw new Error("third publication did not start");
+
+        const fourth = alice.manager.setState({
+            transactionId: "tx-fourth",
+            editing: true
+        });
+        await vi.advanceTimersByTimeAsync(1);
+        releaseThird();
+        await flushMicrotasks();
+        expect(alice.transport.publicationStartedAt).toHaveLength(3);
+
+        await vi.advanceTimersByTimeAsync(TEST_PUBLISH_INTERVAL_MS - 1);
+        expect(alice.transport.publicationStartedAt).toHaveLength(4);
+        const fourthStartedAt = alice.transport.publicationStartedAt[3];
+        if (fourthStartedAt == null) throw new Error("fourth publication did not start");
+        expect(fourthStartedAt - thirdStartedAt).toBe(TEST_PUBLISH_INTERVAL_MS);
+
+        await Promise.all([second, third, fourth]);
+        await alice.manager.disconnect();
+    });
+
+    it("cancels a delayed publication during synchronous teardown", async () => {
+        channels.clear();
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-08-27T00:00:00.000Z"));
+        const alice = await connect({
+            vaultId: VAULT_A,
+            pubkeyHash: HASH_A,
+            presenceKey: KEY_A
+        });
+        const pending = alice.manager.setState({
+            transactionId: "tx-never-published",
+            editing: true
+        });
+
+        alice.manager.retract();
+        await pending;
+        await vi.advanceTimersByTimeAsync(TEST_PUBLISH_INTERVAL_MS * 2);
+
+        expect(alice.transport.publicationStartedAt).toHaveLength(1);
+        await alice.manager.disconnect();
+    });
+
+    it("retires an in-flight publication without allowing a trailing send", async () => {
+        channels.clear();
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-08-27T00:00:00.000Z"));
+        const alice = await connect({
+            vaultId: VAULT_A,
+            pubkeyHash: HASH_A,
+            presenceKey: KEY_A
+        });
+        const releaseInFlight = alice.transport.deferNextPublication();
+        const inFlight = alice.manager.setState({
+            transactionId: "tx-in-flight",
+            editing: true
+        });
+        await vi.advanceTimersByTimeAsync(TEST_PUBLISH_INTERVAL_MS);
+        expect(alice.transport.publicationStartedAt).toHaveLength(2);
+
+        alice.manager.retract();
+        await inFlight;
+        releaseInFlight();
+        await flushMicrotasks();
+        await vi.advanceTimersByTimeAsync(TEST_PUBLISH_INTERVAL_MS * 2);
+
+        expect(alice.transport.publicationStartedAt).toHaveLength(2);
+        await alice.manager.disconnect();
     });
 
     it("puts no plaintext focus metadata on the wire", async () => {
@@ -356,6 +524,59 @@ describe("encrypted authorized broadcast", () => {
 });
 
 describe("reconnect recovery", () => {
+    it("publishes the latest state immediately on a new channel despite an old in-flight send", async () => {
+        channels.clear();
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-08-27T00:00:00.000Z"));
+        const bob = await connect({ vaultId: VAULT_A, pubkeyHash: HASH_B, presenceKey: KEY_A });
+        const alice = await connect({
+            vaultId: VAULT_A,
+            pubkeyHash: HASH_A,
+            presenceKey: KEY_A
+        });
+        const releaseOldChannel = alice.transport.deferNextPublication();
+        const oldState = alice.manager.setState({
+            transactionId: "tx-before-reconnect",
+            editing: true
+        });
+        await vi.advanceTimersByTimeAsync(TEST_PUBLISH_INTERVAL_MS);
+        expect(alice.transport.publicationStartedAt).toHaveLength(2);
+        await vi.advanceTimersByTimeAsync(1);
+
+        const latestState = alice.manager.setState({
+            transactionId: "tx-after-reconnect",
+            field: "description",
+            editing: true
+        });
+        alice.transport.dropAndRejoin();
+        await flushMicrotasks();
+        await Promise.all([oldState, latestState]);
+        await flushMicrotasks();
+
+        expect(alice.transport.publicationStartedAt).toHaveLength(3);
+        const oldStartedAt = alice.transport.publicationStartedAt[1];
+        const reconnectStartedAt = alice.transport.publicationStartedAt[2];
+        if (oldStartedAt == null || reconnectStartedAt == null) {
+            throw new Error("reconnect publication did not start");
+        }
+        expect(reconnectStartedAt - oldStartedAt).toBe(1);
+        expect(bob.latest.byTransactionId).toEqual({
+            "tx-after-reconnect": {
+                focusedBy: [HASH_A],
+                editingBy: [HASH_A],
+                editingByField: { description: [HASH_A] }
+            }
+        });
+
+        releaseOldChannel();
+        await flushMicrotasks();
+        await vi.advanceTimersByTimeAsync(TEST_PUBLISH_INTERVAL_MS * 2);
+        expect(alice.transport.publicationStartedAt).toHaveLength(3);
+
+        await alice.manager.disconnect();
+        await bob.manager.disconnect();
+    });
+
     it("republishes state after a socket drop so peers still see it", async () => {
         channels.clear();
         const bob = await connect({ vaultId: VAULT_A, pubkeyHash: HASH_B, presenceKey: KEY_A });
@@ -376,7 +597,11 @@ describe("reconnect recovery", () => {
         await settle();
 
         expect(bob.latest.byTransactionId).toEqual({
-            "tx-9": { focusedBy: [HASH_A], editingBy: [HASH_A], fields: ["tags"] }
+            "tx-9": {
+                focusedBy: [HASH_A],
+                editingBy: [HASH_A],
+                editingByField: { tags: [HASH_A] }
+            }
         });
         expect(bob.latest.sessions).toEqual([
             { sessionId: alice.manager.id, pubkeyHash: HASH_A, state: focused }
@@ -439,7 +664,7 @@ describe("reconnect recovery", () => {
         await settle();
 
         expect(bob.latest.byTransactionId).toEqual({
-            "tx-2": { focusedBy: [HASH_A], editingBy: [HASH_A], fields: [] }
+            "tx-2": { focusedBy: [HASH_A], editingBy: [HASH_A], editingByField: {} }
         });
 
         await aliceAgain.manager.disconnect();
@@ -522,7 +747,7 @@ describe("vault and session isolation", () => {
 
         expect(bob.latest.sessions).toHaveLength(1);
         expect(bob.latest.byTransactionId).toEqual({
-            "tx-1": { focusedBy: [HASH_A], editingBy: [], fields: [] }
+            "tx-1": { focusedBy: [HASH_A], editingBy: [], editingByField: {} }
         });
 
         await alice.manager.disconnect();

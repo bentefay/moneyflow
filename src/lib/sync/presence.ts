@@ -20,7 +20,7 @@
 
 import { EphemeralStore } from "loro-crdt";
 
-import { createVaultRealtimeSync, type VaultRealtimeSync } from "@/lib/supabase/realtime";
+import { createVaultRealtimeSync } from "@/lib/supabase/realtime";
 
 import {
     applyPresenceUpdate,
@@ -48,13 +48,26 @@ export interface PresenceSnapshot {
 
 export type OnPresenceSnapshot = (snapshot: PresenceSnapshot) => void;
 
+interface PresenceTransport {
+    subscribe(options: {
+        onPresence: (entries: readonly { readonly payload?: unknown }[]) => void;
+        onReconnect: () => void | Promise<void>;
+    }): Promise<void>;
+    updatePresence(payload?: unknown): Promise<void>;
+    retractPresence(): void;
+    unsubscribe(): Promise<void>;
+    readonly subscribed: boolean;
+}
+
 export interface PresenceManagerOptions {
     readonly vaultId: string;
     readonly pubkeyHash: string;
     /** 32-byte vault-derived presence key from `derivePresenceKey`. */
     readonly presenceKey: Uint8Array;
     /** Injected for tests; defaults to the P05 realtime transport. */
-    readonly createTransport?: (vaultId: string) => VaultRealtimeSync;
+    readonly createTransport?: (vaultId: string) => PresenceTransport;
+    /** Injected for tests; production uses {@link PRESENCE_PUBLISH_INTERVAL_MS}. */
+    readonly publishIntervalMs?: number;
 }
 
 const EMPTY_SNAPSHOT: PresenceSnapshot = {
@@ -62,6 +75,16 @@ const EMPTY_SNAPSHOT: PresenceSnapshot = {
     onlineIdentities: [],
     byTransactionId: {}
 };
+
+/** Leaves one event of headroom under Supabase Realtime's five-events-per-30-seconds limit. */
+export const PRESENCE_PUBLISH_INTERVAL_MS = 8000;
+
+interface PublishWaiter {
+    readonly epoch: number;
+    readonly version: number;
+    readonly resolve: () => void;
+    readonly reject: (reason?: unknown) => void;
+}
 
 /**
  * A vault presence session backed by a Loro `EphemeralStore`.
@@ -78,7 +101,7 @@ export class EphemeralPresenceManager {
     private readonly scratch = new EphemeralStore(PRESENCE_TIMEOUT_MS);
     private readonly sessionId = crypto.randomUUID();
 
-    private transport: VaultRealtimeSync | null = null;
+    private transport: PresenceTransport | null = null;
     private onSnapshot: OnPresenceSnapshot | null = null;
     private unsubscribeStore: (() => void) | null = null;
     private refreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -86,12 +109,22 @@ export class EphemeralPresenceManager {
     private disposed = false;
     /** Guards against overlapping publishes reordering on a slow socket. */
     private publishChain: Promise<void> = Promise.resolve();
+    private publishEpoch = 0;
+    private publishVersion = 0;
+    private publishWaiters: readonly PublishWaiter[] = [];
+    private publishWorkerEpoch: number | null = null;
+    private publishDelayTimer: ReturnType<typeof setTimeout> | null = null;
+    private resolvePublishDelay: (() => void) | null = null;
+    private lastPublishStartedAt: number | null = null;
+    private readonly publishIntervalMs: number;
     /** Serializes inbound merges so a stale prune cannot undo a newer apply. */
     private ingestChain: Promise<void> = Promise.resolve();
     /** Sessions that left the channel but whose store entry has not yet expired. */
     private absentSessions: ReadonlySet<string> = new Set();
 
-    constructor(private readonly options: PresenceManagerOptions) {}
+    constructor(private readonly options: PresenceManagerOptions) {
+        this.publishIntervalMs = options.publishIntervalMs ?? PRESENCE_PUBLISH_INTERVAL_MS;
+    }
 
     /** This tab's session identifier. Distinct per tab even when the identity is shared. */
     get id(): string {
@@ -124,9 +157,13 @@ export class EphemeralPresenceManager {
                     if (this.transport !== transport) return;
                     void this.ingest(entries);
                 },
-                // A reconnect gives us a fresh channel with no tracked state, so republish
-                // immediately rather than waiting out the refresh interval.
-                onReconnect: () => this.publish()
+                // A reconnect gives us a fresh channel with no tracked state. Start a new publishing
+                // epoch immediately: an unresolved send on the departed channel must not serialize or
+                // satisfy the replacement channel's first publication.
+                onReconnect: () => {
+                    if (this.transport !== transport || this.disposed) return;
+                    this.restartPublishingAfterReconnect();
+                }
             });
         } catch (error) {
             if (this.transport === transport) this.transport = null;
@@ -141,8 +178,8 @@ export class EphemeralPresenceManager {
             return;
         }
 
-        this.refreshTimer = setInterval(() => void this.publish(), PRESENCE_REFRESH_MS);
-        await this.publish();
+        this.refreshTimer = setInterval(() => void this.schedulePublish(), PRESENCE_REFRESH_MS);
+        await this.schedulePublish();
     }
 
     /**
@@ -152,7 +189,7 @@ export class EphemeralPresenceManager {
     async setState(state: PresenceState): Promise<void> {
         if (this.disposed || isSamePresenceState(this.state, state)) return;
         this.state = state;
-        await this.publish();
+        await this.schedulePublish();
     }
 
     /** Clears row focus while staying connected — used on blur, route change and unmount. */
@@ -177,6 +214,7 @@ export class EphemeralPresenceManager {
             clearInterval(this.refreshTimer);
             this.refreshTimer = null;
         }
+        this.cancelScheduledPublish();
         this.transport?.retractPresence();
     }
 
@@ -194,6 +232,7 @@ export class EphemeralPresenceManager {
             clearInterval(this.refreshTimer);
             this.refreshTimer = null;
         }
+        this.cancelScheduledPublish();
         this.unsubscribeStore?.();
         this.unsubscribeStore = null;
 
@@ -202,27 +241,151 @@ export class EphemeralPresenceManager {
         this.scratch.destroy();
     }
 
-    /** Writes local state into the store and publishes the resulting encrypted update. */
-    private publish(): Promise<void> {
-        const send = async () => {
-            const transport = this.transport;
-            if (this.disposed || !transport) return;
+    /**
+     * Coalesces rapid focus transitions into the newest state while keeping every caller awaitable.
+     * Supabase closes a Presence channel that exceeds its client rate limit; a trailing publication
+     * preserves the final field without replaying every transient focus state.
+     */
+    private schedulePublish(): Promise<void> {
+        if (this.disposed || !this.transport?.subscribed) return Promise.resolve();
 
+        const epoch = this.publishEpoch;
+        const version = ++this.publishVersion;
+        const completion = new Promise<void>((resolve, reject) => {
+            this.publishWaiters = [...this.publishWaiters, { epoch, version, resolve, reject }];
+        });
+        this.startPublishWorker();
+        return completion;
+    }
+
+    private startPublishWorker(): void {
+        const epoch = this.publishEpoch;
+        if (this.publishWorkerEpoch === epoch) return;
+        this.publishWorkerEpoch = epoch;
+
+        const run = async () => {
+            try {
+                await this.publishLatestStates(epoch);
+            } finally {
+                if (this.publishWorkerEpoch === epoch) {
+                    this.publishWorkerEpoch = null;
+                    if (
+                        !this.disposed &&
+                        this.hasPublishWaiters(epoch) &&
+                        this.transport?.subscribed
+                    ) {
+                        this.startPublishWorker();
+                    }
+                }
+            }
+        };
+        this.publishChain = this.publishChain.then(run, run);
+    }
+
+    private hasPublishWaiters(epoch: number): boolean {
+        return this.publishWaiters.some((waiter) => waiter.epoch === epoch);
+    }
+
+    private async publishLatestStates(epoch: number): Promise<void> {
+        while (
+            !this.disposed &&
+            this.publishEpoch === epoch &&
+            this.transport?.subscribed &&
+            this.hasPublishWaiters(epoch)
+        ) {
+            await this.waitForPublishInterval();
+            if (this.disposed || this.publishEpoch !== epoch || !this.transport?.subscribed) {
+                return;
+            }
+
+            const transport = this.transport;
+            const state = this.state;
             this.store.set(
                 this.sessionId,
-                createPresenceEntry(this.sessionId, this.options.pubkeyHash, this.state)
+                createPresenceEntry(this.sessionId, this.options.pubkeyHash, state)
             );
             const envelope = await sealPresenceUpdate(
                 this.store.encode(this.sessionId),
                 { vaultId: this.options.vaultId, sessionId: this.sessionId },
                 this.options.presenceKey
             );
-            if (this.transport !== transport) return;
-            await transport.updatePresence(envelope);
-        };
+            if (
+                this.disposed ||
+                this.publishEpoch !== epoch ||
+                this.transport !== transport ||
+                !transport.subscribed ||
+                !isSamePresenceState(this.state, state)
+            ) {
+                continue;
+            }
 
-        this.publishChain = this.publishChain.then(send, send);
-        return this.publishChain;
+            const version = this.publishVersion;
+            this.lastPublishStartedAt = Date.now();
+            try {
+                await transport.updatePresence(envelope);
+                this.resolvePublishWaiters(epoch, version);
+            } catch (error) {
+                this.rejectPublishWaiters(epoch, version, error);
+            }
+        }
+    }
+
+    private async waitForPublishInterval(): Promise<void> {
+        const elapsed =
+            this.lastPublishStartedAt == null
+                ? this.publishIntervalMs
+                : Date.now() - this.lastPublishStartedAt;
+        const delay = Math.max(0, this.publishIntervalMs - elapsed);
+        if (delay === 0) return;
+
+        await new Promise<void>((resolve) => {
+            const finish = () => {
+                if (this.publishDelayTimer != null) clearTimeout(this.publishDelayTimer);
+                this.publishDelayTimer = null;
+                this.resolvePublishDelay = null;
+                resolve();
+            };
+            this.resolvePublishDelay = finish;
+            this.publishDelayTimer = setTimeout(finish, delay);
+        });
+    }
+
+    private restartPublishingAfterReconnect(): void {
+        const epoch = this.publishEpoch + 1;
+        this.publishEpoch = epoch;
+        this.publishWaiters = this.publishWaiters.map((waiter) => ({ ...waiter, epoch }));
+        this.resolvePublishDelay?.();
+        this.lastPublishStartedAt = null;
+        this.publishChain = Promise.resolve();
+        this.publishWorkerEpoch = null;
+        void this.schedulePublish().catch(() => undefined);
+    }
+
+    private resolvePublishWaiters(epoch: number, version: number): void {
+        const completed = this.publishWaiters.filter(
+            (waiter) => waiter.epoch === epoch && waiter.version <= version
+        );
+        this.publishWaiters = this.publishWaiters.filter(
+            (waiter) => waiter.epoch !== epoch || waiter.version > version
+        );
+        for (const waiter of completed) waiter.resolve();
+    }
+
+    private rejectPublishWaiters(epoch: number, version: number, error: unknown): void {
+        const failed = this.publishWaiters.filter(
+            (waiter) => waiter.epoch === epoch && waiter.version <= version
+        );
+        this.publishWaiters = this.publishWaiters.filter(
+            (waiter) => waiter.epoch !== epoch || waiter.version > version
+        );
+        for (const waiter of failed) waiter.reject(error);
+    }
+
+    private cancelScheduledPublish(): void {
+        this.resolvePublishDelay?.();
+        const cancelled = this.publishWaiters;
+        this.publishWaiters = [];
+        for (const waiter of cancelled) waiter.resolve();
     }
 
     /**
@@ -292,7 +455,7 @@ function isSameKeySet(left: ReadonlySet<string>, right: ReadonlySet<string>): bo
     return left.size === right.size && [...left].every((key) => right.has(key));
 }
 
-function defaultTransport(vaultId: string): VaultRealtimeSync {
+function defaultTransport(vaultId: string): PresenceTransport {
     return createVaultRealtimeSync(vaultId, "presence");
 }
 

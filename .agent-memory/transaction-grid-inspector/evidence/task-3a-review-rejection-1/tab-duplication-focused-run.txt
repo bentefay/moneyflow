@@ -1,0 +1,7 @@
+[WebServer] $ next dev --turbopack
+
+
+Running 1 test using 1 worker
+
+[1/1] [chromium] › tests/e2e/tab-duplication.spec.ts:50:5 › a browser-duplicated tab hydrates onboarding and an authenticated vault
+  1 passed (13.6s)

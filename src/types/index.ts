@@ -139,7 +139,8 @@ export type Signature = z.infer<typeof SignatureSchema>;
 // Account Types
 // ============================================
 
-export const AccountTypeSchema = z.enum(["checking", "savings", "credit", "cash", "loan"]);
+export const ACCOUNT_TYPES = ["checking", "savings", "credit", "cash", "loan"] as const;
+export const AccountTypeSchema = z.enum(ACCOUNT_TYPES);
 export type AccountType = z.infer<typeof AccountTypeSchema>;
 
 // ============================================

@@ -81,74 +81,51 @@ async function getSelectedCurrency(page: Page): Promise<string> {
 
 test.describe("Vault Settings", () => {
     test.describe("New User Flow", () => {
-        test("should land on settings page after creating new identity", async ({ page }) => {
-            await test.step("Create new identity", async () => {
+        test("lands on settings with the inferred default currency", async ({ page }) => {
+            await test.step("create a new identity", async () => {
                 await createNewIdentity(page);
             });
 
-            await test.step("Verify landed on settings page", async () => {
-                // Should be on settings page
+            await test.step("land on the vault settings page", async () => {
                 await expect(page).toHaveURL(/\/settings$/);
                 await expect(
                     page.getByRole("heading", { name: "Vault Settings", level: 1 })
                 ).toBeVisible();
             });
 
-            await test.step("Verify currency selector is visible", async () => {
+            await test.step("show the inferred USD default", async () => {
                 const currencySelector = page.getByRole("combobox", { name: /default currency/i });
                 await expect(currencySelector).toBeVisible();
+                expect(await getSelectedCurrency(page)).toBe("USD");
             });
-        });
-
-        test("should have USD as default currency for new vault", async ({ page }) => {
-            await createNewIdentity(page);
-
-            const selectedCurrency = await getSelectedCurrency(page);
-            expect(selectedCurrency).toBe("USD");
         });
     });
 
     test.describe("Currency Selection Persistence", () => {
-        test("should persist currency selection after page refresh", async ({ page }) => {
-            await test.step("Create identity and navigate to settings", async () => {
+        test("persists currency across refresh and navigation", async ({ page }) => {
+            await test.step("create an identity on settings", async () => {
                 await createNewIdentity(page);
-                // Already on settings page after identity creation
             });
 
-            await test.step("Change currency to EUR", async () => {
+            await test.step("change the currency to EUR", async () => {
                 await selectCurrency(page, "EUR");
-                // Verify selection changed
-                const selected = await getSelectedCurrency(page);
-                expect(selected).toBe("EUR");
+                expect(await getSelectedCurrency(page)).toBe("EUR");
             });
 
-            await test.step("Refresh page and verify persistence", async () => {
+            await test.step("retain the currency after refresh", async () => {
                 await reloadPage(page);
                 await page
                     .getByRole("heading", { name: "Vault Settings", level: 1 })
                     .waitFor({ timeout: 10000 });
-
-                const selectedAfterRefresh = await getSelectedCurrency(page);
-                expect(selectedAfterRefresh).toBe("EUR");
+                expect(await getSelectedCurrency(page)).toBe("EUR");
             });
-        });
 
-        test("should persist currency after navigating away and back", async ({ page }) => {
-            await createNewIdentity(page);
-
-            // Change to GBP
-            await selectCurrency(page, "GBP");
-            expect(await getSelectedCurrency(page)).toBe("GBP");
-
-            // Navigate to transactions
-            await goToTransactions(page);
-            await expect(page).toHaveURL(/\/transactions$/);
-
-            // Navigate back to settings
-            await goToSettings(page);
-
-            // Verify GBP is still selected
-            expect(await getSelectedCurrency(page)).toBe("GBP");
+            await test.step("retain the currency after navigating away and back", async () => {
+                await goToTransactions(page);
+                await expect(page).toHaveURL(/\/transactions$/);
+                await goToSettings(page);
+                expect(await getSelectedCurrency(page)).toBe("EUR");
+            });
         });
     });
 
@@ -198,7 +175,9 @@ test.describe("Vault Settings", () => {
                     page.getByRole("textbox", { name: /search description/i })
                 ).toBeVisible({ timeout: 15000 });
                 await expect(page.getByRole("button", { name: "Add transaction" })).toBeVisible();
-                await expect(page.getByRole("status")).toHaveAccessibleName("Saved");
+                await expect(
+                    page.getByRole("status", { name: "Saved", exact: true })
+                ).toBeVisible();
                 await expect(page.getByText("Failed to load vault", { exact: false })).toHaveCount(
                     0
                 );
@@ -266,31 +245,28 @@ test.describe("Vault Settings", () => {
             await page.getByRole("option", { name: label }).click();
         }
 
-        test("should default to following the browser", async ({ page }) => {
+        test("defaults to the browser and persists an explicit date format", async ({ page }) => {
             await createNewIdentity(page);
 
             const selector = page.getByRole("combobox", { name: /date format/i });
-            await expect(selector).toBeVisible();
-            await expect(selector).toContainText(/automatic/i);
-        });
+            await test.step("follow the browser by default", async () => {
+                await expect(selector).toBeVisible();
+                await expect(selector).toContainText(/automatic/i);
+            });
 
-        test("should persist the chosen date format after page refresh", async ({ page }) => {
-            await createNewIdentity(page);
+            await test.step("choose an explicit date format", async () => {
+                await chooseDateFormat(page, /day first/i);
+                await expect(selector).toContainText(/day first/i);
+            });
 
-            await chooseDateFormat(page, /day first/i);
-            await expect(page.getByRole("combobox", { name: /date format/i })).toContainText(
-                /day first/i
-            );
-
-            await awaitVaultPersistence(page);
-            await reloadPage(page);
-            await page
-                .getByRole("heading", { name: "Vault Settings", level: 1 })
-                .waitFor({ timeout: 10000 });
-
-            await expect(page.getByRole("combobox", { name: /date format/i })).toContainText(
-                /day first/i
-            );
+            await test.step("retain the chosen format after refresh", async () => {
+                await awaitVaultPersistence(page);
+                await reloadPage(page);
+                await page
+                    .getByRole("heading", { name: "Vault Settings", level: 1 })
+                    .waitFor({ timeout: 10000 });
+                await expect(selector).toContainText(/day first/i);
+            });
         });
     });
 

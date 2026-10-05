@@ -19,36 +19,43 @@
  * window.
  */
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { TransactionGridWorkspaceController } from "@/components/features/transactions/hooks/useTransactionGridController";
 import {
     NO_TRANSACTION_ROWS_SELECTED,
     transactionRowOrderFromIds
 } from "@/components/features/transactions/table-model";
 import type { TransactionRowData } from "@/components/features/transactions/TransactionRow";
 import { TransactionTable } from "@/components/features/transactions/TransactionTable";
+import { transactionViewportRowDistance } from "@/components/features/transactions/TransactionVirtualRows";
+import { allocationPresenceField } from "@/lib/crdt/allocations";
 
 import {
     contiguousRowWindow,
+    createTestTransactionGridController,
     gridScrollContainer,
     HARNESS_OVERSCAN,
     HARNESS_ROW_HEIGHT,
     HARNESS_VIEWPORT_ROWS,
     installVirtualGridLayout,
     mountedRowIndexes,
-    scrollGridTo
+    scrollGridTo,
+    updateTestTransactionGridController
 } from "./virtual-grid-harness";
 
 vi.mock("@/components/features/transactions/TransactionRow", () => ({
     TransactionRow: ({
         transaction,
         onFocus,
+        onActivationDescendantFocus,
         allocationColumns,
         gridTemplateColumns
     }: {
         transaction?: TransactionRowData;
         onFocus?: () => void;
+        onActivationDescendantFocus?: () => void;
         allocationColumns?: ReadonlyArray<{ personId: string }>;
         gridTemplateColumns?: string;
     }) => (
@@ -61,6 +68,12 @@ vi.mock("@/components/features/transactions/TransactionRow", () => ({
             onFocus={onFocus}
         >
             {transaction?.description}
+            <button type="button" onFocus={onActivationDescendantFocus}>
+                Checkbox control
+            </button>
+            <button type="button" onFocus={onActivationDescendantFocus}>
+                Action control
+            </button>
         </div>
     )
 }));
@@ -87,6 +100,7 @@ function createTransactions(count: number): TransactionRowData[] {
 }
 
 interface GridProps {
+    readonly controller?: TransactionGridWorkspaceController;
     readonly transactions?: TransactionRowData[];
     /** Where the supplied rows sit in the matching order. Defaults to the front. */
     readonly windowStartIndex?: number;
@@ -96,6 +110,7 @@ interface GridProps {
         readonly personId: string;
         readonly label: string;
         readonly field: `allocation:${string}`;
+        readonly presenceField: `allocation:h:${string}`;
     }[];
     readonly onVisibleRowRangeChange?: (range: {
         readonly startIndex: number;
@@ -109,6 +124,7 @@ function gridElement(props: GridProps) {
     const transactions = props.transactions ?? createTransactions(TOTAL_ROWS);
     return (
         <TransactionTable
+            controller={props.controller ?? createTestTransactionGridController(transactions)}
             rowWindow={contiguousRowWindow(transactions, props.windowStartIndex ?? 0)}
             matchingRowCount={props.matchingRowCount ?? transactions.length}
             onVisibleRowRangeChange={props.onVisibleRowRangeChange}
@@ -127,6 +143,16 @@ function gridElement(props: GridProps) {
 function renderGrid(props: GridProps = {}) {
     return render(gridElement(props));
 }
+
+describe("transactionViewportRowDistance", () => {
+    it.each([
+        [null, 1],
+        [{ endIndex: 10, startIndex: 3 }, 7],
+        [{ endIndex: 3, startIndex: 3 }, 1]
+    ] as const)("derives the current visible-row distance from %j", (range, expected) => {
+        expect(transactionViewportRowDistance(range)).toBe(expected);
+    });
+});
 
 describe("TransactionTable virtualization", () => {
     let restoreLayout: () => void;
@@ -262,10 +288,12 @@ describe("TransactionTable virtualization", () => {
         expect(mountedRowIndexes()).toContain(4_000);
     });
 
-    it("keeps the focused row mounted after scrolling far away from it", () => {
-        renderGrid();
+    it("keeps the active controller row mounted after scrolling far away from it", () => {
+        const transactions = createTransactions(TOTAL_ROWS);
+        const controller = createTestTransactionGridController(transactions);
+        controller.setFocusedCell("transaction-0", "description");
+        renderGrid({ controller, transactions });
 
-        fireEvent.focus(screen.getAllByTestId("transaction-row")[0]);
         scrollGridTo(400 * HARNESS_ROW_HEIGHT);
 
         // Unmounting the focused row loses the caret, so the range extractor pins it. Asserting on
@@ -276,11 +304,65 @@ describe("TransactionTable virtualization", () => {
         expect(indexes).toContain(400);
     });
 
-    it("follows the focused row when a new row inserts ahead of it", () => {
-        const original = createTransactions(TOTAL_ROWS);
-        const { rerender } = renderGrid({ transactions: original });
+    it("keeps a legacy checkbox or action focus row mounted without creating cell selection", () => {
+        const transactions = createTransactions(TOTAL_ROWS);
+        const controller = createTestTransactionGridController(transactions);
+        renderGrid({ controller, transactions });
+        const checkbox = screen.getAllByRole("button", { name: "Checkbox control" })[0];
+        const action = screen.getAllByRole("button", { name: "Action control" })[0];
+        if (checkbox == null || action == null)
+            throw new Error("first transaction controls missing");
 
-        fireEvent.focus(screen.getAllByTestId("transaction-row")[0]);
+        act(() => checkbox.focus());
+        expect(controller.getSnapshot().pins).toEqual([
+            { kind: "focus-retention", transactionId: "transaction-0" }
+        ]);
+        expect(controller.cellSelectionAtom.get()).toEqual([]);
+        act(() => action.focus());
+        scrollGridTo(400 * HARNESS_ROW_HEIGHT);
+
+        const indexes = mountedRowIndexes();
+        expect(indexes).toContain(0);
+        expect(indexes).toContain(400);
+        expect(document.activeElement).toBe(action);
+    });
+
+    it("pins a focused activation row alongside a retained range anchored in another row", () => {
+        const transactions = createTransactions(TOTAL_ROWS);
+        const controller = createTestTransactionGridController(transactions);
+        controller.setFocusedCell("transaction-1", "description");
+        renderGrid({ controller, transactions });
+        const action = screen.getAllByRole("button", { name: "Action control" })[0];
+        if (action == null) throw new Error("first transaction action is missing");
+
+        act(() => action.focus());
+
+        expect(controller.getSnapshot()).toMatchObject({
+            focusRetentionTransactionId: "transaction-0",
+            pins: [
+                { kind: "focus-retention", transactionId: "transaction-0" },
+                { kind: "active-origin", transactionId: "transaction-1" }
+            ]
+        });
+        expect(controller.cellSelectionAtom.get()).toMatchObject([
+            { anchorRowId: "transaction-1", focusRowId: "transaction-1" }
+        ]);
+
+        scrollGridTo(400 * HARNESS_ROW_HEIGHT);
+
+        const indexes = mountedRowIndexes();
+        expect(indexes).toContain(0);
+        expect(indexes).toContain(1);
+        expect(indexes).toContain(400);
+        expect(document.activeElement).toBe(action);
+    });
+
+    it("follows the active controller row when a new row inserts ahead of it", () => {
+        const original = createTransactions(TOTAL_ROWS);
+        const controller = createTestTransactionGridController(original);
+        controller.setFocusedCell("transaction-0", "description");
+        const { rerender } = renderGrid({ controller, transactions: original });
+
         scrollGridTo(400 * HARNESS_ROW_HEIGHT);
         expect(mountedRowIndexes()).toContain(0);
 
@@ -293,7 +375,8 @@ describe("TransactionTable virtualization", () => {
             },
             ...original
         ];
-        rerender(gridElement({ transactions: withInsertedRow }));
+        updateTestTransactionGridController(controller, withInsertedRow);
+        rerender(gridElement({ controller, transactions: withInsertedRow }));
 
         // The focused transaction is index 1 now. The pin follows the row's identity, not its
         // position, so it is still mounted — and index 0, which nothing pinned, is not.
@@ -304,8 +387,13 @@ describe("TransactionTable virtualization", () => {
 
     it("shares one grid template, derived from the table's own columns, with every row", () => {
         const allocationColumns = [
-            { personId: "person-a", label: "Ada", field: "allocation:person-a" as const }
-        ];
+            {
+                personId: "person-a",
+                label: "Ada",
+                field: "allocation:person-a",
+                presenceField: allocationPresenceField("person-a")
+            }
+        ] satisfies GridProps["allocationColumns"];
         renderGrid({ transactions: createTransactions(40), allocationColumns });
 
         // One template string for the header and every row, and it is built from the table's visible

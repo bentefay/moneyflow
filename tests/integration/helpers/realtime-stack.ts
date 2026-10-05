@@ -366,8 +366,14 @@ export function cleanUpVaultFixtures(vaultIds: readonly string[]): void {
     if (vaultIds.length === 0) return;
     const list = vaultIds.map((vaultId) => `'${vaultId}'::uuid`).join(", ");
     runSql(
-        `DELETE FROM public.realtime_grants WHERE vault_id IN (${list});
+        `\\set ON_ERROR_STOP on
+         BEGIN;
+         ALTER TABLE public.vault_ops DISABLE TRIGGER vault_ops_append_only;
+         DELETE FROM public.vault_ops WHERE vault_id IN (${list});
+         ALTER TABLE public.vault_ops ENABLE TRIGGER vault_ops_append_only;
+         DELETE FROM public.realtime_grants WHERE vault_id IN (${list});
          DELETE FROM public.vault_memberships WHERE vault_id IN (${list});
-         DELETE FROM public.vaults WHERE id IN (${list});`
+         DELETE FROM public.vaults WHERE id IN (${list});
+         COMMIT;`
     );
 }

@@ -264,14 +264,14 @@ describe("allocation mutation boundary", () => {
         vault.mirror.dispose();
     });
 
-    it("provides stable per-person presence field identities", () => {
-        const presenceField = Reflect.get(transactionMutations, "allocationPresenceField");
-
-        expect(presenceField).toBeTypeOf("function");
-        expect((presenceField as (personId: string) => string)("person:alice")).toBe(
-            "allocation:person:alice"
+    it("provides stable bounded per-person presence field identities", () => {
+        expect(transactionMutations.allocationPresenceField).toBe(allocationPresenceField);
+        expect(allocationPresenceField("person:alice")).toBe(
+            "allocation:h:def7524f604d03efb6873eba18d3fe47343ed787253079c98d107f20cf20c17c"
         );
-        expect(allocationPresenceField("__proto__")).toBe("allocation:__proto__");
+        expect(allocationPresenceField("__proto__")).toBe(
+            "allocation:h:e21eedd72dccc345517b472844f50a8196e4b738dd393871d682f2ff50a65a97"
+        );
     });
 
     it("sets, updates, and removes one exact key without rewriting siblings", () => {
@@ -295,6 +295,26 @@ describe("allocation mutation boundary", () => {
                 value: 0
             })
         ).toMatchObject({ ok: true, value: { changed: true } });
+        expect(explicitAllocations(store)).toEqual({ bob: 60 });
+    });
+
+    it("removes a malformed stored key when the repair value is zero", () => {
+        const store = populatedStore({ alice: 40, bob: 60 });
+        const transaction = findTransactionInStore(store, LOCATION);
+        if (transaction == null) throw new Error("Expected the allocation transaction fixture");
+        Reflect.set(transaction.allocations, "alice", "malformed");
+
+        const result = setTransactionAllocation(store, {
+            location: LOCATION,
+            personId: "alice",
+            value: 0
+        });
+
+        expect(result).toEqual({
+            ok: true,
+            value: { affectedTransactions: 1, changed: true }
+        });
+        expect(Object.prototype.hasOwnProperty.call(transaction.allocations, "alice")).toBe(false);
         expect(explicitAllocations(store)).toEqual({ bob: 60 });
     });
 

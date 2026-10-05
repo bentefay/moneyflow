@@ -1,88 +1,195 @@
-/**
- * UR-005: "The date, description, account, status, percentage and amount cells carry no background
- * fill in their resting state" and "Hover, focus, focus-visible, selected, editing and any presence
- * or validation states keep their existing visual treatment."
- *
- * The E2E companion in `tests/e2e/transactions.spec.ts` measures the pixels the browser actually
- * paints, which is the requirement's real subject. This file guards the *reason* the defect existed
- * at all, which E2E can only observe indirectly: `cn` is `twMerge(clsx(...))`, and `twMerge` treats
- * a variant-prefixed utility as targeting a different state from its unprefixed form. So the shared
- * primitives' `dark:bg-input/30` and `dark:border-input` survived every cell's plain
- * `bg-transparent` untouched, and the cells looked clean in source while painting a fill in dark
- * mode.
- *
- * That makes the merge itself the invariant worth pinning. A future edit that drops the `dark:`
- * halves of {@link RESTING_CELL_CHROME} — the obvious-looking simplification, since they read as
- * redundant beside the unprefixed ones — reintroduces exactly the reported defect, and does so
- * silently in light mode. These assertions fail on that edit in milliseconds.
- */
+import { render, screen } from "@testing-library/react";
+import { createElement } from "react";
+import { describe, expect, it, vi } from "vitest";
 
-import { describe, expect, it } from "vitest";
-
-import { RESTING_CELL_CHROME } from "@/components/features/transactions/cells/cell-chrome";
+import {
+    INNER_CELL_FOCUS_CHROME,
+    PARKED_ACTION_FOCUS_CHROME,
+    RESTING_CELL_CHROME,
+    TRANSACTION_GRID_EDITOR_INLINE_CHROME,
+    TRANSACTION_GRIDCELL_CHROME,
+    TRANSACTION_GRIDCELL_FOCUS_CHROME,
+    TRANSACTION_GRID_HEADER_CELL_CHROME
+} from "@/components/features/transactions/cells/cell-chrome";
+import { CheckboxCell } from "@/components/features/transactions/cells/CheckboxCell";
+import { InlineEditableDate } from "@/components/features/transactions/cells/InlineEditableDate";
+import { InlineEditableTags } from "@/components/features/transactions/cells/InlineEditableTags";
 import { cn } from "@/lib/utils";
 
-/** The resting decorations each shared primitive contributes unconditionally. */
 const SHARED_PRIMITIVE_BASES = {
-    /** `src/components/ui/input.tsx` — behind the date, description and amount cells. */
     input: "border-input dark:bg-input/30 h-9 w-full rounded-md border bg-transparent px-3 py-1 shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive",
-    /** `src/components/ui/select.tsx` — behind the status cell. */
     select: "border-input dark:bg-input/30 dark:hover:bg-input/50 flex rounded-md border bg-transparent px-3 py-2 shadow-xs focus-visible:border-ring focus-visible:ring-ring/50",
-    /** The outline `Button` variant — behind the account cell. It also adds `dark:border-input`. */
     outlineButton:
-        "bg-background hover:bg-accent dark:border-input dark:bg-input/30 dark:hover:bg-input/50 border shadow-xs focus-visible:border-ring"
+        "bg-background hover:bg-accent dark:border-input dark:bg-input/30 dark:hover:bg-input/50 border px-4 has-[>svg]:px-3 shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
 } as const;
 
-/** Utilities that paint a resting decoration and so must not survive the merge. */
-const RESTING_CHROME = /^dark:(bg-input|border-input)/;
+function utilities(classes: string): string[] {
+    return classes.split(" ").filter((utility) => utility.length > 0);
+}
 
-describe("resting cell chrome", () => {
-    it("cancels every resting decoration the shared primitives contribute", () => {
+describe("transaction spreadsheet chrome", () => {
+    it("makes staged inner controls square and visually neutral in every owned state", () => {
         for (const [primitive, base] of Object.entries(SHARED_PRIMITIVE_BASES)) {
-            const merged = cn(base, RESTING_CELL_CHROME).split(" ");
-            expect(
-                merged.filter((utility) => RESTING_CHROME.test(utility)),
-                primitive
-            ).toEqual([]);
+            const merged = utilities(cn(base, RESTING_CELL_CHROME));
+            expect(merged, primitive).toContain("rounded-none");
             expect(merged, primitive).toContain("bg-transparent");
             expect(merged, primitive).toContain("dark:bg-transparent");
+            expect(merged, primitive).toContain("hover:bg-transparent");
+            expect(merged, primitive).toContain("dark:hover:bg-transparent");
             expect(merged, primitive).toContain("border-transparent");
-            expect(merged, primitive).toContain("dark:border-transparent");
+            expect(merged, primitive).toContain("focus-visible:ring-0");
+            expect(merged, primitive).toContain("focus-visible:border-transparent");
+            expect(merged, primitive).toContain("aria-invalid:border-transparent");
+            expect(merged, primitive).not.toContain("rounded-md");
+            expect(merged, primitive).not.toContain("focus-visible:ring-[3px]");
+            expect(merged, primitive).not.toContain("hover:bg-accent");
+            expect(merged, primitive).not.toContain("dark:hover:bg-input/50");
+            expect(merged, primitive).not.toContain("aria-invalid:border-destructive");
         }
     });
 
-    it("would not cancel them without the dark-prefixed halves", () => {
-        // The regression this file exists to catch, asserted directly: the plain utilities alone
-        // leave the fill in place, which is why the cells looked clean in source and were not.
-        const merged = cn(SHARED_PRIMITIVE_BASES.input, "border-transparent bg-transparent").split(
-            " "
+    it("cancels primitive inline padding so editor text starts at the outer cell inset", () => {
+        for (const [primitive, base] of Object.entries(SHARED_PRIMITIVE_BASES)) {
+            const merged = utilities(cn(base, TRANSACTION_GRID_EDITOR_INLINE_CHROME));
+            expect(merged, primitive).toContain("px-0");
+            expect(merged, primitive).toContain("has-[>svg]:px-0");
+            expect(merged, primitive).not.toContain("px-3");
+            expect(merged, primitive).not.toContain("px-4");
+            expect(merged, primitive).not.toContain("has-[>svg]:px-3");
+        }
+    });
+
+    it("suppresses focus rings on non-primitive descendants too", () => {
+        const merged = utilities(
+            cn(
+                "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2",
+                INNER_CELL_FOCUS_CHROME
+            )
         );
-        expect(merged).toContain("dark:bg-input/30");
+        expect(merged).toContain("focus-visible:ring-0");
+        expect(merged).toContain("focus-visible:ring-offset-0");
+        expect(merged).not.toContain("focus-visible:ring-2");
     });
 
-    it("leaves hover, focus, validation and per-cell styling to win over the baseline", () => {
-        const amountCell = cn(
-            SHARED_PRIMITIVE_BASES.input,
-            "h-7 text-right text-sm font-medium tabular-nums",
-            RESTING_CELL_CHROME,
-            "text-green-700 dark:text-green-400",
-            "hover:bg-accent/30",
-            "focus:border-input focus:bg-background"
-        ).split(" ");
-
-        expect(amountCell).toContain("hover:bg-accent/30");
-        expect(amountCell).toContain("focus:bg-background");
-        expect(amountCell).toContain("focus:border-input");
-        expect(amountCell).toContain("focus-visible:border-ring");
-        expect(amountCell).toContain("focus-visible:ring-ring/50");
-        expect(amountCell).toContain("focus-visible:ring-[3px]");
-        expect(amountCell).toContain("aria-invalid:border-destructive");
-        expect(amountCell).toContain("dark:text-green-400");
+    it("restores a parked action descendant outline without reviving its neutralized ring", () => {
+        const merged = utilities(PARKED_ACTION_FOCUS_CHROME);
+        expect(merged).toEqual(
+            expect.arrayContaining([
+                "focus-visible:outline-2",
+                "focus-visible:outline-ring",
+                "focus-visible:outline-solid",
+                "focus-visible:-outline-offset-2",
+                "focus-visible:ring-0"
+            ])
+        );
+        expect(merged).not.toContain("focus-visible:outline-none");
     });
 
-    it("does not disturb a shared primitive used outside the transaction table", () => {
-        // The constant is applied per cell, never to the primitive, so an ordinary Input keeps the
-        // fill the rest of the product expects. Blast radius, asserted rather than assumed.
-        expect(cn(SHARED_PRIMITIVE_BASES.input).split(" ")).toContain("dark:bg-input/30");
+    it("puts spacing, neighboring rules and validation paint on the outer gridcell", () => {
+        const chrome = utilities(TRANSACTION_GRIDCELL_CHROME);
+        expect(chrome).toEqual(
+            expect.arrayContaining([
+                "h-full",
+                "overflow-hidden",
+                "rounded-none",
+                "border-r",
+                "border-b",
+                "border-border/60",
+                "px-2",
+                "has-[[aria-invalid=true]]:ring-2"
+            ])
+        );
+        expect(chrome.some((utility) => utility.startsWith("aria-selected:"))).toBe(false);
+        expect(chrome).not.toEqual(
+            expect.arrayContaining(["gap-4", "rounded-md", "focus-within:ring-2"])
+        );
+    });
+
+    it("keeps whole-cell focus paint separable from parked geometry", () => {
+        expect(utilities(TRANSACTION_GRIDCELL_FOCUS_CHROME)).toEqual(
+            expect.arrayContaining([
+                "focus-within:ring-2",
+                "focus-within:ring-inset",
+                "focus-visible:ring-2",
+                "focus-visible:ring-inset"
+            ])
+        );
+    });
+
+    it("uses the same square neighboring rules for the header tracks", () => {
+        expect(utilities(TRANSACTION_GRID_HEADER_CELL_CHROME)).toEqual(
+            expect.arrayContaining([
+                "rounded-none",
+                "border-r",
+                "border-b",
+                "border-border/60",
+                "px-2",
+                "py-2"
+            ])
+        );
+    });
+
+    it.each([false, true])(
+        "gives a parked data-row checkbox an inset outline when checked=%s",
+        (checked) => {
+            render(
+                createElement(CheckboxCell, {
+                    ariaLabel: "Select transaction",
+                    checked,
+                    onChange: vi.fn(),
+                    rowGeometry: "dataRow",
+                    showFocusIndicator: true
+                })
+            );
+
+            const checkbox = screen.getByRole("checkbox", { name: "Select transaction" });
+            expect(checkbox.className).toContain("focus-visible:outline-2");
+            expect(checkbox.className).toContain("focus-visible:-outline-offset-2");
+            expect(checkbox.className).not.toContain("focus-visible:outline-none");
+        }
+    );
+
+    it("gives a tag pill remove button an inset focus outline", () => {
+        render(
+            createElement(InlineEditableTags, {
+                availableTags: [],
+                onSave: vi.fn(),
+                tags: [
+                    {
+                        id: "tag-1",
+                        name: "Long household groceries and recurring provisions"
+                    }
+                ],
+                value: ["tag-1"]
+            })
+        );
+
+        const remove = screen.getByRole("button", {
+            name: "Remove Long household groceries and recurring provisions"
+        });
+        expect(remove.className).toContain("focus-visible:outline-2");
+        expect(remove.className).toContain("focus-visible:-outline-offset-2");
+        expect(remove.className).not.toContain("focus-visible:outline-none");
+        const strip = remove.closest("[data-tag-strip]");
+        if (!(strip instanceof HTMLElement)) throw new Error("tag editor strip is missing");
+        expect(strip.className).toContain("px-0");
+        expect(strip.className).not.toContain("px-1");
+    });
+
+    it("neutralizes the calendar trigger's resting and hover chrome", () => {
+        render(createElement(InlineEditableDate, { onSave: vi.fn(), value: "2026-08-25" }));
+
+        const input = screen.getByRole("textbox");
+        expect(input.className).toContain("px-0");
+        expect(input.className).toContain("pr-6");
+        expect(input.className).not.toContain("px-3");
+        expect(input.className).not.toContain("pr-8");
+
+        const trigger = screen.getByRole("button", { name: "Open calendar" });
+        expect(trigger.className).toContain("rounded-none");
+        expect(trigger.className).toContain("hover:bg-transparent");
+        expect(trigger.className).toContain("dark:hover:bg-transparent");
+        expect(trigger.className).not.toContain("rounded-md");
+        expect(trigger.className).not.toContain("hover:bg-accent");
     });
 });

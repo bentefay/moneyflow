@@ -49,6 +49,17 @@ export const CURSOR_ROW_ORDER_BLOCK = 200;
 export function transactionRowOrderFromCursor(cursor: TransactionCursor): TransactionRowOrder {
     return {
         indexOf: (transactionId) => cursor.indexOf(transactionId),
+        indexesOf: (transactionIds) => {
+            if (transactionIds.size === 0) return [];
+            const indexes: number[] = [];
+            let index = 0;
+            for (const transaction of cursor.values()) {
+                if (transactionIds.has(asTransactionId(transaction.id))) indexes.push(index);
+                index += 1;
+                if (indexes.length === transactionIds.size) break;
+            }
+            return indexes;
+        },
         slice: (fromIndex, toIndexInclusive) => ({
             [Symbol.iterator]: () => yieldRowIdsInBlocks(cursor, fromIndex, toIndexInclusive)
         })

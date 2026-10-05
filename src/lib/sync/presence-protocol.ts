@@ -59,7 +59,7 @@ function nullToUndefined<T>(value: T | null | undefined): T | undefined {
 export const presenceFieldSchema = z
     .string()
     .min(1)
-    .max(64)
+    .max(77)
     .regex(/^[a-zA-Z0-9:_-]+$/);
 
 /**
@@ -139,7 +139,7 @@ export interface PresenceSession {
 export interface TransactionPresence {
     readonly focusedBy: readonly string[];
     readonly editingBy: readonly string[];
-    readonly fields: readonly string[];
+    readonly editingByField: Readonly<Record<string, readonly string[]>>;
 }
 
 /**
@@ -359,7 +359,11 @@ export function buildTransactionPresence(
 ): Readonly<Record<string, TransactionPresence>> {
     const byTransaction = new Map<
         string,
-        { focusedBy: string[]; editingBy: string[]; fields: string[] }
+        {
+            focusedBy: string[];
+            editingBy: string[];
+            editingByField: Map<string, string[]>;
+        }
     >();
 
     for (const session of sessions) {
@@ -369,11 +373,18 @@ export function buildTransactionPresence(
         const bucket = byTransaction.get(transactionId) ?? {
             focusedBy: [],
             editingBy: [],
-            fields: []
+            editingByField: new Map<string, string[]>()
         };
         bucket.focusedBy.push(session.pubkeyHash);
-        if (session.state.editing) bucket.editingBy.push(session.pubkeyHash);
-        if (session.state.field != null) bucket.fields.push(session.state.field);
+        if (session.state.editing) {
+            bucket.editingBy.push(session.pubkeyHash);
+            const field = session.state.field;
+            if (field != null) {
+                const fieldEditors = bucket.editingByField.get(field) ?? [];
+                fieldEditors.push(session.pubkeyHash);
+                bucket.editingByField.set(field, fieldEditors);
+            }
+        }
         byTransaction.set(transactionId, bucket);
     }
 
@@ -383,7 +394,9 @@ export function buildTransactionPresence(
             {
                 focusedBy: distinct(bucket.focusedBy),
                 editingBy: distinct(bucket.editingBy),
-                fields: distinct(bucket.fields)
+                editingByField: Object.fromEntries(
+                    [...bucket.editingByField].map(([field, editors]) => [field, distinct(editors)])
+                )
             }
         ])
     );

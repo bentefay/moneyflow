@@ -4,8 +4,8 @@
  * The first case below is the hazard the official guide flags [HIGH], reproduced rather than
  * described: a cell range is two corner ids, so rows arriving *between* those corners join the
  * selection without the user touching anything. It runs against the real feature with no reset, so
- * it fails the day that stops being true — which is the only way the second case, the reset that
- * prevents it, can be shown to earn its place.
+ * it fails the day that stops being true. The second case pins the ownership boundary: this row-only
+ * adapter must not become a competing cell-selection authority.
  *
  * The third case is the other direction, and it is the one an over-eager fix breaks: paging more of
  * the *same* result set into view must leave the selection alone, or a multi-cell selection cannot
@@ -79,7 +79,7 @@ describe("the range-widening hazard", () => {
         expect(transactionSelectionAsClipboardPayload(table).text.split("\n")).toHaveLength(4);
     });
 
-    it("is prevented by applying the matching-set change", () => {
+    it("leaves cell reconciliation to the workspace while reconciling row selection", () => {
         const table = createTestTransactionTable({
             matchingRowCount: sparse.length,
             transactions: sparse
@@ -99,8 +99,10 @@ describe("the range-widening hazard", () => {
             newlyMatchingRowIds: [id("tx-1"), id("tx-2")]
         });
 
-        expect(table.getSelectedCellCount()).toBe(0);
-        expect(transactionSelectionAsClipboardPayload(table)).toEqual({ cellIds: [], text: "" });
+        // The adapter has no second cell-selection authority: the external atom remains untouched
+        // until the workspace publishes its generation-aware reconciliation.
+        expect(table.getSelectedCellCount()).toBe(4);
+        expect(transactionSelectionAsClipboardPayload(table).text.split("\n")).toHaveLength(4);
         // Row selection is reconciled rather than dropped: the two rows the user did select are
         // still selected, and the two that just arrived are not.
         expect(table.getSelectedRowIdsWithin([...nextMatching].map(id))).toEqual([

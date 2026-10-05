@@ -1,0 +1,7 @@
+[WebServer] $ next dev --turbopack
+
+
+Running 1 test using 1 worker
+
+[1/1] [chromium] › tests/e2e/transactions.spec.ts:2907:13 › Transactions › US5: Description/Notes Separation › UR-012: a click at a cell's edge activates its canonical interaction
+  1 passed (8.8s)

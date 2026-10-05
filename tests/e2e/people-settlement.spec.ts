@@ -20,8 +20,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
+    activateTransactionEditor,
+    allocationGridCell,
     awaitVaultPersistence,
     createNewIdentity,
+    expectTransactionCellDisplay,
     goToAccounts,
     goToPeople,
     goToStatuses,
@@ -348,9 +351,16 @@ test.describe("People page settlement journey", () => {
             // `Explicit:` is the only clause in the cell that reflects stored state. A bare "50%"
             // is also satisfied by the derived `Owner remainder: 50%.` that exists precisely
             // because Bob's allocation is missing, so it cannot fail on the loss this step names.
-            await expect(
-                reloaded.getByRole("button", { name: "Edit Bob allocation" })
-            ).toContainText("Explicit: 50%.");
+            const bobCell = await allocationGridCell(reloaded, "Bob");
+            await expect(bobCell).toHaveAttribute("data-cell-content", "display");
+            await bobCell.dblclick();
+            const bobAllocation = reloaded.getByRole("textbox", {
+                name: "Bob allocation percentage"
+            });
+            await expect(bobAllocation).toHaveAccessibleDescription(/Explicit: 50%\./);
+            await bobAllocation.press("Escape");
+            await expect(bobCell).toHaveAttribute("data-cell-content", "display");
+            await expect(bobAllocation).toHaveCount(0);
 
             await goToPeople(page);
             await expectObligation(page, {
@@ -389,11 +399,17 @@ test.describe("People page settlement journey", () => {
         await test.step("12. invalid, paste, decimal and edit semantics", async () => {
             await goToTransactions(page);
             const row = rowById(page, transactionId);
-            const cell = row.getByRole("button", { name: "Edit Bob allocation" });
+            const cell = await allocationGridCell(row, "Bob");
             const input = row.getByRole("textbox", { name: "Bob allocation percentage" });
+            const activateBobAllocation = async (): Promise<void> => {
+                await expect(cell).toHaveAttribute("data-cell-content", "display");
+                await cell.dblclick();
+                await expect(cell).toHaveAttribute("data-cell-content", "editor");
+                await expect(input).toBeFocused();
+            };
 
             await test.step("-101 is rejected without clamping", async () => {
-                await cell.click();
+                await activateBobAllocation();
                 await input.fill("-101");
                 await input.press("Enter");
                 await expect(input).toHaveAttribute("aria-invalid", "true");
@@ -404,7 +420,7 @@ test.describe("People page settlement journey", () => {
             });
 
             await test.step("101 is rejected without clamping", async () => {
-                await cell.click();
+                await activateBobAllocation();
                 await input.fill("101");
                 await input.press("Enter");
                 await expect(input).toHaveAttribute("aria-invalid", "true");
@@ -418,7 +434,7 @@ test.describe("People page settlement journey", () => {
                 });
                 await page.evaluate(() => navigator.clipboard.writeText("33.75"));
 
-                await cell.click();
+                await activateBobAllocation();
                 await input.focus();
                 // A real clipboard paste, not a synthetic fill.
                 await page.keyboard.press("ControlOrMeta+v");
@@ -428,14 +444,14 @@ test.describe("People page settlement journey", () => {
             });
 
             await test.step("Escape preserves the original value", async () => {
-                await cell.click();
+                await activateBobAllocation();
                 await input.fill("12");
                 await input.press("Escape");
                 await expect(cell).toContainText("33.75%");
             });
 
             await test.step("blur saves", async () => {
-                await cell.click();
+                await activateBobAllocation();
                 await input.fill("25.5");
                 await input.blur();
                 await expect(cell).toContainText("25.5%");
@@ -510,10 +526,10 @@ test.describe("People page settlement matrices", () => {
         await goToTransactions(page);
         // Allocations entered on the freshly added row, before any reload.
         const row = rowById(page, await addEmptyTransaction(page));
-        const amount = row.getByTestId("amount-editable");
-        await amount.click();
+        const amount = await activateTransactionEditor(row, "amount");
         await amount.fill("-60.00");
         await amount.press("Enter");
+        await expectTransactionCellDisplay(row, "amount", "-60.00");
         await setStatus(page, row, "Paid");
         await setAllocation(row, "Bob", "50");
         await setAllocation(row, "Me", "50");

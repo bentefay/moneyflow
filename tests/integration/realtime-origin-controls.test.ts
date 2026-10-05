@@ -24,6 +24,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
+    addVaultMember,
     appendVaultOp,
     cleanUpVaultFixtures,
     createVaultOwnedBy,
@@ -32,6 +33,7 @@ import {
     type RealtimeStack,
     requireRealtimeStack,
     rotateGrant,
+    runSql,
     testIdentityHash
 } from "./helpers/realtime-stack";
 
@@ -41,15 +43,19 @@ let stack: RealtimeStack;
 let ownerHash: string;
 let vaultId: string;
 let foreignVaultId: string;
+let ownOperationId: string;
+let foreignOperationId: string;
 const createdVaultIds: string[] = [];
 
 beforeAll(() => {
     stack = requireRealtimeStack();
     ownerHash = testIdentityHash("origin-owner");
+    const foreignOwnerHash = testIdentityHash("origin-other-owner");
     vaultId = createVaultOwnedBy(ownerHash);
-    foreignVaultId = createVaultOwnedBy(testIdentityHash("origin-other-owner"));
+    foreignVaultId = createVaultOwnedBy(foreignOwnerHash);
     createdVaultIds.push(vaultId, foreignVaultId);
-    appendVaultOp(vaultId, ownerHash);
+    ownOperationId = appendVaultOp(vaultId, ownerHash);
+    foreignOperationId = appendVaultOp(foreignVaultId, foreignOwnerHash);
 });
 
 afterAll(() => {
@@ -62,6 +68,49 @@ function restUrl(path: string): string {
 
 function authorizedHeaders(token: string, origin = HOSTILE_ORIGIN): Record<string, string> {
     return { apikey: stack.anonKey, Authorization: `Bearer ${token}`, Origin: origin };
+}
+
+function candidateVaultOpsUrl(ownVaultId: string, deniedVaultId: string): string {
+    const query = new URLSearchParams({
+        vault_id: `in.(${ownVaultId},${deniedVaultId})`,
+        select: "id,vault_id"
+    });
+    return restUrl(`vault_ops?${query.toString()}`);
+}
+
+interface VaultOperationRow {
+    readonly id: string;
+    readonly vault_id: string;
+}
+
+function isVaultOperationRow(value: unknown): value is VaultOperationRow {
+    return (
+        typeof value === "object" &&
+        value != null &&
+        "id" in value &&
+        typeof value.id === "string" &&
+        "vault_id" in value &&
+        typeof value.vault_id === "string"
+    );
+}
+
+type FixtureTable = "vault_ops" | "realtime_grants" | "vault_memberships" | "vaults";
+
+function fixtureRowCount(table: FixtureTable, fixtureVaultId: string): number {
+    const predicate =
+        table === "vaults"
+            ? `id = '${fixtureVaultId}'::uuid`
+            : `vault_id = '${fixtureVaultId}'::uuid`;
+    return Number(runSql(`SELECT count(*) FROM public.${table} WHERE ${predicate};`).trim());
+}
+
+function operationFixtureExists(operationId: string, fixtureVaultId: string): boolean {
+    return (
+        runSql(
+            `SELECT count(*) FROM public.vault_ops
+             WHERE id = '${operationId}'::uuid AND vault_id = '${fixtureVaultId}'::uuid;`
+        ).trim() === "1"
+    );
 }
 
 describe("CORS does not gate the websocket upgrade", () => {
@@ -131,6 +180,9 @@ describe("a realtime grant confers exactly its own vault, from any origin", () =
             vaultRole: grant.vaultRole
         });
 
+        expect(operationFixtureExists(ownOperationId, vaultId)).toBe(true);
+        expect(operationFixtureExists(foreignOperationId, foreignVaultId)).toBe(true);
+
         const ownVault = await fetch(restUrl(`vault_ops?vault_id=eq.${vaultId}&select=id`), {
             headers: authorizedHeaders(token)
         });
@@ -138,28 +190,35 @@ describe("a realtime grant confers exactly its own vault, from any origin", () =
             restUrl(`vault_ops?vault_id=eq.${foreignVaultId}&select=id`),
             { headers: authorizedHeaders(token) }
         );
-        const unfiltered = await fetch(restUrl("vault_ops?select=id,vault_id"), {
+        const candidateVaults = await fetch(candidateVaultOpsUrl(vaultId, foreignVaultId), {
             headers: authorizedHeaders(token)
         });
 
+        expect(ownVault.status).toBe(200);
+        expect(foreignVault.status).toBe(200);
+        expect(candidateVaults.status).toBe(200);
+
         const ownRows: unknown = await ownVault.json();
         const foreignRows: unknown = await foreignVault.json();
-        const allRows: unknown = await unfiltered.json();
+        const candidateRowsValue: unknown = await candidateVaults.json();
 
         expect(Array.isArray(ownRows) && ownRows.length).toBeGreaterThan(0);
         expect(foreignRows).toEqual([]);
-        // An unfiltered enumeration attempt is confined by RLS to the grant's own vault.
-        expect(Array.isArray(allRows)).toBe(true);
+        expect(Array.isArray(candidateRowsValue)).toBe(true);
+        if (!Array.isArray(candidateRowsValue)) {
+            throw new Error("Bounded vault operation response was not an array");
+        }
+        const candidateRows = candidateRowsValue.filter(isVaultOperationRow);
+        expect(candidateRows).toHaveLength(candidateRowsValue.length);
         expect(
-            Array.isArray(allRows) &&
-                allRows.every(
-                    (row) =>
-                        typeof row === "object" &&
-                        row !== null &&
-                        "vault_id" in row &&
-                        row.vault_id === vaultId
-                )
+            candidateRows.some((row) => row.id === ownOperationId && row.vault_id === vaultId)
         ).toBe(true);
+        expect(
+            candidateRows.some(
+                (row) => row.id === foreignOperationId && row.vault_id === foreignVaultId
+            )
+        ).toBe(false);
+        expect(candidateRows.every((row) => row.vault_id === vaultId)).toBe(true);
     }, 20_000);
 
     it("cannot read grants or memberships with the same token", async () => {
@@ -202,6 +261,35 @@ describe("a realtime grant confers exactly its own vault, from any origin", () =
         });
 
         expect(spoofed.status).toBe(403);
+    });
+});
+
+describe("realtime fixture cleanup", () => {
+    it("removes only the requested vault's dependent fixture rows", () => {
+        const cleanupOwnerHash = testIdentityHash("cleanup-owner");
+        const cleanupVaultId = createVaultOwnedBy(cleanupOwnerHash);
+        createdVaultIds.push(cleanupVaultId);
+        addVaultMember(cleanupVaultId, testIdentityHash("cleanup-member"));
+        appendVaultOp(cleanupVaultId, cleanupOwnerHash);
+        rotateGrant(cleanupOwnerHash, cleanupVaultId);
+
+        expect(fixtureRowCount("vault_ops", cleanupVaultId)).toBeGreaterThan(0);
+        expect(fixtureRowCount("realtime_grants", cleanupVaultId)).toBeGreaterThan(0);
+        expect(fixtureRowCount("vault_memberships", cleanupVaultId)).toBeGreaterThan(0);
+        expect(fixtureRowCount("vaults", cleanupVaultId)).toBe(1);
+
+        cleanUpVaultFixtures([cleanupVaultId]);
+
+        for (const table of [
+            "vault_ops",
+            "realtime_grants",
+            "vault_memberships",
+            "vaults"
+        ] satisfies readonly FixtureTable[]) {
+            expect(fixtureRowCount(table, cleanupVaultId), table).toBe(0);
+        }
+        expect(operationFixtureExists(ownOperationId, vaultId)).toBe(true);
+        expect(operationFixtureExists(foreignOperationId, foreignVaultId)).toBe(true);
     });
 });
 

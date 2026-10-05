@@ -17,7 +17,23 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Temporal } from "temporal-polyfill";
 
+import type { TransactionGridEditorCommitResult } from "@/components/features/transactions/cells/editor-lifecycle";
+import type {
+    AllocationBoundaryResult,
+    SetTransactionAllocationInput
+} from "@/lib/crdt/allocations";
+import type {
+    AssignDescriptionAliasByExactNameInput,
+    RemoveOneDescriptionAliasInput
+} from "@/lib/crdt/description-aliases";
+import type { CreateFieldRuleInput } from "@/lib/crdt/field-rule-mutations";
+import type { UpdateTransactionInput } from "@/lib/crdt/mutations";
 import type { TransactionInput, TransactionStore } from "@/lib/crdt/schema";
+import { buildTransactionIndex } from "@/lib/crdt/transaction-cursor";
+import {
+    DEFAULT_REMEMBERED_CHOICE,
+    type RememberedRuleChoice
+} from "@/lib/domain/automation/preferences";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 import { buildFakeTransactionStore } from "./virtual-grid-harness";
@@ -26,6 +42,20 @@ export const ACCOUNT_ID = "account-cheque";
 export const STATUS_ID = "status-for-review";
 export const PAID_STATUS_ID = "status-paid";
 
+interface TransactionTagCommitInput {
+    readonly location: {
+        readonly accountId: string;
+        readonly date: Temporal.PlainDate;
+        readonly transactionId: string;
+    };
+    readonly tagIds: readonly string[];
+    readonly createdTags: readonly {
+        readonly id: string;
+        readonly name: string;
+        readonly color?: string;
+    }[];
+}
+
 /** The fake document, replaced per test and observed through a revision counter. */
 export const vault = {
     store: {} as Record<string, unknown>,
@@ -33,9 +63,58 @@ export const vault = {
     revision: 0,
     listeners: new Set<() => void>()
 };
+export const vaultTags: Record<string, unknown> = {};
+export const vaultActionCalls: unknown[] = [];
+export const fieldRuleCreateCalls: CreateFieldRuleInput[] = [];
+export const fieldRuleCreateFailure = { current: false };
+export const transactionTagCommitBoundaryMode: {
+    current: "normal" | "missing" | "unchanged";
+} = { current: "normal" };
+export const transactionAllocationCommitBoundaryMode: {
+    current: "normal" | "missing" | "unchanged";
+} = { current: "normal" };
+export const transactionAllocationCalls: SetTransactionAllocationInput[] = [];
+export const fieldRuleApplicationCalls: Array<{
+    readonly kind: "all" | "newer";
+    readonly inspectorOwnerAtApply: string | null;
+}> = [];
+export const rememberedAutomationChoice: { current: RememberedRuleChoice } = {
+    current: DEFAULT_REMEMBERED_CHOICE
+};
+
+export function seedRememberedAutomationChoice(choice: RememberedRuleChoice): void {
+    rememberedAutomationChoice.current = choice;
+}
+
+export function storedTransactionTagIds(transactionId: string): readonly string[] {
+    const index = buildTransactionIndex(vault.store as TransactionStore);
+    return index.canonicalById.get(transactionId)?.tagIds ?? [];
+}
+
+export function storedTransactionAllocations(
+    transactionId: string
+): Readonly<Record<string, unknown>> {
+    const index = buildTransactionIndex(vault.store as TransactionStore);
+    return index.canonicalById.get(transactionId)?.allocations ?? {};
+}
+
+export function storedTransactionDescriptionAliasId(transactionId: string): string | undefined {
+    const index = buildTransactionIndex(vault.store as TransactionStore);
+    return index.canonicalById.get(transactionId)?.descriptionAliasId;
+}
+
+/** Description aliases exposed to the real page by the fake vault context. */
+export const vaultDescriptionAliases = { current: {} as Record<string, unknown> };
 
 /** Every `updateTransaction` the page issued, so a bulk action's true reach can be measured. */
 export const statusUpdates: Array<{ id: string; statusId: string }> = [];
+export const notesUpdates: Array<{ id: string; notes: string }> = [];
+
+/** Encrypted per-viewer inspector preference exposed by the fake vault. */
+export const transactionInspectorPreference: { open: boolean; persisted: boolean[] } = {
+    open: true,
+    persisted: []
+};
 
 /**
  * The people the vault holds. Two records rather than one because the page reads them through two
@@ -57,6 +136,11 @@ export function seedVaultPeople(people: {
     vaultPeople.all = people.all;
 }
 
+/** Replaces the aliases returned by the fake vault context. Call before rendering. */
+export function seedVaultDescriptionAliases(aliases: Record<string, unknown>): void {
+    vaultDescriptionAliases.current = aliases;
+}
+
 const noop = () => {};
 const empty = {};
 const noRules: readonly never[] = [];
@@ -74,16 +158,48 @@ const statuses = {
     [STATUS_ID]: { id: STATUS_ID, name: "For review", isDefault: true },
     [PAID_STATUS_ID]: { id: PAID_STATUS_ID, name: "Paid", isDefault: false }
 };
-const fieldRuleActions = { create: noop, update: noop };
-const applyFieldRules = { applyAll: noop, applyNewerThan: noop };
+const fieldRuleActions = {
+    create: (input: CreateFieldRuleInput) => {
+        fieldRuleCreateCalls.push(input);
+        return fieldRuleCreateFailure.current
+            ? ({
+                  error: { existingRuleId: "existing-rule", type: "duplicate-key" },
+                  ok: false
+              } as const)
+            : ({ ok: true, value: undefined } as const);
+    },
+    update: noop
+};
+const changeAllDescriptionAliasCalls: unknown[] = [];
+const changeOneDescriptionAliasCalls: unknown[] = [];
+const removeAllDescriptionAliasCalls: unknown[] = [];
+const removeOneDescriptionAliasCalls: unknown[] = [];
+export const descriptionAliasActionCalls = {
+    changeAll: changeAllDescriptionAliasCalls,
+    changeOne: changeOneDescriptionAliasCalls,
+    removeAll: removeAllDescriptionAliasCalls,
+    removeOne: removeOneDescriptionAliasCalls
+};
+export const descriptionAliasCommitBoundaryMode: { current: "record" | "persist" } = {
+    current: "record"
+};
+const successfulAliasMutation = () => ({ ok: true, value: undefined });
+const recordSuccessfulAliasMutation = (calls: unknown[], input: unknown) => {
+    calls.push(input);
+    return successfulAliasMutation();
+};
 const aliasActions = {
-    assignDescriptionAlias: noop,
-    assignDescriptionAliasByExactName: noop,
-    changeAllDescriptionAliases: noop,
-    changeOneDescriptionAlias: noop,
-    removeAllDescriptionAliases: noop,
-    removeOneDescriptionAlias: noop,
-    renameDescriptionAlias: noop
+    assignDescriptionAlias: successfulAliasMutation,
+    assignDescriptionAliasByExactName: successfulAliasMutation,
+    changeAllDescriptionAliases: (input: unknown) =>
+        recordSuccessfulAliasMutation(changeAllDescriptionAliasCalls, input),
+    changeOneDescriptionAlias: (input: unknown) =>
+        recordSuccessfulAliasMutation(changeOneDescriptionAliasCalls, input),
+    removeAllDescriptionAliases: (input: unknown) =>
+        recordSuccessfulAliasMutation(removeAllDescriptionAliasCalls, input),
+    removeOneDescriptionAlias: (input: unknown) =>
+        recordSuccessfulAliasMutation(removeOneDescriptionAliasCalls, input),
+    renameDescriptionAlias: successfulAliasMutation
 };
 
 export const presenceMock = {
@@ -105,7 +221,92 @@ export const routerMock = {
 /** The `@/lib/crdt/context` stand-in. Built lazily so a `vi.mock` factory can await it. */
 export async function createCrdtContextMock() {
     const { useCallback, useMemo, useSyncExternalStore } = await import("react");
-    const { buildTransactionIndex } = await import("@/lib/crdt/transaction-cursor");
+    const { setTransactionAllocation: setStoredTransactionAllocation } =
+        await import("@/lib/crdt/allocations");
+    const { findTransactionsInStore, updateTransaction: updateStoredTransaction } =
+        await import("@/lib/crdt/mutations");
+
+    const publishStore = (store: TransactionStore): void => {
+        vault.store = { ...store };
+        vault.revision += 1;
+        for (const listener of vault.listeners) listener();
+    };
+    const useVaultActionMock =
+        (
+            updater: (
+                state: {
+                    readonly transactions: TransactionStore;
+                    readonly tags: Record<string, unknown>;
+                },
+                input: TransactionTagCommitInput
+            ) => TransactionGridEditorCommitResult
+        ) =>
+        (input: TransactionTagCommitInput): TransactionGridEditorCommitResult => {
+            vaultActionCalls.push(input);
+            const mode = transactionTagCommitBoundaryMode.current;
+            const store =
+                mode === "missing"
+                    ? buildFakeTransactionStore([])
+                    : (vault.store as TransactionStore);
+            if (mode === "unchanged") {
+                updateStoredTransaction(store, {
+                    location: input.location,
+                    updates: { tagIds: [...input.tagIds] }
+                });
+            }
+            const result = updater({ tags: vaultTags, transactions: store }, input);
+            if (mode !== "missing" && result.ok) publishStore(store);
+            return result;
+        };
+
+    const applyCreatedTagRule = (
+        kind: "all" | "newer",
+        referenceDate?: Temporal.PlainDate
+    ): void => {
+        const rule = fieldRuleCreateCalls.at(-1);
+        if (rule == null || rule.action.field !== "tags") return;
+        fieldRuleApplicationCalls.push({
+            inspectorOwnerAtApply:
+                document
+                    .querySelector<HTMLElement>("[data-testid='transaction-inspector']")
+                    ?.getAttribute("data-transaction-owner") ?? null,
+            kind
+        });
+        const store = vault.store as TransactionStore;
+        const index = buildTransactionIndex(store);
+        for (const transaction of index.canonicalById.values()) {
+            if (
+                transaction.deletedAt != null ||
+                transaction.description !== rule.descriptionText ||
+                (rule.accountId != null && transaction.accountId !== rule.accountId) ||
+                (rule.amount != null && transaction.amount !== rule.amount) ||
+                (referenceDate != null &&
+                    Temporal.PlainDate.compare(transaction.date, referenceDate) <= 0)
+            ) {
+                continue;
+            }
+            const tagIds =
+                rule.action.mode === "set"
+                    ? [...rule.action.tagIds]
+                    : [...new Set([...transaction.tagIds, ...rule.action.tagIds])];
+            updateStoredTransaction(store, {
+                location: {
+                    accountId: transaction.accountId,
+                    date: transaction.date,
+                    transactionId: transaction.id
+                },
+                updates: { tagIds }
+            });
+        }
+        vault.store = { ...store };
+        vault.revision += 1;
+        for (const listener of vault.listeners) listener();
+    };
+    const applyFieldRules = {
+        applyAll: () => applyCreatedTagRule("all"),
+        applyNewerThan: (referenceDate: Temporal.PlainDate) =>
+            applyCreatedTagRule("newer", referenceDate)
+    };
 
     const subscribe = (listener: () => void) => {
         vault.listeners.add(listener);
@@ -114,6 +315,42 @@ export async function createCrdtContextMock() {
         };
     };
     const readRevision = () => vault.revision;
+    const descriptionAliasActions = {
+        ...aliasActions,
+        assignDescriptionAliasByExactName: (input: AssignDescriptionAliasByExactNameInput) => {
+            if (descriptionAliasCommitBoundaryMode.current === "persist") {
+                const store = vault.store as TransactionStore;
+                const transactions = findTransactionsInStore(store, input.location);
+                const transactionIds: Record<string, true> = {};
+                for (const transaction of transactions) {
+                    transaction.descriptionAliasId = input.newAliasId;
+                    transactionIds[transaction.id] = true;
+                }
+                vaultDescriptionAliases.current = {
+                    ...vaultDescriptionAliases.current,
+                    [input.newAliasId]: {
+                        id: input.newAliasId,
+                        kind: "real",
+                        name: input.name,
+                        symlinkIds: {},
+                        transactionIds
+                    }
+                };
+                publishStore(store);
+            }
+            return successfulAliasMutation();
+        },
+        removeOneDescriptionAlias: (input: RemoveOneDescriptionAliasInput) => {
+            removeOneDescriptionAliasCalls.push(input);
+            if (descriptionAliasCommitBoundaryMode.current === "persist") {
+                const store = vault.store as TransactionStore;
+                const transactions = findTransactionsInStore(store, input.location);
+                for (const transaction of transactions) transaction.descriptionAliasId = undefined;
+                publishStore(store);
+            }
+            return successfulAliasMutation();
+        }
+    };
 
     return {
         // The grid's source is the document-scoped index, not a flat array. Memoised on the store's
@@ -126,43 +363,79 @@ export async function createCrdtContextMock() {
             return useMemo(() => buildTransactionIndex(store), [store]);
         },
         useActiveAccounts: () => accounts,
-        useActiveTags: () => empty,
-        useDescriptionAliases: () => empty,
+        useAccounts: () => accounts,
+        useActiveTags: () => vaultTags,
+        useDescriptionAliases: () => vaultDescriptionAliases.current,
         useStatuses: () => statuses,
         useActivePeople: () => vaultPeople.active,
         usePeople: () => vaultPeople.all,
         useActiveFieldRules: () => noRules,
         useTransactionActions: () => ({
             insertTransaction: noop,
-            updateTransaction: useCallback(
-                ({
-                    location,
-                    updates
-                }: {
-                    readonly location: { readonly transactionId: string };
-                    readonly updates: { readonly statusId?: string };
-                }) => {
-                    if (updates.statusId == null) return;
+            updateTransaction: useCallback((input: UpdateTransactionInput) => {
+                if (input.updates.statusId != null) {
                     statusUpdates.push({
-                        id: location.transactionId,
-                        statusId: updates.statusId
+                        id: input.location.transactionId,
+                        statusId: input.updates.statusId
                     });
+                }
+                if (input.updates.notes != null) {
+                    notesUpdates.push({
+                        id: input.location.transactionId,
+                        notes: input.updates.notes
+                    });
+                }
+                const store = vault.store as TransactionStore;
+                updateStoredTransaction(store, input);
+                vault.store = { ...store };
+                vault.revision += 1;
+                for (const listener of vault.listeners) listener();
+            }, []),
+            setTransactionAllocation: useCallback(
+                (input: SetTransactionAllocationInput): AllocationBoundaryResult => {
+                    transactionAllocationCalls.push(input);
+                    const mode = transactionAllocationCommitBoundaryMode.current;
+                    const store =
+                        mode === "missing"
+                            ? buildFakeTransactionStore([])
+                            : (vault.store as TransactionStore);
+                    if (mode === "unchanged") setStoredTransactionAllocation(store, input);
+                    const result = setStoredTransactionAllocation(store, input);
+                    if (mode !== "missing" && result.ok) publishStore(store);
+                    return result;
                 },
                 []
             ),
-            setTransactionAllocation: noop,
             moveTransaction: noop,
             deleteTransaction: noop,
             unnestDuplicate: noop
         }),
-        useDescriptionAliasActions: () => aliasActions,
-        useVaultAction: () => noop,
+        useDescriptionAliasActions: () => descriptionAliasActions,
+        useVaultAction: useVaultActionMock,
         useApplyFieldRulesToTransaction: () => noop,
-        useUserAutomationChoice: () => empty,
+        useUserAutomationChoice: () => rememberedAutomationChoice.current,
         usePersistAutomationPreference: () => noop,
+        useUserTransactionInspectorOpen: () =>
+            useSyncExternalStore(
+                subscribe,
+                () => transactionInspectorPreference.open,
+                () => transactionInspectorPreference.open
+            ),
+        usePersistTransactionInspectorOpen: () =>
+            useCallback(
+                ({ transactionInspectorOpen }: { readonly transactionInspectorOpen: boolean }) => {
+                    transactionInspectorPreference.open = transactionInspectorOpen;
+                    transactionInspectorPreference.persisted.push(transactionInspectorOpen);
+                    for (const listener of vault.listeners) listener();
+                },
+                []
+            ),
         // The inline rule-proposal workflow reads these through `@/lib/crdt`, which re-exports this
         // module. They are unrelated to selection but must exist, or the page throws on render.
-        useActiveDescriptionAliases: () => noRules,
+        useActiveDescriptionAliases: () => {
+            const aliases = vaultDescriptionAliases.current;
+            return useMemo(() => Object.values(aliases), [aliases]);
+        },
         useVaultPreferences: () => empty,
         useFieldRuleActions: () => fieldRuleActions,
         useApplyFieldRules: () => applyFieldRules
@@ -219,8 +492,33 @@ export function seedVaultWith(transactions: readonly TransactionInput[]): void {
     vault.revision += 1;
     vault.listeners.clear();
     statusUpdates.length = 0;
+    notesUpdates.length = 0;
+    vaultActionCalls.length = 0;
+    fieldRuleCreateCalls.length = 0;
+    fieldRuleCreateFailure.current = false;
+    fieldRuleApplicationCalls.length = 0;
+    transactionTagCommitBoundaryMode.current = "normal";
+    transactionAllocationCommitBoundaryMode.current = "normal";
+    transactionAllocationCalls.length = 0;
+    rememberedAutomationChoice.current = DEFAULT_REMEMBERED_CHOICE;
+    for (const tagId of Object.keys(vaultTags)) delete vaultTags[tagId];
+    transactionInspectorPreference.open = true;
+    transactionInspectorPreference.persisted.length = 0;
+    descriptionAliasActionCalls.changeAll.length = 0;
+    descriptionAliasActionCalls.changeOne.length = 0;
+    descriptionAliasActionCalls.removeAll.length = 0;
+    descriptionAliasActionCalls.removeOne.length = 0;
+    descriptionAliasCommitBoundaryMode.current = "record";
+    vaultDescriptionAliases.current = {};
     vaultPeople.active = {};
     vaultPeople.all = {};
+}
+
+/** Replaces a mounted page's vault and notifies its real external-store subscribers. */
+export function replaceRenderedVaultWith(transactions: readonly TransactionInput[]): void {
+    vault.store = buildFakeTransactionStore(transactions);
+    vault.revision += 1;
+    for (const listener of vault.listeners) listener();
 }
 
 /** Replaces the vault with `count` rows, one per calendar day, newest first. */

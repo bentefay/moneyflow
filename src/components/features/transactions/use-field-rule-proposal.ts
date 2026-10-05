@@ -22,7 +22,7 @@
  * "…All" through the engine's apply-all, "…New" scoped to rows strictly newer than this transaction.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { type Temporal } from "temporal-polyfill";
 
 import { usePubkeyHash } from "@/hooks/use-identity";
@@ -32,6 +32,7 @@ import {
     useActiveFieldRules,
     useActivePeople,
     useActiveTags,
+    useAccounts,
     useApplyFieldRules,
     useFieldRuleActions,
     usePersistAutomationPreference,
@@ -41,6 +42,7 @@ import {
 import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import { applyModeTargetsNewOnly } from "@/lib/domain/automation/apply-mode";
 import { type RuleMatchSubject } from "@/lib/domain/automation/rules";
+import { resolveAccountCurrency } from "@/lib/domain/currency";
 
 import { type RuleEditorOption } from "../automations/FieldRuleEditor";
 import {
@@ -53,8 +55,15 @@ import {
     type RuleEditorFieldErrors,
     validateRuleDraft
 } from "../automations/rule-editor-model";
-import { computeFieldRuleProposal, type FieldRuleProposalState } from "./field-rule-proposal-state";
+import {
+    computeFieldRuleProposal,
+    type FieldRuleProposalState,
+    type RuleProposalDraftGeneration,
+    type RuleProposalDraftOverride,
+    type RuleProposalErrorOverride
+} from "./field-rule-proposal-state";
 import { type RobotCurrentValue } from "./field-rule-robot-state";
+import { type TransactionId } from "./table-model";
 
 export interface FieldRuleProposalWorkflow {
     readonly proposal: FieldRuleProposalState;
@@ -73,17 +82,37 @@ export interface FieldRuleProposalWorkflow {
     readonly apply: () => boolean;
 }
 
+export interface FieldRuleProposalPersistence {
+    readonly draftOverride: RuleProposalDraftOverride | null;
+    readonly errorOverride: RuleProposalErrorOverride | null;
+    readonly setDraftOverride: (override: RuleProposalDraftOverride | null) => void;
+    readonly setErrorOverride: (override: RuleProposalErrorOverride | null) => void;
+}
+
+type RuleProposalCurrentValueKey =
+    | { readonly field: "descriptionAlias"; readonly aliasId: string | null }
+    | { readonly field: "tags"; readonly tagIds: readonly string[] }
+    | {
+          readonly field: "allocation";
+          readonly allocations: readonly (readonly [string, number])[];
+      };
+
 export function useFieldRuleProposal(params: {
     readonly subject: RuleMatchSubject;
+    /** Stable owner whose current value seeded this proposal. */
+    readonly transactionId: TransactionId;
     /** The value the transaction currently carries for the changed field. */
     readonly current: RobotCurrentValue;
     /** This transaction's date; "…New" modes are scoped to strictly-newer rows (frozen `:263-264`). */
     readonly referenceDate: Temporal.PlainDate;
+    /** Optional controller-owned persistence used by the stable transaction inspector. */
+    readonly persistence?: FieldRuleProposalPersistence;
 }): FieldRuleProposalWorkflow {
-    const { subject, current, referenceDate } = params;
+    const { subject, transactionId, current, referenceDate, persistence } = params;
 
     const rules = useActiveFieldRules();
     const accountsRecord = useActiveAccounts();
+    const allAccountsRecord = useAccounts();
     const tagsRecord = useActiveTags();
     const peopleRecord = useActivePeople();
     const aliasesCollection = useActiveDescriptionAliases();
@@ -95,11 +124,23 @@ export function useFieldRuleProposal(params: {
     const { applyAll, applyNewerThan } = useApplyFieldRules();
     const persistPreference = usePersistAutomationPreference();
 
-    const currencyCode = preferences?.defaultCurrency ?? "USD";
+    const subjectAccount = allAccountsRecord[subject.accountId];
+    const currencyCode = resolveAccountCurrency(
+        typeof subjectAccount === "object" ? subjectAccount.currency : undefined,
+        preferences?.defaultCurrency
+    ).code;
 
     const proposal = useMemo(
         () => computeFieldRuleProposal(rules, subject, current),
         [rules, subject, current]
+    );
+    const draftKey = useMemo(
+        () => ruleProposalDraftKey(transactionId, proposal, current, subject, currencyCode),
+        [currencyCode, current, proposal, subject, transactionId]
+    );
+    const draftGeneration = useMemo<RuleProposalDraftGeneration>(
+        () => ({ semanticKey: draftKey }),
+        [draftKey]
     );
 
     const options = useRuleEditorOptions({
@@ -109,8 +150,50 @@ export function useFieldRuleProposal(params: {
         tagsRecord
     });
 
-    const [draftOverride, setDraftOverride] = useState<RuleEditorDraft | null>(null);
-    const [errors, setErrors] = useState<RuleEditorFieldErrors>({});
+    const [localDraftOverride, setLocalDraftOverride] = useState<RuleProposalDraftOverride | null>(
+        null
+    );
+    const [localErrorOverride, setLocalErrorOverride] = useState<RuleProposalErrorOverride | null>(
+        null
+    );
+    const draftOverride = persistence == null ? localDraftOverride : persistence.draftOverride;
+    const errorOverride = persistence == null ? localErrorOverride : persistence.errorOverride;
+    const setDraftOverride = persistence?.setDraftOverride ?? setLocalDraftOverride;
+    const setErrorOverride = persistence?.setErrorOverride ?? setLocalErrorOverride;
+    const generationMatches = (generation: RuleProposalDraftGeneration): boolean =>
+        persistence == null
+            ? generation === draftGeneration
+            : generation.semanticKey === draftGeneration.semanticKey;
+    const errors =
+        errorOverride != null && generationMatches(errorOverride.generation)
+            ? errorOverride.errors
+            : {};
+
+    // An inspector remount gets a new local token, but its controller-owned override still belongs to
+    // the same semantic proposal. A semantic mismatch is ignored immediately and retired before an
+    // A → B → A transition can resurrect it.
+    useLayoutEffect(() => {
+        if (persistence == null) return;
+        if (
+            draftOverride != null &&
+            draftOverride.generation.semanticKey !== draftGeneration.semanticKey
+        ) {
+            setDraftOverride(null);
+        }
+        if (
+            errorOverride != null &&
+            errorOverride.generation.semanticKey !== draftGeneration.semanticKey
+        ) {
+            setErrorOverride(null);
+        }
+    }, [
+        draftGeneration.semanticKey,
+        draftOverride,
+        errorOverride,
+        persistence,
+        setDraftOverride,
+        setErrorOverride
+    ]);
 
     // The draft is DERIVED from the proposal, so the controls never need an effect to seed
     // themselves when they appear. User edits are held in `draftOverride`.
@@ -119,18 +202,25 @@ export function useFieldRuleProposal(params: {
         const seed = seedFromCurrent(proposal.descriptionText, current, subject);
         return draftFromProposal(seed, currencyCode, remembered);
     }, [proposal, current, subject, currencyCode, remembered]);
-    const draft = draftOverride ?? baselineDraft;
+    const draft =
+        draftOverride != null && generationMatches(draftOverride.generation)
+            ? draftOverride.draft
+            : baselineDraft;
 
-    const setDraft = useCallback((next: RuleEditorDraft) => {
-        setDraftOverride(next);
-        setErrors({});
-    }, []);
+    const setDraft = useCallback(
+        (next: RuleEditorDraft) => {
+            if (proposal.kind === "none") return;
+            setDraftOverride({ draft: next, generation: draftGeneration });
+            setErrorOverride(null);
+        },
+        [draftGeneration, proposal.kind, setDraftOverride, setErrorOverride]
+    );
 
     const apply = useCallback((): boolean => {
         if (draft == null || proposal.kind === "none") return false;
         const validation = validateRuleDraft(draft, currencyCode);
         if (!validation.ok) {
-            setErrors(validation.errors);
+            setErrorOverride({ errors: validation.errors, generation: draftGeneration });
             return false;
         }
         const { accountId, amount, action } = validation.value;
@@ -150,7 +240,10 @@ export function useFieldRuleProposal(params: {
                   });
 
         if (!result.ok) {
-            setErrors(mutationErrorToFieldErrors(result.error));
+            setErrorOverride({
+                errors: mutationErrorToFieldErrors(result.error),
+                generation: draftGeneration
+            });
             return false;
         }
 
@@ -174,7 +267,7 @@ export function useFieldRuleProposal(params: {
             });
         }
         setDraftOverride(null);
-        setErrors({});
+        setErrorOverride(null);
         return true;
     }, [
         applyAll,
@@ -182,10 +275,13 @@ export function useFieldRuleProposal(params: {
         create,
         currencyCode,
         draft,
+        draftGeneration,
         persistPreference,
         proposal,
         pubkeyHash,
         referenceDate,
+        setDraftOverride,
+        setErrorOverride,
         update
     ]);
 
@@ -198,6 +294,46 @@ export function useFieldRuleProposal(params: {
         setDraft,
         apply
     };
+}
+
+/** Stable semantic identity for the proposal facts an editable override was seeded from. */
+function ruleProposalDraftKey(
+    transactionId: TransactionId,
+    proposal: FieldRuleProposalState,
+    current: RobotCurrentValue,
+    subject: RuleMatchSubject,
+    currencyCode: string
+): string {
+    const currentValue = ruleProposalCurrentValueKey(current);
+    const proposalOwner = proposal.kind === "update" ? proposal.rule.id : null;
+    const proposalDescription =
+        proposal.kind === "none" ? subject.descriptionText : proposal.descriptionText;
+    return JSON.stringify([
+        transactionId,
+        proposal.kind,
+        proposalOwner,
+        proposalDescription,
+        subject.accountId,
+        subject.amount,
+        currencyCode,
+        currentValue
+    ]);
+}
+
+function ruleProposalCurrentValueKey(current: RobotCurrentValue): RuleProposalCurrentValueKey {
+    switch (current.field) {
+        case "descriptionAlias":
+            return { aliasId: current.currentAliasId, field: current.field };
+        case "tags":
+            return { field: current.field, tagIds: [...current.currentTagIds].sort() };
+        case "allocation":
+            return {
+                allocations: Object.entries(current.currentAllocations).sort(([left], [right]) =>
+                    left.localeCompare(right)
+                ),
+                field: current.field
+            };
+    }
 }
 
 /** Project the changed field's current value into the pure {@link RuleProposalSeed}. */

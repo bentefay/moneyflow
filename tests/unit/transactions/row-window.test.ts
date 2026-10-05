@@ -18,7 +18,8 @@ import {
     advanceTransactionRowWindowStart,
     TRANSACTION_ROW_BLOCK,
     TRANSACTION_ROW_WINDOW_ROWS,
-    withPinnedTransactionRow
+    withPinnedTransactionRow,
+    withPinnedTransactionRows
 } from "@/components/features/transactions/row-window";
 
 /** A viewport, in whole rows, comfortably larger than the grid's real one plus its overscan. */
@@ -173,5 +174,29 @@ describe("withPinnedTransactionRow", () => {
             indexes: [7],
             rows: ["pinned"]
         });
+    });
+});
+
+describe("withPinnedTransactionRows", () => {
+    it("merges active and pending pins atomically in matching order", () => {
+        const window = { indexes: [10, 11, 12], rows: ["10", "11", "12"] };
+
+        expect(withPinnedTransactionRows(window, [99, 3], String)).toEqual({
+            indexes: [3, 10, 11, 12, 99],
+            rows: ["3", "10", "11", "12", "99"]
+        });
+    });
+
+    it("deduplicates equal pins and stays bounded at the base window plus two", () => {
+        const indexes = Array.from(
+            { length: TRANSACTION_ROW_WINDOW_ROWS },
+            (unused, index) => index
+        );
+        const window = { indexes, rows: indexes };
+
+        const twoPins = withPinnedTransactionRows(window, [700, 700, 900], (index) => index);
+
+        expect(twoPins.indexes).toHaveLength(TRANSACTION_ROW_WINDOW_ROWS + 2);
+        expect(twoPins.indexes.slice(-2)).toEqual([700, 900]);
     });
 });

@@ -1,197 +1,398 @@
-/**
- * Auto-apply behaviour of the SHIPPED `TransactionRuleProposal` (UR-009, frozen `:263-266`).
- *
- * These mount the real component, with only `useFieldRuleProposal` and the presentational
- * `FieldRuleProposal` mocked — so the `shouldShow` gate, the focus listener, the live focus read and
- * the auto-apply effect are all shipped code.
- *
- * Why this file exists at all. Revision 05's unit cases defined their own local `watches`/`paints`
- * helpers and imported nothing from the component, so the fix they existed to pin could be reverted
- * with the suite green (review F-12). Revision 06's first replacement drove the pure predicate but
- * never the effect that CONSUMES it — so reverting the live re-read again left the suite green.
- *
- * The discriminating question is not "does the predicate answer correctly" but "does the component
- * decide from it at the moment it writes". Only mounting the component asks that.
- *
- * And mounting it is still not sufficient. Revision 06's cases here mounted the real component and
- * asserted both directions, and MEASURED green against the revision 06 component they were written
- * to fail — because every one of them began with focus already at `<body>`, outside the row. A
- * defect whose mechanism is "two conditions are never true at the same instant" is invisible when
- * both are true from the first tick. The starting state has to be the one the user starts in.
- *
- * Each revision's tests were one level closer and still had a gap one step along: rev 05 drove local
- * helpers, rev 06's first attempt drove the predicate but not the effect, rev 06's second drove the
- * effect from an unreachable starting state. Check the initial conditions, not just the assertions.
- */
+import { Temporal } from "temporal-polyfill";
+import { describe, expect, it, vi } from "vitest";
 
-import { render, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { TransactionRuleProposal } from "@/components/features/transactions/TransactionRuleProposal";
-import { type RuleMatchSubject } from "@/lib/domain/automation/rules";
+import {
+    createTransactionCellSelectionAtom,
+    createTransactionGridWorkspaceController
+} from "@/components/features/transactions/hooks/useTransactionGridController";
+import type { TransactionAutomationOwner } from "@/components/features/transactions/hooks/useTransactionGridController";
+import { asTransactionId } from "@/components/features/transactions/table-model";
+import type { TransactionId } from "@/components/features/transactions/table-model";
+import type { TransactionInput } from "@/lib/crdt/schema";
+import { buildTransactionIndex, createTransactionCursor } from "@/lib/crdt/transaction-cursor";
 import { asMinorUnits } from "@/lib/domain/currency";
 
-const apply = vi.fn(() => true);
+import { populateStore } from "../crdt/transaction-cursor-fixtures";
 
-vi.mock("@/components/features/transactions/use-field-rule-proposal", () => ({
-    useFieldRuleProposal: () => ({
-        proposal: { kind: "create", field: "tags", descriptionText: "COFFEE SHOP 123" },
-        draft: { applyMode: "updatingAll", field: "tags" },
-        errors: {},
-        accounts: [],
-        tags: [],
-        people: [],
-        aliases: [],
-        currencyCode: "USD",
-        setDraft: vi.fn(),
-        apply
-    })
-}));
+const COLUMNS = ["description", "tags", "amount", "actions"] as const;
 
-vi.mock("@/components/features/transactions/FieldRuleProposal", () => ({
-    FieldRuleProposal: () => <div data-testid="proposal-body" />
-}));
+function transaction(id: string): TransactionInput {
+    return {
+        accountId: "acc-1",
+        allocations: {},
+        amount: asMinorUnits(-1000),
+        creationInstant: Temporal.Instant.from("2026-08-29T10:00:00Z"),
+        date: Temporal.PlainDate.from("2026-08-29"),
+        deletedAt: undefined,
+        description: id,
+        descriptionAliasId: undefined,
+        id,
+        importId: "import-1",
+        importRowIndex: 0,
+        notes: "",
+        originalAmount: undefined,
+        statusId: "status-for-review",
+        suspectedDuplicates: [],
+        tagIds: []
+    };
+}
 
-const SUBJECT: RuleMatchSubject = {
-    descriptionText: "COFFEE SHOP 123",
-    accountId: "acct-1",
-    amount: asMinorUnits(-450),
-    isManual: false
-};
-
-/**
- * The proposal inside a real transaction row, with a focusable control in the row and one outside
- * it, so focus can genuinely move between them.
- */
-function tree(isEditing: boolean): React.JSX.Element {
-    return (
-        <>
-            <div data-testid="transaction-row" data-transaction-id="tx-1">
-                <input data-testid="in-row" />
-                <TransactionRuleProposal
-                    accountLabel="Checking"
-                    amountLabel="-$4.50"
-                    current={{ field: "tags", currentTagIds: ["tag-1"] }}
-                    isEditing={isEditing}
-                    isPending={true}
-                    onDismiss={vi.fn()}
-                    referenceDate={{ toString: () => "2026-07-01" } as never}
-                    rowId="tx-1"
-                    subject={SUBJECT}
-                >
-                    <span />
-                </TransactionRuleProposal>
-            </div>
-            <input data-testid="outside" />
-        </>
+function cursorFor(transactionIds: readonly string[]) {
+    return createTransactionCursor(
+        buildTransactionIndex(populateStore(transactionIds.map(transaction)))
     );
 }
 
-function renderInRow(props: { readonly isEditing: boolean }) {
-    return render(tree(props.isEditing));
+function canonicalLivenessFor(transactions: readonly TransactionInput[]) {
+    const canonicalById = buildTransactionIndex(populateStore(transactions)).canonicalById;
+    return (transactionId: TransactionId): boolean => {
+        const current = canonicalById.get(transactionId);
+        return current != null && current.deletedAt == null;
+    };
 }
 
-function focusOn(testId: string): void {
-    const element = document.querySelector(`[data-testid="${testId}"]`);
-    if (element instanceof HTMLElement) element.focus();
+function createController() {
+    const controller = createTransactionGridWorkspaceController(
+        createTransactionCellSelectionAtom()
+    );
+    controller.updateProjection(cursorFor(["tx-1", "tx-2"]), COLUMNS);
+    return controller;
 }
 
-describe("the automatic modes decide from LIVE focus, not a remembered observation", () => {
-    beforeEach(() => {
-        apply.mockClear();
-        vi.useFakeTimers({ shouldAdvanceTime: true });
-    });
+function tagsAddress(transactionId: string) {
+    return { columnId: "tags" as const, transactionId: asTransactionId(transactionId) };
+}
 
-    afterEach(() => {
-        vi.useRealTimers();
-    });
+describe("controller-owned automation finalization", () => {
+    it("retains the editor and publishes no proposal for a rejected commit", () => {
+        const controller = createController();
+        const address = tagsAddress("tx-1");
+        controller.publishAutomationEditorEntry(address, {
+            draftTagIds: ["tag-1"],
+            field: "tags",
+            originalTagIds: []
+        });
 
-    // The reviewer's measured F-11 sequence. Focus leaves the row while the edit is still open, so
-    // the observation is recorded; the user then returns to the row before the edit surface closes.
-    // Revision 05 applied here, writing a rule with the row focused and no chance to dismiss.
-    it("does NOT apply when focus left during the edit but has returned by the time it closes", async () => {
-        const { rerender } = renderInRow({ isEditing: true });
+        controller.publishAutomationEditorCommit(address, { ok: false, status: "rejected" });
 
-        // Focus leaves the row mid-edit — the wake-up flag is set.
-        focusOn("outside");
-        await vi.advanceTimersByTimeAsync(10);
-
-        // The user comes back into the row, then the edit surface closes.
-        focusOn("in-row");
-        await vi.advanceTimersByTimeAsync(10);
-        rerender(tree(false));
-        await vi.advanceTimersByTimeAsync(10);
-
-        // The row holds focus, so the frozen condition is NOT satisfied and nothing may be written.
-        expect(apply).not.toHaveBeenCalled();
-    });
-
-    // The positive direction as the user actually performs it: the edit BEGINS with the caret in the
-    // row, and the click away both moves focus out and closes the edit surface.
-    //
-    // Starting focus inside the row is what makes this discriminating, and the reason it exists as a
-    // separate case from the one below. Revision 06 needed two conditions — a remembered "focus was
-    // seen outside" flag and a live re-read — to hold at the same instant, and they never did: the
-    // flag is set inside a deferred task, so at the first evaluation focus is genuinely outside but
-    // the flag is unset, and once the flag lands focus has moved on. A test that begins with focus
-    // ALREADY outside the row cannot see that, because both conditions are then trivially true
-    // together from the first tick. This one starts where the user starts, so the condition has to
-    // change while the component is watching.
-    it("applies when the edit began with focus in the row and the user then clicks away", async () => {
-        const { rerender } = renderInRow({ isEditing: true });
-        focusOn("in-row");
-        await vi.advanceTimersByTimeAsync(10);
-
-        // One gesture: focus leaves the row and the edit surface closes.
-        focusOn("outside");
-        rerender(tree(false));
-        await vi.advanceTimersByTimeAsync(10);
-
-        expect(apply).toHaveBeenCalledTimes(1);
-    });
-
-    it("DOES apply once the edit has closed and focus is genuinely outside the row", async () => {
-        renderInRow({ isEditing: false });
-
-        focusOn("outside");
-        await vi.advanceTimersByTimeAsync(10);
-
-        await waitFor(() => {
-            expect(apply).toHaveBeenCalledTimes(1);
+        expect(controller.getSnapshot().automation).toEqual({
+            editor: {
+                context: {
+                    draftTagIds: ["tag-1"],
+                    field: "tags",
+                    originalTagIds: []
+                },
+                owner: { field: "tags", transactionId: asTransactionId("tx-1") }
+            },
+            proposal: null
         });
     });
 
-    it("does not apply while the edit is still in progress, even with focus outside", async () => {
-        renderInRow({ isEditing: true });
+    it("clears the editor and publishes no proposal for an unchanged commit", () => {
+        const controller = createController();
+        const address = tagsAddress("tx-1");
+        controller.publishAutomationEditorEntry(address, {
+            draftTagIds: [],
+            field: "tags",
+            originalTagIds: []
+        });
 
-        focusOn("outside");
-        await vi.advanceTimersByTimeAsync(10);
+        controller.publishAutomationEditorCommit(address, { ok: true, status: "unchanged" });
+
+        expect(controller.getSnapshot().automation).toEqual({ editor: null, proposal: null });
+    });
+
+    it("does not run a dismissed proposal callback on a later owner exit", () => {
+        const controller = createController();
+        const owner = { field: "tags" as const, transactionId: asTransactionId("tx-1") };
+        const apply = vi.fn();
+        controller.publishAutomationEditorCommit(tagsAddress("tx-1"), {
+            ok: true,
+            status: "changed"
+        });
+        controller.registerAutomationFinalizer(owner, apply);
+
+        expect(controller.dismissAutomationProposal(owner)).toBe(true);
+        controller.setFocusedCell("tx-2", "tags");
 
         expect(apply).not.toHaveBeenCalled();
     });
 
-    // `confirm` is a dependency of the listener effect, so the listeners tear down and re-register
-    // whenever it changes — and each registration runs its own mount-time evaluation. Every one of
-    // those sees a row that has genuinely lost focus, so `appliedRef` is the ONLY thing standing
-    // between one gesture and a burst of writes.
-    //
-    // That is worth a test rather than a sentence in evidence. Deleting the guard and re-running this
-    // case MEASURES 3 applies at the blur and 8 after five further renders, so a rule the user asked
-    // for once would be created eight times.
-    it("writes exactly once no matter how often the listeners re-register", async () => {
-        const { rerender } = renderInRow({ isEditing: true });
-        focusOn("in-row");
-        await vi.advanceTimersByTimeAsync(10);
+    it("cannot run a superseded proposal callback", () => {
+        const controller = createController();
+        const firstOwner = { field: "tags" as const, transactionId: asTransactionId("tx-1") };
+        const secondOwner = { field: "tags" as const, transactionId: asTransactionId("tx-2") };
+        const firstApply = vi.fn();
+        const secondApply = vi.fn();
+        controller.publishAutomationEditorCommit(tagsAddress("tx-1"), {
+            ok: true,
+            status: "changed"
+        });
+        controller.registerAutomationFinalizer(firstOwner, firstApply);
+        controller.publishAutomationEditorCommit(tagsAddress("tx-2"), {
+            ok: true,
+            status: "changed"
+        });
+        controller.registerAutomationFinalizer(secondOwner, secondApply);
 
-        focusOn("outside");
-        rerender(tree(false));
-        await vi.advanceTimersByTimeAsync(10);
+        controller.clearUserFocus();
 
-        for (let index = 0; index < 5; index += 1) {
-            rerender(tree(false));
-            await vi.advanceTimersByTimeAsync(10);
-        }
+        expect(firstApply).not.toHaveBeenCalled();
+        expect(secondApply).toHaveBeenCalledTimes(1);
+    });
 
-        expect(apply).toHaveBeenCalledTimes(1);
+    it("cannot run an unmounted proposal callback", () => {
+        const controller = createController();
+        const owner = { field: "tags" as const, transactionId: asTransactionId("tx-1") };
+        const apply = vi.fn();
+        controller.publishAutomationEditorCommit(tagsAddress("tx-1"), {
+            ok: true,
+            status: "changed"
+        });
+        const unregister = controller.registerAutomationFinalizer(owner, apply);
+        unregister();
+
+        controller.parkExternalFocus();
+
+        expect(apply).not.toHaveBeenCalled();
+        expect(controller.getSnapshot().automation.proposal?.owner).toEqual(owner);
+    });
+
+    it("retains a canonically live manual proposal when filtering removes its owner", () => {
+        const controller = createController();
+        const owner = { field: "tags" as const, transactionId: asTransactionId("tx-1") };
+        const finalizeManualProposal = vi.fn();
+        controller.setFocusedCell("tx-1", "tags");
+        controller.publishAutomationEditorCommit(tagsAddress("tx-1"), {
+            ok: true,
+            status: "changed"
+        });
+        controller.registerAutomationFinalizer(owner, finalizeManualProposal);
+
+        controller.updateProjection(
+            cursorFor(["tx-2"]),
+            COLUMNS,
+            canonicalLivenessFor([transaction("tx-1"), transaction("tx-2")])
+        );
+
+        expect(finalizeManualProposal).toHaveBeenCalledOnce();
+        expect(controller.getSnapshot().automation.proposal?.owner).toEqual(owner);
+        expect(controller.getSnapshot().activeTransactionId).toBe(asTransactionId("tx-2"));
+    });
+
+    it("retires a filtered owner when canonical deletion leaves cursor structure unchanged", () => {
+        const controller = createController();
+        const owner = { field: "tags" as const, transactionId: asTransactionId("tx-1") };
+        const filteredCursor = cursorFor(["tx-2"]);
+        controller.setFocusedCell("tx-1", "tags");
+        controller.publishAutomationEditorCommit(tagsAddress("tx-1"), {
+            ok: true,
+            status: "changed"
+        });
+
+        controller.updateProjection(
+            filteredCursor,
+            COLUMNS,
+            canonicalLivenessFor([transaction("tx-1"), transaction("tx-2")])
+        );
+        const filteredGeneration = controller.getSnapshot().generation;
+        expect(controller.getSnapshot().automation.proposal?.owner).toEqual(owner);
+
+        controller.updateProjection(
+            filteredCursor,
+            COLUMNS,
+            canonicalLivenessFor([
+                {
+                    ...transaction("tx-1"),
+                    deletedAt: Temporal.Instant.from("2026-08-31T13:00:00Z")
+                },
+                transaction("tx-2")
+            ])
+        );
+
+        expect(controller.getSnapshot().generation).toBe(filteredGeneration);
+        expect(controller.getSnapshot().automation.proposal).toBeNull();
+        expect(controller.getSnapshot().activeTransactionId).toBe(asTransactionId("tx-2"));
+    });
+
+    it("retains a structurally removed proposal when canonical liveness evidence is omitted", () => {
+        const controller = createController();
+        const owner = { field: "tags" as const, transactionId: asTransactionId("tx-1") };
+        controller.setFocusedCell("tx-1", "tags");
+        controller.publishAutomationEditorCommit(tagsAddress("tx-1"), {
+            ok: true,
+            status: "changed"
+        });
+
+        controller.updateProjection(cursorFor(["tx-2"]), COLUMNS);
+
+        expect(controller.getSnapshot().automation.proposal?.owner).toEqual(owner);
+        expect(controller.getSnapshot().activeTransactionId).toBe(asTransactionId("tx-2"));
+    });
+
+    it("retires a canonically deleted proposal after its finalizer already unmounted", () => {
+        const controller = createController();
+        const owner = { field: "tags" as const, transactionId: asTransactionId("tx-1") };
+        const apply = vi.fn();
+        controller.setFocusedCell("tx-1", "tags");
+        controller.publishAutomationEditorCommit(tagsAddress("tx-1"), {
+            ok: true,
+            status: "changed"
+        });
+        const unregister = controller.registerAutomationFinalizer(owner, apply);
+        unregister();
+
+        controller.updateProjection(
+            cursorFor(["tx-2"]),
+            COLUMNS,
+            canonicalLivenessFor([
+                {
+                    ...transaction("tx-1"),
+                    deletedAt: Temporal.Instant.from("2026-08-31T13:00:00Z")
+                },
+                transaction("tx-2")
+            ])
+        );
+
+        expect(apply).not.toHaveBeenCalled();
+        expect(controller.getSnapshot().automation.proposal).toBeNull();
+        expect(controller.getSnapshot().activeTransactionId).toBe(asTransactionId("tx-2"));
+    });
+
+    it("finalizes a deleted owner once before dismissal and replacement publication", () => {
+        const controller = createController();
+        const owner = { field: "tags" as const, transactionId: asTransactionId("tx-1") };
+        const sourceObservations: Array<{
+            readonly activeTransactionId: TransactionId | null;
+            readonly proposalOwner: TransactionAutomationOwner | null;
+        }> = [];
+        controller.setFocusedCell("tx-1", "tags");
+        controller.publishAutomationEditorCommit(tagsAddress("tx-1"), {
+            ok: true,
+            status: "changed"
+        });
+        const finalize = vi.fn(() => {
+            const snapshot = controller.getSnapshot();
+            sourceObservations.push({
+                activeTransactionId: snapshot.activeTransactionId,
+                proposalOwner: snapshot.automation.proposal?.owner ?? null
+            });
+        });
+        controller.registerAutomationFinalizer(owner, finalize);
+        const filteredCursor = cursorFor(["tx-2"]);
+        const deletedLiveness = canonicalLivenessFor([
+            {
+                ...transaction("tx-1"),
+                deletedAt: Temporal.Instant.from("2026-08-31T13:00:00Z")
+            },
+            transaction("tx-2")
+        ]);
+
+        controller.updateProjection(filteredCursor, COLUMNS, deletedLiveness);
+        controller.updateProjection(filteredCursor, COLUMNS, deletedLiveness);
+
+        expect(finalize).toHaveBeenCalledOnce();
+        expect(sourceObservations).toEqual([
+            {
+                activeTransactionId: asTransactionId("tx-1"),
+                proposalOwner: owner
+            }
+        ]);
+        expect(controller.getSnapshot().automation.proposal).toBeNull();
+        expect(controller.getSnapshot().activeTransactionId).toBe(asTransactionId("tx-2"));
+    });
+
+    it("finalizes a structurally removed owner before publishing its reconciled replacement", () => {
+        const controller = createController();
+        const owner = { field: "tags" as const, transactionId: asTransactionId("tx-1") };
+        const order: string[] = [];
+        controller.setFocusedCell("tx-1", "tags");
+        controller.publishAutomationEditorCommit(tagsAddress("tx-1"), {
+            ok: true,
+            status: "changed"
+        });
+        const finalize = vi.fn(() => {
+            order.push(`finalize:${controller.getSnapshot().activeTransactionId ?? "none"}`);
+        });
+        controller.registerAutomationFinalizer(owner, finalize);
+        const unsubscribe = controller.subscribe(() => {
+            const activeOwner = controller.getSnapshot().activeTransactionId;
+            if (activeOwner === asTransactionId("tx-2")) order.push(`publish:${activeOwner}`);
+        });
+
+        controller.updateProjection(cursorFor(["tx-2"]), COLUMNS);
+        unsubscribe();
+        controller.updateProjection(cursorFor(["tx-2"]), COLUMNS);
+
+        expect(finalize).toHaveBeenCalledOnce();
+        expect(order).toEqual(["finalize:tx-1", "publish:tx-2"]);
+        expect(controller.getSnapshot().activeTransactionId).toBe(asTransactionId("tx-2"));
+    });
+
+    it("does not let an unrelated hidden proposal block editor commit navigation", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor(["tx-1", "tx-2", "tx-3"]), COLUMNS);
+        const sourceAddress = tagsAddress("tx-1");
+        const hiddenOwner = {
+            field: "tags" as const,
+            transactionId: asTransactionId("tx-3")
+        };
+        const finalizeHiddenProposal = vi.fn();
+        const sourceEditor = document.createElement("input");
+        const destinationEditor = document.createElement("input");
+        document.body.append(sourceEditor, destinationEditor);
+        controller.registerEditor(sourceAddress, sourceEditor);
+        controller.registerEditor(tagsAddress("tx-2"), destinationEditor);
+        const accepted = controller.beginActivation({ entry: "full", target: sourceAddress });
+        expect(controller.markRevealApplied(accepted)).toBe(true);
+        expect(controller.focusPendingActivation(accepted)).toBe("focused");
+        controller.publishAutomationEditorCommit(tagsAddress("tx-3"), {
+            ok: true,
+            status: "changed"
+        });
+        controller.registerAutomationFinalizer(hiddenOwner, finalizeHiddenProposal);
+
+        expect(
+            controller.dispatchCellIntent(
+                sourceAddress,
+                { direction: "down", kind: "commit-and-move", preserveEntry: "full" },
+                1
+            )
+        ).toEqual({ ok: true, value: { kind: "handled" } });
+
+        const pending = controller.getPendingRequest();
+        if (pending == null) throw new Error("Expected destination editor activation");
+        expect(pending).toMatchObject({
+            kind: "edit",
+            state: { target: tagsAddress("tx-2") }
+        });
+        expect(controller.markRevealApplied(pending.state)).toBe(true);
+        expect(controller.focusPendingActivation(pending.state)).toBe("focused");
+        expect(finalizeHiddenProposal).toHaveBeenCalledOnce();
+        expect(controller.getSnapshot().activeTransactionId).toBe(asTransactionId("tx-2"));
+        expect(controller.getSnapshot().automation.proposal?.owner).toEqual(hiddenOwner);
+        sourceEditor.remove();
+        destinationEditor.remove();
+    });
+
+    it("retains the exact owner within its row and finalizes before publishing another row", () => {
+        const controller = createController();
+        const owner = { field: "tags" as const, transactionId: asTransactionId("tx-1") };
+        const observations: Array<string | null> = [];
+        controller.setFocusedCell("tx-1", "tags");
+        controller.publishAutomationEditorCommit(tagsAddress("tx-1"), {
+            ok: true,
+            status: "changed"
+        });
+        controller.registerAutomationFinalizer(owner, () => {
+            observations.push(controller.getSnapshot().activeTransactionId);
+        });
+
+        controller.setFocusedCell("tx-1", "description");
+        expect(observations).toEqual([]);
+        controller.setFocusedCell("tx-2", "tags");
+
+        expect(observations).toEqual([asTransactionId("tx-1")]);
+        expect(controller.getSnapshot().activeTransactionId).toBe(asTransactionId("tx-2"));
     });
 });

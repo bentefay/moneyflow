@@ -1,12 +1,16 @@
 import { expect, test } from "@playwright/test";
 
 import {
+    activateTransactionEditor,
     awaitVaultPersistence,
     createNewIdentity,
+    expectTransactionCellDisplay,
     goToImportNew,
     goToTransactions,
     removeFixtureMember,
-    shareActiveVaultWithMember
+    rowsWithDisplayedDescription,
+    shareActiveVaultWithMember,
+    stableTransactionRow
 } from "./helpers";
 import {
     getRealtimeGrantAggregates,
@@ -17,10 +21,6 @@ import {
 
 const importedDescription = "Realtime encrypted import";
 const editedDescription = "Realtime encrypted edit";
-
-function descriptionInput(page: import("@playwright/test").Page, value: string) {
-    return page.locator(`[data-testid="description-editable"][value="${value}"]`);
-}
 
 test("private vault_ops push synchronizes import, edit and delete and stops after removal", async ({
     browser
@@ -132,31 +132,35 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
                     timeout: 15_000
                 })
                 .toBeGreaterThan(memberFrameBaseline);
-            await expect(descriptionInput(member, importedDescription)).toBeVisible({
+            await expect(rowsWithDisplayedDescription(owner, importedDescription)).toHaveCount(1, {
+                timeout: 15_000
+            });
+            await expect(rowsWithDisplayedDescription(member, importedDescription)).toHaveCount(1, {
                 timeout: 15_000
             });
         });
 
         await test.step("push an encrypted inline edit while the member is foregrounded", async () => {
             await member.bringToFront();
-            const description = descriptionInput(owner, importedDescription);
+            const ownerRow = await stableTransactionRow(
+                rowsWithDisplayedDescription(owner, importedDescription)
+            );
+            const description = await activateTransactionEditor(ownerRow, "description");
             await description.fill(editedDescription);
-            const editedDescriptionInput = descriptionInput(owner, editedDescription);
-            await expect(editedDescriptionInput).toHaveCount(1);
-            await expect(editedDescriptionInput).toBeFocused();
-            await editedDescriptionInput.press("Enter");
-            await expect(descriptionInput(member, editedDescription)).toBeVisible({
+            await expect(description).toHaveValue(editedDescription);
+            await expect(description).toBeFocused();
+            await description.press("Enter");
+            await expectTransactionCellDisplay(ownerRow, "description", editedDescription);
+            await expect(rowsWithDisplayedDescription(member, editedDescription)).toHaveCount(1, {
                 timeout: 15_000
             });
         });
 
         await test.step("push the encrypted deletion without member refresh", async () => {
-            const row = owner.getByTestId("transaction-row").filter({
-                has: descriptionInput(owner, editedDescription)
-            });
+            const row = rowsWithDisplayedDescription(owner, editedDescription);
             await row.getByTestId("delete-button").click();
             await row.getByTestId("delete-button").click();
-            await expect(descriptionInput(member, editedDescription)).toHaveCount(0, {
+            await expect(rowsWithDisplayedDescription(member, editedDescription)).toHaveCount(0, {
                 timeout: 15_000
             });
         });

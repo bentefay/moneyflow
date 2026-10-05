@@ -1,0 +1,7 @@
+[WebServer] $ next dev --turbopack
+
+
+Running 1 test using 1 worker
+
+[1/1] [chromium] › tests/e2e/transaction-grid-structure.spec.ts:164:9 › Transaction grid structure › every element the grid exposes sits inside a cell
+  1 passed (10.5s)

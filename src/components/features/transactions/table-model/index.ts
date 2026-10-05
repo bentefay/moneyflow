@@ -14,14 +14,9 @@ export {
     transactionTableRowId
 } from "./columns";
 export {
-    applyTransactionCellKeyIntent,
-    type FocusedControlBoundary,
-    NON_TEXT_CONTROL,
-    readFocusedControlBoundary,
-    transactionCellKeyIntent,
-    type TransactionCellKeyIntent
-} from "./cell-key-intent";
-export { transactionCellSelectionRowKey } from "./cell-selection-render";
+    transactionCellSelectionRowKey,
+    transactionSelectedCellMarkersFromRowKey
+} from "./cell-selection-render";
 export {
     controlHasTextSelection,
     documentHasTextSelection,
@@ -40,10 +35,121 @@ export {
     TRANSACTION_CELL_SELECTION_OPTIONS
 } from "./matching-set";
 export {
+    activeTransactionGridAddress,
+    asTransactionCompositionSequence,
+    abortTransactionPendingActivation,
+    asTransactionGridCommandId,
+    beginTransactionPendingActivation,
+    cancelTransactionPendingActivation,
+    clearTransactionContinuousEdit,
+    fulfillTransactionPendingActivation,
+    type NonEmptyTransactionGridSelection,
+    INACTIVE_TRANSACTION_COMPOSITION,
+    latestTransactionSelectionOperation,
+    moveTransactionContinuousEdit,
+    NO_TRANSACTION_CONTINUOUS_EDIT,
+    reduceTransactionComposition,
+    transactionGridPins,
+    transactionGridPresence,
+    transactionGridRetainsDeferredPresence,
+    transactionGridSelectionVisibility,
+    transitionTransactionContinuousEdit,
+    type TransactionCompositionEvent,
+    type TransactionCompositionResult,
+    type TransactionCompositionSequence,
+    type TransactionCompositionState,
+    type TransactionContinuousEditIntent,
+    type TransactionContinuousEditMovementResult,
+    type TransactionContinuousEditStop,
+    type TransactionContinuousEditTransition,
+    type TransactionEditEntry,
+    type TransactionEditorPopupKind,
+    type TransactionFieldEditorBinding,
+    type TransactionGridAddress,
+    type TransactionGridCommand,
+    type TransactionGridCommandError,
+    type TransactionGridCommandId,
+    type TransactionGridCommandResult,
+    type TransactionGridDeferredPresence,
+    type TransactionGridEditingState,
+    type TransactionGridEditorReturnState,
+    type TransactionGridEditorState,
+    type TransactionGridEngagedSnapshot,
+    type TransactionGridEngagedState,
+    type TransactionGridInspectorFocusOwnership,
+    type TransactionGridInspectorReturnState,
+    type TransactionGridInspectingState,
+    type TransactionGridInteractionState,
+    type TransactionGridInteractingState,
+    type TransactionGridPendingActivationState,
+    type TransactionGridPin,
+    type TransactionGridPresence,
+    type TransactionGridSelection,
+    type TransactionGridSelectionOperation,
+    type TransactionGridStaleOperationError,
+    type TransactionInspectorActionBinding,
+    type TransactionInspectorAutomationBinding,
+    type TransactionInspectorControlBinding,
+    type TransactionInspectorFieldBinding,
+    type TransactionOwnedControlBinding,
+    type TransactionPendingActivationFulfillment,
+    type TransactionPendingActivationOrigin,
+    type TransactionPendingActivationTransitionResult,
+    type TransactionPendingOperationIdentity,
+    type TransactionSelectionOperationKind,
+    type TransactionSelectionVisibility
+} from "./grid-interaction-state";
+export {
+    activationTransactionGridKeyCell,
+    editableTransactionGridKeyCell,
+    NONEDITABLE_TRANSACTION_GRID_KEY_CELL,
+    type TransactionCellActivation,
+    type TransactionGridCompositionStartIntent,
+    transactionGridCompositionStartIntent,
+    type TransactionGridFollowUpIntent,
+    type TransactionGridKeyCellContext,
+    type TransactionGridKeyContext,
+    type TransactionGridKeyEvent,
+    type TransactionGridKeyIntent,
+    type TransactionGridKeyMode,
+    type TransactionNavigationTarget,
+    transactionGridKeyContext,
+    transactionGridKeyIntent
+} from "./grid-key-intent";
+export {
+    resolveTransactionNavigationTarget,
+    type TransactionNavigationCommand,
+    type TransactionNavigationResolution,
+    type TransactionProjectionError,
+    transactionProjectionFromCursor,
+    type TransactionProjectionResult,
+    type TransactionProjectionSnapshot
+} from "./grid-navigation";
+export {
+    reconcileTransactionGridProjection,
+    resolveTransactionGridFailure,
+    transactionInspectorBindingEquals,
+    type TransactionGridFailureResolution,
+    type TransactionGridFocusIntent,
+    type TransactionGridFocusOwnership,
+    type TransactionGridOperationError,
+    type TransactionGridOperationSnapshot,
+    type TransactionGridPinReconciliation,
+    type TransactionGridReconciliationOptions,
+    type TransactionGridReconciliationOutcome,
+    type TransactionGridReconciliationResult,
+    type TransactionInspectorBindingRegistration
+} from "./grid-reconciliation";
+export {
+    type TransactionColumnActivationKind,
     type TransactionColumnAlign,
+    type TransactionColumnEditKind,
+    type TransactionColumnInteractionMeta,
     type TransactionColumnMeta,
+    type TransactionColumnPopupOwner,
     transactionColumnHelper,
     type TransactionTable,
+    type TransactionTableCell,
     transactionTableFeatures,
     type TransactionTableFeatures,
     type TransactionTableRow
@@ -69,7 +175,8 @@ export {
     transactionCellId,
     type TransactionCellMarker,
     type TransactionColumnId,
-    type TransactionId
+    type TransactionId,
+    type TransactionProjectionGeneration
 } from "./ids";
 export {
     ALL_MATCHING_TRANSACTION_ROWS_SELECTED,

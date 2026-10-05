@@ -3,9 +3,16 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import type { Page } from "@playwright/test";
 import { expect, chromium, test } from "@playwright/test";
 
-import { awaitVaultPersistence, readActiveVaultId } from "./helpers";
+import {
+    activateTransactionEditor,
+    awaitVaultPersistence,
+    expectTransactionCellDisplay,
+    readActiveVaultId,
+    rowsWithDisplayedDescription
+} from "./helpers";
 import { addEmptyTransaction } from "./helpers/settlement";
 
 function countFixtureVaultOps(vaultId: string): number {
@@ -58,29 +65,41 @@ test("a browser-duplicated tab hydrates onboarding and an authenticated vault", 
         args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`]
     });
 
-    const duplicateTab = async (source: import("@playwright/test").Page) => {
+    const duplicateTab = async (source: Page) => {
         const opened = context.waitForEvent("page");
         await source.evaluate(() => window.postMessage({ type: "moneyflow:duplicate-tab" }, "*"));
-        const duplicate = await opened;
-        await duplicate.waitForLoadState("load");
-        return duplicate;
+        return opened;
     };
 
-    const expectCachedDuplicate = async (page: import("@playwright/test").Page) => {
-        await expect
-            .poll(() =>
-                page.evaluate(() => {
-                    const navigation = performance.getEntriesByType(
-                        "navigation"
-                    )[0] as PerformanceNavigationTiming & { deliveryType: string };
-                    return {
-                        type: navigation.type,
-                        deliveryType: navigation.deliveryType,
-                        transferSize: navigation.transferSize
-                    };
-                })
+    const expectCachedDuplicate = async (page: Page) => {
+        const expected = { type: "back_forward", deliveryType: "cache", transferSize: 0 } as const;
+        // chrome.tabs.duplicate() creates the target before its session-history restoration replaces
+        // the main-frame context. An inherited "load" state can therefore precede the document whose
+        // navigation timing is authoritative. waitForFunction is rerunnable across that replacement
+        // and resolves only from the final cached duplicate document.
+        const navigation = await page.waitForFunction((cachedNavigation) => {
+            const entry = performance.getEntriesByType("navigation")[0];
+            if (
+                !(entry instanceof PerformanceNavigationTiming) ||
+                !("deliveryType" in entry) ||
+                typeof entry.deliveryType !== "string"
             )
-            .toEqual({ type: "back_forward", deliveryType: "cache", transferSize: 0 });
+                return null;
+
+            const observed = {
+                type: entry.type,
+                deliveryType: entry.deliveryType,
+                transferSize: entry.transferSize
+            };
+            return observed.type === cachedNavigation.type &&
+                observed.deliveryType === cachedNavigation.deliveryType &&
+                observed.transferSize === cachedNavigation.transferSize
+                ? observed
+                : null;
+        }, expected);
+
+        expect(await navigation.jsonValue()).toEqual(expected);
+        await navigation.dispose();
     };
 
     try {
@@ -154,18 +173,25 @@ test("a browser-duplicated tab hydrates onboarding and an authenticated vault", 
         const addedRowId = await addEmptyTransaction(authenticatedDuplicate);
         const addedRow = authenticatedDuplicate.locator(`[data-transaction-id="${addedRowId}"]`);
         const descriptionInput = addedRow.getByTestId("description-editable");
+        await expect(descriptionInput).toBeFocused();
         await descriptionInput.fill(description);
         await descriptionInput.press("Enter");
-        const amountInput = addedRow.getByTestId("amount-editable");
+        await expectTransactionCellDisplay(addedRow, "description", description);
+        const amountInput = await activateTransactionEditor(addedRow, "amount");
         await amountInput.fill("12.34");
         await amountInput.press("Enter");
+        await expectTransactionCellDisplay(addedRow, "amount", "12.34");
 
-        const matchingRows = (page: import("@playwright/test").Page) =>
-            page.getByTestId("transaction-row").filter({
-                has: page.locator(`[data-testid="description-editable"][value="${description}"]`)
-            });
-        await expect(matchingRows(authenticatedDuplicate)).toHaveCount(1, { timeout: 15_000 });
-        await expect(matchingRows(onboardingDuplicate)).toHaveCount(1, { timeout: 15_000 });
+        await expect(rowsWithDisplayedDescription(authenticatedDuplicate, description)).toHaveCount(
+            1,
+            { timeout: 15_000 }
+        );
+        await expect(rowsWithDisplayedDescription(onboardingDuplicate, description)).toHaveCount(
+            1,
+            {
+                timeout: 15_000
+            }
+        );
         await expect(authenticatedDuplicate.getByRole("status", { name: "Saved" })).toBeVisible({
             timeout: 15_000
         });

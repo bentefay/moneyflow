@@ -270,25 +270,32 @@ describe("shape of a multi-cell copy", () => {
         expect(transactionSelectionAsClipboardPayload(table).text).toBe("One\n\nThree");
     });
 
-    it("skips the columns that take no part in selection, even inside a swept rectangle", () => {
+    it("keeps non-copyable activation coordinates as empty rectangle fields", () => {
         const table = createTestTransactionTable({
-            transactions: [transaction({ description: "One", id: "tx-0" })]
+            transactions: [
+                transaction({ description: "One", id: "tx-0" }),
+                transaction({ description: "Two", id: "tx-1" })
+            ]
         });
 
-        // A drag from the checkbox to the actions column sweeps the whole row.
         selectRectangle(
             table,
             { columnId: "checkbox", rowId: "tx-0" },
             {
                 columnId: "actions",
-                rowId: "tx-0"
+                rowId: "tx-1"
             }
         );
         const payload = transactionSelectionAsClipboardPayload(table);
 
-        expect(payload.cellIds).not.toContain(transactionCellId(id("tx-0"), "checkbox"));
-        expect(payload.cellIds).not.toContain(transactionCellId(id("tx-0"), "actions"));
-        // date, description, account, tags, status, amount — no leading or trailing blank field.
-        expect(payload.text).toBe("2026-03-04\tOne\tEveryday\t\tCleared\t-12.50");
+        for (const transactionId of ["tx-0", "tx-1"]) {
+            expect(payload.cellIds).not.toContain(transactionCellId(id(transactionId), "checkbox"));
+            expect(payload.cellIds).not.toContain(transactionCellId(id(transactionId), "actions"));
+        }
+        expect(payload.text).toBe(
+            "\t2026-03-04\tOne\tEveryday\t\tCleared\t-12.50\t\n" +
+                "\t2026-03-04\tTwo\tEveryday\t\tCleared\t-12.50\t"
+        );
+        expect(payload.text.split("\n").map((line) => line.split("\t").length)).toEqual([8, 8]);
     });
 });

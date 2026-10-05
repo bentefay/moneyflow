@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 
+import * as transactionTableModel from "@/components/features/transactions/table-model";
 import {
     allocationColumnId,
     asTransactionId,
@@ -19,10 +20,32 @@ import {
     transactionCellId,
     transactionColumnIds
 } from "@/components/features/transactions/table-model";
+import {
+    asTransactionProjectionGeneration,
+    nextTransactionProjectionGeneration
+} from "@/components/features/transactions/table-model/ids";
 
 import { createTestTransactionTable, transaction } from "./test-table";
 
 const columnIds = transactionColumnIds([{ label: "Ada", personId: "p1" }]);
+
+describe("transaction projection generations", () => {
+    it("keeps raw constructors and generic projection factories off the public barrel", () => {
+        expect("asTransactionProjectionGeneration" in transactionTableModel).toBe(false);
+        expect("nextTransactionProjectionGeneration" in transactionTableModel).toBe(false);
+        expect("createTransactionProjectionSnapshot" in transactionTableModel).toBe(false);
+        expect("transactionProjectionFromCursor" in transactionTableModel).toBe(true);
+    });
+
+    it("advance monotonically without accepting positional numbers implicitly", () => {
+        const generation = asTransactionProjectionGeneration(12);
+
+        expect(nextTransactionProjectionGeneration(generation)).toBe(13);
+        expect(() => asTransactionProjectionGeneration(-1)).toThrow(
+            "transaction projection generation must be a non-negative safe integer"
+        );
+    });
+});
 
 describe("allocation column ids", () => {
     it("round-trip a person id", () => {

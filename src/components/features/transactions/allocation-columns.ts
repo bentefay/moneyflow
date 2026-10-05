@@ -1,7 +1,8 @@
+import { allocationPresenceField, type AllocationPresenceField } from "@/lib/crdt/allocations";
 import { AllocationPercentageSchema } from "@/lib/domain";
 
 export const BASE_TRANSACTION_GRID_PREFIX = "32px 120px minmax(150px,2fr) 160px 140px 110px";
-export const BASE_TRANSACTION_GRID_SUFFIX = "112px 88px";
+export const BASE_TRANSACTION_GRID_SUFFIX = "112px 120px";
 export const ALLOCATION_COLUMN_WIDTH = "minmax(112px,128px)";
 
 export type AllocationField = `allocation:${string}`;
@@ -10,6 +11,7 @@ export interface AllocationColumn {
     readonly field: AllocationField;
     readonly label: string;
     readonly personId: string;
+    readonly presenceField: AllocationPresenceField;
 }
 
 export interface AllocationColumnPerson {
@@ -161,14 +163,16 @@ export function buildAllocationColumnModel({
     const columns: AllocationColumn[] = active.map(({ id, name }) => ({
         field: allocationField(id),
         label: name,
-        personId: id
+        personId: id,
+        presenceField: allocationPresenceField(id)
     }));
     for (const personId of [...historicalIds].sort(compareText)) {
         const person = peopleById.get(personId);
         columns.push({
             field: allocationField(personId),
             label: person ? `${person.name} (deleted)` : `Unknown person ${personId}`,
-            personId
+            personId,
+            presenceField: allocationPresenceField(personId)
         });
     }
 

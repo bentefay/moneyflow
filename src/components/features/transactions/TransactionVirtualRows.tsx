@@ -57,7 +57,11 @@ export interface TransactionVirtualRowsProps {
      * empty element carrying a real row's `data-index` would be indistinguishable from the row.
      */
     readonly getRowKey: (index: number) => string | null;
-    readonly renderRow: (index: number) => React.ReactNode;
+    readonly renderRow: (
+        index: number,
+        isIdleEntryRow: boolean,
+        viewportRowDistance: number
+    ) => React.ReactNode;
     /**
      * Reports what the viewport is showing, so the parent can move the window of rows it holds.
      *
@@ -69,21 +73,19 @@ export interface TransactionVirtualRowsProps {
     /**
      * An absolute index the grid has been asked to scroll to, or `null`.
      *
-     * The virtualizer's own `scrollToIndex`, which accounts for measured row heights. The grid used
-     * to derive a scroll offset from an averaged row height instead, which is wrong by construction
-     * whenever a notes row is expanded.
+     * The virtualizer's own `scrollToIndex`, which applies the shared fixed row geometry without the
+     * grid deriving a second scroll-offset formula.
      */
     readonly scrollToRowIndex: number | null;
     /** Reports that {@link TransactionVirtualRowsProps.scrollToRowIndex} has been applied. */
     readonly onScrollToRowIndexApplied: () => void;
 }
 
-/**
- * Renders the grid's `rowgroup`, mounting only the rows near the viewport.
- *
- * Dynamic measurement is on: a row whose notes are expanded is taller than the estimate, and
- * `measureElement` is what lets the group's total height account for it.
- */
+/** Renders the grid's fixed-height `rowgroup`, mounting only rows near the viewport. */
+export function transactionViewportRowDistance(range: TransactionVisibleRange | null): number {
+    return range == null ? 1 : Math.max(1, range.endIndex - range.startIndex);
+}
+
 export function TransactionVirtualRows({
     count,
     estimatedRowHeight,
@@ -110,22 +112,15 @@ export function TransactionVirtualRows({
             }
         },
         overscan,
-        rangeExtractor,
-        // Re-measurement is flushed synchronously so a row that grows does not paint at the old
-        // height first. Note this routes `resizeItem` through `flushSync` from inside a
-        // ResizeObserver callback; a `flushSync` console warning here is a real finding, not noise.
-        //
-        // NOT COVERED BY ANY UNIT TEST, deliberately declared rather than left to be discovered:
-        // flipping this to `false` fails nothing under vitest. What it changes is *when* a
-        // re-measured row's new height reaches the DOM relative to paint, and jsdom has no paint, so
-        // there is no observable to assert. Its only guard is the E2E scale test's console gate in
-        // `tests/e2e/transactions.spec.ts`, which fails the whole run on a `flushSync` warning — so
-        // that gate catches the option being wrong in the *noisy* direction and nothing catches it
-        // being wrong in the quiet one. If you change it, change it against a browser measurement.
-        useFlushSync: true
+        rangeExtractor
     });
 
     const virtualItems = virtualizer.getVirtualItems();
+    const viewportRowDistance = transactionViewportRowDistance(virtualizer.range);
+    const keyedVirtualItems = virtualItems.flatMap((virtualRow) => {
+        const rowKey = getRowKey(virtualRow.index);
+        return rowKey == null ? [] : [{ rowKey, virtualRow }];
+    });
 
     useEffect(() => {
         // Not applied — and not reported applied — until there is something to scroll. The parent
@@ -144,22 +139,17 @@ export function TransactionVirtualRows({
             role="rowgroup"
             style={{ height: `${String(virtualizer.getTotalSize())}px` }}
         >
-            {virtualItems.map((virtualRow) => {
-                const rowKey = getRowKey(virtualRow.index);
-                if (rowKey == null) return null;
-                return (
-                    <div
-                        key={rowKey}
-                        data-index={virtualRow.index}
-                        ref={virtualizer.measureElement}
-                        className="absolute top-0 left-0 w-full"
-                        style={{ transform: `translateY(${String(virtualRow.start)}px)` }}
-                        role="presentation"
-                    >
-                        {renderRow(virtualRow.index)}
-                    </div>
-                );
-            })}
+            {keyedVirtualItems.map(({ rowKey, virtualRow }, position) => (
+                <div
+                    key={rowKey}
+                    data-index={virtualRow.index}
+                    className="absolute top-0 left-0 w-full"
+                    style={{ transform: `translateY(${String(virtualRow.start)}px)` }}
+                    role="presentation"
+                >
+                    {renderRow(virtualRow.index, position === 0, viewportRowDistance)}
+                </div>
+            ))}
         </div>
     );
 }

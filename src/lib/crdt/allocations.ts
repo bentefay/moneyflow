@@ -5,6 +5,9 @@
  * complete replacement validates and materializes its entire caller input before touching a draft.
  */
 
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
+
 import {
     type AllocationPercentage,
     type AllocationValidationError,
@@ -20,6 +23,9 @@ import {
 } from "./schema";
 
 const LORO_COLLECTION_METADATA_KEY = "$cid";
+const ALLOCATION_PRESENCE_DOMAIN = "moneyflow-presence-allocation-v1\u0000";
+
+export type AllocationPresenceField = `allocation:h:${string}`;
 
 function compareCodeUnits(left: string, right: string): number {
     return left < right ? -1 : left > right ? 1 : 0;
@@ -212,8 +218,9 @@ export function copyAllocationData(
     return copy;
 }
 
-export function allocationPresenceField(personId: string): `allocation:${string}` {
-    return `allocation:${personId}`;
+export function allocationPresenceField(personId: string): AllocationPresenceField {
+    const digest = bytesToHex(sha256(utf8ToBytes(`${ALLOCATION_PRESENCE_DOMAIN}${personId}`)));
+    return `allocation:h:${digest}`;
 }
 
 function allocationMap(transaction: Transaction | NestedDuplicate): Record<string, number> {

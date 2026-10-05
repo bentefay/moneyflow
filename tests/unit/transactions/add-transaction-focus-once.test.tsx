@@ -40,6 +40,7 @@ const descriptionFocusCalls = vi.hoisted(() => [] as string[]);
 
 /** What the page publishes to the table each render, so retirement can be traced across renders. */
 const focusRequestRenders = vi.hoisted(() => [] as Array<string | null>);
+const pendingActivationRenders = vi.hoisted(() => [] as string[]);
 
 /** Mutable vault contents, reassigned by the fake `insertTransaction` and read through a store. */
 const vault = vi.hoisted(() => ({
@@ -83,8 +84,10 @@ vi.mock("@/lib/crdt/context", async () => {
             return useMemo(() => buildTransactionIndex(store), [store]);
         },
         useActiveAccounts: () => accounts,
+        useAccounts: () => accounts,
         useActiveTags: () => empty,
         useDescriptionAliases: () => empty,
+        useActiveDescriptionAliases: () => empty,
         useStatuses: () => statuses,
         useActivePeople: () => empty,
         usePeople: () => empty,
@@ -111,8 +114,13 @@ vi.mock("@/lib/crdt/context", async () => {
         useDescriptionAliasActions: () => aliasActions,
         useVaultAction: () => noop,
         useApplyFieldRulesToTransaction: () => noop,
+        useApplyFieldRules: () => ({ applyAll: noop, applyNewerThan: noop }),
+        useFieldRuleActions: () => ({ create: noop, update: noop }),
+        useVaultPreferences: () => empty,
         useUserAutomationChoice: () => empty,
-        usePersistAutomationPreference: () => noop
+        usePersistAutomationPreference: () => noop,
+        useUserTransactionInspectorOpen: () => false,
+        usePersistTransactionInspectorOpen: () => noop
     };
 });
 
@@ -141,8 +149,8 @@ vi.mock("@/components/features/accounts", () => ({
     AccountCombobox: () => <button type="button">Account</button>
 }));
 
-// Record what the page publishes each render, then delegate to the real table untouched: the focus
-// effect under test stays the production one.
+// Record the workspace's pending Description target on each table render, then delegate to the real
+// table untouched so registration, focus verification and fulfillment remain production behavior.
 vi.mock("@/components/features/transactions", async () => {
     const actual = await vi.importActual<typeof import("@/components/features/transactions")>(
         "@/components/features/transactions"
@@ -150,7 +158,17 @@ vi.mock("@/components/features/transactions", async () => {
     return {
         ...actual,
         TransactionTable: (props: React.ComponentProps<typeof TransactionTableComponent>) => {
-            focusRequestRenders.push(props.focusDescriptionTransactionId ?? null);
+            const pending = props.controller.getPendingRequest();
+            focusRequestRenders.push(
+                pending?.state.target.columnId === "description"
+                    ? pending.state.target.transactionId
+                    : null
+            );
+            if (pending?.kind === "edit") {
+                pendingActivationRenders.push(
+                    `${pending.entry}:${pending.state.target.columnId}:${pending.state.target.transactionId}`
+                );
+            }
             return <actual.TransactionTable {...props} />;
         }
     };
@@ -185,9 +203,9 @@ const presence = {
     snapshot: { byTransactionId: {}, byIdentity: {} },
     onlineIdentities: [],
     presentIdentities: [],
-    isConnected: false,
-    setPresenceState: noop,
-    clearPresenceFocus: noop,
+    isConnected: true,
+    setPresenceState: vi.fn(),
+    clearPresenceFocus: vi.fn(),
     disconnect: async () => {}
 };
 
@@ -272,6 +290,9 @@ describe("add transaction consumes the focus intent exactly once", () => {
         vault.listeners.clear();
         descriptionFocusCalls.length = 0;
         focusRequestRenders.length = 0;
+        pendingActivationRenders.length = 0;
+        presence.setPresenceState.mockClear();
+        presence.clearPresenceFocus.mockClear();
         countDescriptionFocusCalls();
     });
 
@@ -283,6 +304,7 @@ describe("add transaction consumes the focus intent exactly once", () => {
 
         fireEvent.click(screen.getByTestId("add-transaction-button"));
         const createdRowId = await waitForCreatedRow(["existing-newer", "existing-older"]);
+        expect(pendingActivationRenders).toContain(`full:description:${createdRowId}`);
 
         // Exactly one application, on the created row. Two would mean a retirement was overwritten
         // by a stale-closure write and the request survived a render it should not have.
@@ -295,6 +317,12 @@ describe("add transaction consumes the focus intent exactly once", () => {
         if (createdRow == null) throw new Error("Expected the created row to be mounted");
         const description = createdRow.querySelector('[data-testid="description-editable"]');
         expect(document.activeElement).toBe(description);
+        await waitFor(() => expect(presence.clearPresenceFocus).toHaveBeenCalled());
+        expect(presence.setPresenceState).not.toHaveBeenCalledWith({
+            editing: true,
+            field: "description",
+            transactionId: createdRowId
+        });
 
         // The intent reaches null and stays there. A resurrected focus step shows up as the request
         // re-appearing on a render after the one that already cleared it.
@@ -311,8 +339,51 @@ describe("add transaction consumes the focus intent exactly once", () => {
         if (!(description instanceof HTMLInputElement)) {
             throw new Error("Expected the description cell to render an input");
         }
+        fireEvent.keyDown(description, { key: "C" });
         fireEvent.change(description, { target: { value: "Coffee" } });
         expect(descriptionFocusCalls).toEqual([createdRowId]);
+        await waitFor(() =>
+            expect(presence.setPresenceState).toHaveBeenLastCalledWith({
+                editing: true,
+                field: "description",
+                transactionId: createdRowId
+            })
+        );
+    });
+
+    it("publishes wrapper navigation as viewing and the mounted editor as editing", async () => {
+        await renderTransactionsPage();
+        const row = screen
+            .getAllByTestId("transaction-row")
+            .find(
+                (candidate) => candidate.getAttribute("data-transaction-id") === "existing-newer"
+            );
+        if (row == null) throw new Error("Expected the newest transaction row to be mounted");
+        const checkboxCell = row.querySelector('[role="gridcell"][data-cell="checkbox"]');
+        const descriptionCell = row.querySelector('[role="gridcell"][data-cell="description"]');
+        if (!(checkboxCell instanceof HTMLElement)) {
+            throw new Error("Expected the checkbox gridcell to be mounted");
+        }
+        if (!(descriptionCell instanceof HTMLElement)) {
+            throw new Error("Expected the description gridcell to be mounted");
+        }
+
+        fireEvent.focus(checkboxCell);
+        await waitFor(() =>
+            expect(presence.setPresenceState).toHaveBeenLastCalledWith({
+                editing: false,
+                transactionId: "existing-newer"
+            })
+        );
+
+        fireEvent.doubleClick(descriptionCell);
+        await waitFor(() =>
+            expect(presence.setPresenceState).toHaveBeenLastCalledWith({
+                editing: true,
+                field: "description",
+                transactionId: "existing-newer"
+            })
+        );
     });
 
     it("applies one focus request per created row across successive adds", async () => {

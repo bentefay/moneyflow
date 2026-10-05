@@ -27,9 +27,9 @@
  *   the feature is here for the ordering guarantee, and it leaves the integration pass a supported
  *   way to hide a column later.
  *
- * - **`columnMeta`** — a type-only slot, carrying the per-column presentation contract the grid
- *   already has: its `grid-template-columns` track, its alignment, whether it is editable, and how
- *   its value serialises to the clipboard.
+ * - **`columnMeta`** — a type-only slot, carrying the per-column presentation contract: its
+ *   `grid-template-columns` track, alignment, current editability, clipboard serialization, and the
+ *   new controller's declarative interaction capabilities during migration.
  *
  * ## What is deliberately absent
  *
@@ -52,12 +52,15 @@
 
 import {
     cellSelectionFeature,
+    type Cell,
     columnVisibilityFeature,
     createColumnHelper,
     metaHelper,
     type Table,
     tableFeatures
 } from "@tanstack/table-core";
+
+import type { RuleField } from "@/lib/domain/automation/rules";
 
 import type { TransactionRowData } from "../TransactionRow";
 import type { TransactionCellMarker } from "./ids";
@@ -74,6 +77,30 @@ export type TransactionTableRow = TransactionRowData;
 
 /** How a column's cells sit in their track. Matches the existing `COLUMN_CONFIG.align`. */
 export type TransactionColumnAlign = "left" | "center" | "right";
+
+export type TransactionColumnEditKind =
+    | "none"
+    | "date"
+    | "description"
+    | "account"
+    | "tags"
+    | "status"
+    | "allocation"
+    | "amount";
+
+export type TransactionColumnActivationKind = "none" | "checkbox" | "inspector";
+export type TransactionColumnPopupOwner = "none" | "grid-editor";
+
+/** Declarative interaction capabilities consumed by the new controller rather than row-local flags. */
+export interface TransactionColumnInteractionMeta {
+    readonly focusable: boolean;
+    readonly selectable: boolean;
+    readonly copyable: boolean;
+    readonly editKind: TransactionColumnEditKind;
+    readonly activationKind: TransactionColumnActivationKind;
+    readonly popupOwner: TransactionColumnPopupOwner;
+    readonly automationField: RuleField | null;
+}
 
 /**
  * The per-column presentation contract.
@@ -92,8 +119,10 @@ export interface TransactionColumnMeta {
      */
     readonly gridTemplate: string;
     readonly align: TransactionColumnAlign;
-    /** Whether this column's cells can be edited in place. Drives keyboard-navigable columns. */
+    /** Whether this column's cells can be edited in place. Drives current live-product navigation. */
     readonly editable: boolean;
+    /** Controller capabilities consumed by the shared gridcell surface and controller bridge. */
+    readonly interaction: TransactionColumnInteractionMeta;
     /**
      * The stable `data-cell` marker the row markup already carries for this column, or `null` for
      * a column that carries none.
@@ -101,10 +130,9 @@ export interface TransactionColumnMeta {
      * Presence reports which field a peer is editing by reading this marker, and the E2E suite
      * addresses cells by it, so it is part of the grid's contract and not a rendering detail.
      *
-     * `null` is not a gap to be filled in later. The actions column is an unmarked container
-     * around two separately-marked controls (`ACTIONS_COLUMN_CELL_MARKERS`), so it has no single
-     * marker to name; inventing one would put a string in the model that appears nowhere in the
-     * DOM. Likewise `notes` belongs to the expanded second row rather than to any column.
+     * The actions column owns the stable `actions` marker while its legacy descendants retain
+     * `expand` and `delete`. `null` remains available only for a future non-addressable presentation
+     * column; `notes` belongs to the expanded second row rather than to any column.
      */
     readonly cellMarker: TransactionCellMarker | null;
     /**
@@ -118,6 +146,9 @@ export interface TransactionColumnMeta {
 
 /** This grid's table instance, with exactly the APIs its registered features install. */
 export type TransactionTable = Table<TransactionTableFeatures, TransactionTableRow>;
+
+/** One concrete cell from this grid's registered TanStack feature set. */
+export type TransactionTableCell = Cell<TransactionTableFeatures, TransactionTableRow, unknown>;
 
 /**
  * The grid's registered features.

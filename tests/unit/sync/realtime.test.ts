@@ -286,6 +286,34 @@ describe("VaultRealtimeSync", () => {
         expect(JSON.stringify(mocks.channel.mock.calls)).not.toContain("pubkeyHash");
     });
 
+    it("waits for the encrypted manager payload before tracking presence", async () => {
+        const presenceCredential = {
+            ...credential(),
+            purpose: "presence" as const
+        };
+        const envelope = {
+            ciphertext: "sealed-presence",
+            nonce: "nonce",
+            sessionId: "session-1",
+            v: 1,
+            vaultId: presenceCredential.vaultId
+        };
+        mocks.authorize.mockResolvedValue(presenceCredential);
+        const realtime = createVaultRealtimeSync(presenceCredential.vaultId, "presence");
+
+        await realtime.subscribe({ onPresence: vi.fn() });
+        const channel = mocks.channel.mock.results[0].value;
+        expect(channel.track).not.toHaveBeenCalled();
+
+        await realtime.updatePresence(envelope);
+
+        expect(channel.track).toHaveBeenCalledExactlyOnceWith({
+            joined_at: "2026-07-20T00:00:00Z",
+            last_seen: "2026-07-20T00:00:00Z",
+            payload: envelope
+        });
+    });
+
     it("removes the channel, disconnects its isolated client and revokes its grant", async () => {
         const realtime = createVaultRealtimeSync("20000000-0000-4000-8000-000000000001", "sync");
         await realtime.subscribe({ onUpdate: vi.fn() });

@@ -18,6 +18,7 @@ export {
     DEFAULT_DUPLICATE_CONFIG,
     type DuplicateCheckTransaction,
     type DuplicateDetectionConfig,
+    type DuplicateDetectionInstrumentation,
     type DuplicateMatch,
     detectDuplicates,
     detectInternalDuplicates

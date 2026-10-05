@@ -74,16 +74,137 @@ describe("column identity and order", () => {
         }
     });
 
+    it("declares immutable interaction capabilities for every visible column", () => {
+        const table = createTestTransactionTable({
+            allocationColumns: people.slice(0, 1),
+            transactions: transactions(1)
+        });
+
+        expect(
+            table
+                .getVisibleLeafColumns()
+                .map((column) => [column.id, column.columnDef.meta?.interaction])
+        ).toEqual([
+            [
+                "checkbox",
+                {
+                    activationKind: "checkbox",
+                    automationField: null,
+                    copyable: false,
+                    editKind: "none",
+                    focusable: true,
+                    popupOwner: "none",
+                    selectable: true
+                }
+            ],
+            [
+                "date",
+                {
+                    activationKind: "none",
+                    automationField: null,
+                    copyable: true,
+                    editKind: "date",
+                    focusable: true,
+                    popupOwner: "grid-editor",
+                    selectable: true
+                }
+            ],
+            [
+                "description",
+                {
+                    activationKind: "none",
+                    automationField: "descriptionAlias",
+                    copyable: true,
+                    editKind: "description",
+                    focusable: true,
+                    popupOwner: "grid-editor",
+                    selectable: true
+                }
+            ],
+            [
+                "account",
+                {
+                    activationKind: "none",
+                    automationField: null,
+                    copyable: true,
+                    editKind: "account",
+                    focusable: true,
+                    popupOwner: "grid-editor",
+                    selectable: true
+                }
+            ],
+            [
+                "tags",
+                {
+                    activationKind: "none",
+                    automationField: "tags",
+                    copyable: true,
+                    editKind: "tags",
+                    focusable: true,
+                    popupOwner: "grid-editor",
+                    selectable: true
+                }
+            ],
+            [
+                "status",
+                {
+                    activationKind: "none",
+                    automationField: null,
+                    copyable: true,
+                    editKind: "status",
+                    focusable: true,
+                    popupOwner: "grid-editor",
+                    selectable: true
+                }
+            ],
+            [
+                "allocation:p1",
+                {
+                    activationKind: "none",
+                    automationField: "allocation",
+                    copyable: true,
+                    editKind: "allocation",
+                    focusable: true,
+                    popupOwner: "none",
+                    selectable: true
+                }
+            ],
+            [
+                "amount",
+                {
+                    activationKind: "none",
+                    automationField: null,
+                    copyable: true,
+                    editKind: "amount",
+                    focusable: true,
+                    popupOwner: "none",
+                    selectable: true
+                }
+            ],
+            [
+                "actions",
+                {
+                    activationKind: "inspector",
+                    automationField: null,
+                    copyable: false,
+                    editKind: "none",
+                    focusable: true,
+                    popupOwner: "none",
+                    selectable: true
+                }
+            ]
+        ]);
+    });
+
     it("names the `data-cell` markers the row markup actually carries", () => {
         const table = createTestTransactionTable({
             allocationColumns: people.slice(0, 1),
             transactions: transactions(1)
         });
 
-        // Transcribed from `TransactionRow.tsx`, not derived from the column ids — the two do not
-        // correspond. Asserting `meta.cellMarker === column.id` passed while the actions column
-        // claimed a marker of "actions" that appears nowhere in the DOM, because that assertion
-        // only ever compared the model to itself.
+        // Transcribed from `TransactionRow.tsx`, not derived from the column ids. The actions cell now
+        // owns its stable column identity while its nested `expand` and `delete` controls retain their
+        // legacy markers.
         expect(
             table.getVisibleLeafColumns().map((column) => column.columnDef.meta?.cellMarker)
         ).toEqual([
@@ -95,8 +216,7 @@ describe("column identity and order", () => {
             "status",
             "allocation:p1",
             "amount",
-            // The actions column is an unmarked container around `expand` and `delete`.
-            null
+            "actions"
         ]);
     });
 

@@ -21,11 +21,14 @@ import * as path from "path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
+    activateTransactionEditor,
     createNewIdentity,
+    expectTransactionCellDisplay,
     goToImportNew,
     goToImports,
     goToTransactions,
-    reloadPage
+    reloadPage,
+    stableTransactionRow
 } from "./helpers";
 import { addEmptyTransaction } from "./helpers/settlement";
 
@@ -235,31 +238,96 @@ interface BrowserImportFile {
     readonly type: string;
 }
 
+interface ImportDragDispatch {
+    readonly connected: boolean;
+    readonly defaultPrevented: boolean;
+    readonly dispatched: boolean;
+    readonly ownerContainsTarget: boolean;
+    readonly transferTypes: readonly string[];
+}
+
 async function dispatchImportDrag(
     target: Locator,
     eventType: "dragend" | "dragenter" | "dragleave" | "dragover" | "drop",
-    files: readonly BrowserImportFile[]
-): Promise<string> {
+    files: readonly BrowserImportFile[],
+    transactionId?: string
+): Promise<ImportDragDispatch> {
     return target.evaluate(
         (element, event) => {
+            const dispatchTarget =
+                event.transactionId == null
+                    ? element
+                    : Array.from(
+                          element.querySelectorAll<HTMLElement>("[data-transaction-id]")
+                      ).find(
+                          (candidate) =>
+                              candidate.getAttribute("data-transaction-id") === event.transactionId
+                      );
+            if (dispatchTarget == null) {
+                return {
+                    connected: false,
+                    defaultPrevented: false,
+                    dispatched: false,
+                    ownerContainsTarget: false,
+                    transferTypes: []
+                };
+            }
+
             const dataTransfer = new DataTransfer();
             for (const file of event.files) {
                 const content = file.size == null ? file.content : new Uint8Array(file.size);
                 dataTransfer.items.add(new File([content], file.name, { type: file.type }));
             }
-            element.dispatchEvent(
-                new DragEvent(event.eventType, {
-                    bubbles: true,
-                    cancelable: true,
-                    clientX: 1,
-                    clientY: 1,
-                    dataTransfer
-                })
-            );
-            return dataTransfer.dropEffect;
+            const dragEvent = new DragEvent(event.eventType, {
+                bubbles: true,
+                cancelable: true,
+                clientX: 1,
+                clientY: 1,
+                dataTransfer
+            });
+            dispatchTarget.dispatchEvent(dragEvent);
+            return {
+                connected: dispatchTarget.isConnected,
+                defaultPrevented: dragEvent.defaultPrevented,
+                dispatched: true,
+                ownerContainsTarget: element.contains(dispatchTarget),
+                transferTypes: Array.from(dataTransfer.types)
+            };
         },
-        { eventType, files }
+        { eventType, files, transactionId }
     );
+}
+
+async function dispatchImportDragFromCurrentTransactionRow(
+    owner: Locator,
+    transactionId: string,
+    eventType: "dragenter" | "drop",
+    files: readonly BrowserImportFile[]
+): Promise<void> {
+    await expect
+        .poll(
+            () =>
+                owner.evaluate(
+                    (element, expectedTransactionId) =>
+                        Array.from(element.querySelectorAll("[data-transaction-id]")).some(
+                            (candidate) =>
+                                candidate.getAttribute("data-transaction-id") ===
+                                expectedTransactionId
+                        ),
+                    transactionId
+                ),
+            { message: `Wait for current transaction row ${transactionId}` }
+        )
+        .toBe(true);
+
+    const receipt = await dispatchImportDrag(owner, eventType, files, transactionId);
+    expect(receipt).toMatchObject({
+        connected: true,
+        defaultPrevented: true,
+        dispatched: true,
+        ownerContainsTarget: true,
+        transferTypes: ["Files"]
+    });
 }
 
 async function expectFloatingWithinVisibleTarget(
@@ -463,16 +531,28 @@ test.describe("Import Panel", () => {
 
         const filteredDescription = "P15 transaction drop 0059";
         await page.getByPlaceholder(/Search/i).fill(filteredDescription);
-        const filteredRow = page.getByRole("row", { name: new RegExp(filteredDescription) });
+        const filteredRow = await stableTransactionRow(
+            page.getByRole("row", { name: new RegExp(filteredDescription) })
+        );
         await expect(filteredRow).toBeVisible();
+        const filteredTransactionId = await filteredRow.getAttribute("data-transaction-id");
+        if (filteredTransactionId == null)
+            throw new Error("Filtered transaction row has no stable ID");
         const followUpFile = {
             content: "Date,Description,Amount\n2026-07-25,P15 filtered row drop,99.00",
             name: "p15-filtered-row.csv",
             type: "text/csv"
         };
-        await dispatchImportDrag(filteredRow, "dragenter", [followUpFile]);
+        await dispatchImportDragFromCurrentTransactionRow(
+            target,
+            filteredTransactionId,
+            "dragenter",
+            [followUpFile]
+        );
         await expect(page.getByTestId("import-drop-overlay")).toBeVisible();
-        await dispatchImportDrag(filteredRow, "drop", [followUpFile]);
+        await dispatchImportDragFromCurrentTransactionRow(target, filteredTransactionId, "drop", [
+            followUpFile
+        ]);
         await expect(page).toHaveURL(/\/imports\/new$/);
         await expect(page.getByText(followUpFile.name, { exact: true })).toBeVisible();
         await page.getByRole("button", { name: "Cancel" }).click();
@@ -817,39 +897,48 @@ test.describe("Import Panel", () => {
         });
 
         await test.step("capture the first amount once and expose it accessibly after reload", async () => {
-            let row = page.getByRole("row", { name: /P14 CSV negative/i });
-            let amount = row.getByTestId("amount-editable");
-            await amount.fill("-20.75");
-            await amount.press("Enter");
-            await amount.fill("-30.25");
-            await amount.press("Enter");
-            await expect(amount).toHaveValue("-30.25");
-            await expect(amount).toHaveAttribute(
+            const row = page.getByRole("row", { name: /P14 CSV negative/i });
+            const firstEdit = await activateTransactionEditor(row, "amount");
+            await firstEdit.fill("-20.75");
+            await firstEdit.press("Enter");
+            await expectTransactionCellDisplay(row, "amount", "-20.75");
+
+            const secondEdit = await activateTransactionEditor(row, "amount");
+            await secondEdit.fill("-30.25");
+            await secondEdit.press("Enter");
+            await expectTransactionCellDisplay(row, "amount", "-30.25");
+
+            const provenanceEditor = await activateTransactionEditor(row, "amount");
+            await expect(provenanceEditor).toHaveValue("-30.25");
+            await expect(provenanceEditor).toHaveAttribute(
                 "aria-description",
                 /Original imported amount: -USD\s12\.50/
             );
-            await amount.hover();
+            await provenanceEditor.hover();
             await expect(
                 page
                     .getByTestId("original-amount-tooltip")
                     .filter({ hasText: /Original imported amount: -USD\s12\.50/ })
             ).toBeVisible();
 
-            const uneditedZero = page
-                .getByRole("row", { name: /P14 CSV zero/i })
-                .getByTestId("amount-editable");
+            const zeroRow = page.getByRole("row", { name: /P14 CSV zero/i });
+            const uneditedZero = await activateTransactionEditor(zeroRow, "amount");
             await expect(uneditedZero).not.toHaveAttribute("aria-description");
+            await uneditedZero.press("Escape");
+            await expectTransactionCellDisplay(zeroRow, "amount", "0.00");
 
             await reloadPage(page);
-            row = page.getByRole("row", { name: /P14 CSV negative/i });
-            amount = row.getByTestId("amount-editable");
-            await expect(amount).toHaveValue("-30.25");
-            await amount.focus();
+            const reloadedRow = page.getByRole("row", { name: /P14 CSV negative/i });
+            const reloadedEditor = await activateTransactionEditor(reloadedRow, "amount");
+            await expect(reloadedEditor).toHaveValue("-30.25");
+            await reloadedEditor.focus();
             await expect(
                 page
                     .getByTestId("original-amount-tooltip")
                     .filter({ hasText: /Original imported amount: -USD\s12\.50/ })
             ).toBeVisible();
+            await reloadedEditor.press("Escape");
+            await expectTransactionCellDisplay(reloadedRow, "amount", "-30.25");
         });
 
         await test.step("ordinary deletion leaves exactly three live linked identities", async () => {
@@ -875,10 +964,15 @@ test.describe("Import Panel", () => {
         await test.step("add a manual row and import a distinct OFX batch", async () => {
             manualTransactionId = await addEmptyTransaction(page);
             const manualRow = page.locator(`[data-transaction-id="${manualTransactionId}"]`);
-            await manualRow.getByTestId("description-editable").fill(manualDescription);
-            await manualRow.getByTestId("description-editable").press("Enter");
-            await manualRow.getByTestId("amount-editable").fill("7.77");
-            await manualRow.getByTestId("amount-editable").press("Enter");
+            const manualDescriptionEditor = manualRow.getByTestId("description-editable");
+            await expect(manualDescriptionEditor).toBeFocused();
+            await manualDescriptionEditor.fill(manualDescription);
+            await manualDescriptionEditor.press("Enter");
+            await expectTransactionCellDisplay(manualRow, "description", manualDescription);
+            const manualAmountEditor = await activateTransactionEditor(manualRow, "amount");
+            await manualAmountEditor.fill("7.77");
+            await manualAmountEditor.press("Enter");
+            await expectTransactionCellDisplay(manualRow, "amount", "7.77");
 
             await goToImportNew(page);
             await page.locator('input[type="file"]').setInputFiles({
@@ -1050,8 +1144,15 @@ NEWFILEUID:NONE
         await test.step("add unrelated manual and imported survivors", async () => {
             manualTransactionId = await addEmptyTransaction(page);
             const manualRow = page.locator(`[data-transaction-id="${manualTransactionId}"]`);
-            await manualRow.getByTestId("description-editable").fill("P14 nested manual survivor");
-            await manualRow.getByTestId("description-editable").press("Enter");
+            const descriptionEditor = manualRow.getByTestId("description-editable");
+            await expect(descriptionEditor).toBeFocused();
+            await descriptionEditor.fill("P14 nested manual survivor");
+            await descriptionEditor.press("Enter");
+            await expectTransactionCellDisplay(
+                manualRow,
+                "description",
+                "P14 nested manual survivor"
+            );
 
             await importSingleCsv(unrelatedFilename, "2026-06-11", unrelatedDescription, "45.67");
             unrelatedTransactionId =
@@ -1170,16 +1271,35 @@ NEWFILEUID:NONE
             [5, descriptions[5]],
             [10, descriptions[10]]
         ] as const) {
-            const amount = page
-                .getByRole("row", { name: new RegExp(description) })
-                .getByTestId("amount-editable");
+            const row = page.getByRole("row", { name: new RegExp(description) });
+            const amount = await activateTransactionEditor(row, "amount");
             await amount.fill(String(index + 2));
             await amount.press("Enter");
-            await expect(amount).toHaveAttribute(
+            await expectTransactionCellDisplay(row, "amount", `${index + 2}.00`);
+            const provenanceEditor = await activateTransactionEditor(row, "amount");
+            await expect(provenanceEditor).toHaveAttribute(
                 "aria-description",
                 new RegExp(`Original imported amount: USD\\s${index + 1}\\.00`)
             );
+            await provenanceEditor.press("Escape");
+            await expectTransactionCellDisplay(row, "amount", `${index + 2}.00`);
         }
+
+        const virtualIndexFor = async (description: string): Promise<number> => {
+            const row = await stableTransactionRow(
+                page.getByRole("row", { name: new RegExp(description) })
+            );
+            const index = await row
+                .locator("xpath=ancestor::*[@data-index][1]")
+                .getAttribute("data-index");
+            const parsed = Number(index);
+            if (index == null || !Number.isInteger(parsed)) {
+                throw new Error(`${description} has no virtual row index`);
+            }
+            return parsed;
+        };
+        const lowerRowIndex = await virtualIndexFor(descriptions[10]);
+        const rightOffsetRowIndex = await virtualIndexFor(descriptions[5]);
 
         await page.setViewportSize({ width: 390, height: 844 });
         await page.evaluate(() => {
@@ -1187,6 +1307,13 @@ NEWFILEUID:NONE
         });
 
         const transactionScroller = page.getByTestId("transaction-table").locator("..");
+        const revealVirtualRow = async (index: number, description: string): Promise<void> => {
+            await transactionScroller.evaluate((element, rowIndex) => {
+                element.scrollTop = rowIndex * 57;
+                element.dispatchEvent(new Event("scroll"));
+            }, index);
+            await expect(page.getByRole("row", { name: new RegExp(description) })).toBeVisible();
+        };
         const tooltipGeometry = async (expectedText: RegExp) => {
             const tooltip = page
                 .getByTestId("original-amount-tooltip")
@@ -1237,10 +1364,8 @@ NEWFILEUID:NONE
             });
             await page.mouse.move(0, 0);
 
-            const amount = page
-                .getByRole("row", { name: new RegExp(description) })
-                .getByTestId("amount-editable");
-            await expect(amount).toBeVisible();
+            const row = page.getByRole("row", { name: new RegExp(description) });
+            const amount = await activateTransactionEditor(row, "amount");
             if (interaction === "focus") {
                 await amount.focus();
             } else {
@@ -1291,10 +1416,7 @@ NEWFILEUID:NONE
         });
 
         await test.step("lower visible row focus and hover remain contained", async () => {
-            const amount = page
-                .getByRole("row", { name: new RegExp(descriptions[10]) })
-                .getByTestId("amount-editable");
-            await amount.scrollIntoViewIfNeeded();
+            await revealVirtualRow(lowerRowIndex, descriptions[10]);
             await expectContained(
                 descriptions[10],
                 /Original imported amount: USD\s11\.00/,
@@ -1310,12 +1432,8 @@ NEWFILEUID:NONE
         await test.step("right-offset virtual row focus and hover remain contained", async () => {
             await transactionScroller.evaluate((element) => {
                 element.scrollLeft = Math.round((element.scrollWidth - element.clientWidth) * 0.75);
-                element.scrollTop = 5 * 44;
             });
-            const amount = page
-                .getByRole("row", { name: new RegExp(descriptions[5]) })
-                .getByTestId("amount-editable");
-            await amount.scrollIntoViewIfNeeded();
+            await revealVirtualRow(rightOffsetRowIndex, descriptions[5]);
             await expectContained(descriptions[5], /Original imported amount: USD\s6\.00/, "hover");
             await expectContained(descriptions[5], /Original imported amount: USD\s6\.00/, "focus");
         });

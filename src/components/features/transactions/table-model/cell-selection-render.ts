@@ -19,12 +19,18 @@
  *   source={table.atoms.cellSelection}
  *   selector={() => transactionCellSelectionRowKey(table, displayIndex)}
  * >
- *   {() => <TransactionRow … />}
+ *   {(rowKey) => (
+ *     <TransactionRow
+ *       selectedCellMarkers={transactionSelectedCellMarkersFromRowKey(rowKey, columnIds)}
+ *       …
+ *     />
+ *   )}
  * </table.Subscribe>
  * ```
  *
- * The selector ignores its argument on purpose: the raw log is the *trigger*, and the key is the
- * projection. Reading the log's contents here would reintroduce exactly the churn this avoids.
+ * The selector ignores its source argument on purpose: the raw log is the *trigger*, and the key is
+ * the projection. The render prop must consume that key rather than re-reading opaque table methods;
+ * React Compiler can otherwise retain their result on stable cell identity after the atom advances.
  */
 
 import type { TransactionTable } from "./features";
@@ -59,4 +65,29 @@ export function transactionCellSelectionRowKey(
         }
     }
     return parts.join("|");
+}
+
+/**
+ * Resolves the current row's selected column markers from its subscription key.
+ *
+ * The render prop must consume the selector value directly. Re-reading `cell.getIsSelected()` from a
+ * compiled callback lets React Compiler cache the opaque method call on cell identity, leaving ARIA
+ * selection painted for the previous range even though the external atom has advanced.
+ */
+export function transactionSelectedCellMarkersFromRowKey(
+    rowKey: string,
+    columnIds: readonly string[]
+): ReadonlySet<string> {
+    const markers = new Set<string>();
+    for (const part of rowKey.split("|")) {
+        const currentRowSpan = /^0:(\d+)-(\d+)$/.exec(part);
+        if (currentRowSpan == null) continue;
+        const minimum = Number(currentRowSpan[1]);
+        const maximum = Number(currentRowSpan[2]);
+        for (let columnIndex = minimum; columnIndex <= maximum; columnIndex += 1) {
+            const columnId = columnIds[columnIndex];
+            if (columnId != null) markers.add(columnId);
+        }
+    }
+    return markers;
 }

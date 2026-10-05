@@ -11,6 +11,8 @@
  * reconcile just this row. All state and writes live in the caller's workflow hook.
  */
 
+import type { RefCallback } from "react";
+
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +37,7 @@ export interface TransactionRulePopupProps {
     readonly onApplyThis: () => void;
     readonly idPrefix: string;
     readonly className?: string;
+    readonly registerPortal?: RefCallback<HTMLDivElement>;
 }
 
 export function TransactionRulePopup(props: TransactionRulePopupProps): React.JSX.Element {
@@ -75,6 +78,7 @@ export function TransactionRulePopup(props: TransactionRulePopupProps): React.JS
                 onDraftChange={props.onDraftChange}
                 onSave={props.onSave}
                 people={props.people}
+                registerPortal={props.registerPortal}
                 tags={props.tags}
             />
         </div>

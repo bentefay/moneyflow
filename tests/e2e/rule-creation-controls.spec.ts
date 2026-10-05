@@ -1,28 +1,28 @@
 /**
- * E2E Test: inline rule-CREATION controls (HS-007 / UR-009)
+ * E2E Test: inspector rule-creation controls (HS-007 / UR-009)
  *
- * These journeys reproduce the principal's reported defect directly: changing a field on an imported
- * transaction that matches NO rule must surface controls offering to create one, so the change can be
- * applied to the other matching transactions.
- *
- * This is a different surface from `transaction-rules.spec.ts` and `field-rule-parity.spec.ts`, which
- * cover the robot — the affordance for a rule that ALREADY exists. Both are required by the frozen
- * text and both are exercised: the robot suites stay untouched.
- *
- * Assertions target accessible roles and stable testids, and the outcome each journey asserts is the
- * user-visible one — the OTHER matching row actually changing — rather than the mere presence of a
- * control.
+ * Changing a rule-backed transaction field with no matching rule publishes controller-owned creation
+ * controls in the stable transaction inspector. These journeys assert editor-finalization boundaries,
+ * proposal persistence, automatic owner-exit application, and the resulting changes to other matching
+ * transactions.
  */
 
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import {
+    activateTransactionEditor,
+    allocationGridCell,
     createNewIdentity,
+    expectTransactionCellDisplay,
     goToAutomations,
     goToImportNew,
     goToPeople,
     goToTags,
-    goToTransactions
+    goToTransactions,
+    openTransactionInspector,
+    rowsWithDisplayedDescription,
+    transactionGridCell
 } from "./helpers";
 import { addPerson, addTransaction, DEFAULT_PERSON_NAME } from "./helpers/settlement";
 
@@ -87,56 +87,34 @@ async function importRows(
  * `InlineEditableTags`, outside UR-009's scope, recorded rather than worked around silently.
  */
 async function addTagToRow(page: Page, row: Locator, tagName: string): Promise<void> {
-    await expect(row.getByTestId("tags-editable")).toBeVisible();
-    await row.getByTestId("tags-editable").click();
+    const tagsEditor = await activateTransactionEditor(row, "tags");
     const searchInput = page.getByPlaceholder("Search tags...");
     await expect(searchInput).toBeVisible({ timeout: 15_000 });
     await page.getByRole("option", { name: tagName, exact: true }).click();
-    // The selection saves immediately, so the tag appearing on the row is the real signal.
-    await expect(row.getByTestId("tags-editable")).toContainText(tagName);
-    // End the edit so the proposal can appear clear of the picker.
-    await row.getByTestId("date-editable").click();
-    await expect(searchInput).toHaveCount(0);
+    // The selection remains local while the editor stays open for another selection.
+    await expect(tagsEditor).toContainText(tagName);
+    // A single click on another resting gridcell validates and commits once before ownership moves.
+    await transactionGridCell(row, "date").click();
+    await expect(searchInput).toHaveCount(0, { timeout: 3_000 });
+    await expectTransactionCellDisplay(row, "tags", tagName);
 }
 
 /**
  * Choose one of the four apply modes, and leave the select CLOSED.
  *
- * The listbox is portaled and opens directly over the row's own cells, so an option can still be
- * covering the very control the next step wants to click. That was MEASURED, not anticipated: the
- * Enter-commit journey failed a full campaign run with `<div role="option" …> intercepts pointer
- * events`, then `element was detached from the DOM`, timing out on `description.click()` — before
- * the gesture under test ever ran. The sibling journey clicking a column header sits far from the
- * listbox and never hit it, which is exactly why this belongs in one helper rather than at the one
- * call site that happened to fail.
- *
- * The wait reads the TRIGGER's own `aria-expanded` rather than counting listboxes globally. Radix
- * sets it from this select's open state, so it cannot be satisfied by some other popup closing —
- * and the description input in the same row carries `aria-haspopup="listbox"` for its alias
- * dropdown, so a global listbox count is genuinely ambiguous here, not merely less precise.
+ * The wait reads the trigger's own `aria-expanded` rather than counting portaled listboxes globally,
+ * so it cannot be satisfied by an unrelated popup closing.
  */
-async function chooseApplyMode(page: Page, mode: string): Promise<void> {
-    const trigger = page.getByTestId("proposal-apply-mode");
+async function chooseApplyMode(page: Page, proposal: Locator, mode: string): Promise<void> {
+    const trigger = proposal.getByTestId("proposal-apply-mode");
     await trigger.click();
     await page.getByRole("option", { name: mode, exact: true }).click();
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
 }
 
-/**
- * The rows carrying an exact description, in table order.
- *
- * The description is the VALUE of an input, not row text, so a `hasText` filter would match nothing.
- * Filtering on the input's value via `has` is what actually selects these rows.
- *
- * HAZARD: only for journeys that do NOT change the description. Locators re-resolve on every use,
- * and React writes an edited value to the input's `value` attribute, so a locator built from the old
- * description stops matching the row it was created for and silently re-points at another matching
- * row. Journeys that rename a description index positionally instead.
- */
-function rowsWithDescription(page: Page, description: string = MATCHING_DESCRIPTION) {
-    return page
-        .getByTestId("transaction-row")
-        .filter({ has: page.locator(`input[value="${description}"]`) });
+/** The rows whose resting description display carries an exact value, in table order. */
+function rowsWithDescription(page: Page, description: string = MATCHING_DESCRIPTION): Locator {
+    return rowsWithDisplayedDescription(page, description);
 }
 
 test.describe("Rule-creation controls on a transaction matching no rule", () => {
@@ -152,11 +130,14 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
             { date: "2026-07-03", description: "UNRELATED MERCHANT" }
         ]);
 
-        const proposal = page.getByTestId("tags-rule-proposal");
+        const inspector = await openTransactionInspector(page);
+        const proposal = inspector.getByTestId("tags-rule-proposal");
 
-        await test.step("no rule exists yet, so no robot and no controls are shown at rest", async () => {
-            await expect(page.getByTestId("tags-rule-robot")).toHaveCount(0);
-            await expect(proposal).toHaveCount(0);
+        await test.step("no rule exists yet, so no existing-rule or proposal controls are shown", async () => {
+            await expect(inspector.getByTestId("tags-rule-inspector")).toHaveCount(0, {
+                timeout: 3_000
+            });
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
         });
 
         await test.step("adding a tag surfaces the creation controls", async () => {
@@ -166,29 +147,28 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
             // This is a CREATE, not an edit of an existing rule.
             await expect(proposal).toHaveAttribute("data-kind", "create");
             // The frozen control set: the four-mode select, the tick, and both restrictions.
-            await expect(page.getByTestId("proposal-apply-mode")).toBeVisible();
-            await expect(page.getByTestId("proposal-confirm")).toBeVisible();
-            await expect(page.getByTestId("proposal-amount-toggle")).toBeVisible();
-            await expect(page.getByTestId("proposal-account-toggle")).toBeVisible();
-            // Tags carry one further select after "only this account" (frozen `:290-292`).
-            await expect(page.getByTestId("proposal-tag-mode")).toBeVisible();
+            await expect(proposal.getByTestId("proposal-apply-mode")).toBeVisible();
+            await expect(proposal.getByTestId("proposal-confirm")).toBeVisible();
+            await expect(proposal.getByTestId("proposal-amount-toggle")).toBeVisible();
+            await expect(proposal.getByTestId("proposal-account-toggle")).toBeVisible();
+            await expect(proposal.getByTestId("proposal-tag-mode")).toBeVisible();
         });
 
         await test.step("confirming with update all applies the tag to the other matching row", async () => {
-            await chooseApplyMode(page, "Update all");
-            await page.getByTestId("proposal-confirm").click();
+            await chooseApplyMode(page, proposal, "Update all");
+            await proposal.getByTestId("proposal-confirm").click();
 
-            await expect(proposal).toHaveCount(0);
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
             // The SECOND matching row now carries the tag, applied by the rule the controls created.
             const secondRow = rowsWithDescription(page).nth(1);
-            await expect(secondRow.getByTestId("tags-editable")).toContainText("Coffee");
+            await expectTransactionCellDisplay(secondRow, "tags", "Coffee");
             // The non-matching row is untouched: the rule keys on the exact description text.
             const unrelated = rowsWithDescription(page, "UNRELATED MERCHANT");
-            await expect(unrelated.getByTestId("tags-editable")).not.toContainText("Coffee");
+            await expect(transactionGridCell(unrelated, "tags")).not.toContainText("Coffee");
         });
 
-        await test.step("the rule now exists, so the robot takes over on both matching rows", async () => {
-            await expect(page.getByTestId("tags-rule-robot")).toHaveCount(2);
+        await test.step("the active transaction now exposes the existing rule in the inspector", async () => {
+            await expect(inspector.getByTestId("tags-rule-inspector")).toBeVisible();
         });
     });
 
@@ -201,7 +181,8 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
             { date: "2026-07-02", description: MATCHING_DESCRIPTION }
         ]);
 
-        const proposal = page.getByTestId("description-rule-proposal");
+        const inspector = await openTransactionInspector(page);
+        const proposal = inspector.getByTestId("description-rule-proposal");
 
         await test.step("renaming the description surfaces the creation controls", async () => {
             // Positional for the same reason as the Enter-commit journey below: this step renames
@@ -209,28 +190,28 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
             // Nothing here re-uses it after the rename, so it survives — but by accident of ordering
             // rather than by construction, which is not a property worth relying on.
             const firstRow = page.getByTestId("transaction-row").first();
-            const description = firstRow.getByTestId("description-editable");
-            await description.click();
+            const description = await activateTransactionEditor(firstRow, "description");
             await description.fill("Coffee");
             await description.press("Enter");
+            await expectTransactionCellDisplay(firstRow, "description", "Coffee");
 
             await expect(proposal).toBeVisible();
             await expect(proposal).toHaveAttribute("data-kind", "create");
             // Description rules carry no add/set select: that is a tags-only control.
-            await expect(page.getByTestId("proposal-tag-mode")).toHaveCount(0);
-            // The controls are an inline affordance, NOT a modal. Radix popover content defaults to
-            // role="dialog", which made the alias journey's "no dialog is open" assertion fail; the
-            // frozen text asks for an unfocused popup that never interrupts the edit.
-            await expect(page.getByRole("dialog")).toHaveCount(0);
+            await expect(proposal.getByTestId("proposal-tag-mode")).toHaveCount(0, {
+                timeout: 3_000
+            });
+            await expect(inspector).toHaveRole("complementary");
+            await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 3_000 });
         });
 
         await test.step("confirming with update all repoints the other matching row", async () => {
-            await chooseApplyMode(page, "Update all");
-            await page.getByTestId("proposal-confirm").click();
+            await chooseApplyMode(page, proposal, "Update all");
+            await proposal.getByTestId("proposal-confirm").click();
 
-            await expect(proposal).toHaveCount(0);
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
             const secondRow = page.getByTestId("transaction-row").nth(1);
-            await expect(secondRow.getByTestId("description-editable")).toHaveValue("Coffee");
+            await expectTransactionCellDisplay(secondRow, "description", "Coffee");
         });
     });
 
@@ -245,32 +226,40 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
             { date: "2026-07-02", description: MATCHING_DESCRIPTION }
         ]);
 
-        const proposal = page.getByTestId("allocation-rule-proposal");
+        const inspector = await openTransactionInspector(page);
+        const proposal = inspector.getByTestId("allocation-rule-proposal");
         const firstRow = rowsWithDescription(page).first();
 
         await test.step("editing one person's column surfaces the creation controls", async () => {
-            await firstRow
-                .getByRole("button", { name: `Edit ${DEFAULT_PERSON_NAME} allocation` })
-                .click();
-            await firstRow
-                .getByRole("textbox", { name: `${DEFAULT_PERSON_NAME} allocation percentage` })
-                .fill("60");
-            await page.keyboard.press("Enter");
+            const allocationCell = await allocationGridCell(firstRow, DEFAULT_PERSON_NAME);
+            await expect(allocationCell).toHaveAttribute("data-cell-content", "display");
+            await allocationCell.dblclick();
+            await expect(allocationCell).toHaveAttribute("data-cell-content", "editor");
+            const allocation = firstRow.getByRole("textbox", {
+                name: `${DEFAULT_PERSON_NAME} allocation percentage`
+            });
+            await allocation.fill("60");
+            await transactionGridCell(firstRow, "date").click();
+            await expect(allocationCell).toHaveAttribute("data-cell-content", "display");
+            await expect(allocation).toHaveCount(0, { timeout: 3_000 });
+            await expect(allocationCell).toContainText("60%");
 
             await expect(proposal).toBeVisible();
             await expect(proposal).toHaveAttribute("data-kind", "create");
-            await expect(page.getByTestId("proposal-tag-mode")).toHaveCount(0);
+            await expect(proposal.getByTestId("proposal-tag-mode")).toHaveCount(0, {
+                timeout: 3_000
+            });
         });
 
         await test.step("confirming with update all applies the whole percentage set to the other row", async () => {
-            await chooseApplyMode(page, "Update all");
-            await page.getByTestId("proposal-confirm").click();
+            await chooseApplyMode(page, proposal, "Update all");
+            await proposal.getByTestId("proposal-confirm").click();
 
-            await expect(proposal).toHaveCount(0);
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
             const secondRow = rowsWithDescription(page).nth(1);
-            await expect(
-                secondRow.getByRole("button", { name: `Edit ${DEFAULT_PERSON_NAME} allocation` })
-            ).toContainText("60%");
+            const allocationCell = await allocationGridCell(secondRow, DEFAULT_PERSON_NAME);
+            await expect(allocationCell).toHaveAttribute("data-cell-content", "display");
+            await expect(allocationCell).toContainText("60%");
         });
     });
 
@@ -283,10 +272,13 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
         await addTransaction(page, { description: "MANUAL COFFEE", amount: "-4.50" });
 
         const row = rowsWithDescription(page, "MANUAL COFFEE");
+        const inspector = await openTransactionInspector(page);
         await addTagToRow(page, row, "Coffee");
 
-        await expect(page.getByTestId("tags-rule-proposal")).toBeVisible();
-        await expect(page.getByTestId("description-rule-proposal")).toHaveCount(0);
+        await expect(inspector.getByTestId("tags-rule-proposal")).toBeVisible();
+        await expect(inspector.getByTestId("description-rule-proposal")).toHaveCount(0, {
+            timeout: 3_000
+        });
     });
 });
 
@@ -303,8 +295,8 @@ test.describe("The proposal must not disturb the edit that summoned it", () => {
         await importRows(page, [{ date: "2026-07-01", description: MATCHING_DESCRIPTION }]);
 
         const row = rowsWithDescription(page).first();
-        await expect(row.getByTestId("tags-editable")).toBeVisible();
-        await row.getByTestId("tags-editable").click();
+        const inspector = await openTransactionInspector(page);
+        const tagsEditor = await activateTransactionEditor(row, "tags");
 
         const searchInput = page.getByPlaceholder("Search tags...");
         await expect(searchInput).toBeVisible({ timeout: 15_000 });
@@ -319,25 +311,20 @@ test.describe("The proposal must not disturb the edit that summoned it", () => {
         // Before F-1 this was impossible — the first selection remounted the cell and closed the
         // picker, forcing the user to reopen it for every additional tag.
         await page.getByRole("option", { name: "Dining", exact: true }).click();
-        await expect(row.getByTestId("tags-editable")).toContainText("Dining");
-        await expect(row.getByTestId("tags-editable")).toContainText("Coffee");
+        await expect(tagsEditor).toContainText("Dining");
+        await expect(tagsEditor).toContainText("Coffee");
 
         // And once the edit is finished the proposal does arrive, carrying both tags.
-        await row.getByTestId("date-editable").click();
-        await expect(searchInput).toHaveCount(0);
-        await expect(page.getByTestId("tags-rule-proposal")).toBeVisible();
+        await transactionGridCell(row, "date").click();
+        await expect(searchInput).toHaveCount(0, { timeout: 3_000 });
+        await expectTransactionCellDisplay(row, "tags", "Coffee");
+        await expect(transactionGridCell(row, "tags")).toContainText("Dining");
+        await expect(inspector.getByTestId("tags-rule-proposal")).toBeVisible();
     });
 });
 
-test.describe("The proposal never covers the cell's own edit surface", () => {
-    // The tag picker is portaled, `fixed`, `z-[9999]`, and opens directly below the cell — the same
-    // space this popover anchors into. Showing both at once put two layers over the row and left the
-    // four-mode select and the tick physically unclickable, which fails frozen `:255-257` (those
-    // controls must be operable) and `:252-253` (nothing occluded).
-    //
-    // The proposal therefore waits for the cell's edit surface to close. This test pins that: while
-    // the picker is open the proposal stays away, and it appears once the picker is dismissed.
-    test("the proposal waits for the tag picker to close, then its controls are clickable", async ({
+test.describe("Proposal publication and inspector persistence", () => {
+    test("the proposal waits for the tag picker to close and survives inspector close/reopen", async ({
         page
     }) => {
         await createNewIdentity(page);
@@ -345,47 +332,52 @@ test.describe("The proposal never covers the cell's own edit surface", () => {
         await importRows(page, [{ date: "2026-07-01", description: MATCHING_DESCRIPTION }]);
 
         const row = rowsWithDescription(page).first();
-        const proposal = page.getByTestId("tags-rule-proposal");
+        const inspector = await openTransactionInspector(page);
+        const proposal = inspector.getByTestId("tags-rule-proposal");
         const searchInput = page.getByPlaceholder("Search tags...");
 
-        await expect(row.getByTestId("tags-editable")).toBeVisible();
-        await row.getByTestId("tags-editable").click();
+        await activateTransactionEditor(row, "tags");
         await expect(searchInput).toBeVisible({ timeout: 15_000 });
         await page.getByRole("option", { name: "Coffee", exact: true }).click();
 
         await test.step("while the picker is still open the proposal stays out of its way", async () => {
             await expect(searchInput).toBeVisible();
-            await expect(proposal).toHaveCount(0);
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
         });
 
         await test.step("closing the picker surfaces the proposal", async () => {
             // Click elsewhere in the row rather than pressing Escape: the picker's Escape handler is
             // bound to its search input, and focus has already left that input by this point, so
             // Escape does not reach it. That is a pre-existing defect in the cell, outside UR-009.
-            await row.getByTestId("date-editable").click();
-            await expect(searchInput).toHaveCount(0);
+            await transactionGridCell(row, "date").click();
+            await expect(searchInput).toHaveCount(0, { timeout: 3_000 });
+            await expectTransactionCellDisplay(row, "tags", "Coffee");
             await expect(proposal).toBeVisible();
         });
 
-        await test.step("and every frozen control is genuinely clickable", async () => {
-            // The regression this replaces did not hide the controls — it left them rendered but
-            // covered, so a visibility assertion passed while the user could not reach them. Clicking
-            // is the assertion that discriminates.
-            await page.getByTestId("proposal-apply-mode").click();
+        await test.step("the mounted proposal survives inspector close and reopen", async () => {
+            await page.getByTestId("transaction-inspector-toggle").click();
+            await expect(inspector).toBeHidden();
+            await expect(proposal).toHaveCount(1);
+            await expect(page.getByTestId("transaction-inspector-automation-badge")).toBeVisible();
+            await page.getByTestId("transaction-inspector-toggle").click();
+            await expect(inspector).toBeVisible();
+            await expect(proposal).toBeVisible();
+        });
+
+        await test.step("the restored proposal controls remain operable", async () => {
+            await proposal.getByTestId("proposal-apply-mode").click();
             await expect(
                 page.getByRole("option", { name: "Update all", exact: true })
             ).toBeVisible();
             await page.keyboard.press("Escape");
-            await expect(page.getByTestId("proposal-confirm")).toBeEnabled();
+            await expect(proposal.getByTestId("proposal-confirm")).toBeEnabled();
         });
     });
 });
 
-test.describe("The Updating modes wait for the row to lose focus", () => {
-    // Regression pin for P30 rev 01 F-2. An "Updating…" mode used to fire the moment the tag
-    // dropdown closed — writing a rule and rewriting every matching transaction before the user had
-    // seen the controls, chosen a scope, or had any chance to dismiss.
-    test("choosing Updating all writes nothing until focus leaves the row, then writes on blur", async ({
+test.describe("The Updating modes wait for true automation-owner exit", () => {
+    test("choosing Updating all writes nothing while focus moves into the inspector", async ({
         page
     }) => {
         await createNewIdentity(page);
@@ -397,26 +389,27 @@ test.describe("The Updating modes wait for the row to lose focus", () => {
 
         const firstRow = rowsWithDescription(page).first();
         const secondRow = rowsWithDescription(page).nth(1);
-        const proposal = page.getByTestId("tags-rule-proposal");
+        const inspector = await openTransactionInspector(page);
+        const proposal = inspector.getByTestId("tags-rule-proposal");
 
         await addTagToRow(page, firstRow, "Coffee");
         await expect(proposal).toBeVisible();
 
         await test.step("selecting an Updating mode does not itself apply anything", async () => {
-            await chooseApplyMode(page, "Updating all");
+            await chooseApplyMode(page, proposal, "Updating all");
 
-            // Still open, still waiting: the row has not lost focus.
+            // The inspector and its select portal are part of the same logical automation owner.
             await expect(proposal).toBeVisible();
             // And crucially the OTHER matching transaction is untouched.
-            await expect(secondRow.getByTestId("tags-editable")).not.toContainText("Coffee");
+            await expect(transactionGridCell(secondRow, "tags")).not.toContainText("Coffee");
         });
 
-        await test.step("moving focus out of the row applies it", async () => {
-            // Focus something outside the table entirely — a genuine row blur.
+        await test.step("moving focus outside the row and inspector applies it", async () => {
+            // Focus something outside both owned surfaces — a genuine automation-owner exit.
             await page.getByRole("textbox", { name: /search description/i }).click();
 
-            await expect(proposal).toHaveCount(0);
-            await expect(secondRow.getByTestId("tags-editable")).toContainText("Coffee");
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
+            await expectTransactionCellDisplay(secondRow, "tags", "Coffee");
         });
     });
 });
@@ -441,40 +434,37 @@ test.describe("The restrictions actually restrict", () => {
 
         const firstRow = rowsWithDescription(page).first();
         const secondRow = rowsWithDescription(page).nth(1);
+        const inspector = await openTransactionInspector(page);
+        const proposal = inspector.getByTestId("tags-rule-proposal");
 
         await addTagToRow(page, firstRow, "Coffee");
-        await expect(page.getByTestId("tags-rule-proposal")).toBeVisible();
+        await expect(proposal).toBeVisible();
 
         await test.step("restrict the rule to this row's amount, then apply to all", async () => {
-            await page.getByTestId("proposal-amount-toggle").click();
-            await expect(page.getByTestId("proposal-amount-toggle")).toBeChecked();
-            await chooseApplyMode(page, "Update all");
-            await page.getByTestId("proposal-confirm").click();
-            await expect(page.getByTestId("tags-rule-proposal")).toHaveCount(0);
+            await proposal.getByTestId("proposal-amount-toggle").click();
+            await expect(proposal.getByTestId("proposal-amount-toggle")).toBeChecked();
+            await chooseApplyMode(page, proposal, "Update all");
+            await proposal.getByTestId("proposal-confirm").click();
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
         });
 
         await test.step("the amount-scoped rule reaches only the matching amount", async () => {
             // The edited row keeps its tag.
-            await expect(firstRow.getByTestId("tags-editable")).toContainText("Coffee");
+            await expectTransactionCellDisplay(firstRow, "tags", "Coffee");
             // The other row has the same description but a different amount, so the restriction
             // must exclude it. Without the restriction being honoured it would have been tagged.
-            await expect(secondRow.getByTestId("tags-editable")).not.toContainText("Coffee");
-            // Exactly one row matches, so exactly one robot.
-            await expect(page.getByTestId("tags-rule-robot")).toHaveCount(1);
+            await expect(transactionGridCell(secondRow, "tags")).not.toContainText("Coffee");
+            await transactionGridCell(secondRow, "description").click();
+            await expect(inspector.getByTestId("tags-rule-inspector")).toHaveCount(0, {
+                timeout: 3_000
+            });
         });
     });
 });
 
-test.describe("Every way a row loses focus reaches the automatic modes", () => {
-    // Review F-13 required these two explicitly, and F-7 is why: revision 04 passed its one
-    // automatic-mode journey while three of the four blur gestures never fired at all. The journey
-    // blurred by clicking a focusable textbox — the single gesture that produces a `focusin`.
-    //
-    // These drive the other two shapes. Both blur to `<body>`, which fires `focusout` and NO
-    // `focusin`, so a transition-listening implementation is deaf to them.
-
-    // The frozen text's own worked example at `:249-251`. The alias input calls blur() on Enter, so
-    // the commit and the row blur are the same event.
+test.describe("Destination movement and external chrome finalize automatic modes", () => {
+    // Enter moves to a destination editor; non-focusable page chrome exits to the document body.
+    // Both must synchronously finalize the current automation owner before another owner is published.
     test("a description alias committed with Enter applies an Updating rule", async ({ page }) => {
         await createNewIdentity(page);
         await importRows(page, [
@@ -482,33 +472,39 @@ test.describe("Every way a row loses focus reaches the automatic modes", () => {
             { date: "2026-07-02", description: MATCHING_DESCRIPTION }
         ]);
 
-        // Positional rows, NOT `rowsWithDescription`, because this journey CHANGES the description
-        // those locators filter on. A Playwright locator re-resolves on every use, and React writes
-        // the new text to the input's `value` ATTRIBUTE as well as its property — verified in jsdom:
-        // after the edit, `input[value="COFFEE SHOP 123"]` no longer matches row one and
-        // `input[value="Coffee"]` does. So a locator built from the old description silently
-        // re-pointed at the OTHER matching row, which the rule was concurrently rewriting, and the
-        // click landed on an element that detached underneath it. That reads exactly like a product
-        // defect and is not one. The sibling alias journey escaped it only by indexing positionally.
+        // Keep positional row identity because this journey changes the description used by the
+        // display-based row filter. Reusing a locator keyed to the old text would re-resolve to the
+        // untouched matching row after the first commit.
         const firstRow = page.getByTestId("transaction-row").first();
         const secondRow = page.getByTestId("transaction-row").nth(1);
-        const description = firstRow.getByTestId("description-editable");
+        const inspector = await openTransactionInspector(page);
+        const description = await activateTransactionEditor(firstRow, "description");
 
-        await description.click();
         await description.fill("Coffee");
         await description.press("Enter");
+        await expectTransactionCellDisplay(firstRow, "description", "Coffee");
 
-        const proposal = page.getByTestId("description-rule-proposal");
+        const proposal = inspector.getByTestId("description-rule-proposal");
         await expect(proposal).toBeVisible();
 
         await test.step("choosing Updating all applies on the Enter blur itself", async () => {
-            await chooseApplyMode(page, "Updating all");
-            // Re-commit with Enter. That blur IS the frozen gesture; nothing else is clicked.
-            await description.click();
-            await description.press("Enter");
+            await chooseApplyMode(page, proposal, "Updating all");
+            // Re-commit with Enter. Focusing the same row and using its explicit keyboard activation
+            // keeps the row live until the editor's own Enter blur fires.
+            const descriptionCell = transactionGridCell(firstRow, "description");
+            await descriptionCell.click();
+            await descriptionCell.press("Enter");
+            await expect(descriptionCell).toHaveAttribute("data-cell-content", "editor");
+            const reopenedDescription = firstRow.getByTestId("description-editable");
+            await expect(reopenedDescription).toBeFocused();
+            await reopenedDescription.press("Enter");
 
-            await expect(proposal).toHaveCount(0);
-            await expect(secondRow.getByTestId("description-editable")).toHaveValue("Coffee");
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
+            await expectTransactionCellDisplay(firstRow, "description", "Coffee");
+            const continuedEditor = secondRow.getByTestId("description-editable");
+            await expect(continuedEditor).toBeFocused();
+            await continuedEditor.press("Escape");
+            await expectTransactionCellDisplay(secondRow, "description", "Coffee");
         });
     });
 
@@ -525,22 +521,23 @@ test.describe("Every way a row loses focus reaches the automatic modes", () => {
         ]);
 
         const secondRow = rowsWithDescription(page).nth(1);
+        const inspector = await openTransactionInspector(page);
         await addTagToRow(page, rowsWithDescription(page).first(), "Coffee");
 
-        const proposal = page.getByTestId("tags-rule-proposal");
+        const proposal = inspector.getByTestId("tags-rule-proposal");
         await expect(proposal).toBeVisible();
-        await chooseApplyMode(page, "Updating all");
+        await chooseApplyMode(page, proposal, "Updating all");
 
-        await test.step("nothing is written while the row still holds focus", async () => {
-            await expect(secondRow.getByTestId("tags-editable")).not.toContainText("Coffee");
+        await test.step("nothing is written while the automation owner still holds focus", async () => {
+            await expect(transactionGridCell(secondRow, "tags")).not.toContainText("Coffee");
         });
 
         await test.step("clicking a column header, which takes no focus, applies it", async () => {
             // A non-focusable target: focus goes to <body>, firing focusout and no focusin. The
             // "Date" column header is a plain div with role=columnheader and no tabindex.
             await page.getByRole("columnheader", { name: "Date", exact: true }).click();
-            await expect(proposal).toHaveCount(0);
-            await expect(secondRow.getByTestId("tags-editable")).toContainText("Coffee");
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
+            await expectTransactionCellDisplay(secondRow, "tags", "Coffee");
         });
     });
 });
@@ -558,18 +555,19 @@ test.describe("Updating an existing rule from the same controls", () => {
             { date: "2026-07-01", description: MATCHING_DESCRIPTION },
             { date: "2026-07-02", description: MATCHING_DESCRIPTION }
         ]);
+        const inspector = await openTransactionInspector(page);
+        const proposal = inspector.getByTestId("tags-rule-proposal");
 
         await test.step("create the rule from the first tag change", async () => {
             await addTagToRow(page, rowsWithDescription(page).first(), "Coffee");
-            await chooseApplyMode(page, "Update all");
-            await page.getByTestId("proposal-confirm").click();
-            await expect(page.getByTestId("tags-rule-robot")).toHaveCount(2);
+            await chooseApplyMode(page, proposal, "Update all");
+            await proposal.getByTestId("proposal-confirm").click();
+            await expect(inspector.getByTestId("tags-rule-inspector")).toBeVisible();
         });
 
         await test.step("a further tag change offers an UPDATE of that same rule", async () => {
             await addTagToRow(page, rowsWithDescription(page).first(), "Dining");
 
-            const proposal = page.getByTestId("tags-rule-proposal");
             await expect(proposal).toBeVisible();
             await expect(proposal).toHaveAttribute("data-kind", "update");
         });
@@ -578,17 +576,15 @@ test.describe("Updating an existing rule from the same controls", () => {
         // about which write happens, so the outcome has to be asserted too: the other matching row
         // must gain the new tag, and no SECOND rule may appear for the same description text.
         await test.step("confirming performs the update rather than creating a duplicate", async () => {
-            await chooseApplyMode(page, "Update all");
-            await page.getByTestId("proposal-confirm").click();
-            await expect(page.getByTestId("tags-rule-proposal")).toHaveCount(0);
+            await chooseApplyMode(page, proposal, "Update all");
+            await proposal.getByTestId("proposal-confirm").click();
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
 
             // The updated rule reached the other matching transaction.
             const secondRow = rowsWithDescription(page).nth(1);
-            await expect(secondRow.getByTestId("tags-editable")).toContainText("Dining");
+            await expectTransactionCellDisplay(secondRow, "tags", "Dining");
 
-            // Still exactly one robot per matching row. A duplicate rule for the same description
-            // text would not change this count, so also check the automations page directly.
-            await expect(page.getByTestId("tags-rule-robot")).toHaveCount(2);
+            await expect(inspector.getByTestId("tags-rule-inspector")).toBeVisible();
             await goToAutomations(page);
             await expect(page.getByTestId("rule-list").getByRole("listitem")).toHaveCount(1);
         });

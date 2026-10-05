@@ -77,6 +77,16 @@ describe("retainHistoricalAllocationPersonIds", () => {
         expect(next).toBe(underGroceries);
     });
 
+    it("preserves identity when value edits keep the same historical membership", () => {
+        const next = retainHistoricalAllocationPersonIds(
+            underGroceries,
+            GROCERIES,
+            new Set([DEE.id])
+        );
+
+        expect(next).toBe(underGroceries);
+    });
+
     it("adds a person a later window reveals", () => {
         const next = retainHistoricalAllocationPersonIds(
             underGroceries,
@@ -111,8 +121,8 @@ describe("retainHistoricalAllocationPersonIds", () => {
 });
 
 describe("the columns the two produce together", () => {
-    it("shows a retained person's column while the window no longer holds their row", () => {
-        expect(columnIdsFor(windowHolding(ADA.id), new Set([DEE.id]))).toEqual([ADA.id, DEE.id]);
+    it("builds the historical column from the retained set without rescanning held rows", () => {
+        expect(columnIdsFor([], new Set([DEE.id]))).toEqual([ADA.id, DEE.id]);
     });
 
     it("shows no column for a person neither the window nor the retained set names", () => {

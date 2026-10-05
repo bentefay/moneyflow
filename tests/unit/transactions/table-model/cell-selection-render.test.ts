@@ -8,7 +8,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { transactionCellSelectionRowKey } from "@/components/features/transactions/table-model/cell-selection-render";
+import {
+    transactionCellSelectionRowKey,
+    transactionSelectedCellMarkersFromRowKey
+} from "@/components/features/transactions/table-model/cell-selection-render";
 
 import { createTestTransactionTable, type TestTransactionTable, transactions } from "./test-table";
 
@@ -108,5 +111,21 @@ describe("the per-row selection key", () => {
         // Row 15 is untouched by either, so both project to the same key and it never re-renders.
         expect(second).toBe(first);
         expect(first).toBe("");
+    });
+});
+
+describe("selected markers from the row key", () => {
+    const columnIds = ["checkbox", "date", "description", "account", "tags", "status"];
+
+    it("projects only the current row's selected spans", () => {
+        expect(
+            transactionSelectedCellMarkersFromRowKey("-1:0-5|0:0-0|0:2-3|1:0-5", columnIds)
+        ).toEqual(new Set(["checkbox", "description", "account"]));
+    });
+
+    it("returns no markers when only neighbouring rows affect the outline", () => {
+        expect(transactionSelectedCellMarkersFromRowKey("-1:1-4|1:1-4", columnIds)).toEqual(
+            new Set()
+        );
     });
 });

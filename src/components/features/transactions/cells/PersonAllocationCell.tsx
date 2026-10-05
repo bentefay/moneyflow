@@ -1,13 +1,29 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
-import { deriveEffectiveAllocations, type EffectiveAllocationResult } from "@/lib/domain";
+import {
+    AllocationPercentageSchema,
+    deriveEffectiveAllocations,
+    type EffectiveAllocationResult
+} from "@/lib/domain";
 import { cn } from "@/lib/utils";
 
 import { materializeAllocationRecord, parseAllocationDraft } from "../allocation-columns";
-import { TALL_CONTROL_HIT_AREA } from "./cell-hit-area";
+import {
+    INNER_CELL_FOCUS_CHROME,
+    RESTING_CELL_CHROME,
+    TRANSACTION_GRID_EDITOR_INLINE_CHROME
+} from "./cell-chrome";
+import {
+    TRANSACTION_GRID_EDITOR_COMMIT_FAILURE,
+    TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED,
+    type TransactionGridEditorCommitResult,
+    type TransactionGridEditorLifecycle,
+    useTransactionGridEditorLifecycle,
+    useTransactionGridNativeBlurCommit
+} from "./editor-lifecycle";
 
 export interface PersonAllocationCellProps {
     readonly accountOwnerships?: unknown;
@@ -15,7 +31,7 @@ export interface PersonAllocationCellProps {
     readonly className?: string;
     readonly explicitValue?: unknown;
     readonly effectiveDerivation?: EffectiveAllocationResult;
-    readonly onCommit?: (personId: string, value: number) => void;
+    readonly onCommit?: (personId: string, value: number) => TransactionGridEditorCommitResult;
     /**
      * Reports whether this cell is in its editing state. Callers use it to tell when an allocation
      * edit has finished; the percentage VALUE is never reported.
@@ -23,18 +39,30 @@ export interface PersonAllocationCellProps {
     readonly onEditingChange?: (isEditing: boolean) => void;
     readonly personId: string;
     readonly personLabel: string;
+    readonly presenceField?: string;
+    /** Mount directly in the real input branch for controller-owned edit activation. */
+    readonly startEditing?: boolean;
 }
 
-interface AllocationPresentation {
+export interface AllocationPresentation {
     readonly description: string;
     readonly display: string;
     readonly invalid: boolean;
 }
 
+export interface PersonAllocationDisplayProps {
+    readonly accountOwnerships?: unknown;
+    readonly allocations?: unknown;
+    readonly className?: string;
+    readonly explicitValue?: unknown;
+    readonly effectiveDerivation?: EffectiveAllocationResult;
+    readonly personId: string;
+    readonly presenceField?: string;
+}
+
 function displayPercentage(value: unknown): string | null {
-    return typeof value === "number" && Number.isFinite(value) && !Object.is(value, -0)
-        ? `${String(value)}%`
-        : null;
+    const parsed = AllocationPercentageSchema.safeParse(value);
+    return parsed.success ? `${String(parsed.data)}%` : null;
 }
 
 function describeDerivationFailure(explicitValue: unknown): AllocationPresentation {
@@ -48,7 +76,7 @@ function describeDerivationFailure(explicitValue: unknown): AllocationPresentati
     };
 }
 
-function allocationPresentation(
+export function allocationPresentation(
     personId: string,
     explicitValue: unknown,
     allocationsInput: unknown,
@@ -77,8 +105,55 @@ function allocationPresentation(
     };
 }
 
+function numericAllocations(input: unknown): Readonly<Record<string, number>> {
+    return Object.fromEntries(
+        Object.entries(materializeAllocationRecord(input)).flatMap(([personId, value]) =>
+            typeof value === "number" ? [[personId, value]] : []
+        )
+    );
+}
+
 function initialDraft(explicitValue: unknown): string {
     return explicitValue == null ? "" : String(explicitValue);
+}
+
+/** Resting allocation presentation shared by display-first rows and the inline editor. */
+export function PersonAllocationDisplay({
+    accountOwnerships = {},
+    allocations = {},
+    className,
+    explicitValue,
+    effectiveDerivation,
+    personId,
+    presenceField
+}: PersonAllocationDisplayProps) {
+    const descriptionId = useId();
+    const presentation = allocationPresentation(
+        personId,
+        explicitValue,
+        allocations,
+        accountOwnerships,
+        effectiveDerivation
+    );
+
+    return (
+        <span
+            aria-describedby={descriptionId}
+            aria-invalid={presentation.invalid ? "true" : undefined}
+            className={cn(
+                "w-full min-w-0 truncate text-right text-sm tabular-nums",
+                presentation.invalid ? "text-destructive font-medium" : "text-muted-foreground",
+                className
+            )}
+            data-presence-field={presenceField}
+            data-testid={`allocation-cell-${personId}`}
+        >
+            {presentation.display}
+            <span id={descriptionId} className="sr-only">
+                {presentation.description}
+            </span>
+        </span>
+    );
 }
 
 export function PersonAllocationCell({
@@ -90,12 +165,16 @@ export function PersonAllocationCell({
     onCommit,
     onEditingChange,
     personId,
-    personLabel
+    personLabel,
+    presenceField,
+    startEditing = false
 }: PersonAllocationCellProps) {
-    const [editing, setEditing] = useState(false);
+    const [editing, setEditing] = useState(startEditing);
     const [draft, setDraft] = useState(() => initialDraft(explicitValue));
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const externalExitValidationResult = useRef<TransactionGridEditorCommitResult | null>(null);
+    const publishNativeBlurCommit = useTransactionGridNativeBlurCommit();
     const descriptionId = useId();
     const errorId = useId();
     const presentation = allocationPresentation(
@@ -114,7 +193,8 @@ export function PersonAllocationCell({
     }, [editing]);
 
     // Derived from the single `editing` state so the report can never disagree with the rendering.
-    useEffect(() => {
+    // Layout timing lets a pointer destination observe validation before it claims controller ownership.
+    useLayoutEffect(() => {
         onEditingChange?.(editing);
     }, [editing, onEditingChange]);
 
@@ -124,29 +204,67 @@ export function PersonAllocationCell({
         setEditing(true);
     };
 
-    const cancelEditing = () => {
+    const cancelEditing = useCallback(() => {
         setDraft(initialDraft(explicitValue));
         setError(null);
         setEditing(false);
-    };
+    }, [explicitValue]);
 
-    const commit = () => {
+    const commit = useCallback(() => {
         const parsed = parseAllocationDraft(draft);
         if (!parsed.ok) {
             setError(parsed.error);
-            return;
+            return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
         }
-        onCommit?.(personId, parsed.value);
+        const stored = AllocationPercentageSchema.safeParse(explicitValue);
+        const unchanged = stored.success
+            ? parsed.value === stored.data
+            : explicitValue == null && parsed.value === 0;
         setError(null);
-        setEditing(false);
-    };
+        if (unchanged) return TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
+        if (onCommit == null) return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
+        return onCommit(personId, parsed.value);
+    }, [draft, explicitValue, onCommit, personId]);
+    const finishCommit = useCallback(
+        (relatedTarget: EventTarget | null = null) => {
+            const result = commit();
+            externalExitValidationResult.current = result;
+            const controllerHandledBlur = publishNativeBlurCommit?.(result, relatedTarget) ?? false;
+            if (result.ok) {
+                setEditing(false);
+                return;
+            }
+            if (!controllerHandledBlur) {
+                queueMicrotask(() => inputRef.current?.focus({ preventScroll: true }));
+            }
+        },
+        [commit, publishNativeBlurCommit]
+    );
+    const editorLifecycle = useMemo<TransactionGridEditorLifecycle>(
+        () => ({
+            automation: {
+                draft: { personId, text: draft },
+                field: "allocation",
+                originalAllocations: numericAllocations(allocations)
+            },
+            beginExternalExitValidation: () => {
+                externalExitValidationResult.current = null;
+            },
+            cancel: cancelEditing,
+            commit,
+            externalExitValidation: "blur",
+            readExternalExitValidation: () => externalExitValidationResult.current
+        }),
+        [allocations, cancelEditing, commit, draft, personId]
+    );
+    useTransactionGridEditorLifecycle(editorLifecycle);
 
     if (editing) {
         return (
             <div
-                className={cn("relative flex min-w-0 items-center gap-1", className)}
+                className={cn("relative flex h-full w-full min-w-0 items-center", className)}
                 data-testid={`allocation-cell-${personId}`}
-                data-presence-field={`allocation:${personId}`}
+                data-presence-field={presenceField}
             >
                 <Input
                     ref={inputRef}
@@ -157,11 +275,11 @@ export function PersonAllocationCell({
                         setDraft(event.target.value);
                         if (error) setError(null);
                     }}
-                    onBlur={commit}
+                    onBlur={(event) => finishCommit(event.relatedTarget)}
                     onKeyDown={(event) => {
                         if (event.key === "Enter") {
                             event.preventDefault();
-                            commit();
+                            finishCommit();
                         } else if (event.key === "Escape") {
                             event.preventDefault();
                             cancelEditing();
@@ -170,13 +288,17 @@ export function PersonAllocationCell({
                     aria-label={`${personLabel} allocation percentage`}
                     aria-invalid={error ? "true" : undefined}
                     aria-describedby={error ? errorId : descriptionId}
-                    className="h-8 min-w-0 flex-1 px-2 text-right tabular-nums"
+                    className={cn(
+                        "h-8 min-w-0 flex-1 text-right tabular-nums",
+                        RESTING_CELL_CHROME,
+                        TRANSACTION_GRID_EDITOR_INLINE_CHROME
+                    )}
                 />
                 {error && (
                     <span
                         id={errorId}
                         role="alert"
-                        className="text-destructive shrink-0 text-xs font-bold"
+                        className="text-destructive pointer-events-none absolute right-1 text-xs font-bold"
                         title={error}
                     >
                         !<span className="sr-only">{error}</span>
@@ -192,22 +314,20 @@ export function PersonAllocationCell({
     return (
         <button
             type="button"
+            data-legacy-edit-activation
             onClick={beginEditing}
             onDoubleClick={beginEditing}
             aria-describedby={descriptionId}
             aria-label={`Edit ${personLabel} allocation`}
+            aria-invalid={presentation.invalid ? "true" : undefined}
             className={cn(
-                "hover:bg-accent focus-visible:ring-primary flex h-8 w-full min-w-0 items-center justify-end rounded px-2 text-right text-sm tabular-nums focus-visible:ring-2 focus-visible:outline-none",
-                // UR-012: a click anywhere in the cell begins editing this percentage. Only the
-                // resting button carries the overlay, because that is the control a click has to
-                // reach; once editing, the input already holds focus and a click at the cell edge
-                // commits exactly as it did before this change.
-                TALL_CONTROL_HIT_AREA,
+                "flex h-8 w-full min-w-0 items-center justify-end rounded-none px-2 text-right text-sm tabular-nums",
+                INNER_CELL_FOCUS_CHROME,
                 presentation.invalid ? "text-destructive font-medium" : "text-muted-foreground",
                 className
             )}
             data-testid={`allocation-cell-${personId}`}
-            data-presence-field={`allocation:${personId}`}
+            data-presence-field={presenceField}
         >
             {presentation.display}
             <span id={descriptionId} className="sr-only">
