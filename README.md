@@ -57,6 +57,26 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### Working in a git worktree
+
+`.env.local` is gitignored, so a fresh worktree does not have one. Several integration suites talk
+to the real local Supabase stack and will refuse to run without it — by design, since a mocked
+authorization boundary proves nothing. Bootstrap a new worktree with:
+
+```bash
+# From inside the worktree, copy the file from the main checkout. Never commit it.
+cp ../../.env.local .env.local
+pnpm install
+pnpm db:start
+```
+
+Exported environment variables take precedence over the file, so CI can supply
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_JWT_SECRET` directly and
+skip the file entirely. When `SUPABASE_JWT_SECRET` is absent the helpers read the local Realtime
+container's symmetric key via `docker inspect`, which is why Docker must be running. If any of the
+three is missing the realtime suites fail with a message naming exactly what to supply; they never
+skip themselves silently.
+
 ### Running Tests
 
 ```bash
@@ -174,6 +194,8 @@ See [.github/copilot-instructions.md](.github/copilot-instructions.md) for codin
 
 ## 📚 Documentation
 
+- [Fusion mission recovery](specs/fusion-mission-recovery/README.md) - Recovered work, complete
+  saved specification, and outstanding implementation
 - [Specification](specs/001-core-mvp/spec.md) - Feature requirements
 - [Implementation Plan](specs/001-core-mvp/plan.md) - Technical architecture
 - [Data Model](specs/001-core-mvp/data-model.md) - CRDT schema and encryption

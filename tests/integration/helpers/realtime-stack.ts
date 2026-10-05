@@ -32,8 +32,23 @@ function isUnknownRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Reads `.env.local` if it is present. The file is gitignored, so a fresh worktree simply does not
+ * have one and the inherited environment may still supply everything: absence is not an error here,
+ * it defers to `requireRealtimeStack` which names what is actually missing. Any other read failure
+ * (permissions, a directory in its place) is a real problem and is rethrown rather than silently
+ * degraded into "no configuration".
+ */
 function readLocalEnvironment(): Readonly<Record<string, string>> {
-    const entries = readFileSync(".env.local", "utf8")
+    const contents = (() => {
+        try {
+            return readFileSync(".env.local", "utf8");
+        } catch (cause) {
+            if (isUnknownRecord(cause) && cause.code === "ENOENT") return "";
+            throw cause;
+        }
+    })();
+    const entries = contents
         .split(/\r?\n/)
         .filter((line) => line.length > 0 && !line.startsWith("#"))
         .flatMap((line) => {
@@ -85,20 +100,30 @@ export function requireRealtimeStack(): RealtimeStack {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? environment.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !anonKey) {
         throw new Error(
-            "Realtime security tests require NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. Run `pnpm db:start`."
+            "Realtime security tests require NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. " +
+                "`.env.local` is gitignored, so a fresh worktree does not have one: copy it from the repository " +
+                "root (`cp ../../.env.local .env.local`) or export both variables, then run `pnpm db:start`."
         );
     }
     try {
         return { supabaseUrl, anonKey, jwtSecret: requireLocalRealtimeJwtSecret() };
     } catch (cause) {
         throw new Error(
-            "Realtime security tests require the running local Supabase Realtime stack or a server-only SUPABASE_JWT_SECRET. Run `pnpm db:start`.",
+            "Realtime security tests require the running local Supabase Realtime stack or a server-only " +
+                "SUPABASE_JWT_SECRET of at least 32 bytes. Run `pnpm db:start`.",
             { cause }
         );
     }
 }
 
-/** Runs SQL as the database superuser, returning unaligned tuple-only rows. */
+/**
+ * Runs SQL as the database superuser, returning unaligned tuple-only rows.
+ *
+ * `ON_ERROR_STOP` is not optional: without it psql reports a failed statement on stderr and still
+ * exits 0, so a broken fixture write or a refused `DELETE` looks exactly like a successful one and
+ * the suite carries on against state it did not create. That silence is what let cleanup failures
+ * accumulate unnoticed, so every statement here fails loudly instead.
+ */
 export function runSql(statement: string): string {
     return execFileSync(
         "docker",
@@ -114,7 +139,9 @@ export function runSql(statement: string): string {
             "-X",
             "-q",
             "-t",
-            "-A"
+            "-A",
+            "-v",
+            "ON_ERROR_STOP=1"
         ],
         { input: statement, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
     );
@@ -123,7 +150,7 @@ export function runSql(statement: string): string {
 /** Runs SQL expected to be rejected, returning the SQLSTATE the database raised. */
 export function runSqlExpectingDenial(statement: string): string {
     try {
-        runSql(`\\set ON_ERROR_STOP on\n${statement}`);
+        runSql(statement);
     } catch (error) {
         const stderr = isUnknownRecord(error) ? error.stderr : null;
         const text = typeof stderr === "string" ? stderr : String(error);
@@ -141,6 +168,14 @@ export function testIdentityHash(label: string): string {
     return createHash("sha256").update(`hs015-${label}-${randomUUID()}`).digest("hex");
 }
 
+/**
+ * Fixture ciphertext below is a constant public test vector rather than anything encrypted, and it
+ * is the only thing that later proves one of these rows in the shared local database was synthetic.
+ * Keep each pair exactly as it is. Nothing in this file writes `public.vault_snapshots`; before
+ * adding a writer for it, read "Provenance markers for realtime fixture rows" in `.claude/CLAUDE.md`
+ * — the marker is already reserved there, along with the cleanup and count obligations that have to
+ * land in the same change.
+ */
 export function createVaultOwnedBy(ownerHash: string): string {
     return runSql(
         `SELECT public.create_vault_for_owner('${ownerHash}', 'd3JhcHBlZA==', 'cHVibGlj');`
@@ -361,19 +396,63 @@ export async function waitUntil(
     return predicate();
 }
 
-/** Drops every fixture row this suite created, leaving the local database as it was found. */
+/**
+ * Drops every fixture row this suite created, leaving the local database as it was found.
+ *
+ * The order matters and is dictated by the foreign keys back to `vaults`: `vault_ops` and
+ * `vault_updates_legacy` are `ON DELETE RESTRICT` and `realtime_grants` is `NO ACTION`, so any of
+ * them still holding rows makes `DELETE FROM vaults` fail outright. Memberships, snapshots and
+ * invites cascade, but are listed for the same reason the others are — this function is the only
+ * statement of what a fixture owns.
+ *
+ * `vault_ops` additionally carries the `vault_ops_append_only` trigger, a production invariant that
+ * refuses every UPDATE and DELETE. Nothing about that invariant is relaxed here: it is suspended
+ * for the duration of this one transaction only (`SET LOCAL`), by the superuser connection the
+ * fixtures were created on, and only while deleting rows belonging to the supplied vault ids. The
+ * transaction ends, the trigger is back, and no application role could have done any of this.
+ *
+ * Only rows belonging to the supplied vault ids are touched, so concurrent workers cleaning up
+ * their own fixtures never interfere with each other. Everything runs in one transaction so a
+ * partially-created fixture is either fully removed or reported as a failure.
+ */
 export function cleanUpVaultFixtures(vaultIds: readonly string[]): void {
     if (vaultIds.length === 0) return;
     const list = vaultIds.map((vaultId) => `'${vaultId}'::uuid`).join(", ");
     runSql(
-        `\\set ON_ERROR_STOP on
-         BEGIN;
-         ALTER TABLE public.vault_ops DISABLE TRIGGER vault_ops_append_only;
-         DELETE FROM public.vault_ops WHERE vault_id IN (${list});
-         ALTER TABLE public.vault_ops ENABLE TRIGGER vault_ops_append_only;
+        `BEGIN;
+         SET LOCAL session_replication_role = replica;
          DELETE FROM public.realtime_grants WHERE vault_id IN (${list});
+         DELETE FROM public.vault_ops WHERE vault_id IN (${list});
+         DELETE FROM public.vault_updates_legacy WHERE vault_id IN (${list});
+         DELETE FROM public.vault_snapshots WHERE vault_id IN (${list});
+         DELETE FROM public.vault_invites WHERE vault_id IN (${list});
          DELETE FROM public.vault_memberships WHERE vault_id IN (${list});
          DELETE FROM public.vaults WHERE id IN (${list});
          COMMIT;`
     );
+}
+
+/** Counts the rows a fixture owns, so cleanup can be asserted rather than assumed. */
+export function countVaultFixtureRows(vaultIds: readonly string[]): {
+    readonly vaults: number;
+    readonly operations: number;
+    readonly grants: number;
+    readonly memberships: number;
+} {
+    if (vaultIds.length === 0) return { vaults: 0, operations: 0, grants: 0, memberships: 0 };
+    const list = vaultIds.map((vaultId) => `'${vaultId}'::uuid`).join(", ");
+    const counts = runSql(
+        `SELECT (SELECT count(*) FROM public.vaults WHERE id IN (${list}))
+             || '|' || (SELECT count(*) FROM public.vault_ops WHERE vault_id IN (${list}))
+             || '|' || (SELECT count(*) FROM public.realtime_grants WHERE vault_id IN (${list}))
+             || '|' || (SELECT count(*) FROM public.vault_memberships WHERE vault_id IN (${list}));`
+    )
+        .trim()
+        .split("|")
+        .map(Number);
+    const [vaults, operations, grants, memberships] = counts;
+    if (counts.length !== 4 || counts.some(Number.isNaN)) {
+        throw new Error("Fixture row counts could not be read");
+    }
+    return { vaults, operations, grants, memberships };
 }

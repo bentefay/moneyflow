@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 
 import { defineConfig, devices } from "@playwright/test";
 
+import { E2E_BASE_URL, E2E_PORT } from "./tests/e2e/helpers/base-url";
+
 function requireLocalRealtimeJwtSecret(): string {
     const inherited = process.env.SUPABASE_JWT_SECRET;
     if (inherited && Buffer.byteLength(inherited, "utf8") >= 32) return inherited;
@@ -66,7 +68,7 @@ export default defineConfig({
     // the value the suite's own waits already converged on independently in 206 places.
     expect: { timeout: 15_000 },
     use: {
-        baseURL: "http://localhost:3000",
+        baseURL: E2E_BASE_URL,
         trace: "on-first-retry"
     },
     projects: [
@@ -76,9 +78,9 @@ export default defineConfig({
         }
     ],
     webServer: {
-        command: "pnpm run dev",
+        command: `pnpm run dev --port ${E2E_PORT}`,
         env: { SUPABASE_JWT_SECRET: localRealtimeJwtSecret },
-        url: "http://localhost:3000",
+        url: E2E_BASE_URL,
         reuseExistingServer: false
     }
 });

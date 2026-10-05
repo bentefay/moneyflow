@@ -7,6 +7,7 @@ import {
     goToSettings,
     readBrowserIdentity
 } from "./helpers";
+import { E2E_BASE_URL } from "./helpers/base-url";
 import { memberHoldsSameVaultKeyAsOwner } from "./helpers/invite";
 import { readActiveVaultId } from "./helpers/realtime";
 
@@ -25,8 +26,8 @@ import { readActiveVaultId } from "./helpers/realtime";
  * The recovered key is compared in memory by the helper and never surfaced.
  */
 test("a second user redeems an invite and recovers the real vault key", async ({ browser }) => {
-    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+    const memberContext = await browser.newContext({ baseURL: E2E_BASE_URL });
     const owner = await ownerContext.newPage();
     const member = await memberContext.newPage();
 
@@ -85,8 +86,8 @@ test("a second user redeems an invite and recovers the real vault key", async ({
  *     freshly materialized Person op syncs back (bidirectional).
  */
 test("accepting an invite opens the shared vault and links both members", async ({ browser }) => {
-    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+    const memberContext = await browser.newContext({ baseURL: E2E_BASE_URL });
     const owner = await ownerContext.newPage();
     const member = await memberContext.newPage();
 
