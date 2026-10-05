@@ -27,11 +27,13 @@ import {
     addVaultMember,
     appendVaultOp,
     cleanUpVaultFixtures,
+    countVaultFixtureRows,
     createVaultOwnedBy,
     mintRealtimeToken,
     openVaultOpsSocket,
     type RealtimeStack,
     requireRealtimeStack,
+    revokeGrant,
     rotateGrant,
     runSql,
     testIdentityHash
@@ -41,6 +43,7 @@ const HOSTILE_ORIGIN = "https://attacker.example";
 
 let stack: RealtimeStack;
 let ownerHash: string;
+let foreignOwnerHash: string;
 let vaultId: string;
 let foreignVaultId: string;
 let ownOperationId: string;
@@ -50,7 +53,7 @@ const createdVaultIds: string[] = [];
 beforeAll(() => {
     stack = requireRealtimeStack();
     ownerHash = testIdentityHash("origin-owner");
-    const foreignOwnerHash = testIdentityHash("origin-other-owner");
+    foreignOwnerHash = testIdentityHash("origin-other-owner");
     vaultId = createVaultOwnedBy(ownerHash);
     foreignVaultId = createVaultOwnedBy(foreignOwnerHash);
     createdVaultIds.push(vaultId, foreignVaultId);
@@ -111,6 +114,28 @@ function operationFixtureExists(operationId: string, fixtureVaultId: string): bo
              WHERE id = '${operationId}'::uuid AND vault_id = '${fixtureVaultId}'::uuid;`
         ).trim() === "1"
     );
+}
+
+function isRow(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
+}
+
+/** Operation ids in a PostgREST body, or `[]` when the body is not a row array at all. */
+function rowIds(rows: unknown): readonly string[] {
+    if (!Array.isArray(rows)) return [];
+    return rows.flatMap((row) => (isRow(row) && typeof row.id === "string" ? [row.id] : []));
+}
+
+/** The distinct vault ids a body exposed, so leakage shows up as an extra entry. */
+function rowVaultIds(rows: unknown): readonly string[] {
+    if (!Array.isArray(rows)) return [];
+    return [
+        ...new Set(
+            rows.flatMap((row) =>
+                isRow(row) && typeof row.vault_id === "string" ? [row.vault_id] : []
+            )
+        )
+    ];
 }
 
 describe("CORS does not gate the websocket upgrade", () => {
@@ -203,6 +228,9 @@ describe("a realtime grant confers exactly its own vault, from any origin", () =
         const candidateRowsValue: unknown = await candidateVaults.json();
 
         expect(Array.isArray(ownRows) && ownRows.length).toBeGreaterThan(0);
+        // The known own operation is visible, so "nonempty" cannot be satisfied by anything else.
+        expect(rowIds(ownRows)).toContain(ownOperationId);
+        // The foreign vault holds operations of its own; the grant still sees none of them.
         expect(foreignRows).toEqual([]);
         expect(Array.isArray(candidateRowsValue)).toBe(true);
         if (!Array.isArray(candidateRowsValue)) {
@@ -220,6 +248,80 @@ describe("a realtime grant confers exactly its own vault, from any origin", () =
         ).toBe(false);
         expect(candidateRows.every((row) => row.vault_id === vaultId)).toBe(true);
     }, 20_000);
+
+    it("still confines the same enumeration while another owner concurrently churns its own vault", async () => {
+        // The historical flake was an unfiltered enumeration that degraded into a whole-table scan
+        // once leaked fixtures accumulated, so it timed out under concurrency instead of returning
+        // the grant's own rows. This forces that exact ordering: an independent owner creates,
+        // reads, rotates, revokes and cleans up its own vault while this vault's enumeration runs,
+        // and the security answer must be unchanged in both directions.
+        const neighbourHash = testIdentityHash("origin-neighbour");
+        const neighbourVaultId = createVaultOwnedBy(neighbourHash);
+        createdVaultIds.push(neighbourVaultId);
+        const neighbourOperationId = appendVaultOp(neighbourVaultId, neighbourHash);
+        const neighbourGrant = rotateGrant(neighbourHash, neighbourVaultId);
+        const neighbourToken = mintRealtimeToken(stack, {
+            grantId: neighbourGrant.grantId,
+            vaultId: neighbourVaultId,
+            vaultRole: neighbourGrant.vaultRole
+        });
+
+        const grant = rotateGrant(ownerHash, vaultId);
+        const token = mintRealtimeToken(stack, {
+            grantId: grant.grantId,
+            vaultId,
+            vaultRole: grant.vaultRole
+        });
+
+        // Order A: this vault enumerates while the neighbour reads and rotates concurrently.
+        const [unfiltered, neighbourUnfiltered] = await Promise.all([
+            fetch(restUrl("vault_ops?select=id,vault_id"), { headers: authorizedHeaders(token) }),
+            fetch(restUrl("vault_ops?select=id,vault_id"), {
+                headers: authorizedHeaders(neighbourToken)
+            })
+        ]);
+        const rotated = rotateGrant(
+            neighbourHash,
+            neighbourVaultId,
+            "sync",
+            neighbourGrant.grantId
+        );
+
+        expect([unfiltered.status, neighbourUnfiltered.status]).toEqual([200, 200]);
+        const allRows: unknown = await unfiltered.json();
+        const neighbourRows: unknown = await neighbourUnfiltered.json();
+        expect(rowVaultIds(allRows)).toEqual([vaultId]);
+        expect(rowIds(allRows)).toContain(ownOperationId);
+        expect(rowIds(allRows)).not.toContain(neighbourOperationId);
+        expect(rowVaultIds(neighbourRows)).toEqual([neighbourVaultId]);
+        expect(rowIds(neighbourRows)).toContain(neighbourOperationId);
+
+        // Order B: the neighbour revokes and removes its whole fixture, then this vault reads
+        // again. Its own rows must survive a neighbour's complete cleanup.
+        expect(revokeGrant(neighbourHash, neighbourVaultId, rotated.grantId)).toBe(true);
+        cleanUpVaultFixtures([neighbourVaultId]);
+        createdVaultIds.splice(createdVaultIds.indexOf(neighbourVaultId), 1);
+        // Cleanup is asserted, not assumed: `vault_ops` holds a RESTRICT foreign key back to
+        // `vaults`, so an incomplete delete used to leave the whole fixture behind silently.
+        expect(countVaultFixtureRows([neighbourVaultId])).toEqual({
+            vaults: 0,
+            operations: 0,
+            grants: 0,
+            memberships: 0
+        });
+        // Deleting an already-deleted fixture is a no-op rather than an error.
+        cleanUpVaultFixtures([neighbourVaultId]);
+
+        const afterNeighbourCleanup = await fetch(restUrl("vault_ops?select=id,vault_id"), {
+            headers: authorizedHeaders(token)
+        });
+
+        expect(afterNeighbourCleanup.status).toBe(200);
+        const survivingRows: unknown = await afterNeighbourCleanup.json();
+        expect(rowVaultIds(survivingRows)).toEqual([vaultId]);
+        expect(rowIds(survivingRows)).toContain(ownOperationId);
+        expect(countVaultFixtureRows([vaultId]).operations).toBeGreaterThan(0);
+    }, 30_000);
 
     it("cannot read grants or memberships with the same token", async () => {
         const grant = rotateGrant(ownerHash, vaultId);

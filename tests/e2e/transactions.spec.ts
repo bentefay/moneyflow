@@ -1,3 +1,4 @@
+import { expect, test } from "@playwright/test";
 /**
  * E2E Test: Transactions Page
  *
@@ -8,8 +9,6 @@
  * - Inline cell editing (Phase 3 - US1)
  * - Keyboard navigation (Phase 3 - US1)
  */
-
-import { expect, test } from "@playwright/test";
 
 import {
     createNewIdentity,

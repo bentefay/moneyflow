@@ -71,8 +71,12 @@ describe("ruleScopeRank", () => {
     it.each([
         { accountId: undefined, amount: undefined, rank: 0 },
         { accountId: undefined, amount: -450, rank: 1 },
+        // Zero is a PRESENT constraint, not an absent one: the rank test is `== null`, never
+        // falsiness. A zero-amount rule outranks the unscoped slot exactly like any other amount.
+        { accountId: undefined, amount: 0, rank: 1 },
         { accountId: "acct-checking", amount: undefined, rank: 2 },
-        { accountId: "acct-checking", amount: -450, rank: 3 }
+        { accountId: "acct-checking", amount: -450, rank: 3 },
+        { accountId: "acct-checking", amount: 0, rank: 3 }
     ])("ranks account=$accountId amount=$amount as $rank", ({ accountId, amount, rank }) => {
         const rule = makeRule({ id: "r1", descriptionText: "X", accountId, amount });
         expect(ruleScopeRank(rule)).toBe(rank);
@@ -199,6 +203,17 @@ describe("ruleMatchesSubject", () => {
         expect(ruleMatchesSubject(rule, subject({ descriptionText: null }))).toBe(false);
     });
 
+    it("treats a zero amount as an exact constraint, not an absent one", () => {
+        // `ruleMatchesSubject` narrows on `rule.amount != null`, so a zero-amount rule constrains
+        // to exactly zero rather than degrading to "any amount".
+        const zeroScoped = makeRule({ id: "r1", descriptionText: "COFFEE SHOP 123", amount: 0 });
+        expect(ruleMatchesSubject(zeroScoped, subject({ amount: asMinorUnits(0) }))).toBe(true);
+        expect(ruleMatchesSubject(zeroScoped, subject({ amount: asMinorUnits(-450) }))).toBe(false);
+        // And the converse: an unscoped rule still matches a zero-amount transaction.
+        const unscopedRule = makeRule({ id: "r2", descriptionText: "COFFEE SHOP 123" });
+        expect(ruleMatchesSubject(unscopedRule, subject({ amount: asMinorUnits(0) }))).toBe(true);
+    });
+
     it("excludes manual rows from description-alias rules but not tag/allocation rules", () => {
         const manual = subject({ isManual: true });
         const aliasRule = makeRule({
@@ -259,6 +274,12 @@ describe("selectWinningRule precedence", () => {
         expect(selectWinningRule(all, "allocation", subject())).toBeNull();
     });
 
+    it("gives the same winner when the four competing ranks arrive reversed", () => {
+        // Deterministic companion to the shuffle property below: input order is not a tiebreak.
+        expect(selectWinningRule([...all].reverse(), "tags", subject())?.id).toBe(bothScoped.id);
+        expect(selectWinningRule(all, "tags", subject())?.id).toBe(bothScoped.id);
+    });
+
     it("is order-independent under shuffle", () => {
         fc.assert(
             fc.property(fc.shuffledSubarray(all, { minLength: all.length }), (shuffled) => {
@@ -278,6 +299,43 @@ describe("selectWinningRule precedence", () => {
         expect(winners.tags?.id).toBe(bothScoped.id);
         expect(winners.descriptionAlias?.id).toBe(aliasRule.id);
         expect(winners.allocation).toBeUndefined();
+    });
+
+    it("lets each field win at its own scope rank, independently", () => {
+        // Precedence is resolved per field, not once for the whole subject: tags wins at rank 3
+        // while allocation's most specific match is rank 1 and the alias field's is rank 0.
+        const allocationAmountScoped = makeRule({
+            id: "r-alloc-amount",
+            descriptionText: "COFFEE SHOP 123",
+            amount: -450,
+            action: {
+                field: "allocation",
+                allocations: { "person-a": AllocationPercentageSchema.parse(100) }
+            }
+        });
+        const allocationUnscoped = makeRule({
+            id: "r-alloc-unscoped",
+            descriptionText: "COFFEE SHOP 123",
+            action: {
+                field: "allocation",
+                allocations: { "person-b": AllocationPercentageSchema.parse(100) }
+            }
+        });
+        const aliasUnscoped = makeRule({
+            id: "r-alias-unscoped",
+            descriptionText: "COFFEE SHOP 123",
+            action: { field: "descriptionAlias", aliasId: "alias-1" }
+        });
+        const winners = selectWinningRulesByField(
+            [...all, allocationAmountScoped, allocationUnscoped, aliasUnscoped],
+            subject()
+        );
+        expect(winners.tags?.id).toBe(bothScoped.id);
+        expect(ruleScopeRank(winners.tags!)).toBe(3);
+        expect(winners.allocation?.id).toBe(allocationAmountScoped.id);
+        expect(ruleScopeRank(winners.allocation!)).toBe(1);
+        expect(winners.descriptionAlias?.id).toBe(aliasUnscoped.id);
+        expect(ruleScopeRank(winners.descriptionAlias!)).toBe(0);
     });
 });
 

@@ -323,6 +323,62 @@ describe("field-rule CRUD mutations", () => {
             expect(choice.field).toBe("tags");
             expect(choice.useAccountScope).toBe(false);
         });
+
+        /**
+         * The record is keyed by `pubkeyHash` because it is per-user UI state, not shared financial
+         * state. Two users on one vault must never observe each other's editor defaults.
+         */
+        it("keeps one user's remembered choice from leaking into another user's", () => {
+            const vault = createVaultMirror();
+            vault.mirror.setState((state: VaultState) => {
+                persistUserAutomationPreference(state, {
+                    pubkeyHash: "pubkey-abc",
+                    choice: {
+                        field: "descriptionAlias",
+                        tagMode: "set",
+                        useAccountScope: true,
+                        useAmountScope: true,
+                        applyMode: "updatingAll"
+                    }
+                });
+                persistUserAutomationPreference(state, {
+                    pubkeyHash: "pubkey-xyz",
+                    choice: {
+                        field: "allocation",
+                        tagMode: "add",
+                        useAccountScope: false,
+                        useAmountScope: true,
+                        applyMode: "updateAll"
+                    }
+                });
+            });
+
+            const abc = readUserAutomationChoice(vault.mirror.getState(), "pubkey-abc");
+            const xyz = readUserAutomationChoice(vault.mirror.getState(), "pubkey-xyz");
+            expect(abc).toEqual({
+                field: "descriptionAlias",
+                tagMode: "set",
+                useAccountScope: true,
+                useAmountScope: true,
+                applyMode: "updatingAll"
+            });
+            expect(xyz).toEqual({
+                field: "allocation",
+                tagMode: "add",
+                useAccountScope: false,
+                useAmountScope: true,
+                applyMode: "updateAll"
+            });
+
+            // A third identity still reads pure defaults rather than either stored record.
+            expect(readUserAutomationChoice(vault.mirror.getState(), "pubkey-third")).toEqual({
+                field: "tags",
+                tagMode: "add",
+                useAccountScope: false,
+                useAmountScope: false,
+                applyMode: "updateNew"
+            });
+        });
     });
 
     describe("per-viewer display preferences", () => {

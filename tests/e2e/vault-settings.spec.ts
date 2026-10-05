@@ -1,3 +1,4 @@
+import { expect, type Page, test } from "@playwright/test";
 /**
  * E2E Test: Vault Settings
  *
@@ -10,8 +11,6 @@
  * to a US one to keep the inferred-default assertion deterministic on any host. Currency inference
  * itself is covered in `onboarding-vault.spec.ts`.
  */
-
-import { expect, type Page, test } from "@playwright/test";
 
 import {
     awaitVaultPersistence,
