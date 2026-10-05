@@ -542,6 +542,51 @@ test.describe("Destination movement and external chrome finalize automatic modes
     });
 });
 
+test.describe("The blur path at a mobile viewport", () => {
+    // MF-005 addition, for the audit's MA-BLUR-01 row.
+    //
+    // Every other journey in this file runs at the project's default desktop Chromium viewport, and
+    // the component tests run in jsdom, which has no layout at all. Neither is viewport evidence, so
+    // before this case the audit could only record mobile behaviour as UNVERIFIED.
+    //
+    // The gesture is the same one the desktop journey above drives; only the viewport differs. At
+    // 390px the grid scrolls horizontally and the inspector occupies a much narrower
+    // page, so this is a real question rather than a restatement: the controls have to be reachable
+    // and the blur still has to reach the automatic mode.
+    test("an Updating mode still applies on a genuine row exit at 390x844", async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await createNewIdentity(page);
+        await createTag(page, "Coffee");
+        await importRows(page, [
+            { date: "2026-07-01", description: MATCHING_DESCRIPTION },
+            { date: "2026-07-02", description: MATCHING_DESCRIPTION }
+        ]);
+
+        const secondRow = rowsWithDescription(page).nth(1);
+        const inspector = await openTransactionInspector(page);
+        const proposal = inspector.getByTestId("tags-rule-proposal");
+
+        await addTagToRow(page, rowsWithDescription(page).first(), "Coffee");
+
+        await test.step("the proposal controls are reachable at this width", async () => {
+            await expect(proposal).toBeVisible();
+            await expect(page.getByTestId("proposal-apply-mode")).toBeVisible();
+            await chooseApplyMode(page, proposal, "Updating all");
+            // Nothing is written while the automation owner still holds focus.
+            await expect(transactionGridCell(secondRow, "tags")).not.toContainText("Coffee");
+        });
+
+        await test.step("moving focus out of the row applies it", async () => {
+            // The search box sits above the grid, so it is on-screen at this width without any
+            // horizontal scrolling — a genuine row blur to a focusable target outside the table.
+            await page.getByRole("textbox", { name: /search description/i }).click();
+
+            await expect(proposal).toHaveCount(0);
+            await expect(transactionGridCell(secondRow, "tags")).toContainText("Coffee");
+        });
+    });
+});
+
 test.describe("Updating an existing rule from the same controls", () => {
     // Frozen `:287-289`: when the changed field already has a matching rule, the same four choices
     // are offered but applying UPDATES that rule rather than creating a second one.
