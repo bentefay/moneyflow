@@ -1,3 +1,4 @@
+import { expect, test } from "@playwright/test";
 /**
  * HS-003 Loro ephemeral presence E2E.
  *
@@ -5,8 +6,6 @@
  * P05-authorized presence channel, asserting behaviour (which rows carry an indicator, whether
  * focus is stolen, what reaches the wire) rather than user-facing copy.
  */
-
-import { expect, test } from "@playwright/test";
 
 import { hashToColor } from "@/lib/utils/color";
 
@@ -22,6 +21,7 @@ import {
     reloadPage,
     shareActiveVaultWithMember
 } from "./helpers";
+import { E2E_BASE_URL } from "./helpers/base-url";
 
 /** Adds `count` empty rows, returning their stable ids in row order. */
 async function seedRows(page: import("@playwright/test").Page, count: number): Promise<string[]> {
@@ -79,7 +79,7 @@ async function normalizedCssColor(
 test("two members and a duplicate tab track each other's rows and fields", async ({ browser }) => {
     test.setTimeout(180_000);
 
-    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
     const owner = await ownerContext.newPage();
     const runtimeProblems: string[] = [];
     const observeRuntimeProblems = (page: import("@playwright/test").Page) => {
@@ -90,7 +90,7 @@ test("two members and a duplicate tab track each other's rows and fields", async
     };
     observeRuntimeProblems(owner);
 
-    let memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    let memberContext = await browser.newContext({ baseURL: E2E_BASE_URL });
     let member = await memberContext.newPage();
     let fixture:
         | { readonly vaultId: string; readonly ownerHash: string; readonly memberHash: string }
@@ -107,7 +107,7 @@ test("two members and a duplicate tab track each other's rows and fields", async
                 break;
             }
             await memberContext.close();
-            memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+            memberContext = await browser.newContext({ baseURL: E2E_BASE_URL });
             member = await memberContext.newPage();
         }
         if (fixture == null) throw new Error("Could not create distinct collaborator colors");
@@ -270,8 +270,8 @@ test("two members and a duplicate tab track each other's rows and fields", async
 test("presence recovers after a page reload", async ({ browser }) => {
     test.setTimeout(180_000);
 
-    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+    const memberContext = await browser.newContext({ baseURL: E2E_BASE_URL });
     const owner = await ownerContext.newPage();
     const member = await memberContext.newPage();
 
@@ -305,8 +305,8 @@ test("presence recovers after a page reload", async ({ browser }) => {
 test("a stale session expires without a clean leave", async ({ browser }) => {
     test.setTimeout(180_000);
 
-    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+    const memberContext = await browser.newContext({ baseURL: E2E_BASE_URL });
     const owner = await ownerContext.newPage();
     const member = await memberContext.newPage();
 
@@ -346,8 +346,8 @@ test("a stale session expires without a clean leave", async ({ browser }) => {
 test("presence avatars are labelled by name, never by pubkey hash", async ({ browser }) => {
     test.setTimeout(180_000);
 
-    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+    const memberContext = await browser.newContext({ baseURL: E2E_BASE_URL });
     const owner = await ownerContext.newPage();
     const member = await memberContext.newPage();
 

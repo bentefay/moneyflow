@@ -6,6 +6,7 @@ import {
     goToTags,
     goToTransactions
 } from "./helpers";
+import { E2E_BASE_URL } from "./helpers/base-url";
 import {
     observeRealtimeCatchUp,
     observeRealtimeFrames,
@@ -59,8 +60,8 @@ async function becomesVisibleWithin(locator: Locator, timeout: number): Promise<
 
 test("a hidden receiver re-syncs missed vault_ops when it becomes visible", async ({ browser }) => {
     test.setTimeout(120_000);
-    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    const receiverContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+    const receiverContext = await browser.newContext({ baseURL: E2E_BASE_URL });
     const owner = await ownerContext.newPage();
     const receiver = await receiverContext.newPage();
     const runtimeProblemObservers = [
@@ -135,8 +136,8 @@ test("a visible receiver catches up only after an explicit visible-state barrier
     browser
 }) => {
     test.setTimeout(120_000);
-    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    const receiverContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+    const receiverContext = await browser.newContext({ baseURL: E2E_BASE_URL });
     const owner = await ownerContext.newPage();
     const receiver = await receiverContext.newPage();
     const runtimeProblemObservers = [
@@ -218,8 +219,8 @@ test("a receiver that goes offline catches up on durable ops after reconnecting"
     browser
 }) => {
     test.setTimeout(120_000);
-    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    const receiverContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+    const receiverContext = await browser.newContext({ baseURL: E2E_BASE_URL });
     const owner = await ownerContext.newPage();
     const receiver = await receiverContext.newPage();
     const runtimeProblemObservers = [
@@ -274,8 +275,8 @@ test("a hidden client that was never entitled to a vault still sees nothing afte
     browser
 }) => {
     test.setTimeout(120_000);
-    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    const outsiderContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+    const outsiderContext = await browser.newContext({ baseURL: E2E_BASE_URL });
     const owner = await ownerContext.newPage();
     const outsider = await outsiderContext.newPage();
     const runtimeProblemObservers = [observeRealtimeRuntimeProblems(outsider)] as const;

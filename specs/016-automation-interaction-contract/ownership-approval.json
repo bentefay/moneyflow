@@ -1,0 +1,343 @@
+{
+    "artifact": "grouped-rule ownership decision, semantic-revision and approval manifest",
+    "task": "MF-007",
+    "contract": "specs/automation-rule-ownership.md",
+    "semanticRevision": "OWN-2026-09-07-r2",
+    "semanticRegions": [
+        "specs/automation-rule-ownership.md §1-§6",
+        "specs/automation-rule-ownership.md §7.1 columns: Decision, Resolution at this revision, Affected examples",
+        "specs/automation-rule-ownership.md §7.2",
+        "specs/automation-rule-ownership.md §7.4",
+        "specs/automation-rule-ownership.md §7.6",
+        "specs/016-automation-interaction-contract/ownership-approval.html"
+    ],
+    "semanticRegionsExcluded": [
+        "specs/automation-rule-ownership.md §7.1 columns: Status, User evidence / date, Approved contract revision",
+        "specs/automation-rule-ownership.md §7.5",
+        "specs/automation-rule-ownership.md §9",
+        "specs/016-automation-interaction-contract/ownership-approval.json approval block"
+    ],
+    "semanticDigest": {
+        "algorithm": "sha256",
+        "value": "fa36b097b7e36dd57d880793748fc7914736d0c9fb3c2fb999f0a628c9a4f25b",
+        "regions": [
+            {
+                "region": "specs/automation-rule-ownership.md §1-§6",
+                "sha256": "cf9d4cd855242e9f6a6b565ebdc07a3cc076e3deec48dd26047be81867a4aad7"
+            },
+            {
+                "region": "specs/automation-rule-ownership.md §7.1 columns: Decision, Resolution at this revision, Affected examples",
+                "sha256": "f194994221fbb139961d353b2b0cc8109f3381754f1ed84b88eff06c5d6f14ea"
+            },
+            {
+                "region": "specs/automation-rule-ownership.md §7.2",
+                "sha256": "0dcd3b6f6f4102a78108a55e7c5165824266c87ce7786f03891b6959ba86087e"
+            },
+            {
+                "region": "specs/automation-rule-ownership.md §7.4",
+                "sha256": "f06f366f55fcbd212080f35e46f177a5c8104b7882816da101209b8de32fb919"
+            },
+            {
+                "region": "specs/automation-rule-ownership.md §7.6",
+                "sha256": "f8879cdd30c72865f31335bf48795cdf127e35eaecf9fe7bc79e98e2c8bf87d5"
+            },
+            {
+                "region": "specs/016-automation-interaction-contract/ownership-approval.html",
+                "sha256": "2dd04fd2a2b0fbedc4433b319695d0d3254454f494ec1cefb031696f02acdc05"
+            }
+        ]
+    },
+    "acceptance": {
+        "criterion": "Examples cover no matching rule, one constrained rule, multiple applicable rules, previously split fields, and conflicting field ownership. No unrelated rules silently merge; ambiguous cases have an approved resolution.",
+        "status": "unapproved",
+        "reason": "Every D-001..D-020 carries a concrete resolution and the prototype demonstrates them, but no authentic user approval bound to this semantic revision has been obtained. Approval is an external gate; it is not supplied by tests, workflow review, agent verdicts, prototype clicks or silence."
+    },
+    "decisions": [
+        {
+            "id": "D-001",
+            "title": "Preferred host",
+            "resolution": "Prefer the description(-alias) rule, but ONLY within the identical-predicate candidate set (D-004) and ONLY where it does not displace an existing owner of the edited field (D-003). Preference is not unconditional merging.",
+            "affectedExamples": "S-05, S-07, S-10",
+            "scenarioClasses": ["EC-03", "EC-04", "EC-05"]
+        },
+        {
+            "id": "D-002",
+            "title": "Grouped writes need new capacity",
+            "resolution": "Multi-field rules are an ADDITIVE model change — a rule holds a set of per-field actions — designed, migrated and approved separately. Until it exists, every \"grouped\" surface is a presentation over N single-field rules.",
+            "affectedExamples": "all",
+            "scenarioClasses": ["EC-01", "EC-02", "EC-03", "EC-04", "EC-05"]
+        },
+        {
+            "id": "D-003",
+            "title": "Edited field already owned",
+            "resolution": "The existing owner WINS by default and is updated in place; no transfer. Consolidation into the preferred host is an explicit, labelled, previewed choice that states the source rule's fate and the population change first.",
+            "affectedExamples": "S-07, S-09",
+            "scenarioClasses": ["EC-04", "EC-05"]
+        },
+        {
+            "id": "D-004",
+            "title": "Predicate mismatch",
+            "resolution": "Fold only when `(descriptionText, accountId, amount)` is identical. Never adopt the host's predicate silently; when it differs, update the edited field's own owner or create, and say why. Show the host's STORED predicate.",
+            "affectedExamples": "S-03, S-05, S-08",
+            "scenarioClasses": ["EC-02", "EC-04", "EC-05"]
+        },
+        {
+            "id": "D-005",
+            "title": "Ambiguous fallback",
+            "resolution": "If the edited field already has an owner inside the candidate set, that owner is the default target. Otherwise present every candidate with its predicate and outputs and REQUIRE an explicit choice. No implicit tiebreak.",
+            "affectedExamples": "S-09",
+            "scenarioClasses": ["EC-03", "EC-05"]
+        },
+        {
+            "id": "D-006",
+            "title": "Drift on the host",
+            "resolution": "Show the host's currently implied value beside the row's actual value and require acknowledgement before writing. Never auto-reconcile in either direction.",
+            "affectedExamples": "S-13",
+            "scenarioClasses": ["EC-02", "EC-03"]
+        },
+        {
+            "id": "D-007",
+            "title": "Local ≠ global uniqueness",
+            "resolution": "Preserve current behaviour: local collision checking only. Surface a duplicated slot as a repair prompt naming both rules; never auto-dedupe live user rules, and never fold into a duplicated slot. No CAS is introduced.",
+            "affectedExamples": "S-14, S-20",
+            "scenarioClasses": ["EC-03", "EC-05"]
+        },
+        {
+            "id": "D-008",
+            "title": "No compare-and-swap",
+            "resolution": "Preserve the existence-only guard; add no revision counter here. A grouped confirm must RE-READ the target and re-present it when its predicate or any action changed since the surface opened, rather than overwrite it.",
+            "affectedExamples": "S-02..S-13",
+            "scenarioClasses": ["EC-02", "EC-05"]
+        },
+        {
+            "id": "D-009",
+            "title": "Deleted target",
+            "resolution": "Preserve the measured `not-found` with no resurrection. The surface must distinguish \"your target no longer exists\" from \"your input was invalid\", and OFFER a create rather than performing one.",
+            "affectedExamples": "S-02, S-05, S-07",
+            "scenarioClasses": ["EC-01", "EC-02", "EC-05"]
+        },
+        {
+            "id": "D-010",
+            "title": "Occupied destination",
+            "resolution": "Preserve the `duplicate-key` refusal with zero mutation. Present the named holder as an OFFERED alternative host; never auto-retarget onto it, which would be a silent merge.",
+            "affectedExamples": "EX-13, EX-15, S-07",
+            "scenarioClasses": ["EC-03", "EC-05"]
+        },
+        {
+            "id": "D-011",
+            "title": "Identical predicate + output",
+            "resolution": "Consolidation is a named action with a preview naming the surviving id, the deleted id and the freed uniqueness slot. Never an automatic migration, never a side effect of editing an unrelated field.",
+            "affectedExamples": "S-07, S-20",
+            "scenarioClasses": ["EC-04", "EC-05"]
+        },
+        {
+            "id": "D-012",
+            "title": "Duplicate slots / undecodable rules",
+            "resolution": "Never offer a duplicated slot or an undecodable record as a fold host. Repair stays an explicit user-visible action. Note EX-17: deleting an undecodable record stamps the tombstone and still reports `not-found`.",
+            "affectedExamples": "S-14, S-15",
+            "scenarioClasses": ["EC-01", "EC-03", "EC-05"]
+        },
+        {
+            "id": "D-013",
+            "title": "Repeated blur / queued work",
+            "resolution": "One gesture writes at most once, enforced by construction in the confirm path rather than by a ref a refactor can drop. A multi-write sequence must not be BEGUN when the surface may be gone; queued work is fenced.",
+            "affectedExamples": "all transaction-surface S-*",
+            "scenarioClasses": ["EC-01", "EC-02"]
+        },
+        {
+            "id": "D-014",
+            "title": "Tag mode",
+            "resolution": "Carry the host's `add`/`set` mode explicitly in the UI and require confirmation when the remembered mode differs. Never infer the mode from the row's resulting tag set.",
+            "affectedExamples": "S-12, EX-11",
+            "scenarioClasses": ["EC-02", "EC-03"]
+        },
+        {
+            "id": "D-015",
+            "title": "Allocation is a whole set",
+            "resolution": "A fold carries the entire validated allocation set. There is no partial \"add one person\" fold; an incomplete set is refused at the boundary with zero mutation.",
+            "affectedExamples": "S-09",
+            "scenarioClasses": ["EC-04", "EC-05"]
+        },
+        {
+            "id": "D-016",
+            "title": "Cancellation",
+            "resolution": "Cancel writes NOTHING — no rule, no application, no remembered preference — and is available in every conflict state. Because the calls have no cross-call rollback, cancel must take effect before the first call.",
+            "affectedExamples": "all",
+            "scenarioClasses": ["EC-01", "EC-02", "EC-03", "EC-04", "EC-05"]
+        },
+        {
+            "id": "D-017",
+            "title": "No cross-call atomicity",
+            "resolution": "A grouped transfer is performed as ONE local vault mutation (one undo group) after validating every precondition, or consolidation ships DISABLED. Emptied sources are soft-deleted in the same mutation. See §6.7.",
+            "affectedExamples": "S-07, S-09, S-20",
+            "scenarioClasses": ["EC-04", "EC-05"]
+        },
+        {
+            "id": "D-018",
+            "title": "Apply/Delete are not a bypass",
+            "resolution": "Preserve both as legitimate actions on an existing rule; neither resolves an ownership question. Apply is not consent to a fold, and deleting a rule is not the mechanism by which a fold wins a contested field.",
+            "affectedExamples": "S-07, S-09",
+            "scenarioClasses": ["EC-05"]
+        },
+        {
+            "id": "D-019",
+            "title": "Failure cleanup",
+            "resolution": "Validate every intended write before performing the first; a rejected or cancelled proposal leaves rules, applications and preferences untouched. A refused mutation is never reported as an applied one.",
+            "affectedExamples": "all",
+            "scenarioClasses": ["EC-01", "EC-02", "EC-03", "EC-04", "EC-05"]
+        },
+        {
+            "id": "D-020",
+            "title": "Timing boundary",
+            "resolution": "Preserve the strictly-newer comparison as recorded fact and make NO proposal to change it here; MF-003 owns the boundary. A grouped fold inherits whatever MF-003 settles.",
+            "affectedExamples": "all",
+            "scenarioClasses": ["EC-01", "EC-02"]
+        }
+    ],
+    "exampleClasses": [
+        {
+            "id": "EC-01",
+            "name": "No matching rule",
+            "scenarios": ["S-01", "S-17", "S-19"],
+            "tests": ["EX-01", "EX-06", "EX-07"],
+            "prototypeScenarios": ["P-01", "P-14"]
+        },
+        {
+            "id": "EC-02",
+            "name": "One constrained rule",
+            "scenarios": ["S-02", "S-03", "S-04", "S-18"],
+            "tests": ["EX-02", "EX-05", "EX-08"],
+            "prototypeScenarios": ["P-02", "P-09", "P-10"]
+        },
+        {
+            "id": "EC-03",
+            "name": "Multiple applicable rules",
+            "scenarios": ["S-06", "S-11", "S-14"],
+            "tests": ["EX-04", "EX-10"],
+            "prototypeScenarios": ["P-03", "P-12"]
+        },
+        {
+            "id": "EC-04",
+            "name": "Previously split fields",
+            "scenarios": ["S-05", "S-10", "S-16"],
+            "tests": ["EX-03", "EX-09", "EX-12", "EX-16"],
+            "prototypeScenarios": ["P-04", "P-11"]
+        },
+        {
+            "id": "EC-05",
+            "name": "Conflicting field ownership",
+            "scenarios": ["S-07", "S-08", "S-09", "S-20"],
+            "tests": ["EX-13", "EX-13b", "EX-14", "EX-15", "EX-17"],
+            "prototypeScenarios": ["P-05", "P-06", "P-07", "P-08", "P-13"]
+        }
+    ],
+    "prototype": {
+        "path": "specs/016-automation-interaction-contract/ownership-approval.html",
+        "e2e": "tests/e2e/grouped-rule-ownership-approval.spec.ts",
+        "viewports": [
+            {
+                "name": "desktop",
+                "width": 1280,
+                "height": 800
+            },
+            {
+                "name": "mobile",
+                "width": 390,
+                "height": 844
+            }
+        ],
+        "synthetic": true,
+        "writesNothing": true,
+        "checklist": [
+            {
+                "id": "M-01",
+                "requirement": "The TARGET's identity: which rule this edit will change, by a name the user can recognise in the manager",
+                "decisions": ["D-003", "D-005"],
+                "scenarios": ["S-02", "S-06", "S-07", "S-09"]
+            },
+            {
+                "id": "M-02",
+                "requirement": "The target's ACTUAL stored predicate — description text, account and amount as stored, not as seeded from this row (the measured hazard in §4.3 / G-01)",
+                "decisions": ["D-004"],
+                "scenarios": ["S-03", "S-05", "S-08"]
+            },
+            {
+                "id": "M-03",
+                "requirement": "The target's OTHER outputs that the fold does not touch, so the user sees what else the rule does",
+                "decisions": ["D-002", "D-003"],
+                "scenarios": ["S-05", "S-10"]
+            },
+            {
+                "id": "M-04",
+                "requirement": "Existing owners of the edited field when they are not the target, named, with an explicit choice between them",
+                "decisions": ["D-003", "D-005"],
+                "scenarios": ["S-07", "S-08", "S-09"]
+            },
+            {
+                "id": "M-05",
+                "requirement": "A drift explanation: what the host currently implies vs what this row has",
+                "decisions": ["D-006"],
+                "scenarios": ["S-13"]
+            },
+            {
+                "id": "M-06",
+                "requirement": "The population consequence in words — how many/which rows change, and whether that set is broader or narrower than before",
+                "decisions": ["D-003", "D-004"],
+                "scenarios": ["S-05", "S-07", "S-08"]
+            },
+            {
+                "id": "M-07",
+                "requirement": "For any transfer: the source rule's FATE (deleted, or retained and still winning) stated before the write",
+                "decisions": ["D-003", "D-011"],
+                "scenarios": ["S-07"]
+            },
+            {
+                "id": "M-08",
+                "requirement": "Tag mode as an explicit, labelled control, with a confirmation when the host's mode differs from the remembered one",
+                "decisions": ["D-014"],
+                "scenarios": ["S-12"]
+            },
+            {
+                "id": "M-09",
+                "requirement": "Allocation folds presented as the whole validated set",
+                "decisions": ["D-015"],
+                "scenarios": ["S-09"]
+            },
+            {
+                "id": "M-10",
+                "requirement": "A duplicated slot surfaced rather than silently resolved; an undecodable rule never offered as a host",
+                "decisions": ["D-007", "D-012"],
+                "scenarios": ["S-14", "S-15"]
+            },
+            {
+                "id": "M-11",
+                "requirement": "A cancel that writes NOTHING — no rule, no application, no remembered preference — available in every conflict state",
+                "decisions": ["D-016", "D-019"],
+                "scenarios": ["all"]
+            },
+            {
+                "id": "M-12",
+                "requirement": "The \"target changed / target deleted since you opened this\" states, distinct from a validation error",
+                "decisions": ["D-008", "D-009"],
+                "scenarios": ["S-02..S-13"]
+            },
+            {
+                "id": "M-13",
+                "requirement": "The `duplicate-key` state naming the rule that holds the slot, offered as an alternative host rather than auto-selected",
+                "decisions": ["D-010"],
+                "scenarios": ["EX-13", "EX-15"]
+            },
+            {
+                "id": "M-14",
+                "requirement": "Consolidation as a named, previewed action — never a side effect of editing an unrelated field",
+                "decisions": ["D-011", "D-018"],
+                "scenarios": ["S-07", "S-20"]
+            }
+        ]
+    },
+    "characterization": {
+        "path": "tests/integration/grouped-rule-ownership-contract.test.ts",
+        "establishes": "measured production baseline only; it establishes nothing about proposed semantics"
+    },
+    "approval": null
+}

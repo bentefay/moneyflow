@@ -12,6 +12,7 @@ import {
     shareActiveVaultWithMember,
     stableTransactionRow
 } from "./helpers";
+import { E2E_BASE_URL } from "./helpers/base-url";
 import {
     getRealtimeGrantAggregates,
     getRealtimeSubscriptionCounts,
@@ -26,8 +27,8 @@ test("private vault_ops push synchronizes import, edit and delete and stops afte
     browser
 }, testInfo) => {
     test.setTimeout(120_000);
-    const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+    const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+    const memberContext = await browser.newContext({ baseURL: E2E_BASE_URL });
     const owner = await ownerContext.newPage();
     const member = await memberContext.newPage();
     const runtimeProblems: string[] = [];

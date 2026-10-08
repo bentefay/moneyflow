@@ -41,6 +41,14 @@ coverage complements the automated suite; neither substitutes for the other.
 
 **NEVER use `--debug`, `--ui`, `--headed`, or `show`** - they open a GUI and can block agents.
 
+## Worktree server isolation
+
+Use `MONEYFLOW_E2E_PORT=3107 pnpm test:e2e` when another checkout owns port 3000. The managed server
+and independently created browser contexts share `E2E_BASE_URL` from
+`tests/e2e/helpers/base-url.ts`. Never hardcode port 3000 in a test or browser init script; pass the
+selected origin into init scripts as data. Keep `reuseExistingServer: false` so tests cannot
+accidentally validate a different checkout.
+
 ## Selectors (priority order)
 
 1. `getByRole()`
