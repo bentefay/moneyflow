@@ -9,6 +9,9 @@ rules**, mission `M-MTPN1LI4-0001-JANZ`, onto the grid/inspector implementation 
 [The recovered behaviour description](behaviour.md) reconstructs the desired app behaviour in
 product terms, marking each statement as confirmed, saved-plan or agent-proposed.
 
+[The domain model](domain-model.html) is a standalone HTML reference with diagrams of the automation
+rule model that ships today, how matching works, and the grouped model the mission proposes.
+
 [The editor mockup](mockups/rule-editor.html) is a standalone interactive HTML file covering the
 unified create and edit layout, grouped outputs and split, and the matching, mismatch and contextual
 states. Open it directly in a browser. It is a proposal awaiting approval.
