@@ -18,10 +18,10 @@ import {
     verifyAuthenticationResponse,
     verifyRegistrationResponse
 } from "@simplewebauthn/server";
+import { COSEALG } from "@simplewebauthn/server/helpers";
 import type {
     AuthenticationExtensionsClientOutputs,
     AuthenticationResponseJSON,
-    AuthenticatorTransportFuture,
     RegistrationResponseJSON
 } from "@simplewebauthn/server";
 import { TRPCError } from "@trpc/server";
@@ -46,12 +46,16 @@ const RP_NAME = "MoneyFlow";
 const CHALLENGE_TTL_SECONDS = 300;
 
 /**
- * The transport hints WebAuthn defines, mirrored from @simplewebauthn's exported union.
+ * Registration and verification must offer the same algorithms, and they run in separate requests.
+ * The library's default depends on whether the runtime supports ML-DSA, so it is pinned here.
+ */
+const SUPPORTED_ALGORITHM_IDS = [COSEALG.EdDSA, COSEALG.ES256, COSEALG.RS256];
+
+/**
+ * The transport hints WebAuthn defines.
  *
- * `satisfies` makes divergence from the library's type a compile error rather than something a
- * cast would silence. Transports are non-authoritative UI hints - a stored value the library does
- * not recognize is dropped rather than rejected, so an unknown authenticator cannot lock a user
- * out of an otherwise-valid ceremony.
+ * Transports are non-authoritative UI hints - a stored value outside this list is dropped rather
+ * than rejected, so an unknown authenticator cannot lock a user out of an otherwise-valid ceremony.
  */
 const AUTHENTICATOR_TRANSPORTS = [
     "ble",
@@ -61,12 +65,14 @@ const AUTHENTICATOR_TRANSPORTS = [
     "nfc",
     "smart-card",
     "usb"
-] as const satisfies readonly AuthenticatorTransportFuture[];
+] as const;
+
+type AuthenticatorTransportHint = (typeof AUTHENTICATOR_TRANSPORTS)[number];
 
 const authenticatorTransportSchema = z.enum(AUTHENTICATOR_TRANSPORTS);
 
-/** Narrows a persisted `transports` column to the transports the library accepts. */
-function toAuthenticatorTransports(value: unknown): AuthenticatorTransportFuture[] | undefined {
+/** Narrows a persisted `transports` column to the known transport hints. */
+function toAuthenticatorTransports(value: unknown): AuthenticatorTransportHint[] | undefined {
     const entries = z.array(z.unknown()).safeParse(value);
     if (!entries.success) return undefined;
 
@@ -298,7 +304,8 @@ export const passkeyRouter = router({
                 // Probe only. Create-time PRF results are optional per spec and differ from
                 // assertion-time output on some authenticators, so the key is always derived
                 // from a subsequent assertion instead.
-                extensions: { prf: {} }
+                extensions: { prf: {} },
+                supportedAlgorithmIDs: SUPPORTED_ALGORITHM_IDS
             });
 
             return { challengeId, options };
@@ -323,7 +330,8 @@ export const passkeyRouter = router({
                 expectedChallenge: claimed.challenge,
                 expectedOrigin: origin,
                 expectedRPID: rpId,
-                requireUserVerification: true
+                requireUserVerification: true,
+                supportedAlgorithmIDs: SUPPORTED_ALGORITHM_IDS
             }).catch(() => null);
 
             if (!verification?.verified || !verification.registrationInfo) {
