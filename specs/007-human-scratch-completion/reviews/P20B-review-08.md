@@ -131,9 +131,9 @@ So I did not grade the implementer's probe by reading it.
 
 **The expected string is right — MEASURED from the spec and the product.** Step 5 (`:305-307`) sets
 `setAllocation(row, "Bob", "50")`, so Bob's stored explicit at step 9 is `50`.
-`PersonAllocationCell.tsx:73-74` renders `${explicitStored ? \`Explicit:
-${explicitDisplay}.\` : "Explicit: not stored."} Effective: …% Owner remainder: …%.`,
-and `displayPercentage` (`:34-38`) renders a stored number as `${String(value)}%`— so`Explicit:
+`PersonAllocationCell.tsx:73-74` renders `${explicitStored ? \`Explicit: ${explicitDisplay}.\` :
+"Explicit: not stored."} Effective: …% Owner remainder:
+…%.`, and `displayPercentage` (`:34-38`) renders a stored number as `${String(value)}%`— so`Explicit:
 50%.`matches verbatim with no formatting skew. The new form is byte-for-byte the barrier`setAllocation`was hardened to at`c515173` (`helpers/settlement.ts:204-206`),
 so the suite now reads stored allocation state one way rather than two.
 

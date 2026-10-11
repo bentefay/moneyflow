@@ -131,6 +131,7 @@ test.describe("Tags", () => {
  * E2E Test: [Feature Name]
  */
 import { test, expect, type Page } from "@playwright/test";
+
 import { createNewIdentity, goToFeature } from "./helpers";
 
 // ============================================================================

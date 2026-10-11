@@ -351,6 +351,7 @@ costs one small file:
 
 ```tsx
 import { render } from "@testing-library/react";
+
 import { Input } from "@/components/ui/input";
 
 it("an Input outside the table still carries the resting fill", () => {

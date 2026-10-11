@@ -139,7 +139,7 @@ function NewCell({ value, onChange }) {
             value={local}
             onChange={(e) => setLocal(e.target.value)}
             onBlur={() => local !== value && onChange(local)}
-            className="border-transparent focus:border-primary"
+            className="focus:border-primary border-transparent"
         />
     );
 }

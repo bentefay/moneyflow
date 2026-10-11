@@ -165,6 +165,7 @@ pnpm dlx shadcn@latest add dialog
 ```typescript
 // tests/unit/crypto/encryption.test.ts
 import { describe, it, expect } from "vitest";
+
 import { encrypt, decrypt } from "@/lib/crypto";
 
 describe("encryption", () => {
