@@ -58,7 +58,7 @@
         "superjson": "2.2.6",
         "tailwind-merge": "3.6.0",
         "temporal-polyfill": "1.0.4",
-        "zod": "4.4.3"
+        "zod": "4.6.5"
     },
     "devDependencies": {
         "@playwright/cli": "0.1.18",
