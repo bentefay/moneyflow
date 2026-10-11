@@ -64,6 +64,9 @@ missing case through the `ExitCode` return type.
 - **Prefer `node:` APIs in `lib/`** so it stays testable under vitest, which runs on Node. Keep Bun
   APIs (`Bun.file`, `Bun.TOML`) in small modules that tests don't import, like
   `lib/deps/minimumReleaseAge.ts`.
+- **`lib/realtimeJwtSecret.ts` is shared with `playwright.config.ts` and the integration tests.**
+  Keep it to `node:` APIs. `run dev` and `run start` use it to pass `SUPABASE_JWT_SECRET` from the
+  local Realtime container when the environment doesn't set one.
 - **Parsers are pure, so test them.** `tests/parser.test.ts` checks argv against the parsed value
   with `parseSync`; add a row for every new command or option.
 
