@@ -7,7 +7,6 @@
 
 import { Temporal } from "temporal-polyfill";
 
-import type { ActionData, ConditionData } from "@/components/features/automations";
 import {
     copyAllocationData,
     prepareAllocationReplacement,
@@ -22,6 +21,22 @@ import {
     updateTransaction
 } from "@/lib/crdt/mutations";
 import type { Automation, Transaction, TransactionStore } from "@/lib/crdt/schema";
+
+/** One condition of a legacy generic automation, as stored on the automation record. */
+export interface ConditionData {
+    id: string;
+    column: string;
+    operator: string;
+    value: string;
+    caseSensitive?: boolean;
+}
+
+/** One action of a legacy generic automation, as stored on the automation record. */
+export interface ActionData {
+    id: string;
+    type: string;
+    value: unknown;
+}
 
 /**
  * Result of applying an automation to a transaction.

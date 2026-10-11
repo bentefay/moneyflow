@@ -1,71 +1,46 @@
 /**
- * Pure model for the shared field-rule editor (HS-007 / P17B).
+ * Pure model for the shared, multi-output rule editor (`RuleEditor`).
  *
- * The editor UI is a thin, controlled shell over this module: a {@link RuleEditorDraft} is the
- * editable form state, and {@link validateRuleDraft} turns a draft into either ready-to-write
- * outputs (consumed by the P17B CRUD mutations) or per-field validation errors. Keeping this pure
- * makes the four-mode/constraint/validation logic testable without React and lets the SAME editor
- * mount on the Automations page now and in the P17C contextual popup later.
+ * A {@link RuleEditorDraft} is the editable form state for one grouped rule: its match conditions,
+ * one to three outputs, and the user's apply choice. {@link validateRuleDraft} turns a draft into
+ * either ready-to-write conditions and outputs for the CRUD mutations, or per-field errors. Keeping
+ * this pure lets the same editor mount on the Automations page and in the transaction inspector, and
+ * keeps the validation testable without React.
  *
- * It reuses the P17A domain types (`RuleField`, `TagRuleMode`, `FieldRuleOutputsInput`) and never
- * re-implements precedence, matching or application — those stay in the engine.
+ * Matching, precedence and application stay in the engine; nothing here re-implements them.
  */
 
 import { type FieldRuleOutputsInput } from "@/lib/crdt/field-rule-mutations";
+import { type ApplyMode, applyModeFrom, type ApplyScope } from "@/lib/domain/automation/apply-mode";
 import {
-    type ApplyMode,
-    APPLY_MODES,
-    applyModeIsAutomatic,
-    applyModeTargetsNewOnly,
-    DEFAULT_APPLY_MODE
-} from "@/lib/domain/automation/apply-mode";
-import { type RuleField, type TagRuleMode } from "@/lib/domain/automation/rules";
+    type RememberedRuleChoice,
+    rememberedApplyOnBlur,
+    rememberedScope
+} from "@/lib/domain/automation/preferences";
+import { RULE_FIELDS, type RuleField, type TagRuleMode } from "@/lib/domain/automation/rules";
 import { toMinorUnitsForCurrency } from "@/lib/domain/currency";
 import { assertNever } from "@/lib/utils/exhaustive";
 
-// The four-mode apply type + its pure predicates live in the domain (`apply-mode.ts`) so the
-// per-user preference chain can remember the SELECT without a component import. Re-export them here
-// so the editor and its callers keep their single import surface.
-export {
-    type ApplyMode,
-    APPLY_MODES,
-    applyModeIsAutomatic,
-    applyModeTargetsNewOnly,
-    DEFAULT_APPLY_MODE
-};
+export type { ApplyScope };
 
-/**
- * The frozen explanation of the four modes (`specs/human-scratch.md:261-266`).
- *
- * It lives here, beside the mode type, because BOTH rule surfaces must explain the modes identically:
- * the automations-page editor and the inline proposal controls each render this exact string, so the
- * "Updating applies on blur / Update needs the tick" distinction can never say two different things
- * in two places.
- */
-export const APPLY_MODE_TOOLTIP =
-    "Update all applies to every existing and new transaction with this exact description. " +
-    'Update new applies only to newer transactions. "Updating" applies automatically when the ' +
-    'edited row loses focus; "Update" applies only when you click the tick or an Apply button.';
-
-/** Human label for an apply mode (frozen numbering: 1 updating all … 4 update new). */
-export function applyModeLabel(mode: ApplyMode): string {
-    switch (mode) {
-        case "updatingAll":
-            return "Updating all";
-        case "updatingNew":
-            return "Updating new";
-        case "updateAll":
-            return "Update all";
-        case "updateNew":
-            return "Update new";
-        default:
-            return assertNever(mode);
-    }
+/** One draft tags output: the explicit add/set mode and the chosen tag ids. */
+export interface RuleEditorTagsDraft {
+    readonly mode: TagRuleMode;
+    readonly tagIds: readonly string[];
 }
 
-/** Editable form state for one rule. Strings hold raw user input; validation parses them. */
+/**
+ * The draft's outputs, at most one per field. Strings hold raw user input. An allocation maps each
+ * person id to raw percent text, where blank means "no answer" and is not written.
+ */
+export interface RuleEditorOutputsDraft {
+    readonly descriptionAlias?: { readonly aliasId: string };
+    readonly tags?: RuleEditorTagsDraft;
+    readonly allocation?: Readonly<Record<string, string>>;
+}
+
+/** Editable form state for one grouped rule. */
 export interface RuleEditorDraft {
-    readonly field: RuleField;
     /** Exact raw description text the rule keys on. */
     readonly descriptionText: string;
     readonly useAccountScope: boolean;
@@ -74,26 +49,29 @@ export interface RuleEditorDraft {
     readonly useAmountScope: boolean;
     /** Raw major-units amount text when {@link useAmountScope}. */
     readonly amountText: string;
-    /** descriptionAlias action: selected alias id. */
-    readonly aliasId: string;
-    readonly tagMode: TagRuleMode;
-    readonly tagIds: readonly string[];
-    /** allocation action: personId -> raw percent text. */
-    readonly allocations: Readonly<Record<string, string>>;
-    readonly applyMode: ApplyMode;
+    readonly outputs: RuleEditorOutputsDraft;
+    /** Which transactions Apply updates. Not a property of the rule: the user's remembered choice. */
+    readonly scope: ApplyScope;
+    /** Whether the inspector applies when focus leaves the row. Also a remembered choice. */
+    readonly applyOnBlur: boolean;
 }
 
-/** Per-field validation messages. A missing key means that field is valid. */
+/** Per-field validation messages. A missing key means that part of the draft is valid. */
 export interface RuleEditorFieldErrors {
     readonly descriptionText?: string;
     readonly accountId?: string;
     readonly amount?: string;
+    /** The description-alias output. */
     readonly aliasId?: string;
+    /** The tags output. */
     readonly tagIds?: string;
+    /** The allocation output. */
     readonly allocations?: string;
+    /** The output set as a whole: empty, or refused by a grouped-rule mutation. */
+    readonly outputs?: string;
 }
 
-/** The scope + outputs a valid draft resolves to, ready for the CRUD mutations. */
+/** The conditions and outputs a valid draft resolves to, ready for the CRUD mutations. */
 export interface ResolvedRuleWrite {
     readonly accountId?: string;
     readonly amount?: number;
@@ -104,33 +82,77 @@ export type RuleEditorValidation =
     | { readonly ok: true; readonly value: ResolvedRuleWrite }
     | { readonly ok: false; readonly errors: RuleEditorFieldErrors };
 
-/** An empty draft with the given remembered defaults. */
-export function emptyRuleDraft(defaults: {
-    readonly field: RuleField;
-    readonly tagMode: TagRuleMode;
-    readonly useAccountScope: boolean;
-    readonly useAmountScope: boolean;
-    readonly applyMode?: ApplyMode;
-}): RuleEditorDraft {
+/**
+ * An empty draft for a rule created from scratch: no description, no restriction, no output. Scope
+ * and Apply on blur are the user's remembered choices.
+ */
+export function emptyRuleDraft(remembered: RememberedRuleChoice): RuleEditorDraft {
     return {
-        field: defaults.field,
         descriptionText: "",
-        useAccountScope: defaults.useAccountScope,
+        useAccountScope: false,
         accountId: "",
-        useAmountScope: defaults.useAmountScope,
+        useAmountScope: false,
         amountText: "",
-        aliasId: "",
-        tagMode: defaults.tagMode,
-        tagIds: [],
-        allocations: {},
-        applyMode: defaults.applyMode ?? DEFAULT_APPLY_MODE
+        outputs: {},
+        scope: rememberedScope(remembered),
+        applyOnBlur: rememberedApplyOnBlur(remembered)
+    };
+}
+
+/** The fields the draft has an output for, in {@link RULE_FIELDS} order. */
+export function draftOutputFields(draft: Pick<RuleEditorDraft, "outputs">): readonly RuleField[] {
+    return RULE_FIELDS.filter((field) => draft.outputs[field] != null);
+}
+
+/**
+ * Add an empty output for `field`, leaving any existing output for it untouched. Tags start in the
+ * remembered mode because set mode clears hand-typed tags and so must never be guessed.
+ */
+export function addDraftOutput(
+    draft: RuleEditorDraft,
+    field: RuleField,
+    tagMode: TagRuleMode
+): RuleEditorDraft {
+    if (draft.outputs[field] != null) return draft;
+    switch (field) {
+        case "descriptionAlias":
+            return { ...draft, outputs: { ...draft.outputs, descriptionAlias: { aliasId: "" } } };
+        case "tags":
+            return { ...draft, outputs: { ...draft.outputs, tags: { mode: tagMode, tagIds: [] } } };
+        case "allocation":
+            return { ...draft, outputs: { ...draft.outputs, allocation: {} } };
+        default:
+            return assertNever(field);
+    }
+}
+
+/** The four-mode value the preference wire stores for the draft's scope and Apply on blur. */
+export function draftApplyMode(draft: Pick<RuleEditorDraft, "scope" | "applyOnBlur">): ApplyMode {
+    return applyModeFrom(draft.scope, draft.applyOnBlur);
+}
+
+/**
+ * The remembered choice to persist after the draft is applied. A draft with several outputs has no
+ * single field, so the first one stands for it, matching how the wire names a rule's legacy field.
+ */
+export function rememberedChoiceFromDraft(
+    draft: RuleEditorDraft,
+    previous: RememberedRuleChoice
+): RememberedRuleChoice {
+    return {
+        field: draftOutputFields(draft)[0] ?? previous.field,
+        tagMode: draft.outputs.tags?.mode ?? previous.tagMode,
+        useAccountScope: draft.useAccountScope,
+        useAmountScope: draft.useAmountScope,
+        applyMode: draftApplyMode(draft)
     };
 }
 
 /**
- * Validate a draft into a ready-to-write scope + action, or per-field errors. Pure: no mutation.
- * Amount is parsed in the vault currency to integer minor units; allocation percents are parsed to
- * numbers (final range/whole-set validation stays in the P17A boundary via the CRUD mutations).
+ * Validate a draft into ready-to-write conditions and outputs, or per-field errors. Every output is
+ * checked, so all its problems are reported at once. Amount is parsed in the vault currency to
+ * integer minor units; allocation percents become numbers, and the whole-set range check stays at
+ * the domain boundary the mutations call.
  */
 export function validateRuleDraft(
     draft: RuleEditorDraft,
@@ -138,26 +160,24 @@ export function validateRuleDraft(
 ): RuleEditorValidation {
     const errors: Mutable<RuleEditorFieldErrors> = {};
 
-    const descriptionText = draft.descriptionText.trim();
-    if (descriptionText.length === 0) {
+    if (draft.descriptionText.trim().length === 0) {
         errors.descriptionText = "Enter the exact description text this rule matches.";
     }
 
-    const accountId = draft.useAccountScope ? draft.accountId : undefined;
-    if (draft.useAccountScope && (accountId == null || accountId.length === 0)) {
-        errors.accountId = "Choose an account for the account constraint.";
+    const accountId = draft.useAccountScope ? draft.accountId : "";
+    if (draft.useAccountScope && accountId.length === 0) {
+        errors.accountId = "Choose an account for the account restriction.";
     }
 
     const amount = parseAmount(draft, currencyCode, errors);
-    const outputs = parseOutputs(draft, errors);
+    const outputs = parseOutputs(draft.outputs, errors);
 
-    if (hasAnyError(errors)) return { ok: false, errors };
-    if (outputs == null) return { ok: false, errors };
+    if (Object.values(errors).some((message) => message != null)) return { ok: false, errors };
 
     return {
         ok: true,
         value: {
-            accountId: accountId == null || accountId.length === 0 ? undefined : accountId,
+            accountId: accountId.length === 0 ? undefined : accountId,
             amount,
             outputs
         }
@@ -165,10 +185,6 @@ export function validateRuleDraft(
 }
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
-
-function hasAnyError(errors: RuleEditorFieldErrors): boolean {
-    return Object.values(errors).some((message) => message != null);
-}
 
 function parseAmount(
     draft: RuleEditorDraft,
@@ -178,7 +194,7 @@ function parseAmount(
     if (!draft.useAmountScope) return undefined;
     const raw = draft.amountText.trim();
     if (raw.length === 0) {
-        errors.amount = "Enter an amount for the amount constraint.";
+        errors.amount = "Enter an amount for the amount restriction.";
         return undefined;
     }
     const parsed = Number(raw);
@@ -189,36 +205,38 @@ function parseAmount(
     return toMinorUnitsForCurrency(parsed, currencyCode);
 }
 
-/** The draft edits one field, so it resolves to exactly one output. */
 function parseOutputs(
-    draft: RuleEditorDraft,
+    draft: RuleEditorOutputsDraft,
     errors: Mutable<RuleEditorFieldErrors>
-): FieldRuleOutputsInput | null {
-    switch (draft.field) {
-        case "descriptionAlias": {
-            const aliasId = draft.aliasId.trim();
-            if (aliasId.length === 0) {
-                errors.aliasId = "Choose the description alias to apply.";
-                return null;
-            }
-            return { descriptionAlias: { aliasId } };
-        }
-        case "tags": {
-            const tagIds = draft.tagIds.filter((id) => id.length > 0);
-            if (draft.tagMode === "add" && tagIds.length === 0) {
-                errors.tagIds = "Choose at least one tag to add.";
-                return null;
-            }
-            return { tags: { mode: draft.tagMode, tagIds } };
-        }
-        case "allocation": {
-            const allocations = parseAllocations(draft.allocations, errors);
-            if (allocations == null) return null;
-            return { allocation: { allocations } };
-        }
-        default:
-            return assertNever(draft.field);
+): FieldRuleOutputsInput {
+    if (draftOutputFields({ outputs: draft }).length === 0) {
+        errors.outputs = "Add at least one output.";
+        return {};
     }
+    const outputs: Mutable<FieldRuleOutputsInput> = {};
+
+    if (draft.descriptionAlias != null) {
+        const aliasId = draft.descriptionAlias.aliasId.trim();
+        if (aliasId.length === 0) errors.aliasId = "Choose the description alias to apply.";
+        else outputs.descriptionAlias = { aliasId };
+    }
+
+    if (draft.tags != null) {
+        const tagIds = draft.tags.tagIds.filter((id) => id.length > 0);
+        // An empty set-mode output is meaningful: it clears the row's tags.
+        if (draft.tags.mode === "add" && tagIds.length === 0) {
+            errors.tagIds = "Choose at least one tag to add.";
+        } else {
+            outputs.tags = { mode: draft.tags.mode, tagIds };
+        }
+    }
+
+    if (draft.allocation != null) {
+        const allocations = parseAllocations(draft.allocation, errors);
+        if (allocations != null) outputs.allocation = { allocations };
+    }
+
+    return outputs;
 }
 
 function parseAllocations(
@@ -228,6 +246,7 @@ function parseAllocations(
     const allocations: Record<string, number> = {};
     for (const [personId, text] of Object.entries(raw)) {
         const trimmed = text.trim();
+        // Blank is "no answer", which the allocation views count as 0% without storing a value.
         if (trimmed.length === 0) continue;
         const value = Number(trimmed);
         if (!Number.isFinite(value)) {

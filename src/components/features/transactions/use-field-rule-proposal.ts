@@ -49,12 +49,12 @@ import {
     draftFromProposal,
     mutationErrorToFieldErrors,
     type RuleProposalSeed
-} from "../automations/rule-editor-data";
+} from "../automations/legacy-rule-editor-data";
 import {
     type RuleEditorDraft,
     type RuleEditorFieldErrors,
     validateRuleDraft
-} from "../automations/rule-editor-model";
+} from "../automations/legacy-rule-editor-model";
 import {
     computeFieldRuleProposal,
     type FieldRuleProposalState,

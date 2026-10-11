@@ -1,64 +1,100 @@
 /**
- * Shared, surface-agnostic data helpers for the field-rule editor (HS-007).
+ * Pure, surface-agnostic data helpers for the shared rule editor.
  *
- * These are the pure adapters that both the Automations page manager (P17B) and the P17C
- * transaction-context popup need: turning an existing {@link FieldRule} into an editable draft and
- * mapping a mutation error onto per-field messages. They live outside any component so the SAME
- * editor can be driven from either surface without duplicating this glue.
+ * Both the Automations page and the transaction inspector drive `RuleEditor` through these: turning
+ * an existing {@link FieldRule} or a transaction edit into a draft, mapping a mutation error onto the
+ * editor's messages, projecting vault records into option lists, and naming a rule's conditions and
+ * outputs for display. Nothing here touches the vault.
  */
 
+import type {
+    useActiveAccounts,
+    useActiveDescriptionAliases,
+    useActivePeople,
+    useActiveTags
+} from "@/lib/crdt";
 import { type FieldRuleMutationError } from "@/lib/crdt/field-rule-mutations";
+import { resolvePersonDisplayName } from "@/lib/crdt/person";
 import {
-    type FieldRule,
-    primaryOutputField,
-    type TagRuleMode
-} from "@/lib/domain/automation/rules";
-import { type MoneyMinorUnits, toMajorUnits } from "@/lib/domain/currency";
+    type RememberedRuleChoice,
+    rememberedApplyOnBlur,
+    rememberedScope
+} from "@/lib/domain/automation/preferences";
+import { type FieldRule, type RuleField, type TagRuleMode } from "@/lib/domain/automation/rules";
+import { getCurrency, type MoneyMinorUnits, toMajorUnits } from "@/lib/domain/currency";
 import { assertNever } from "@/lib/utils/exhaustive";
 
-import { type ApplyMode, emptyRuleDraft, type RuleEditorDraft } from "./rule-editor-model";
+import { type RuleEditorDraft, type RuleEditorFieldErrors } from "./rule-editor-model";
+
+/** One choice in an editor option list: an account, tag, person or alias. */
+export interface RuleEditorOption {
+    readonly id: string;
+    readonly label: string;
+}
+
+/** Every option list the editor offers. */
+export interface RuleEditorOptions {
+    readonly accounts: readonly RuleEditorOption[];
+    readonly tags: readonly RuleEditorOption[];
+    readonly people: readonly RuleEditorOption[];
+    readonly aliases: readonly RuleEditorOption[];
+}
+
+/** Human label for each output field, shared by the badge, the Add output list and Split. */
+export const RULE_FIELD_LABELS: Readonly<Record<RuleField, string>> = {
+    descriptionAlias: "Description",
+    tags: "Tags",
+    allocation: "Allocation"
+};
+
+// ============================================================================
+// Drafts
+// ============================================================================
+
+/** Major-units text for a minor-units amount, as the amount input shows it. */
+export function amountTextFromMinor(amount: MoneyMinorUnits, currencyCode: string): string {
+    return String(toMajorUnits(amount, currencyCode));
+}
+
+function allocationText(
+    allocations: Readonly<Record<string, number>>
+): Readonly<Record<string, string>> {
+    return Object.fromEntries(
+        Object.entries(allocations).map(([personId, value]) => [personId, String(value)])
+    );
+}
 
 /**
- * Build an editable draft that reproduces an existing rule's scope and values. The draft edits one
- * field, the rule's first output; every output's value is carried so switching field shows it.
+ * A draft reproducing an existing rule: its stored conditions and every output. Scope and Apply on
+ * blur are the user's remembered choices, never properties of the rule.
  */
 export function draftFromRule(
     rule: FieldRule,
     currencyCode: string,
-    applyMode: ApplyMode
+    remembered: RememberedRuleChoice
 ): RuleEditorDraft {
     const { descriptionAlias, tags, allocation } = rule.outputs;
-    const base = emptyRuleDraft({
-        field: primaryOutputField(rule.outputs),
-        tagMode: tags?.mode ?? "add",
-        useAccountScope: rule.accountId != null,
-        useAmountScope: rule.amount != null,
-        applyMode
-    });
-    const allocations: Record<string, string> =
-        allocation == null
-            ? {}
-            : Object.fromEntries(
-                  Object.entries(allocation.allocations).map(([personId, value]) => [
-                      personId,
-                      String(value)
-                  ])
-              );
     return {
-        ...base,
         descriptionText: rule.descriptionText,
+        useAccountScope: rule.accountId != null,
         accountId: rule.accountId ?? "",
-        amountText: rule.amount == null ? "" : String(toMajorUnits(rule.amount, currencyCode)),
-        aliasId: descriptionAlias?.aliasId ?? "",
-        tagIds: tags == null ? [] : [...tags.tagIds],
-        allocations
+        useAmountScope: rule.amount != null,
+        amountText: rule.amount == null ? "" : amountTextFromMinor(rule.amount, currencyCode),
+        outputs: {
+            ...(descriptionAlias == null
+                ? {}
+                : { descriptionAlias: { aliasId: descriptionAlias.aliasId } }),
+            ...(tags == null ? {} : { tags: { mode: tags.mode, tagIds: [...tags.tagIds] } }),
+            ...(allocation == null ? {} : { allocation: allocationText(allocation.allocations) })
+        },
+        scope: rememberedScope(remembered),
+        applyOnBlur: rememberedApplyOnBlur(remembered)
     };
 }
 
 /**
- * The transaction facts a rule proposal is seeded from: the exact text the rule will key on, the
- * value the user just set, and the row's own account/amount so the two optional restrictions can be
- * filled in when the user ticks them.
+ * The transaction facts a rule proposal is seeded from: the exact text the rule keys on, the value
+ * the user just set, and the row's own account and amount so either restriction can be ticked.
  */
 export interface RuleProposalSeed {
     readonly descriptionText: string;
@@ -67,80 +103,207 @@ export interface RuleProposalSeed {
         | { readonly field: "descriptionAlias"; readonly aliasId: string }
         | { readonly field: "tags"; readonly tagIds: readonly string[] }
         | { readonly field: "allocation"; readonly allocations: Readonly<Record<string, number>> };
-    /** This transaction's account, used when "only this account" is ticked (frozen `:259-260`). */
     readonly accountId: string;
     /** This transaction's amount, used when "only if $x" is ticked (frozen `:258-259`); `undefined` when blank. */
     readonly amount: MoneyMinorUnits | undefined;
 }
 
 /**
- * Build an editable draft for a rule PROPOSED from a field the user just changed (frozen
- * `:249-256`).
- *
- * Unlike {@link draftFromRule}, which reproduces a rule that already exists, this seeds the draft
- * from the transaction: the exact description text it will key on, the value just entered, and the
- * user's remembered select/restriction choices (frozen `:270`). The account and amount restrictions
- * are pre-filled from THIS transaction so ticking either narrows the rule to the row the user is
- * looking at, which is the only meaning the frozen text gives them.
- *
- * Pure: takes facts, returns a draft, writes nothing.
+ * A draft for a rule proposed from a field the user just changed on a transaction. It holds exactly
+ * that one output. The restrictions are pre-filled from the row, so ticking either narrows the rule
+ * to the row being looked at, and are ticked only if the user last chose them.
  */
 export function draftFromProposal(
     seed: RuleProposalSeed,
     currencyCode: string,
-    remembered: {
-        readonly tagMode: TagRuleMode;
-        readonly useAccountScope: boolean;
-        readonly useAmountScope: boolean;
-        readonly applyMode: ApplyMode;
-    }
+    remembered: RememberedRuleChoice
 ): RuleEditorDraft {
-    const base = emptyRuleDraft({
-        field: seed.value.field,
-        tagMode: remembered.tagMode,
-        useAccountScope: remembered.useAccountScope,
-        useAmountScope: remembered.useAmountScope,
-        applyMode: remembered.applyMode
-    });
     return {
-        ...base,
         descriptionText: seed.descriptionText,
+        useAccountScope: remembered.useAccountScope,
         accountId: seed.accountId,
-        amountText: seed.amount == null ? "" : String(toMajorUnits(seed.amount, currencyCode)),
-        aliasId: seed.value.field === "descriptionAlias" ? seed.value.aliasId : "",
-        tagIds: seed.value.field === "tags" ? [...seed.value.tagIds] : [],
-        allocations:
-            seed.value.field === "allocation"
-                ? Object.fromEntries(
-                      Object.entries(seed.value.allocations).map(([personId, value]) => [
-                          personId,
-                          String(value)
-                      ])
-                  )
-                : {}
+        useAmountScope: remembered.useAmountScope,
+        amountText: seed.amount == null ? "" : amountTextFromMinor(seed.amount, currencyCode),
+        outputs: proposalOutputs(seed.value, remembered.tagMode),
+        scope: rememberedScope(remembered),
+        applyOnBlur: rememberedApplyOnBlur(remembered)
     };
 }
 
-/** Map a CRUD mutation error onto the editor's per-field error messages. */
-export function mutationErrorToFieldErrors(error: FieldRuleMutationError): {
-    readonly descriptionText?: string;
-    readonly allocations?: string;
-} {
+function proposalOutputs(
+    value: RuleProposalSeed["value"],
+    tagMode: TagRuleMode
+): RuleEditorDraft["outputs"] {
+    switch (value.field) {
+        case "descriptionAlias":
+            return { descriptionAlias: { aliasId: value.aliasId } };
+        case "tags":
+            return { tags: { mode: tagMode, tagIds: [...value.tagIds] } };
+        case "allocation":
+            return { allocation: allocationText(value.allocations) };
+        default:
+            return assertNever(value);
+    }
+}
+
+// ============================================================================
+// Mutation errors
+// ============================================================================
+
+/** One sentence explaining why a rule mutation was refused. */
+export function mutationErrorMessage(error: FieldRuleMutationError): string {
     switch (error.type) {
         case "duplicate-key":
-            return {
-                descriptionText:
-                    "A rule already exists for this field, description and constraints. Edit or delete it instead."
-            };
+            return "Another rule with these conditions already sets one of these outputs. Edit that rule instead.";
         case "invalid-allocations":
-            return { allocations: "Enter a valid percentage set (each between -100 and 100)." };
+            return "Enter a valid percentage set (each between -100 and 100).";
+        case "invalid-rule":
+            return "This rule is not valid. Check the fields and try again.";
+        case "not-found":
+            return "This rule no longer exists.";
+        case "missing-output":
+            return "This rule no longer has that output.";
+        case "single-output":
+            return "A rule with one output cannot be split.";
+        case "predicate-mismatch":
+            return "The two rules have different conditions, so the output cannot move between them.";
+        default:
+            return assertNever(error);
+    }
+}
+
+/** Map a mutation error onto the part of the editor it concerns. */
+export function mutationErrorToFieldErrors(error: FieldRuleMutationError): RuleEditorFieldErrors {
+    const message = mutationErrorMessage(error);
+    switch (error.type) {
+        case "duplicate-key":
         case "invalid-rule":
         case "not-found":
+            return { descriptionText: message };
+        case "invalid-allocations":
+            return { allocations: message };
         case "missing-output":
         case "single-output":
         case "predicate-mismatch":
-            return { descriptionText: "This rule is not valid. Check the fields and try again." };
+            return { outputs: message };
         default:
             return assertNever(error);
+    }
+}
+
+// ============================================================================
+// Options
+// ============================================================================
+
+/** The active vault records the editor's option lists are projected from. */
+export interface RuleEditorOptionRecords {
+    readonly accounts: ReturnType<typeof useActiveAccounts>;
+    readonly tags: ReturnType<typeof useActiveTags>;
+    readonly people: ReturnType<typeof useActivePeople>;
+    readonly aliases: ReturnType<typeof useActiveDescriptionAliases>;
+}
+
+/** Project vault records into option lists. Only real aliases can be a rule's output. */
+export function projectRuleEditorOptions(records: RuleEditorOptionRecords): RuleEditorOptions {
+    return {
+        accounts: Object.values(records.accounts).flatMap((account) =>
+            typeof account === "object" ? [{ id: account.id, label: account.name }] : []
+        ),
+        tags: Object.values(records.tags).flatMap((tag) =>
+            typeof tag === "object" ? [{ id: tag.id, label: tag.name }] : []
+        ),
+        people: Object.values(records.people).flatMap((person) =>
+            typeof person === "object"
+                ? [{ id: person.id, label: resolvePersonDisplayName(person) }]
+                : []
+        ),
+        aliases: Object.values(records.aliases).flatMap((alias) =>
+            typeof alias === "object" && alias.kind === "real"
+                ? [{ id: alias.id, label: alias.name }]
+                : []
+        )
+    };
+}
+
+// ============================================================================
+// Display labels
+// ============================================================================
+
+/**
+ * Render an amount for a restriction label. Falls back to the bare major-units number for a
+ * currency the platform cannot format. A blank amount renders as a dash; the editor rejects an
+ * amount scope seeded from it.
+ */
+export function formatAmountForRuleLabel(
+    amount: MoneyMinorUnits | undefined,
+    currencyCode: string,
+    locale?: Intl.LocalesArgument
+): string {
+    if (amount == null) return "—";
+    const majorUnits = toMajorUnits(amount, currencyCode);
+    const currency = getCurrency(currencyCode);
+    if (currency == null) return String(majorUnits);
+    return new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: currency.code,
+        minimumFractionDigits: currency.decimal_digits,
+        maximumFractionDigits: currency.decimal_digits
+    }).format(majorUnits);
+}
+
+function optionLabel(options: readonly RuleEditorOption[], id: string, fallback: string): string {
+    return options.find((option) => option.id === id)?.label ?? fallback;
+}
+
+/** "COFFEE SHOP 123 · any account · any amount": a rule's name is its conditions. */
+export function ruleConditionsLabel(
+    rule: Pick<FieldRule, "descriptionText" | "accountId" | "amount">,
+    accounts: readonly RuleEditorOption[],
+    currencyCode: string
+): string {
+    const account =
+        rule.accountId == null
+            ? "any account"
+            : optionLabel(accounts, rule.accountId, "an unknown account");
+    const amount =
+        rule.amount == null ? "any amount" : formatAmountForRuleLabel(rule.amount, currencyCode);
+    return [rule.descriptionText, account, amount].join(" · ");
+}
+
+/**
+ * The one-line summary of a draft output: "rename to “Coffee”", "add #coffee #work",
+ * "Alex 50% / Sam —". Blank allocation cells read as an em dash: no answer, not zero.
+ */
+export function outputValueSummary(
+    field: RuleField,
+    outputs: RuleEditorDraft["outputs"],
+    options: Pick<RuleEditorOptions, "aliases" | "tags" | "people">
+): string {
+    switch (field) {
+        case "descriptionAlias": {
+            const aliasId = outputs.descriptionAlias?.aliasId ?? "";
+            if (aliasId.length === 0) return "no alias chosen";
+            return `rename to “${optionLabel(options.aliases, aliasId, "unknown alias")}”`;
+        }
+        case "tags": {
+            const tags = outputs.tags;
+            if (tags == null) return "";
+            const names = tags.tagIds.map((id) => `#${optionLabel(options.tags, id, "unknown")}`);
+            const verb = tags.mode === "set" ? "set" : "add";
+            if (names.length === 0) return tags.mode === "set" ? "clear tags" : "no tags chosen";
+            return `${verb} ${names.join(" ")}`;
+        }
+        case "allocation": {
+            const allocation = outputs.allocation ?? {};
+            if (options.people.length === 0) return "no people";
+            return options.people
+                .map((person) => {
+                    const raw = allocation[person.id]?.trim() ?? "";
+                    return `${person.label} ${raw.length === 0 ? "—" : `${raw}%`}`;
+                })
+                .join(" / ");
+        }
+        default:
+            return assertNever(field);
     }
 }

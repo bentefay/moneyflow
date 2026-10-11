@@ -28,6 +28,7 @@ export {
     readRowId,
     readRowPresenceEditing
 } from "./presence";
+export { type ImportRowSpec, importTransactionRows } from "./import";
 export { awaitVaultPersistence, reloadPage } from "./persistence";
 export {
     activateTransactionEditor,
