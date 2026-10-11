@@ -18,12 +18,12 @@ import {
     verifyAuthenticationResponse,
     verifyRegistrationResponse
 } from "@simplewebauthn/server";
-import { COSEALG } from "@simplewebauthn/server/helpers";
 import type {
     AuthenticationExtensionsClientOutputs,
     AuthenticationResponseJSON,
     RegistrationResponseJSON
 } from "@simplewebauthn/server";
+import { COSEALG } from "@simplewebauthn/server/helpers";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
