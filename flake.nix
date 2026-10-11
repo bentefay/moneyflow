@@ -64,23 +64,71 @@
           };
         };
 
-        # Safe-chain wrapped pnpm with dlx blocked. Lifecycle-only commands run
-        # directly so their children do not inherit safe-chain's registry proxy.
-        pnpm-safe = pkgs.writeShellScriptBin "pnpm" ''
-          case "$1" in
-            dlx)
-              echo "pnpm dlx: blocked by safe-chain policy. Install as a devDependency instead." >&2
-              exit 1
-              ;;
-            run|exec|node|test|start|stop|restart)
-              exec ${pkgs.pnpm}/bin/pnpm "$@"
-              ;;
-          esac
-          unset PKG_EXECPATH
-          PATH="${pkgs.pnpm}/bin:${pkgs.nodejs_22}/bin:$PATH" exec ${safe-chain}/libexec/safe-chain-bin pnpm "$@"
+        # Bun, pinned from the @oven/bun-<platform> npm-registry tarball rather than nixpkgs so the
+        # version moves only when this flake is edited, subject to the same minimum package age.
+        bun-version = "1.4.2";
+
+        bun-platformMap = {
+          "x86_64-linux" = "linux-x64";
+          "aarch64-linux" = "linux-aarch64";
+          "x86_64-darwin" = "darwin-x64";
+          "aarch64-darwin" = "darwin-aarch64";
+        };
+
+        bun-hashes = {
+          "x86_64-linux" = "sha256-DHXguU6dVs7Od6u30D6ZlbR7eVBt9dzKMEbuuIjbWTQ=";
+          "aarch64-linux" = "sha256-mrOXChlmC1zQifF/sCHZAOHKG5iNr9Rh1m0KD/TW6sQ=";
+          "x86_64-darwin" = "sha256-49KNMyofVIEoEmNbvMMLaAicPY/hKrBVsarK1rWNbEU=";
+          "aarch64-darwin" = "sha256-qd9Ibq9+nbm967H6Ql6MmAmr14OxxRjR28UJalO4Ye0=";
+        };
+
+        bun-raw = pkgs.stdenvNoCC.mkDerivation {
+          pname = "bun-raw";
+          version = bun-version;
+
+          src = pkgs.fetchurl {
+            url = "https://registry.npmjs.org/@oven/bun-${bun-platformMap.${system}}/-/bun-${bun-platformMap.${system}}-${bun-version}.tgz";
+            sha256 = bun-hashes.${system};
+          };
+
+          dontConfigure = true;
+          dontBuild = true;
+          nativeBuildInputs = pkgs.lib.optionals pkgs.stdenvNoCC.hostPlatform.isLinux [
+            pkgs.autoPatchelfHook
+          ];
+          # No glib/libsecret runtimeDependencies, which only Bun.secrets needs: on Bun 1.4.2 that
+          # RPATH segfaults every launch.
+
+          installPhase = ''
+            runHook preInstall
+            install -Dm755 bin/bun $out/bin/bun
+            runHook postInstall
+          '';
+        };
+
+        # safe-chain spawns `bun` from its own PATH, so the unwrapped binary lives in a directory only
+        # that PATH sees. Putting it first stops safe-chain re-entering the wrapper below.
+        bun-shadow = pkgs.runCommand "bun-shadow" { } ''
+          mkdir -p $out/shadow
+          ln -s ${bun-raw}/bin/bun $out/shadow/bun
         '';
 
-        # Block pnpx (alias for pnpm dlx)
+        # Package-management subcommands run through safe-chain. Everything else runs bun directly so
+        # `bun run` children do not inherit safe-chain's HTTPS_PROXY.
+        bun-safe = pkgs.writeShellScriptBin "bun" ''
+          case "$1" in
+            x|create|upgrade|publish)
+              echo "bun $1: blocked by safe-chain policy. Add a dependency to package.json instead." >&2
+              exit 1
+              ;;
+            install|i|add|a|remove|rm|update|outdated|pm|audit|link|unlink|patch|why|info)
+              unset PKG_EXECPATH
+              PATH="${bun-shadow}/shadow:${pkgs.nodejs_22}/bin:$PATH" exec ${safe-chain}/libexec/safe-chain-bin bun "$@"
+              ;;
+          esac
+          exec ${bun-raw}/bin/bun "$@"
+        '';
+
         mkBlocker =
           name: alt:
           pkgs.writeShellScriptBin name ''
@@ -96,10 +144,10 @@
           '';
 
         blockers = [
-          (mkBlocker "npm" "pnpm")
-          (mkBlocker "yarn" "pnpm")
-          (mkBlocker "bun" "pnpm")
-          (mkBlocker "deno" "pnpm")
+          (mkBlocker "npm" "bun")
+          (mkBlocker "yarn" "bun")
+          (mkBlocker "pnpm" "bun")
+          (mkBlocker "deno" "bun")
           (mkExecutorBlocker "npx")
           (mkExecutorBlocker "pnpx")
           (mkExecutorBlocker "bunx")
@@ -131,7 +179,7 @@
             blockers
             ++ [
               safe-chain-wrapped
-              pnpm-safe
+              bun-safe
               pkgs.nodejs_22
               pkgs.git
               pkgs.ripgrep
@@ -140,7 +188,7 @@
               pkgs.python312
               pkgs.uv
             ]
-            ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
               pkgs.glibcLocales
             ];
 

@@ -76,7 +76,7 @@ export default defineConfig({
         }
     ],
     webServer: {
-        command: "pnpm run dev",
+        command: "bun run dev",
         env: { SUPABASE_JWT_SECRET: localRealtimeJwtSecret },
         url: "http://localhost:3000",
         reuseExistingServer: false

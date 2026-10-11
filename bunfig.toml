@@ -1,0 +1,10 @@
+[install]
+# Mirrors safe-chain's minimum package age of 48 hours, in seconds. Keep the two equal: safe-chain
+# gates at download and bun gates at resolution, so a mismatch lets bun lock a version safe-chain
+# then refuses to fetch, and a fresh `bun install --frozen-lockfile` fails.
+minimumReleaseAge = 172800
+exact = true
+# Next's dev server links serverExternalPackages (loro-crdt) into .next at runtime, which bun's
+# isolated layout cannot resolve.
+linker = "hoisted"
+auto = "disable"

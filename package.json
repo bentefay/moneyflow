@@ -2,6 +2,9 @@
     "name": "moneyflow",
     "version": "0.1.0",
     "private": true,
+    "workspaces": [
+        "."
+    ],
     "scripts": {
         "dev": "next dev --turbopack",
         "build": "next build",
@@ -17,10 +20,10 @@
         "test:e2e:report": "playwright install chromium && playwright test",
         "browser": "playwright-cli",
         "browser:install": "playwright-cli install-browser chromium",
-        "db:start": "pnpm exec supabase start",
-        "db:stop": "pnpm exec supabase stop",
-        "db:reset": "pnpm exec supabase db reset",
-        "db:types": "pnpm exec supabase gen types typescript --local > src/lib/supabase/database.types.ts"
+        "db:start": "supabase start",
+        "db:stop": "supabase stop",
+        "db:reset": "supabase db reset",
+        "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts"
     },
     "dependencies": {
         "@f-o-t/ofx": "2.4.6",
@@ -52,7 +55,7 @@
         "class-variance-authority": "0.7.1",
         "clsx": "2.1.1",
         "cmdk": "1.1.1",
-        "countries-and-timezones": "^3.10.0",
+        "countries-and-timezones": "3.10.0",
         "currency.js": "2.0.4",
         "date-fns": "4.4.0",
         "decimal.js": "10.6.0",
@@ -103,9 +106,25 @@
         "vercel": "59.3.0",
         "vitest": "4.1.11"
     },
-    "engines": {
-        "node": "^22.13.0 || >=24.0.0 <25.0.0",
-        "pnpm": ">=11.13.1 <12.0.0"
+    "overrides": {
+        "@babel/core@<7.29.1": "7.29.7",
+        "@tootallnate/once@<2.0.1": "2.0.1",
+        "ajv@>=7.0.0-alpha.0 <8.18.0": "8.20.0",
+        "brace-expansion@>=5.0.0 <5.0.6": "5.0.7",
+        "js-yaml@>=4.0.0 <=4.1.1": "4.3.0",
+        "minimatch@>=10.0.0 <10.2.3": "10.2.5",
+        "path-to-regexp@>=4.0.0 <6.3.0": "6.3.0",
+        "path-to-regexp@>=8.0.0 <8.4.0": "8.4.2",
+        "postcss@<8.5.10": "8.5.19",
+        "sharp@<0.35.0": "0.35.3",
+        "smol-toml@<1.6.1": "1.7.0",
+        "tar@<7.5.16": "7.5.20"
     },
-    "packageManager": "pnpm@11.13.1"
+    "engines": {
+        "node": "^22.13.0 || >=24.0.0 <25.0.0"
+    },
+    "packageManager": "bun@1.4.2",
+    "trustedDependencies": [
+        "supabase"
+    ]
 }
