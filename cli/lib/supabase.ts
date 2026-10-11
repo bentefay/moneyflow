@@ -3,6 +3,7 @@ import path from "node:path";
 
 import type { ExitCode } from "./exec";
 import { exec, execCapture } from "./exec";
+import { runOxfmt } from "./format";
 import { repoRoot } from "./paths";
 
 export type DatabaseLifecycle = "start" | "stop" | "reset";
@@ -23,5 +24,5 @@ export const generateDatabaseTypes = async (): Promise<ExitCode> => {
     if (code !== 0) return code;
     await writeFile(generatedTypesPath, stdout);
     console.log(`Wrote ${path.relative(repoRoot, generatedTypesPath)}`);
-    return 0;
+    return runOxfmt({ check: false, paths: [generatedTypesPath] });
 };

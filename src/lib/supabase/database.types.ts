@@ -37,6 +37,7 @@ export type Database = {
                     id: string;
                     pubkey_hash: string | null;
                 };
+                ComputedFields: never;
                 Insert: {
                     ceremony: string;
                     challenge: string;
@@ -71,6 +72,7 @@ export type Database = {
                     wrap_version: number;
                     wrapped_secret: string;
                 };
+                ComputedFields: never;
                 Insert: {
                     aaguid?: string | null;
                     backed_up?: boolean;
@@ -114,6 +116,7 @@ export type Database = {
                     vault_id: string;
                     vault_role: string;
                 };
+                ComputedFields: never;
                 Insert: {
                     created_at?: string;
                     expires_at: string;
@@ -151,6 +154,7 @@ export type Database = {
                     pubkey_hash: string;
                     request_timestamp_ms: number;
                 };
+                ComputedFields: never;
                 Insert: {
                     expires_at: string;
                     nonce: string;
@@ -170,6 +174,7 @@ export type Database = {
                     pubkey_hash: string;
                     updated_at: string | null;
                 };
+                ComputedFields: never;
                 Insert: {
                     pubkey_hash: string;
                     updated_at?: string | null;
@@ -192,6 +197,7 @@ export type Database = {
                     role: string;
                     vault_id: string;
                 };
+                ComputedFields: never;
                 Insert: {
                     created_at?: string | null;
                     created_by: string;
@@ -234,6 +240,7 @@ export type Database = {
                     role: string;
                     vault_id: string;
                 };
+                ComputedFields: never;
                 Insert: {
                     created_at?: string | null;
                     enc_public_key?: string | null;
@@ -274,6 +281,7 @@ export type Database = {
                     vault_id: string;
                     version_vector: string;
                 };
+                ComputedFields: never;
                 Insert: {
                     author_pubkey_hash: string;
                     created_at?: string | null;
@@ -317,6 +325,7 @@ export type Database = {
                     version: number;
                     version_vector: string;
                 };
+                ComputedFields: never;
                 Insert: {
                     created_at?: string | null;
                     encrypted_data: string;
@@ -357,6 +366,7 @@ export type Database = {
                     id: string;
                     vault_id: string;
                 };
+                ComputedFields: never;
                 Insert: {
                     author_pubkey_hash: string;
                     base_snapshot_version: number;
@@ -391,6 +401,7 @@ export type Database = {
                     deleted_at: string | null;
                     id: string;
                 };
+                ComputedFields: never;
                 Insert: {
                     created_at?: string | null;
                     deleted_at?: string | null;
@@ -415,21 +426,22 @@ export type Database = {
                     id: string | null;
                     vault_id: string | null;
                 };
+                ComputedFields: never;
                 Insert: {
                     author_pubkey_hash?: string | null;
-                    base_snapshot_version?: never;
+                    base_snapshot_version?: number | null;
                     created_at?: string | null;
                     encrypted_data?: string | null;
-                    hlc_timestamp?: never;
+                    hlc_timestamp?: string | null;
                     id?: string | null;
                     vault_id?: string | null;
                 };
                 Update: {
                     author_pubkey_hash?: string | null;
-                    base_snapshot_version?: never;
+                    base_snapshot_version?: number | null;
                     created_at?: string | null;
                     encrypted_data?: string | null;
-                    hlc_timestamp?: never;
+                    hlc_timestamp?: string | null;
                     id?: string | null;
                     vault_id?: string | null;
                 };
@@ -469,14 +481,10 @@ export type Database = {
                 }[];
             };
             claim_request_nonce: {
-                Args: {
-                    p_nonce: string;
-                    p_pubkey_hash: string;
-                    p_request_timestamp_ms: number;
-                };
+                Args: { p_nonce: string; p_pubkey_hash: string; p_request_timestamp_ms: number };
                 Returns: boolean;
             };
-            cleanup_expired_invites: { Args: never; Returns: undefined };
+            cleanup_expired_invites: { Args: Record<PropertyKey, never>; Returns: undefined };
             create_passkey_challenge: {
                 Args: {
                     p_ceremony: string;
@@ -497,7 +505,7 @@ export type Database = {
                 };
                 Returns: string;
             };
-            current_realtime_claims: { Args: never; Returns: Json };
+            current_realtime_claims: { Args: Record<PropertyKey, never>; Returns: Json };
             realtime_grant_allows: {
                 Args: { p_purpose: string; p_vault_id: string };
                 Returns: boolean;
@@ -531,11 +539,7 @@ export type Database = {
                 Returns: boolean;
             };
             rekey_vault_members: {
-                Args: {
-                    p_member_keys: Json;
-                    p_owner_pubkey_hash: string;
-                    p_vault_id: string;
-                };
+                Args: { p_member_keys: Json; p_owner_pubkey_hash: string; p_vault_id: string };
                 Returns: boolean;
             };
             revoke_passkey_credential: {
@@ -593,9 +597,7 @@ export type Tables<
         ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
               DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
         : never) = never
-> = DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
     ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
           DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
           Row: infer R;
@@ -621,9 +623,7 @@ export type TablesInsert<
     }
         ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
         : never) = never
-> = DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
     ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
           Insert: infer I;
       }
@@ -646,9 +646,7 @@ export type TablesUpdate<
     }
         ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
         : never) = never
-> = DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
-}
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
     ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
           Update: infer U;
       }
@@ -671,9 +669,7 @@ export type Enums<
     }
         ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
         : never) = never
-> = DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
-}
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
     ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
     : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
       ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
@@ -688,9 +684,7 @@ export type CompositeTypes<
     }
         ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
         : never) = never
-> = PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals;
-}
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
     ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
     : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
       ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
