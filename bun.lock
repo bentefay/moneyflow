@@ -41,9 +41,9 @@
         "idb": "8.0.3",
         "libsodium-wrappers": "0.8.4",
         "lodash-es": "4.18.1",
-        "loro-crdt": "1.14.1",
-        "loro-mirror": "2.2.1",
-        "loro-mirror-react": "2.2.1",
+        "loro-crdt": "1.16.4",
+        "loro-mirror": "2.3.3",
+        "loro-mirror-react": "2.3.3",
         "lucide-react": "1.33.0",
         "motion": "13.1.1",
         "next": "16.3.1",
@@ -1226,11 +1226,11 @@
 
     "lodash-es": ["lodash-es@4.18.1", "", {}, "sha512-J8xewKD/Gk22OZbhpOVSwcs60zhd95ESDwezOFuA3/099925PdHJ7OFHNTGtajL3AlZkykD32HykiMo+BIBI8A=="],
 
-    "loro-crdt": ["loro-crdt@1.14.1", "", {}, "sha512-1BQ7neoQeJdCbD8gxlLHsy8tqCLYIJGrXSZic4s3t7toIsiFfks8Z0nGWvuEWr5miZ7giJx19x5ffkBaw+g9KQ=="],
+    "loro-crdt": ["loro-crdt@1.16.4", "", {}, "sha512-UPufMpHSEMLRVjWfCjhVbOD8nkCDwxdfVk4Uer6xTEFAcNn+X+oGYWGgIIYuAgofc8UiI0ERZUIMnP7ib/kh6w=="],
 
-    "loro-mirror": ["loro-mirror@2.2.1", "", { "dependencies": { "immer": "10.2.0" }, "peerDependencies": { "loro-crdt": "^1.13.3" } }, "sha512-wOeNqNTSdFS7S6z0j+GWlRUtgRwMG/vAS0U0MJ3egZZlJUw4tIpmQoUQ2lEtjzdddBzZBfTR33YphE+ZIXY6LA=="],
+    "loro-mirror": ["loro-mirror@2.3.3", "", { "dependencies": { "immer": "^10.0.3" }, "peerDependencies": { "loro-crdt": "^1.16.0" } }, "sha512-hu09GaKQHtUnqEjBA0nFUsr213txmFITX9Km1htz+8MN04iccKI96n0zSdMDFCEzxSgaI9jiTLHU427GkZW6IA=="],
 
-    "loro-mirror-react": ["loro-mirror-react@2.2.1", "", { "peerDependencies": { "loro-crdt": "^1.13.3", "loro-mirror": "2.2.1", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-Bw1OKLwk9xRVeyDPt7+JOtZyEx+1mEkfCyRyGGc06YVs5HGYnGKRiDys+TxO3Kj302RT12rTtN+RbwYQpiEsxg=="],
+    "loro-mirror-react": ["loro-mirror-react@2.3.3", "", { "peerDependencies": { "loro-crdt": "^1.16.0", "loro-mirror": "2.3.3", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-AMtNgejmVg+77q+xWyDy7gym78zAw87d0tRNgLSSXcgI8idXLD1vykytPL4bTSqwiiL4+3wK11djDUcdWJ81Ew=="],
 
     "lru-cache": ["lru-cache@11.5.3", "", {}, "sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg=="],
 
