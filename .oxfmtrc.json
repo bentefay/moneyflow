@@ -13,6 +13,7 @@
     "bracketSpacing": true,
     "singleAttributePerLine": false,
     "ignorePatterns": [
+        "AGENTS.md",
         "specs/014-transaction-grid-v9/evidence/raw/**",
         "specs/human-scratch.md",
         "specs/007-human-scratch-completion/DECISIONS.md",

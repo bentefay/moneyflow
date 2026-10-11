@@ -18,7 +18,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
 
         # Safe-chain binary (pre-built from Aikido releases)
-        safe-chain-version = "1.5.13";
+        safe-chain-version = "1.5.25";
 
         safe-chain-platformMap = {
           "x86_64-linux" = "linuxstatic-x64";
@@ -30,10 +30,10 @@
         safe-chain-platform = safe-chain-platformMap.${system};
 
         safe-chain-hashes = {
-          "x86_64-linux" = "sha256-4bvstimrPP7hK0HJ+xVm/n4+6qnY1B4rQHB7Y7Qr5Yc=";
-          "aarch64-linux" = "sha256-BPmSzEwdCwY9DFfxj6IRGQ3KtBmGP4hfxwsXtSoIrog=";
-          "x86_64-darwin" = "sha256-ucQBMSLRnBDfIUPUkeXvEm7aPZM8wcGMnue9LR21GYs=";
-          "aarch64-darwin" = "sha256-JsI+OmqLc6WyUeGXA7IOBkol3ECXST781IbKeZ3hqCA=";
+          "x86_64-linux" = "sha256-NGKoOV+CKzkrfAgIxwEW75DheloUeeYEz8QdV7+9gnw=";
+          "aarch64-linux" = "sha256-wYDyYvk18hZ6Y3mKsZVwny+S8cWBj9EZLAfCLBFp2d8=";
+          "x86_64-darwin" = "sha256-nsCvBva7vg1BbdjANyeTDtq+OXIDYc2hs5jDKtdpw3g=";
+          "aarch64-darwin" = "sha256-W9SJaGjiFPa96qYA3I35chUBF2aGiIUT60bTrVHSLYY=";
         };
 
         safe-chain = pkgs.stdenv.mkDerivation {
@@ -147,13 +147,6 @@
           shellHook = ''
             uv sync --quiet
             export PATH="$PWD/.venv/bin:$PATH"
-            ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-              # Playwright 1.59 predates Ubuntu 26.04 detection. Its Ubuntu 24.04
-              # browser build is compatible and avoids requiring a system Chrome.
-              export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="ubuntu24.04-${
-                if pkgs.stdenv.hostPlatform.isAarch64 then "arm64" else "x64"
-              }"
-            ''}
 
             # Background check for safe-chain updates (minor/major only)
             (
