@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { Temporal } from "temporal-polyfill";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { emptyRuleDraft } from "@/components/features/automations/rule-editor-model";
+import { emptyRuleDraft } from "@/components/features/automations/legacy-rule-editor-model";
 import {
     createTransactionCellSelectionAtom,
     createTransactionGridWorkspaceController

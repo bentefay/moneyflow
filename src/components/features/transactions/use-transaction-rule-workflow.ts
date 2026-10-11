@@ -6,7 +6,7 @@
  * Encapsulates every CRDT seam the inline description robot + popup need for ONE transaction, so the
  * presentational components stay thin. It:
  *
- * - derives the robot state by REUSING the P17A matcher via {@link computeDescriptionRobotState};
+ * - derives the robot state by REUSING the P17A matcher via {@link computeFieldRuleRobotState};
  * - projects the vault option records into the shared editor's `{ id, label }` options;
  * - owns the editor draft/errors while the popup is open, seeded from the winning rule;
  * - routes every write through the already-integrated engines — rule edits/deletes via the P17B
@@ -42,13 +42,13 @@ import { type RuleMatchSubject } from "@/lib/domain/automation/rules";
 import { resolveAccountCurrency } from "@/lib/domain/currency";
 
 import { type RuleEditorOption } from "../automations/FieldRuleEditor";
-import { draftFromRule, mutationErrorToFieldErrors } from "../automations/rule-editor-data";
+import { draftFromRule, mutationErrorToFieldErrors } from "../automations/legacy-rule-editor-data";
 import {
     applyModeTargetsNewOnly,
     type RuleEditorDraft,
     type RuleEditorFieldErrors,
     validateRuleDraft
-} from "../automations/rule-editor-model";
+} from "../automations/legacy-rule-editor-model";
 import {
     computeFieldRuleRobotState,
     type FieldRuleRobotState,

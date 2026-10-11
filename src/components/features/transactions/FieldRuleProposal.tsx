@@ -32,7 +32,7 @@ import {
     applyModeLabel,
     type RuleEditorDraft,
     type RuleEditorFieldErrors
-} from "../automations/rule-editor-model";
+} from "../automations/legacy-rule-editor-model";
 
 /** Stable, field-specific testid so each surface is independently addressable. */
 const PROPOSAL_TESTID: Readonly<Record<RuleField, string>> = {

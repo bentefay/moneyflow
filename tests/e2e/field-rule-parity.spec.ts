@@ -4,18 +4,18 @@
  * These journeys exercise tag and allocation parity in the shared rule editor and the stable
  * transaction inspector. Existing-rule controls are keyed to the active transaction and rule field;
  * virtual transaction rows own no rule UI. Tag and allocation rules still apply to manual rows,
- * while description-alias rules remain imported-only. The four apply modes remain remembered.
+ * while description-alias rules remain imported-only. The scope choice remains remembered.
  */
 
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
     createNewIdentity,
     goToAutomations,
-    goToImportNew,
     goToPeople,
     goToTags,
     goToTransactions,
+    importTransactionRows,
     openTransactionInspector,
     rowsWithDisplayedDescription,
     stableTransactionRow,
@@ -41,8 +41,8 @@ async function createTag(page: Page, name: string): Promise<void> {
 /** Open the create-rule editor from the automations manager. */
 async function openCreateEditor(page: Page): Promise<void> {
     await goToAutomations(page);
-    await page.locator('[data-testid="new-rule-btn"]').click();
-    await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
+    await page.getByTestId("new-rule-btn").click();
+    await expect(page.getByRole("group", { name: "New rule" })).toBeVisible();
 }
 
 /** Pick an option from a shadcn Select identified by its trigger testid. */
@@ -55,36 +55,27 @@ async function chooseFromSelect(
     await page.getByRole("option", { name: optionName, exact: true }).click();
 }
 
-/** Import one transaction per row via an inline CSV buffer, landing on /transactions. */
+/** Add an output to the open editor through its Add output select. */
+async function addOutput(page: Page, label: "Description" | "Tags" | "Allocation"): Promise<void> {
+    await chooseFromSelect(page, "rule-add-output", label);
+}
+
+/** The Automations page's rule-list entry whose conditions name `description`. */
+function ruleListItem(page: Page, description: string): Locator {
+    return page.getByTestId("rule-list").getByRole("button").filter({ hasText: description });
+}
+
+/** Create a rule from the open editor and wait for it to be listed. */
+async function createRuleFromEditor(page: Page, description: string): Promise<void> {
+    await page.getByTestId("rule-save").click();
+    await expect(ruleListItem(page, description)).toHaveCount(1);
+}
+
 async function importRows(
     page: Page,
     rows: ReadonlyArray<{ readonly date: string; readonly description: string }>
 ): Promise<void> {
-    await goToImportNew(page);
-    await page.locator('input[type="file"]').setInputFiles({
-        name: "field-rule-parity.csv",
-        mimeType: "text/csv",
-        buffer: Buffer.from(
-            [
-                "Date,Description,Amount",
-                ...rows.map(({ date, description }, index) =>
-                    [date, description, `-${index + 1}.00`].join(",")
-                )
-            ].join("\n")
-        )
-    });
-    await page.getByRole("tab", { name: /Columns/i }).click();
-    await page.getByRole("button", { name: /Auto-detect/i }).click();
-    await expect(page.getByText(/All required fields mapped/i)).toBeVisible();
-    await page.getByRole("tab", { name: /Account/i }).click();
-    await page.locator("#account-select").click();
-    await page.getByRole("option", { name: /Default/i }).click();
-    const importButton = page.getByRole("button", {
-        name: new RegExp(`Import ${rows.length} Transactions`, "i")
-    });
-    await expect(importButton).toBeEnabled();
-    await importButton.click();
-    await expect(page).toHaveURL(/\/transactions/);
+    await importTransactionRows(page, rows, "field-rule-parity.csv");
 }
 
 // ============================================================================
@@ -100,6 +91,7 @@ test.describe("Tag field-rule parity", () => {
 
         await test.step("create a SET-mode tag rule for an exact description", async () => {
             await openCreateEditor(page);
+            await addOutput(page, "Tags");
             await expect(page.getByTestId("rule-tag-mode")).toBeVisible();
             await chooseFromSelect(page, "rule-tag-mode", "Set tags (clear existing)");
             await page.getByLabel(/exact description text/i).fill("COFFEE SHOP 123");
@@ -107,8 +99,7 @@ test.describe("Tag field-rule parity", () => {
                 .getByRole("group", { name: /tags to apply/i })
                 .getByRole("button", { name: "Coffee" })
                 .click();
-            await page.locator('[data-testid="rule-save"]').click();
-            await expect(page.getByText(/COFFEE SHOP 123/)).toBeVisible();
+            await createRuleFromEditor(page, "COFFEE SHOP 123");
         });
 
         await importRows(page, [{ date: "2026-07-01", description: "COFFEE SHOP 123" }]);
@@ -144,8 +135,8 @@ test.describe("Allocation field-rule parity", () => {
 
         await openCreateEditor(page);
 
-        await test.step("selecting the allocation field reveals a percentage column per person", async () => {
-            await chooseFromSelect(page, "rule-field", "Person percentages");
+        await test.step("adding the allocation output reveals a percentage column per person", async () => {
+            await addOutput(page, "Allocation");
             const grid = page.getByTestId("rule-allocation-grid");
             await expect(grid).toBeVisible();
             // One labelled input per active person (the seeded "Me" plus "Alex").
@@ -158,13 +149,13 @@ test.describe("Allocation field-rule parity", () => {
             await grid.getByLabel(DEFAULT_PERSON_NAME).fill("60");
             await grid.getByLabel("Alex").fill("40");
             await page.getByLabel(/exact description text/i).fill("SPLIT DINNER");
-            await page.locator('[data-testid="rule-save"]').click();
-            await expect(page.getByText(/SPLIT DINNER/)).toBeVisible();
+            await createRuleFromEditor(page, "SPLIT DINNER");
         });
 
         await test.step("reopening the rule shows the persisted per-person columns", async () => {
-            await page.getByText(/SPLIT DINNER/).click();
-            await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
+            await page.getByTestId("rule-cancel").click();
+            await ruleListItem(page, "SPLIT DINNER").click();
+            await page.getByRole("button", { name: "Edit Allocation" }).click();
             const grid = page.getByTestId("rule-allocation-grid");
             await expect(grid.getByLabel(DEFAULT_PERSON_NAME)).toHaveValue("60");
             await expect(grid.getByLabel("Alex")).toHaveValue("40");
@@ -189,24 +180,25 @@ test.describe("Manual-row applicability", () => {
 
         await test.step("create an add-mode tag rule keyed on the alias name", async () => {
             await openCreateEditor(page);
+            await addOutput(page, "Tags");
             await chooseFromSelect(page, "rule-tag-mode", "Add tags");
             await page.getByLabel(/exact description text/i).fill("MANUAL COFFEE");
             await page
                 .getByRole("group", { name: /tags to apply/i })
                 .getByRole("button", { name: "Coffee" })
                 .click();
-            await page.locator('[data-testid="rule-save"]').click();
-            await expect(page.getByText(/MANUAL COFFEE/)).toBeVisible();
+            await createRuleFromEditor(page, "MANUAL COFFEE");
         });
 
-        await test.step("create an allocation rule keyed on the same alias name", async () => {
+        await test.step("create a separate allocation rule keyed on the same alias name", async () => {
             await openCreateEditor(page);
-            await chooseFromSelect(page, "rule-field", "Person percentages");
+            await addOutput(page, "Allocation");
             const grid = page.getByTestId("rule-allocation-grid");
             await grid.getByLabel(DEFAULT_PERSON_NAME).fill("60");
             await grid.getByLabel("Alex").fill("40");
             await page.getByLabel(/exact description text/i).fill("MANUAL COFFEE");
-            await page.locator('[data-testid="rule-save"]').click();
+            await page.getByTestId("rule-save").click();
+            await expect(ruleListItem(page, "MANUAL COFFEE")).toHaveCount(2);
         });
 
         await goToTransactions(page);
@@ -254,12 +246,12 @@ test.describe("Manual-row applicability", () => {
         await test.step("create a tag rule for one specific description", async () => {
             await openCreateEditor(page);
             await page.getByLabel(/exact description text/i).fill("MANUAL COFFEE");
+            await addOutput(page, "Tags");
             await page
                 .getByRole("group", { name: /tags to apply/i })
                 .getByRole("button", { name: "Coffee" })
                 .click();
-            await page.locator('[data-testid="rule-save"]').click();
-            await expect(page.getByText(/MANUAL COFFEE/)).toBeVisible();
+            await createRuleFromEditor(page, "MANUAL COFFEE");
         });
 
         await goToTransactions(page);
@@ -286,27 +278,31 @@ test.describe("Manual-row applicability", () => {
     });
 });
 
-test.describe("Apply-mode persistence", () => {
-    test("the four-mode apply select is remembered and restored on reopen", async ({ page }) => {
+test.describe("Apply-scope persistence", () => {
+    test("the scope choice is remembered and restored on reopen", async ({ page }) => {
         await createNewIdentity(page);
         await createTag(page, "Coffee");
 
-        await test.step("create a rule after choosing a non-default apply mode", async () => {
+        await test.step("a fresh editor starts on the conservative Update new", async () => {
             await openCreateEditor(page);
-            await chooseFromSelect(page, "rule-apply-mode", "Updating all");
+            await expect(page.getByRole("radio", { name: "Update new" })).toBeChecked();
+        });
+
+        await test.step("create a rule after choosing the non-default scope", async () => {
+            await page.getByRole("radio", { name: "Update all" }).click();
             await page.getByLabel(/exact description text/i).fill("COFFEE SHOP 123");
+            await addOutput(page, "Tags");
             await page
                 .getByRole("group", { name: /tags to apply/i })
                 .getByRole("button", { name: "Coffee" })
                 .click();
-            await page.locator('[data-testid="rule-save"]').click();
-            await expect(page.getByText(/COFFEE SHOP 123/)).toBeVisible();
+            await createRuleFromEditor(page, "COFFEE SHOP 123");
         });
 
-        await test.step("a freshly opened editor restores the remembered apply mode", async () => {
-            await page.locator('[data-testid="new-rule-btn"]').click();
-            await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
-            await expect(page.getByTestId("rule-apply-mode")).toContainText(/updating all/i);
+        await test.step("a freshly opened editor restores the remembered scope", async () => {
+            await openCreateEditor(page);
+            await expect(page.getByRole("radio", { name: "Update all" })).toBeChecked();
+            await expect(page.getByRole("radio", { name: "Update new" })).not.toBeChecked();
         });
     });
 });
@@ -321,12 +317,12 @@ test.describe("Inspector existing rules at scale", () => {
         await test.step("create a tag rule matching a single exact description", async () => {
             await openCreateEditor(page);
             await page.getByLabel(/exact description text/i).fill("COFFEE SHOP 123");
+            await addOutput(page, "Tags");
             await page
                 .getByRole("group", { name: /tags to apply/i })
                 .getByRole("button", { name: "Coffee" })
                 .click();
-            await page.locator('[data-testid="rule-save"]').click();
-            await expect(page.getByText(/COFFEE SHOP 123/)).toBeVisible();
+            await createRuleFromEditor(page, "COFFEE SHOP 123");
         });
 
         // Two matching rows amongst ten unique non-matching ones.
