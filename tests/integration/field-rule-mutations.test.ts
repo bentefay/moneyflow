@@ -13,6 +13,7 @@ import {
 import {
     createFieldRule,
     deleteFieldRule,
+    type FieldRuleOutputsInput,
     moveFieldRuleOutput,
     persistUserAutomationPreference,
     readUserAutomationChoice,
@@ -86,6 +87,51 @@ function txInput(overrides: Partial<TransactionInput> & { readonly id: string })
     };
 }
 
+type Vault = ReturnType<typeof createVaultMirror>;
+
+interface RuleSeed {
+    readonly id: string;
+    readonly accountId?: string;
+    readonly outputs: FieldRuleOutputsInput;
+}
+
+/** A vault holding `rules`, created through the real CRUD path on the shared description. */
+function seed(rules: readonly RuleSeed[]): Vault {
+    const vault = createVaultMirror();
+    vault.mirror.setState((state: VaultState) => {
+        for (const [index, rule] of rules.entries()) {
+            const created = createFieldRule(state, {
+                descriptionText: DESCRIPTION,
+                createdAtEpochMs: 1000 + index,
+                ...rule
+            });
+            if (!created.ok) throw new Error(`seed ${rule.id} failed`);
+        }
+    });
+    return vault;
+}
+
+/** Write a valid rule straight to the wire, bypassing the uniqueness check. */
+function writeRaw(vault: Vault, rule: RuleSeed): void {
+    const built = buildFieldRule({ descriptionText: DESCRIPTION, createdAtEpochMs: 500, ...rule });
+    if (!built.ok) throw new Error(`raw rule ${rule.id} is invalid`);
+    vault.mirror.setState((state: VaultState) => {
+        const draft: Record<string, FieldRuleInput> = state.fieldRules;
+        draft[rule.id] = toFieldRuleInput(built.value);
+    });
+}
+
+function storedRules(vault: Vault): string {
+    return JSON.stringify(vault.mirror.getState().fieldRules);
+}
+
+/** Run a refused mutation and prove the stored rules are byte-identical afterwards. */
+function expectNoRuleWrite(vault: Vault, refuse: (state: VaultState) => void): void {
+    const before = storedRules(vault);
+    vault.mirror.setState(refuse);
+    expect(storedRules(vault)).toBe(before);
+}
+
 describe("field-rule CRUD mutations", () => {
     describe("createFieldRule", () => {
         it("creates a tags rule and exposes it via readActiveFieldRules", () => {
@@ -106,29 +152,20 @@ describe("field-rule CRUD mutations", () => {
         });
 
         it("rejects a second rule that collides on the uniqueness key (same field/text/scope)", () => {
-            const vault = createVaultMirror();
-            vault.mirror.setState((state: VaultState) => {
-                const first = createFieldRule(state, {
-                    id: "rule-1",
-                    descriptionText: DESCRIPTION,
-                    outputs: { tags: { mode: "add", tagIds: ["tag-a"] } },
-                    createdAtEpochMs: 1000
-                });
-                expect(first.ok).toBe(true);
-
+            const vault = seed([
+                { id: "rule-1", outputs: { tags: { mode: "add", tagIds: ["tag-a"] } } }
+            ]);
+            expectNoRuleWrite(vault, (state) => {
                 const second = createFieldRule(state, {
                     id: "rule-2",
                     descriptionText: DESCRIPTION,
                     outputs: { tags: { mode: "set", tagIds: ["tag-b"] } },
                     createdAtEpochMs: 2000
                 });
-                expect(second.ok).toBe(false);
-                if (!second.ok) {
-                    expect(second.error.type).toBe("duplicate-key");
-                    if (second.error.type === "duplicate-key") {
-                        expect(second.error.existingRuleId).toBe("rule-1");
-                    }
-                }
+                expect(second).toEqual({
+                    ok: false,
+                    error: { type: "duplicate-key", existingRuleId: "rule-1" }
+                });
             });
             expect(readActiveFieldRules(vault.mirror.getState())).toHaveLength(1);
         });
@@ -154,34 +191,34 @@ describe("field-rule CRUD mutations", () => {
             expect(readActiveFieldRules(vault.mirror.getState())).toHaveLength(2);
         });
 
-        it("rejects an invalid allocation set with zero mutation", () => {
-            const vault = createVaultMirror();
-            vault.mirror.setState((state: VaultState) => {
+        it.each([
+            {
+                name: "an invalid allocation set",
+                outputs: { allocation: { allocations: { "person-1": Number.NaN } } },
+                type: "invalid-allocations"
+            },
+            {
+                name: "a descriptionAlias rule with an empty aliasId",
+                outputs: { descriptionAlias: { aliasId: "" } },
+                type: "invalid-rule"
+            }
+        ])("rejects $name with zero mutation", ({ outputs, type }) => {
+            const vault = seed([
+                { id: "rule-other", outputs: { tags: { mode: "add", tagIds: [] } } }
+            ]);
+            expectNoRuleWrite(vault, (state) => {
                 const result = createFieldRule(state, {
-                    id: "rule-alloc",
-                    descriptionText: DESCRIPTION,
-                    outputs: { allocation: { allocations: { "person-1": Number.NaN } } },
+                    id: "rule-new",
+                    descriptionText: "OTHER TEXT",
+                    outputs,
                     createdAtEpochMs: 1000
                 });
                 expect(result.ok).toBe(false);
-                if (!result.ok) expect(result.error.type).toBe("invalid-allocations");
+                if (!result.ok) expect(result.error.type).toBe(type);
             });
-            expect(readActiveFieldRules(vault.mirror.getState())).toHaveLength(0);
-        });
-
-        it("rejects a descriptionAlias rule with an empty aliasId", () => {
-            const vault = createVaultMirror();
-            vault.mirror.setState((state: VaultState) => {
-                const result = createFieldRule(state, {
-                    id: "rule-alias",
-                    descriptionText: DESCRIPTION,
-                    outputs: { descriptionAlias: { aliasId: "" } },
-                    createdAtEpochMs: 1000
-                });
-                expect(result.ok).toBe(false);
-                if (!result.ok) expect(result.error.type).toBe("invalid-rule");
-            });
-            expect(readActiveFieldRules(vault.mirror.getState())).toHaveLength(0);
+            expect(readActiveFieldRules(vault.mirror.getState()).map((rule) => rule.id)).toEqual([
+                "rule-other"
+            ]);
         });
     });
 
@@ -212,41 +249,64 @@ describe("field-rule CRUD mutations", () => {
             expect(rules[0]?.outputs.tags?.mode).toBe("set");
         });
 
-        it("rejects updating a scope so it collides with another active rule", () => {
-            const vault = createVaultMirror();
-            vault.mirror.setState((state: VaultState) => {
-                createFieldRule(state, {
-                    id: "rule-unscoped",
-                    descriptionText: DESCRIPTION,
-                    outputs: { tags: { mode: "add", tagIds: ["tag-a"] } },
-                    createdAtEpochMs: 1000
-                });
-                createFieldRule(state, {
+        it("rejects updating a scope so it collides with another active rule, with zero mutation", () => {
+            const vault = seed([
+                { id: "rule-unscoped", outputs: { tags: { mode: "add", tagIds: ["tag-a"] } } },
+                {
                     id: "rule-account",
-                    descriptionText: DESCRIPTION,
                     accountId: ACCOUNT,
-                    outputs: { tags: { mode: "add", tagIds: ["tag-b"] } },
-                    createdAtEpochMs: 2000
-                });
+                    outputs: { tags: { mode: "add", tagIds: ["tag-b"] } }
+                }
+            ]);
+            expectNoRuleWrite(vault, (state) => {
                 // Try to widen rule-account to unscoped, colliding with rule-unscoped.
                 const collision = updateFieldRule(state, {
                     id: "rule-account",
                     outputs: { tags: { mode: "add", tagIds: ["tag-b"] } }
                 });
-                expect(collision.ok).toBe(false);
-                if (!collision.ok) expect(collision.error.type).toBe("duplicate-key");
+                expect(collision).toEqual({
+                    ok: false,
+                    error: { type: "duplicate-key", existingRuleId: "rule-unscoped" }
+                });
             });
         });
 
-        it("returns not-found for a missing rule", () => {
-            const vault = createVaultMirror();
-            vault.mirror.setState((state: VaultState) => {
+        it("returns not-found for a missing rule with zero mutation", () => {
+            const vault = seed([
+                { id: "rule-1", outputs: { tags: { mode: "add", tagIds: ["tag-a"] } } }
+            ]);
+            expectNoRuleWrite(vault, (state) => {
                 const result = updateFieldRule(state, {
                     id: "nope",
                     outputs: { tags: { mode: "add", tagIds: [] } }
                 });
+                expect(result).toEqual({ ok: false, error: { type: "not-found", ruleId: "nope" } });
+            });
+        });
+
+        it.each([
+            { name: "no outputs", outputs: {}, type: "invalid-rule" },
+            {
+                name: "an empty alias id",
+                outputs: { descriptionAlias: { aliasId: "" } },
+                type: "invalid-rule"
+            },
+            {
+                name: "an invalid allocation set",
+                outputs: { allocation: { allocations: { "person-1": Number.NaN } } },
+                type: "invalid-allocations"
+            }
+        ])("rejects an update to $name with zero mutation", ({ outputs, type }) => {
+            const vault = seed([
+                { id: "rule-1", outputs: { tags: { mode: "add", tagIds: ["tag-a"] } } }
+            ]);
+            expectNoRuleWrite(vault, (state) => {
+                const result = updateFieldRule(state, { id: "rule-1", outputs });
                 expect(result.ok).toBe(false);
-                if (!result.ok) expect(result.error.type).toBe("not-found");
+                if (!result.ok) expect(result.error.type).toBe(type);
+            });
+            expect(readActiveFieldRules(vault.mirror.getState())[0]?.outputs).toEqual({
+                tags: { mode: "add", tagIds: ["tag-a"] }
             });
         });
     });
@@ -255,52 +315,6 @@ describe("field-rule CRUD mutations", () => {
         const ALIAS_OUTPUT = { aliasId: "alias-coffee" };
         const TAGS_OUTPUT = { mode: "add", tagIds: ["tag-coffee"] } as const;
         const ALLOCATION_OUTPUT = { allocations: { "person-1": 50, "person-2": 50 } };
-
-        function seed(
-            rules: readonly {
-                readonly id: string;
-                readonly accountId?: string;
-                readonly outputs: Parameters<typeof createFieldRule>[1]["outputs"];
-            }[]
-        ): ReturnType<typeof createVaultMirror> {
-            const vault = createVaultMirror();
-            vault.mirror.setState((state: VaultState) => {
-                for (const [index, rule] of rules.entries()) {
-                    const created = createFieldRule(state, {
-                        descriptionText: DESCRIPTION,
-                        createdAtEpochMs: 1000 + index,
-                        ...rule
-                    });
-                    if (!created.ok) throw new Error(`seed ${rule.id} failed`);
-                }
-            });
-            return vault;
-        }
-
-        /** Write a valid rule straight to the wire, bypassing the uniqueness check. */
-        function writeRaw(
-            vault: ReturnType<typeof createVaultMirror>,
-            rule: {
-                readonly id: string;
-                readonly accountId?: string;
-                readonly outputs: Parameters<typeof createFieldRule>[1]["outputs"];
-            }
-        ): void {
-            const built = buildFieldRule({
-                descriptionText: DESCRIPTION,
-                createdAtEpochMs: 500,
-                ...rule
-            });
-            if (!built.ok) throw new Error(`raw rule ${rule.id} is invalid`);
-            vault.mirror.setState((state: VaultState) => {
-                const draft: Record<string, FieldRuleInput> = state.fieldRules;
-                draft[rule.id] = toFieldRuleInput(built.value);
-            });
-        }
-
-        function storedRules(vault: ReturnType<typeof createVaultMirror>): unknown {
-            return JSON.stringify(vault.mirror.getState().fieldRules);
-        }
 
         function activeById(
             vault: ReturnType<typeof createVaultMirror>
@@ -335,7 +349,7 @@ describe("field-rule CRUD mutations", () => {
 
             it("rejects a rule with no outputs with zero mutation", () => {
                 const vault = createVaultMirror();
-                vault.mirror.setState((state: VaultState) => {
+                expectNoRuleWrite(vault, (state) => {
                     const result = createFieldRule(state, {
                         id: "rule-1",
                         descriptionText: DESCRIPTION,
@@ -361,7 +375,7 @@ describe("field-rule CRUD mutations", () => {
 
             it("rejects a grouped rule when any one of its outputs collides, naming the holder", () => {
                 const vault = seed([{ id: "rule-tags", outputs: { tags: TAGS_OUTPUT } }]);
-                vault.mirror.setState((state: VaultState) => {
+                expectNoRuleWrite(vault, (state) => {
                     const result = createFieldRule(state, {
                         id: "rule-grouped",
                         descriptionText: DESCRIPTION,
@@ -493,6 +507,8 @@ describe("field-rule CRUD mutations", () => {
                 const vault = seed([{ id: "rule-1", outputs: { tags: TAGS_OUTPUT } }]);
                 vault.mirror.setState((state: VaultState) => {
                     deleteFieldRule(state, { id: "rule-1", deletedAtEpochMs: 2000 });
+                });
+                expectNoRuleWrite(vault, (state) => {
                     const result = setFieldRuleOutput(state, {
                         id: "rule-1",
                         field: "descriptionAlias",
@@ -682,6 +698,30 @@ describe("field-rule CRUD mutations", () => {
                 expect(activeById(vault)).toEqual({
                     "rule-alias": ["descriptionAlias", "tags"],
                     "rule-other": ["allocation"]
+                });
+            });
+
+            it("refuses a move whose slot a third rule holds, naming the holder, with zero mutation", () => {
+                const vault = seed([
+                    { id: "rule-alias", outputs: { descriptionAlias: ALIAS_OUTPUT } },
+                    { id: "rule-tags", outputs: { tags: TAGS_OUTPUT } }
+                ]);
+                // A third holder of the source's tags slot is only reachable through a replica.
+                writeRaw(vault, {
+                    id: "rule-replica",
+                    outputs: { tags: { mode: "set", tagIds: ["tag-x"] } }
+                });
+                expectNoRuleWrite(vault, (state) => {
+                    const result = moveFieldRuleOutput(state, {
+                        sourceId: "rule-tags",
+                        field: "tags",
+                        hostId: "rule-alias",
+                        deletedAtEpochMs: 7000
+                    });
+                    expect(result).toEqual({
+                        ok: false,
+                        error: { type: "duplicate-key", existingRuleId: "rule-replica" }
+                    });
                 });
             });
 

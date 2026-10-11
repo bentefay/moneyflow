@@ -79,13 +79,12 @@ export type RuleOutputs = {
 }[RuleField];
 
 /**
- * One output viewed on its own, discriminated on `field`. Useful wherever a single field's value is
- * handled (application plans, per-field robot state, editor drafts).
+ * One output viewed on its own, discriminated on `field`. Over the validated domain outputs by
+ * default; over {@link RuleOutputsInput} it is one proposed output for a mutation to write.
  */
-export type RuleAction =
-    | ({ readonly field: "descriptionAlias" } & DescriptionAliasOutput)
-    | ({ readonly field: "tags" } & TagsOutput)
-    | ({ readonly field: "allocation" } & AllocationOutput);
+export type RuleOutputEntry<Outputs extends RuleOutputsInput = RuleOutputSlots> = {
+    readonly [F in RuleField]: { readonly field: F; readonly output: NonNullable<Outputs[F]> };
+}[RuleField];
 
 /**
  * An exact-description rule with one to three outputs.
@@ -121,20 +120,23 @@ export function ruleOutputFields(rule: Pick<FieldRule, "outputs">): readonly Rul
     return RULE_FIELDS.filter((field) => rule.outputs[field] != null);
 }
 
-/** The rule's output for `field` as a discriminated {@link RuleAction}, or `null` if it has none. */
-export function ruleOutput(rule: Pick<FieldRule, "outputs">, field: RuleField): RuleAction | null {
+/** The rule's output for `field` as a {@link RuleOutputEntry}, or `null` if it has none. */
+export function ruleOutput(
+    rule: Pick<FieldRule, "outputs">,
+    field: RuleField
+): RuleOutputEntry | null {
     switch (field) {
         case "descriptionAlias": {
             const output = rule.outputs.descriptionAlias;
-            return output == null ? null : { field, aliasId: output.aliasId };
+            return output == null ? null : { field, output };
         }
         case "tags": {
             const output = rule.outputs.tags;
-            return output == null ? null : { field, mode: output.mode, tagIds: output.tagIds };
+            return output == null ? null : { field, output };
         }
         case "allocation": {
             const output = rule.outputs.allocation;
-            return output == null ? null : { field, allocations: output.allocations };
+            return output == null ? null : { field, output };
         }
         default:
             return assertNever(field);
@@ -458,11 +460,14 @@ const FieldRuleWireBaseSchema = FieldRuleScalarsSchema.extend({
     allocations: z.record(z.string(), z.unknown()).optional()
 });
 
-/** Unvalidated outputs: what an editor or a wire record proposes before the boundary checks it. */
-export interface RuleOutputsInput {
+/**
+ * Unvalidated outputs: what an editor or a wire record proposes before the boundary checks it.
+ * `AllocationValue` is `unknown` for wire records and `number` for typed editor input.
+ */
+export interface RuleOutputsInput<AllocationValue = unknown> {
     readonly descriptionAlias?: { readonly aliasId: string };
     readonly tags?: { readonly mode: TagRuleMode; readonly tagIds: readonly string[] };
-    readonly allocation?: { readonly allocations: Readonly<Record<string, unknown>> };
+    readonly allocation?: { readonly allocations: Readonly<Record<string, AllocationValue>> };
 }
 
 /**
@@ -541,12 +546,15 @@ function wireOutputsInput(
 }
 
 /** An unvalidated rule as an editor or a wire record proposes it. */
-export interface FieldRuleCandidate {
+export interface FieldRuleCandidate<AllocationValue = unknown> {
     readonly id: string;
+    /** Exact raw imported description text. Immutable once created (frozen model). */
     readonly descriptionText: string;
+    /** Optional account narrowing (absent = any account). */
     readonly accountId?: string;
+    /** Optional exact-amount narrowing in minor units (absent = any amount). */
     readonly amount?: number;
-    readonly outputs: RuleOutputsInput;
+    readonly outputs: RuleOutputsInput<AllocationValue>;
     readonly createdAtEpochMs: number;
 }
 

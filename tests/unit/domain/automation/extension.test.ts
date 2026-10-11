@@ -73,6 +73,7 @@ function predicate(
 
 /** The expected result by rule id, so each table row reads like the contract's own column. */
 type Expected =
+    | { readonly kind: "ineligible" }
     | { readonly kind: "create" }
     | { readonly kind: "update-owner"; readonly rule: string }
     | { readonly kind: "extend"; readonly rule: string }
@@ -81,8 +82,9 @@ type Expected =
 
 function byId(target: RuleExtensionTarget): Expected {
     switch (target.kind) {
+        case "ineligible":
         case "create":
-            return { kind: "create" };
+            return { kind: target.kind };
         case "update-owner":
         case "extend":
             return { kind: target.kind, rule: target.rule.id };
@@ -257,6 +259,53 @@ const SCENARIOS: readonly Scenario[] = [
         subject: subject({ isManual: true }),
         predicate: predicate(),
         expected: { kind: "update-owner", rule: "r1" }
+    },
+    {
+        name: "S-16 an alias edit on a manual row is ineligible even with an alias owner",
+        rules: [rule({ id: "r1", outputs: ALIAS })],
+        field: "descriptionAlias",
+        subject: subject({ isManual: true }),
+        predicate: predicate(),
+        expected: { kind: "ineligible" }
+    },
+    {
+        name: "S-16 an alias edit on a manual row is ineligible with no rules at all",
+        rules: [],
+        field: "descriptionAlias",
+        subject: subject({ isManual: true }),
+        predicate: predicate(),
+        expected: { kind: "ineligible" }
+    },
+    {
+        name: "S-16 an alias-only rule is not a host for a manual row's tag edit",
+        rules: [rule({ id: "r1", outputs: ALIAS })],
+        field: "tags",
+        subject: subject({ isManual: true }),
+        predicate: predicate(),
+        expected: { kind: "create" }
+    },
+    {
+        name: "S-16 on a manual row an alias-only rule never turns the tags owner into a conflict",
+        rules: [rule({ id: "r1", outputs: ALIAS }), rule({ id: "r2", outputs: TAGS })],
+        field: "tags",
+        subject: subject({ isManual: true }),
+        predicate: predicate(),
+        expected: { kind: "update-owner", rule: "r2" }
+    },
+    {
+        name: "S-16 a grouped alias rule is still a host on a manual row through its tags",
+        rules: [rule({ id: "r1", outputs: { ...ALIAS, ...TAGS } })],
+        field: "allocation",
+        subject: subject({ isManual: true }),
+        predicate: predicate(),
+        expected: { kind: "extend", rule: "r1" }
+    },
+    {
+        name: "the same alias-only rule IS the host for an imported row's tag edit",
+        rules: [rule({ id: "r1", outputs: ALIAS })],
+        field: "tags",
+        predicate: predicate(),
+        expected: { kind: "extend", rule: "r1" }
     },
     {
         name: "S-17 a rule on a different text is never a host",
@@ -441,8 +490,13 @@ describe("resolveRuleExtensionTarget", () => {
                 ),
                 fc.constantFrom<RuleField>("descriptionAlias", "tags", "allocation"),
                 scopeArbitrary,
-                ([rules, shuffled], field, scope) => {
-                    const query = { field, predicate: predicate(scope), subject: subject() };
+                fc.boolean(),
+                ([rules, shuffled], field, scope, isManual) => {
+                    const query = {
+                        field,
+                        predicate: predicate(scope),
+                        subject: subject({ isManual })
+                    };
                     expect(resolveRuleExtensionTarget({ ...query, rules: shuffled })).toEqual(
                         resolveRuleExtensionTarget({ ...query, rules })
                     );

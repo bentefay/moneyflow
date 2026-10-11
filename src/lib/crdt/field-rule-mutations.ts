@@ -36,10 +36,11 @@ import {
     type FieldRuleDecodeResult,
     nonEmptyRuleOutputs,
     type RuleField,
+    ruleOutput,
+    type RuleOutputEntry,
     type RuleOutputsInput,
     rulePredicatesEqual,
     ruleUniquenessKeys,
-    type TagRuleMode,
     withoutRuleOutput
 } from "@/lib/domain/automation/rules";
 import { assertNever } from "@/lib/utils/exhaustive";
@@ -52,31 +53,13 @@ import { type FieldRuleInput, type UserAutomationPreferenceInput, type VaultStat
 // ============================================================================
 
 /** The outputs to write. At least one must be present; the boundary rejects an empty set. */
-export interface FieldRuleOutputsInput {
-    readonly descriptionAlias?: { readonly aliasId: string };
-    readonly tags?: { readonly mode: TagRuleMode; readonly tagIds: readonly string[] };
-    readonly allocation?: { readonly allocations: Readonly<Record<string, number>> };
-}
+export type FieldRuleOutputsInput = RuleOutputsInput<number>;
 
 /** One output to write, discriminated on the field it belongs to. */
-export type FieldRuleOutputChange = {
-    readonly [F in RuleField]: {
-        readonly field: F;
-        readonly output: NonNullable<FieldRuleOutputsInput[F]>;
-    };
-}[RuleField];
+export type FieldRuleOutputChange = RuleOutputEntry<FieldRuleOutputsInput>;
 
-export interface CreateFieldRuleInput {
-    readonly id: string;
-    /** Exact raw imported description text. Immutable once created (frozen model). */
-    readonly descriptionText: string;
-    /** Optional account narrowing (absent = any account). */
-    readonly accountId?: string;
-    /** Optional exact-amount narrowing in minor units (absent = any amount). */
-    readonly amount?: number;
-    readonly outputs: FieldRuleOutputsInput;
-    readonly createdAtEpochMs: number;
-}
+/** A new rule to write; validated by the same {@link buildFieldRule} boundary as a wire record. */
+export type CreateFieldRuleInput = FieldRuleCandidate<number>;
 
 /**
  * Update preserves the rule's identity, description text and creation time; scope and outputs
@@ -196,7 +179,10 @@ function rebuildWithOutputs(rule: FieldRule, outputs: RuleOutputsInput): FieldRu
     });
 }
 
-function withOutput(outputs: RuleOutputsInput, change: FieldRuleOutputChange): RuleOutputsInput {
+function withOutput(
+    outputs: RuleOutputsInput,
+    change: RuleOutputEntry<RuleOutputsInput>
+): RuleOutputsInput {
     switch (change.field) {
         case "descriptionAlias":
             return { ...outputs, descriptionAlias: change.output };
@@ -206,26 +192,6 @@ function withOutput(outputs: RuleOutputsInput, change: FieldRuleOutputChange): R
             return { ...outputs, allocation: change.output };
         default:
             return assertNever(change, "field-rule output");
-    }
-}
-
-/** The rule's output for `field` as a change that can be written elsewhere, or `null`. */
-function outputChange(rule: FieldRule, field: RuleField): FieldRuleOutputChange | null {
-    switch (field) {
-        case "descriptionAlias": {
-            const output = rule.outputs.descriptionAlias;
-            return output == null ? null : { field, output };
-        }
-        case "tags": {
-            const output = rule.outputs.tags;
-            return output == null ? null : { field, output };
-        }
-        case "allocation": {
-            const output = rule.outputs.allocation;
-            return output == null ? null : { field, output: { allocations: output.allocations } };
-        }
-        default:
-            return assertNever(field);
     }
 }
 
@@ -360,7 +326,7 @@ export function splitFieldRuleOutput(
     const source = readActiveRule(state, input.id);
     if (source == null) return err({ type: "not-found", ruleId: input.id });
 
-    const moved = outputChange(source, input.field);
+    const moved = ruleOutput(source, input.field);
     if (moved == null) {
         return err({ type: "missing-output", ruleId: source.id, field: input.field });
     }
@@ -408,7 +374,7 @@ export function moveFieldRuleOutput(
     const host = readActiveRule(state, input.hostId);
     if (host == null) return err({ type: "not-found", ruleId: input.hostId });
 
-    const moved = outputChange(source, input.field);
+    const moved = ruleOutput(source, input.field);
     if (moved == null) {
         return err({ type: "missing-output", ruleId: source.id, field: input.field });
     }

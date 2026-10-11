@@ -12,11 +12,13 @@
  */
 
 import {
+    fieldAppliesToManual,
     type FieldRule,
     type RuleField,
     type RuleMatchSubject,
     type RulePredicate,
     ruleMatchesSubject,
+    ruleOutputFields,
     rulePredicatesEqual
 } from "./rules";
 
@@ -32,6 +34,8 @@ export interface RuleExtensionQuery {
 }
 
 export type RuleExtensionTarget =
+    /** The field can never apply to this transaction (an alias on a manual row): propose nothing. */
+    | { readonly kind: "ineligible" }
     /** No identical-predicate rule matches: write a new rule. */
     | { readonly kind: "create" }
     /** A candidate already has an output for the field: update it in place, change nothing else. */
@@ -50,7 +54,11 @@ export type RuleExtensionTarget =
 /**
  * Resolve the extension target for an edit of `field` on `subject`, given the draft's `predicate`.
  *
- * 1. Candidates are active rules matching the subject whose predicate equals the draft's.
+ * 0. A field the subject is ineligible for (an alias on a manual row): `ineligible`. No rule,
+ *    created or extended, could ever set it on this transaction.
+ * 1. Candidates are active rules matching the subject whose predicate equals the draft's. For a
+ *    manual subject a rule whose only outputs are ineligible (an alias-only rule) is excluded: it
+ *    can never apply to the row, so it is not a host for it.
  * 2. No candidates: `create`.
  * 3. One candidate owns the field: `update-owner`, unless a different candidate carries the
  *    description alias, which makes it a `conflict` between keeping the owner and consolidating.
@@ -63,11 +71,14 @@ export type RuleExtensionTarget =
  * forbids, so both surface as `ambiguous` (D-012).
  */
 export function resolveRuleExtensionTarget(query: RuleExtensionQuery): RuleExtensionTarget {
+    const { isManual } = query.subject;
+    if (isManual && !fieldAppliesToManual(query.field)) return { kind: "ineligible" };
     const candidates = query.rules
         .filter(
             (rule) =>
                 rulePredicatesEqual(rule, query.predicate) &&
-                ruleMatchesSubject(rule, query.subject)
+                ruleMatchesSubject(rule, query.subject) &&
+                (!isManual || ruleOutputFields(rule).some(fieldAppliesToManual))
         )
         .sort(compareRuleIds);
     if (candidates.length === 0) return { kind: "create" };

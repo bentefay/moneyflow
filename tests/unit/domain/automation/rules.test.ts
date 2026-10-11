@@ -767,7 +767,14 @@ describe("output helpers", () => {
         const rule = makeRule({ id: "r1", descriptionText: "X", outputs: grouped });
         expect(ruleOutputFields(rule)).toEqual(["descriptionAlias", "tags"]);
         expect(primaryOutputField(rule.outputs)).toBe("descriptionAlias");
-        expect(ruleOutput(rule, "tags")).toEqual({ field: "tags", mode: "add", tagIds: ["t"] });
+        expect(ruleOutput(rule, "tags")).toEqual({
+            field: "tags",
+            output: { mode: "add", tagIds: ["t"] }
+        });
+        expect(ruleOutput(rule, "descriptionAlias")).toEqual({
+            field: "descriptionAlias",
+            output: { aliasId: "alias-1" }
+        });
         expect(ruleOutput(rule, "allocation")).toBeNull();
     });
 
