@@ -13,11 +13,14 @@ import {
 import {
     createFieldRule,
     deleteFieldRule,
+    moveFieldRuleOutput,
     persistUserAutomationPreference,
     readUserAutomationChoice,
+    setFieldRuleOutput,
+    splitFieldRuleOutput,
     updateFieldRule
 } from "@/lib/crdt/field-rule-mutations";
-import { readActiveFieldRules } from "@/lib/crdt/field-rules";
+import { readActiveFieldRules, toFieldRuleInput } from "@/lib/crdt/field-rules";
 import {
     applyFieldRulesToAllTransactions,
     applyFieldRulesToNewerTransactions
@@ -28,7 +31,8 @@ import {
     insertTransaction,
     type TransactionLocation
 } from "@/lib/crdt/mutations";
-import { type TransactionInput, type VaultState } from "@/lib/crdt/schema";
+import { type FieldRuleInput, type TransactionInput, type VaultState } from "@/lib/crdt/schema";
+import { buildFieldRule } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 const ACCOUNT = "account-1";
@@ -90,7 +94,7 @@ describe("field-rule CRUD mutations", () => {
                 const result = createFieldRule(state, {
                     id: "rule-1",
                     descriptionText: DESCRIPTION,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-coffee"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-coffee"] } },
                     createdAtEpochMs: 1000
                 });
                 expect(result.ok).toBe(true);
@@ -98,7 +102,7 @@ describe("field-rule CRUD mutations", () => {
             const rules = readActiveFieldRules(vault.mirror.getState());
             expect(rules).toHaveLength(1);
             expect(rules[0]?.descriptionText).toBe(DESCRIPTION);
-            expect(rules[0]?.action.field).toBe("tags");
+            expect(rules[0]?.outputs).toEqual({ tags: { mode: "add", tagIds: ["tag-coffee"] } });
         });
 
         it("rejects a second rule that collides on the uniqueness key (same field/text/scope)", () => {
@@ -107,7 +111,7 @@ describe("field-rule CRUD mutations", () => {
                 const first = createFieldRule(state, {
                     id: "rule-1",
                     descriptionText: DESCRIPTION,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-a"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-a"] } },
                     createdAtEpochMs: 1000
                 });
                 expect(first.ok).toBe(true);
@@ -115,7 +119,7 @@ describe("field-rule CRUD mutations", () => {
                 const second = createFieldRule(state, {
                     id: "rule-2",
                     descriptionText: DESCRIPTION,
-                    action: { field: "tags", mode: "set", tagIds: ["tag-b"] },
+                    outputs: { tags: { mode: "set", tagIds: ["tag-b"] } },
                     createdAtEpochMs: 2000
                 });
                 expect(second.ok).toBe(false);
@@ -135,14 +139,14 @@ describe("field-rule CRUD mutations", () => {
                 createFieldRule(state, {
                     id: "rule-unscoped",
                     descriptionText: DESCRIPTION,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-a"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-a"] } },
                     createdAtEpochMs: 1000
                 });
                 const scoped = createFieldRule(state, {
                     id: "rule-account",
                     descriptionText: DESCRIPTION,
                     accountId: ACCOUNT,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-b"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-b"] } },
                     createdAtEpochMs: 2000
                 });
                 expect(scoped.ok).toBe(true);
@@ -156,7 +160,7 @@ describe("field-rule CRUD mutations", () => {
                 const result = createFieldRule(state, {
                     id: "rule-alloc",
                     descriptionText: DESCRIPTION,
-                    action: { field: "allocation", allocations: { "person-1": Number.NaN } },
+                    outputs: { allocation: { allocations: { "person-1": Number.NaN } } },
                     createdAtEpochMs: 1000
                 });
                 expect(result.ok).toBe(false);
@@ -171,7 +175,7 @@ describe("field-rule CRUD mutations", () => {
                 const result = createFieldRule(state, {
                     id: "rule-alias",
                     descriptionText: DESCRIPTION,
-                    action: { field: "descriptionAlias", aliasId: "" },
+                    outputs: { descriptionAlias: { aliasId: "" } },
                     createdAtEpochMs: 1000
                 });
                 expect(result.ok).toBe(false);
@@ -182,30 +186,30 @@ describe("field-rule CRUD mutations", () => {
     });
 
     describe("updateFieldRule", () => {
-        it("updates the action while preserving id, description and creation time", () => {
+        it("updates the outputs while preserving id, description and creation time", () => {
             const vault = createVaultMirror();
             vault.mirror.setState((state: VaultState) => {
                 createFieldRule(state, {
                     id: "rule-1",
                     descriptionText: DESCRIPTION,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-a"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-a"] } },
                     createdAtEpochMs: 1000
                 });
                 const updated = updateFieldRule(state, {
                     id: "rule-1",
-                    action: { field: "tags", mode: "set", tagIds: ["tag-b"] }
+                    outputs: { tags: { mode: "set", tagIds: ["tag-b"] } }
                 });
                 expect(updated.ok).toBe(true);
-                if (updated.ok && updated.value.action.field === "tags") {
-                    expect(updated.value.action.mode).toBe("set");
-                    expect(updated.value.action.tagIds).toEqual(["tag-b"]);
+                if (updated.ok) {
+                    expect(updated.value.outputs).toEqual({
+                        tags: { mode: "set", tagIds: ["tag-b"] }
+                    });
                     expect(updated.value.createdAt.epochMilliseconds).toBe(1000);
                 }
             });
             const rules = readActiveFieldRules(vault.mirror.getState());
             expect(rules).toHaveLength(1);
-            const only = rules[0];
-            expect(only?.action.field === "tags" && only.action.mode).toBe("set");
+            expect(rules[0]?.outputs.tags?.mode).toBe("set");
         });
 
         it("rejects updating a scope so it collides with another active rule", () => {
@@ -214,20 +218,20 @@ describe("field-rule CRUD mutations", () => {
                 createFieldRule(state, {
                     id: "rule-unscoped",
                     descriptionText: DESCRIPTION,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-a"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-a"] } },
                     createdAtEpochMs: 1000
                 });
                 createFieldRule(state, {
                     id: "rule-account",
                     descriptionText: DESCRIPTION,
                     accountId: ACCOUNT,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-b"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-b"] } },
                     createdAtEpochMs: 2000
                 });
                 // Try to widen rule-account to unscoped, colliding with rule-unscoped.
                 const collision = updateFieldRule(state, {
                     id: "rule-account",
-                    action: { field: "tags", mode: "add", tagIds: ["tag-b"] }
+                    outputs: { tags: { mode: "add", tagIds: ["tag-b"] } }
                 });
                 expect(collision.ok).toBe(false);
                 if (!collision.ok) expect(collision.error.type).toBe("duplicate-key");
@@ -239,10 +243,505 @@ describe("field-rule CRUD mutations", () => {
             vault.mirror.setState((state: VaultState) => {
                 const result = updateFieldRule(state, {
                     id: "nope",
-                    action: { field: "tags", mode: "add", tagIds: [] }
+                    outputs: { tags: { mode: "add", tagIds: [] } }
                 });
                 expect(result.ok).toBe(false);
                 if (!result.ok) expect(result.error.type).toBe("not-found");
+            });
+        });
+    });
+
+    describe("grouped outputs", () => {
+        const ALIAS_OUTPUT = { aliasId: "alias-coffee" };
+        const TAGS_OUTPUT = { mode: "add", tagIds: ["tag-coffee"] } as const;
+        const ALLOCATION_OUTPUT = { allocations: { "person-1": 50, "person-2": 50 } };
+
+        function seed(
+            rules: readonly {
+                readonly id: string;
+                readonly accountId?: string;
+                readonly outputs: Parameters<typeof createFieldRule>[1]["outputs"];
+            }[]
+        ): ReturnType<typeof createVaultMirror> {
+            const vault = createVaultMirror();
+            vault.mirror.setState((state: VaultState) => {
+                for (const [index, rule] of rules.entries()) {
+                    const created = createFieldRule(state, {
+                        descriptionText: DESCRIPTION,
+                        createdAtEpochMs: 1000 + index,
+                        ...rule
+                    });
+                    if (!created.ok) throw new Error(`seed ${rule.id} failed`);
+                }
+            });
+            return vault;
+        }
+
+        /** Write a valid rule straight to the wire, bypassing the uniqueness check. */
+        function writeRaw(
+            vault: ReturnType<typeof createVaultMirror>,
+            rule: {
+                readonly id: string;
+                readonly accountId?: string;
+                readonly outputs: Parameters<typeof createFieldRule>[1]["outputs"];
+            }
+        ): void {
+            const built = buildFieldRule({
+                descriptionText: DESCRIPTION,
+                createdAtEpochMs: 500,
+                ...rule
+            });
+            if (!built.ok) throw new Error(`raw rule ${rule.id} is invalid`);
+            vault.mirror.setState((state: VaultState) => {
+                const draft: Record<string, FieldRuleInput> = state.fieldRules;
+                draft[rule.id] = toFieldRuleInput(built.value);
+            });
+        }
+
+        function storedRules(vault: ReturnType<typeof createVaultMirror>): unknown {
+            return JSON.stringify(vault.mirror.getState().fieldRules);
+        }
+
+        function activeById(
+            vault: ReturnType<typeof createVaultMirror>
+        ): Readonly<Record<string, readonly string[]>> {
+            return Object.fromEntries(
+                readActiveFieldRules(vault.mirror.getState()).map((rule) => [
+                    rule.id,
+                    Object.keys(rule.outputs).sort()
+                ])
+            );
+        }
+
+        describe("createFieldRule with several outputs", () => {
+            it("writes every output and both wire markers", () => {
+                const vault = seed([
+                    {
+                        id: "rule-1",
+                        outputs: {
+                            descriptionAlias: ALIAS_OUTPUT,
+                            tags: TAGS_OUTPUT,
+                            allocation: ALLOCATION_OUTPUT
+                        }
+                    }
+                ]);
+                const wire = vault.mirror.getState().fieldRules["rule-1"];
+                expect(wire?.field).toBe("descriptionAlias");
+                expect(wire?.outputFields).toEqual(["descriptionAlias", "tags", "allocation"]);
+                expect(activeById(vault)).toEqual({
+                    "rule-1": ["allocation", "descriptionAlias", "tags"]
+                });
+            });
+
+            it("rejects a rule with no outputs with zero mutation", () => {
+                const vault = createVaultMirror();
+                vault.mirror.setState((state: VaultState) => {
+                    const result = createFieldRule(state, {
+                        id: "rule-1",
+                        descriptionText: DESCRIPTION,
+                        outputs: {},
+                        createdAtEpochMs: 1000
+                    });
+                    expect(result.ok).toBe(false);
+                    if (!result.ok) expect(result.error.type).toBe("invalid-rule");
+                });
+                expect(vault.mirror.getState().fieldRules["rule-1"]).toBeUndefined();
+            });
+
+            it("lets identical conditions with disjoint outputs coexist", () => {
+                const vault = seed([
+                    { id: "rule-alias", outputs: { descriptionAlias: ALIAS_OUTPUT } },
+                    { id: "rule-tags", outputs: { tags: TAGS_OUTPUT } }
+                ]);
+                expect(activeById(vault)).toEqual({
+                    "rule-alias": ["descriptionAlias"],
+                    "rule-tags": ["tags"]
+                });
+            });
+
+            it("rejects a grouped rule when any one of its outputs collides, naming the holder", () => {
+                const vault = seed([{ id: "rule-tags", outputs: { tags: TAGS_OUTPUT } }]);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = createFieldRule(state, {
+                        id: "rule-grouped",
+                        descriptionText: DESCRIPTION,
+                        outputs: { descriptionAlias: ALIAS_OUTPUT, tags: TAGS_OUTPUT },
+                        createdAtEpochMs: 5000
+                    });
+                    expect(result).toEqual({
+                        ok: false,
+                        error: { type: "duplicate-key", existingRuleId: "rule-tags" }
+                    });
+                });
+                expect(activeById(vault)).toEqual({ "rule-tags": ["tags"] });
+            });
+        });
+
+        describe("updateFieldRule replaces outputs wholesale", () => {
+            it("drops an output the update does not list", () => {
+                const vault = seed([
+                    { id: "rule-1", outputs: { descriptionAlias: ALIAS_OUTPUT, tags: TAGS_OUTPUT } }
+                ]);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = updateFieldRule(state, {
+                        id: "rule-1",
+                        outputs: { tags: { mode: "set", tagIds: ["tag-b"] } }
+                    });
+                    expect(result.ok).toBe(true);
+                });
+                expect(activeById(vault)).toEqual({ "rule-1": ["tags"] });
+                expect(vault.mirror.getState().fieldRules["rule-1"]?.aliasId).toBeUndefined();
+            });
+        });
+
+        describe("setFieldRuleOutput", () => {
+            it("adds an output and keeps the rule's conditions and other outputs", () => {
+                const vault = seed([
+                    {
+                        id: "rule-1",
+                        accountId: ACCOUNT,
+                        outputs: { descriptionAlias: ALIAS_OUTPUT }
+                    }
+                ]);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = setFieldRuleOutput(state, {
+                        id: "rule-1",
+                        field: "tags",
+                        output: TAGS_OUTPUT
+                    });
+                    expect(result.ok).toBe(true);
+                });
+                const [rule] = readActiveFieldRules(vault.mirror.getState());
+                expect(rule?.accountId).toBe(ACCOUNT);
+                expect(rule?.createdAt.epochMilliseconds).toBe(1000);
+                expect(rule?.outputs).toEqual({
+                    descriptionAlias: ALIAS_OUTPUT,
+                    tags: TAGS_OUTPUT
+                });
+            });
+
+            it("replaces an existing output in place", () => {
+                const vault = seed([
+                    { id: "rule-1", outputs: { descriptionAlias: ALIAS_OUTPUT, tags: TAGS_OUTPUT } }
+                ]);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = setFieldRuleOutput(state, {
+                        id: "rule-1",
+                        field: "tags",
+                        output: { mode: "set", tagIds: ["tag-tea"] }
+                    });
+                    expect(result.ok).toBe(true);
+                });
+                const [rule] = readActiveFieldRules(vault.mirror.getState());
+                expect(rule?.outputs).toEqual({
+                    descriptionAlias: ALIAS_OUTPUT,
+                    tags: { mode: "set", tagIds: ["tag-tea"] }
+                });
+            });
+
+            it.each([
+                {
+                    name: "an unknown rule",
+                    input: { id: "nope", field: "tags", output: TAGS_OUTPUT } as const,
+                    error: { type: "not-found", ruleId: "nope" }
+                },
+                {
+                    name: "a slot another rule holds",
+                    input: { id: "rule-alias", field: "tags", output: TAGS_OUTPUT } as const,
+                    error: { type: "duplicate-key", existingRuleId: "rule-tags" }
+                },
+                {
+                    name: "an empty alias id",
+                    input: {
+                        id: "rule-tags",
+                        field: "descriptionAlias",
+                        output: { aliasId: "" }
+                    } as const,
+                    error: {
+                        type: "invalid-rule",
+                        issues: ["descriptionAlias output requires a non-empty aliasId"]
+                    }
+                }
+            ])("refuses $name with zero mutation", ({ input, error }) => {
+                const vault = seed([
+                    { id: "rule-alias", outputs: { descriptionAlias: ALIAS_OUTPUT } },
+                    { id: "rule-tags", outputs: { tags: TAGS_OUTPUT } }
+                ]);
+                const before = storedRules(vault);
+                vault.mirror.setState((state: VaultState) => {
+                    expect(setFieldRuleOutput(state, input)).toEqual({ ok: false, error });
+                });
+                expect(storedRules(vault)).toBe(before);
+            });
+
+            it("refuses an invalid allocation set with zero mutation", () => {
+                const vault = seed([{ id: "rule-1", outputs: { tags: TAGS_OUTPUT } }]);
+                const before = storedRules(vault);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = setFieldRuleOutput(state, {
+                        id: "rule-1",
+                        field: "allocation",
+                        output: { allocations: { "person-1": 150 } }
+                    });
+                    expect(result.ok).toBe(false);
+                    if (!result.ok) expect(result.error.type).toBe("invalid-allocations");
+                });
+                expect(storedRules(vault)).toBe(before);
+            });
+
+            it("refuses a soft-deleted rule", () => {
+                const vault = seed([{ id: "rule-1", outputs: { tags: TAGS_OUTPUT } }]);
+                vault.mirror.setState((state: VaultState) => {
+                    deleteFieldRule(state, { id: "rule-1", deletedAtEpochMs: 2000 });
+                    const result = setFieldRuleOutput(state, {
+                        id: "rule-1",
+                        field: "descriptionAlias",
+                        output: ALIAS_OUTPUT
+                    });
+                    expect(result).toEqual({
+                        ok: false,
+                        error: { type: "not-found", ruleId: "rule-1" }
+                    });
+                });
+            });
+        });
+
+        describe("splitFieldRuleOutput", () => {
+            it("moves one output to a new identical-condition rule and leaves rows unchanged", () => {
+                const vault = seed([
+                    {
+                        id: "rule-1",
+                        accountId: ACCOUNT,
+                        outputs: { tags: TAGS_OUTPUT, allocation: ALLOCATION_OUTPUT }
+                    }
+                ]);
+                vault.mirror.setState((state: VaultState) => {
+                    const inserted = insertTransaction(state.transactions, {
+                        transaction: txInput({ id: "t-1" })
+                    });
+                    if (!inserted.ok) throw new Error("seed failed");
+                    applyFieldRulesToAllTransactions(state);
+                });
+                const rowBefore = JSON.stringify(
+                    findTransactionInStore(vault.mirror.getState().transactions, locationOf("t-1"))
+                );
+
+                vault.mirror.setState((state: VaultState) => {
+                    const result = splitFieldRuleOutput(state, {
+                        id: "rule-1",
+                        field: "allocation",
+                        newRuleId: "rule-2",
+                        createdAtEpochMs: 9000
+                    });
+                    expect(result.ok).toBe(true);
+                    if (result.ok) {
+                        expect(result.value.source.outputs).toEqual({ tags: TAGS_OUTPUT });
+                        expect(result.value.split.accountId).toBe(ACCOUNT);
+                        expect(result.value.split.descriptionText).toBe(DESCRIPTION);
+                        expect(result.value.split.createdAt.epochMilliseconds).toBe(9000);
+                    }
+                });
+                expect(activeById(vault)).toEqual({
+                    "rule-1": ["tags"],
+                    "rule-2": ["allocation"]
+                });
+
+                // Every row resolves to the same values after the split.
+                vault.mirror.setState((state: VaultState) => {
+                    applyFieldRulesToAllTransactions(state);
+                });
+                expect(
+                    JSON.stringify(
+                        findTransactionInStore(
+                            vault.mirror.getState().transactions,
+                            locationOf("t-1")
+                        )
+                    )
+                ).toBe(rowBefore);
+            });
+
+            it.each([
+                {
+                    name: "the only output",
+                    input: { id: "rule-single", field: "tags" },
+                    error: { type: "single-output", ruleId: "rule-single" }
+                },
+                {
+                    name: "an output the rule does not have",
+                    input: { id: "rule-grouped", field: "allocation" },
+                    error: { type: "missing-output", ruleId: "rule-grouped", field: "allocation" }
+                },
+                {
+                    name: "an unknown rule",
+                    input: { id: "nope", field: "tags" },
+                    error: { type: "not-found", ruleId: "nope" }
+                },
+                {
+                    name: "an id already in use",
+                    input: { id: "rule-grouped", field: "tags", newRuleId: "rule-single" },
+                    error: { type: "invalid-rule", issues: ["rule id rule-single already exists"] }
+                }
+            ] as const)("refuses $name with zero mutation", ({ input, error }) => {
+                const vault = seed([
+                    { id: "rule-single", accountId: ACCOUNT, outputs: { tags: TAGS_OUTPUT } },
+                    {
+                        id: "rule-grouped",
+                        outputs: { descriptionAlias: ALIAS_OUTPUT, tags: TAGS_OUTPUT }
+                    }
+                ]);
+                const before = storedRules(vault);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = splitFieldRuleOutput(state, {
+                        newRuleId: "rule-new",
+                        createdAtEpochMs: 9000,
+                        ...input
+                    });
+                    expect(result).toEqual({ ok: false, error });
+                });
+                expect(storedRules(vault)).toBe(before);
+            });
+
+            it("refuses a split whose slot a third rule holds, naming the holder, with zero mutation", () => {
+                // A duplicated slot is only reachable through concurrent creation, so write it raw.
+                const vault = seed([
+                    {
+                        id: "rule-grouped",
+                        outputs: { descriptionAlias: ALIAS_OUTPUT, tags: TAGS_OUTPUT }
+                    }
+                ]);
+                writeRaw(vault, {
+                    id: "rule-replica",
+                    outputs: { tags: { mode: "set", tagIds: ["tag-x"] } }
+                });
+                const before = storedRules(vault);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = splitFieldRuleOutput(state, {
+                        id: "rule-grouped",
+                        field: "tags",
+                        newRuleId: "rule-new",
+                        createdAtEpochMs: 9000
+                    });
+                    expect(result).toEqual({
+                        ok: false,
+                        error: { type: "duplicate-key", existingRuleId: "rule-replica" }
+                    });
+                });
+                expect(storedRules(vault)).toBe(before);
+            });
+        });
+
+        describe("moveFieldRuleOutput", () => {
+            it("moves the only output into the host and soft-deletes the emptied source", () => {
+                const vault = seed([
+                    { id: "rule-alias", outputs: { descriptionAlias: ALIAS_OUTPUT } },
+                    { id: "rule-tags", outputs: { tags: TAGS_OUTPUT } }
+                ]);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = moveFieldRuleOutput(state, {
+                        sourceId: "rule-tags",
+                        field: "tags",
+                        hostId: "rule-alias",
+                        deletedAtEpochMs: 7000
+                    });
+                    expect(result.ok).toBe(true);
+                    if (result.ok) {
+                        expect(result.value.source).toBeNull();
+                        expect(result.value.host.outputs).toEqual({
+                            descriptionAlias: ALIAS_OUTPUT,
+                            tags: TAGS_OUTPUT
+                        });
+                    }
+                });
+                expect(activeById(vault)).toEqual({ "rule-alias": ["descriptionAlias", "tags"] });
+                expect(vault.mirror.getState().fieldRules["rule-tags"]?.deletedAtEpochMs).toBe(
+                    7000
+                );
+            });
+
+            it("keeps the source's remaining outputs when it is not emptied", () => {
+                const vault = seed([
+                    { id: "rule-alias", outputs: { descriptionAlias: ALIAS_OUTPUT } },
+                    {
+                        id: "rule-other",
+                        outputs: { tags: TAGS_OUTPUT, allocation: ALLOCATION_OUTPUT }
+                    }
+                ]);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = moveFieldRuleOutput(state, {
+                        sourceId: "rule-other",
+                        field: "tags",
+                        hostId: "rule-alias",
+                        deletedAtEpochMs: 7000
+                    });
+                    expect(result.ok && result.value.source?.outputs).toEqual({
+                        allocation: {
+                            allocations: { "person-1": 50, "person-2": 50 }
+                        }
+                    });
+                });
+                expect(activeById(vault)).toEqual({
+                    "rule-alias": ["descriptionAlias", "tags"],
+                    "rule-other": ["allocation"]
+                });
+            });
+
+            it.each([
+                {
+                    name: "a host with different conditions",
+                    input: { sourceId: "rule-tags", hostId: "rule-alias-account", field: "tags" },
+                    error: {
+                        type: "predicate-mismatch",
+                        sourceId: "rule-tags",
+                        hostId: "rule-alias-account"
+                    }
+                },
+                {
+                    name: "a host that already has the output",
+                    input: { sourceId: "rule-tags", hostId: "rule-duplicate", field: "tags" },
+                    error: { type: "duplicate-key", existingRuleId: "rule-duplicate" }
+                },
+                {
+                    name: "a source without the output",
+                    input: { sourceId: "rule-tags", hostId: "rule-host", field: "allocation" },
+                    error: { type: "missing-output", ruleId: "rule-tags", field: "allocation" }
+                },
+                {
+                    name: "an unknown host",
+                    input: { sourceId: "rule-tags", hostId: "nope", field: "tags" },
+                    error: { type: "not-found", ruleId: "nope" }
+                },
+                {
+                    name: "an unknown source",
+                    input: { sourceId: "nope", hostId: "rule-host", field: "tags" },
+                    error: { type: "not-found", ruleId: "nope" }
+                }
+            ] as const)("refuses $name with zero mutation", ({ input, error }) => {
+                const vault = seed([
+                    {
+                        id: "rule-alias-account",
+                        accountId: ACCOUNT,
+                        outputs: { descriptionAlias: ALIAS_OUTPUT }
+                    },
+                    { id: "rule-tags", accountId: OTHER_ACCOUNT, outputs: { tags: TAGS_OUTPUT } },
+                    {
+                        id: "rule-host",
+                        accountId: OTHER_ACCOUNT,
+                        outputs: { descriptionAlias: ALIAS_OUTPUT }
+                    }
+                ]);
+                // A host that already owns the field shares the source's slot, which only a
+                // concurrent replica can produce, so it is written raw.
+                writeRaw(vault, {
+                    id: "rule-duplicate",
+                    accountId: OTHER_ACCOUNT,
+                    outputs: { tags: { mode: "set", tagIds: ["tag-x"] } }
+                });
+                const before = storedRules(vault);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = moveFieldRuleOutput(state, { deletedAtEpochMs: 7000, ...input });
+                    expect(result).toEqual({ ok: false, error });
+                });
+                expect(storedRules(vault)).toBe(before);
             });
         });
     });
@@ -254,7 +753,7 @@ describe("field-rule CRUD mutations", () => {
                 createFieldRule(state, {
                     id: "rule-1",
                     descriptionText: DESCRIPTION,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-a"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-a"] } },
                     createdAtEpochMs: 1000
                 });
                 const deleted = deleteFieldRule(state, { id: "rule-1", deletedAtEpochMs: 5000 });
@@ -269,14 +768,14 @@ describe("field-rule CRUD mutations", () => {
                 createFieldRule(state, {
                     id: "rule-1",
                     descriptionText: DESCRIPTION,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-a"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-a"] } },
                     createdAtEpochMs: 1000
                 });
                 deleteFieldRule(state, { id: "rule-1", deletedAtEpochMs: 5000 });
                 const recreated = createFieldRule(state, {
                     id: "rule-2",
                     descriptionText: DESCRIPTION,
-                    action: { field: "tags", mode: "set", tagIds: ["tag-b"] },
+                    outputs: { tags: { mode: "set", tagIds: ["tag-b"] } },
                     createdAtEpochMs: 6000
                 });
                 expect(recreated.ok).toBe(true);
@@ -778,7 +1277,7 @@ describe("field-rule CRUD mutations", () => {
                 createFieldRule(state, {
                     id: "rule-1",
                     descriptionText: DESCRIPTION,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-coffee"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-coffee"] } },
                     createdAtEpochMs: 1000
                 });
             });
@@ -802,7 +1301,7 @@ describe("field-rule CRUD mutations", () => {
                     id: "rule-1",
                     descriptionText: DESCRIPTION,
                     accountId: OTHER_ACCOUNT,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-coffee"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-coffee"] } },
                     createdAtEpochMs: 1000
                 });
             });
@@ -815,19 +1314,20 @@ describe("field-rule CRUD mutations", () => {
         });
     });
 
-    describe("apply-new is scoped strictly to transactions after the reference date", () => {
+    describe("apply-new is scoped to transactions on or after the reference date", () => {
         // Mirrors the P17C transaction-context "apply to new imports" affordance, where the
-        // reference date is THAT row's date: only strictly-later transactions are updated, while the
-        // row itself and same-day siblings are left untouched.
+        // reference date is THAT row's date. The cutoff is inclusive: the row itself and same-day
+        // siblings are updated along with later rows; earlier rows are left untouched.
         const EARLIER = DATE.subtract({ days: 1 });
         const LATER = DATE.add({ days: 1 });
 
-        it("applies to strictly-later transactions but not the reference date or earlier", () => {
+        it("applies to the reference date, same-day siblings and later rows but not earlier", () => {
             const vault = createVaultMirror();
             vault.mirror.setState((state: VaultState) => {
                 for (const seed of [
                     txInput({ id: "t-earlier", date: EARLIER }),
                     txInput({ id: "t-reference", date: DATE }),
+                    txInput({ id: "t-same-day", date: DATE, amount: asMinorUnits(-600) }),
                     txInput({ id: "t-later", date: LATER })
                 ]) {
                     const inserted = insertTransaction(state.transactions, { transaction: seed });
@@ -836,21 +1336,23 @@ describe("field-rule CRUD mutations", () => {
                 createFieldRule(state, {
                     id: "rule-1",
                     descriptionText: DESCRIPTION,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-coffee"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-coffee"] } },
                     createdAtEpochMs: 1000
                 });
             });
             vault.mirror.setState((state: VaultState) => {
                 const entries = applyFieldRulesToNewerTransactions(state, { referenceDate: DATE });
-                expect(entries.length).toBe(1);
+                expect(entries.length).toBe(3);
             });
 
             const store = vault.mirror.getState().transactions;
             const later = findTransactionInStore(store, locationOf("t-later", LATER));
             const reference = findTransactionInStore(store, locationOf("t-reference", DATE));
+            const sameDay = findTransactionInStore(store, locationOf("t-same-day", DATE));
             const earlier = findTransactionInStore(store, locationOf("t-earlier", EARLIER));
             expect(later?.tagIds).toContain("tag-coffee");
-            expect(reference?.tagIds ?? []).not.toContain("tag-coffee");
+            expect(reference?.tagIds).toContain("tag-coffee");
+            expect(sameDay?.tagIds).toContain("tag-coffee");
             expect(earlier?.tagIds ?? []).not.toContain("tag-coffee");
         });
     });
@@ -891,7 +1393,7 @@ describe("field-rule CRUD mutations", () => {
                 createFieldRule(state, {
                     id: "rule-tag",
                     descriptionText: MANUAL_ALIAS_NAME,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-groceries"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-groceries"] } },
                     createdAtEpochMs: 1000
                 });
             });
@@ -914,7 +1416,7 @@ describe("field-rule CRUD mutations", () => {
                 createFieldRule(state, {
                     id: "rule-alloc",
                     descriptionText: MANUAL_ALIAS_NAME,
-                    action: { field: "allocation", allocations: { "person-1": 100 } },
+                    outputs: { allocation: { allocations: { "person-1": 100 } } },
                     createdAtEpochMs: 1000
                 });
             });
@@ -938,7 +1440,7 @@ describe("field-rule CRUD mutations", () => {
                 createFieldRule(state, {
                     id: "rule-alias",
                     descriptionText: MANUAL_ALIAS_NAME,
-                    action: { field: "descriptionAlias", aliasId: "alias-other" },
+                    outputs: { descriptionAlias: { aliasId: "alias-other" } },
                     createdAtEpochMs: 1000
                 });
             });
@@ -960,7 +1462,7 @@ describe("field-rule CRUD mutations", () => {
                 createFieldRule(state, {
                     id: "rule-tag",
                     descriptionText: MANUAL_ALIAS_NAME,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-groceries"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-groceries"] } },
                     createdAtEpochMs: 1000
                 });
             });

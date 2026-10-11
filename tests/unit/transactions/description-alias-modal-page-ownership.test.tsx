@@ -121,6 +121,11 @@ async function openFirstDescriptionEditor(): Promise<{
 }
 
 describe("page-level shared description alias modal ownership", () => {
+    // Mounting the whole transactions page costs up to ~4s alone and overruns the 5s default under
+    // a saturated full-suite run. This is a budget ceiling, not a wait: every assertion below still
+    // settles on its own condition rather than on elapsed time.
+    vi.setConfig({ testTimeout: 30_000 });
+
     let restoreLayout: () => void;
 
     it("requires controller authority before publishing an alias modal request", async () => {

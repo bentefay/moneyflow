@@ -24,7 +24,7 @@ describe("draftFromRule", () => {
             descriptionText: "COFFEE SHOP 123",
             accountId: "account-1",
             amount: asMinorUnits(-450),
-            action: { field: "descriptionAlias", aliasId: "alias-coffee" },
+            outputs: { descriptionAlias: { aliasId: "alias-coffee" } },
             createdAt: CREATION
         };
         const draft = draftFromRule(rule, "USD", "updateNew");
@@ -43,11 +43,12 @@ describe("draftFromRule", () => {
         const rule: FieldRule = {
             id: ruleId("r2"),
             descriptionText: "RENT",
-            action: {
-                field: "allocation",
-                allocations: {
-                    "person-a": AllocationPercentageSchema.parse(60),
-                    "person-b": AllocationPercentageSchema.parse(40)
+            outputs: {
+                allocation: {
+                    allocations: {
+                        "person-a": AllocationPercentageSchema.parse(60),
+                        "person-b": AllocationPercentageSchema.parse(40)
+                    }
                 }
             },
             createdAt: CREATION
@@ -63,7 +64,7 @@ describe("draftFromRule", () => {
         const rule: FieldRule = {
             id: ruleId("r3"),
             descriptionText: "GROCERY",
-            action: { field: "tags", mode: "set", tagIds: ["tag-a", "tag-b"] },
+            outputs: { tags: { mode: "set", tagIds: ["tag-a", "tag-b"] } },
             createdAt: CREATION
         };
         const draft = draftFromRule(rule, "USD", "updatingAll");

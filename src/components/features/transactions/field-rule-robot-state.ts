@@ -71,26 +71,28 @@ export function computeFieldRuleRobotState(
     const field: RuleField = current.field;
     const winner = selectWinningRule(rules, field, subject);
     if (winner == null) return { kind: "none" };
-    // The winner was selected for this field, but narrow the discriminated action explicitly (no
-    // casts) so the implied value is read type-safely.
-    const action = winner.action;
+    // The winner was selected for this field, but narrow its output explicitly (no casts) so the
+    // implied value is read type-safely.
     switch (current.field) {
         case "descriptionAlias": {
-            if (action.field !== "descriptionAlias") return { kind: "none" };
-            return action.aliasId === current.currentAliasId
+            const output = winner.outputs.descriptionAlias;
+            if (output == null) return { kind: "none" };
+            return output.aliasId === current.currentAliasId
                 ? { kind: "match", rule: winner }
                 : { kind: "drift", rule: winner };
         }
         case "tags": {
-            if (action.field !== "tags") return { kind: "none" };
-            const implied = resolveTagRuleResult(current.currentTagIds, action);
+            const output = winner.outputs.tags;
+            if (output == null) return { kind: "none" };
+            const implied = resolveTagRuleResult(current.currentTagIds, output);
             return sameSequence(implied, current.currentTagIds)
                 ? { kind: "match", rule: winner }
                 : { kind: "drift", rule: winner };
         }
         case "allocation": {
-            if (action.field !== "allocation") return { kind: "none" };
-            return sameAllocations(action.allocations, current.currentAllocations)
+            const output = winner.outputs.allocation;
+            if (output == null) return { kind: "none" };
+            return sameAllocations(output.allocations, current.currentAllocations)
                 ? { kind: "match", rule: winner }
                 : { kind: "drift", rule: winner };
         }

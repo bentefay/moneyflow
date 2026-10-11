@@ -215,9 +215,9 @@ export function useTransactionRuleWorkflow(params: {
                 setErrors(validation.errors);
                 return false;
             }
-            const { accountId, amount, action } = validation.value;
+            const { accountId, amount, outputs } = validation.value;
             // Editing an existing rule from a matching transaction: UPDATE, never create.
-            const result = update({ id: ruleId, accountId, amount, action });
+            const result = update({ id: ruleId, accountId, amount, outputs });
             if (!result.ok) {
                 setErrors(mutationErrorToFieldErrors(result.error));
                 return false;

@@ -33,7 +33,7 @@ import {
 } from "@/lib/crdt";
 import { type BulkFieldRuleEntry } from "@/lib/crdt/field-rules";
 import { resolvePersonDisplayName } from "@/lib/crdt/person";
-import { type FieldRule } from "@/lib/domain/automation/rules";
+import { type FieldRule, ruleOutputFields } from "@/lib/domain/automation/rules";
 import { cn } from "@/lib/utils";
 
 import { FieldRuleEditor, type RuleEditorOption } from "./FieldRuleEditor";
@@ -78,7 +78,7 @@ function summarizeRule(rule: FieldRule): string {
     if (rule.accountId != null) scope.push("account");
     if (rule.amount != null) scope.push("amount");
     const scopeText = scope.length > 0 ? ` (${scope.join(" + ")})` : "";
-    return `${rule.action.field}: "${rule.descriptionText}"${scopeText}`;
+    return `${ruleOutputFields(rule).join(" + ")}: "${rule.descriptionText}"${scopeText}`;
 }
 
 export function FieldRulesManager({
@@ -188,7 +188,7 @@ export function FieldRulesManager({
             setErrors(validation.errors);
             return;
         }
-        const { accountId, amount, action } = validation.value;
+        const { accountId, amount, outputs } = validation.value;
         const result =
             target.mode === "create"
                 ? create({
@@ -196,10 +196,10 @@ export function FieldRulesManager({
                       descriptionText: draft.descriptionText.trim(),
                       accountId,
                       amount,
-                      action,
+                      outputs,
                       createdAtEpochMs: Date.now()
                   })
-                : update({ id: target.ruleId, accountId, amount, action });
+                : update({ id: target.ruleId, accountId, amount, outputs });
 
         if (!result.ok) {
             setErrors(mutationErrorToFieldErrors(result.error));
