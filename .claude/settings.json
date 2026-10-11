@@ -4,19 +4,18 @@
             "Skill(crdt)",
             "Bash(. ~/.profile)",
             "Bash(. ~/.bashrc)",
-            "Bash(pnpm typecheck:*)",
-            "Bash(pnpm test:*)",
-            "Bash(pnpm lint:*)",
-            "Bash(pnpm format:check:*)",
-            "Bash(pnpm format:*)",
+            "Bash(run tsc:*)",
+            "Bash(run test:*)",
+            "Bash(run lint:*)",
+            "Bash(run check:*)",
+            "Bash(run format:*)",
             "Bash(git add:*)",
-            "Bash(pnpm test:e2e:*)",
             "Bash(git commit:*)",
-            "Bash(pnpm exec playwright test:*)",
-            "Bash(pnpm exec playwright-cli:*)",
+            "Bash(bun run playwright test:*)",
+            "Bash(run browser:*)",
             "Bash(find:*)",
             "Bash(tail:*)",
-            "Bash(pnpm vitest:*)"
+            "Bash(bun run vitest:*)"
         ]
     },
     "hooks": {
@@ -26,7 +25,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "jq -r '.tool_input.file_path // .tool_input.file_path' | xargs pnpm oxfmt 2>/dev/null || true"
+                        "command": "jq -r '.tool_input.file_path // .tool_input.file_path' | xargs \"$CLAUDE_PROJECT_DIR\"/cli/bin/run format >/dev/null 2>&1 || true"
                     }
                 ]
             }

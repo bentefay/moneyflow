@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+REPO=$(git rev-parse --show-toplevel)
+
+# Working directory when the caller typed `run` - useful for relative paths passed to the CLI.
+export MONEYFLOW_INVOCATION_CWD="$PWD"
+
+FG_BLUE="\e[34m"
+FG_RESET="\e[0m"
+
+if [[ ! -d "${REPO}/node_modules" ]]; then
+
+    echo -e "$FG_BLUE"
+    echo -e "################################"
+    echo -e "# Install root bun dependencies #"
+    echo -e "################################"
+    echo -e "$FG_RESET"
+
+    cd "${REPO}"
+    bun install --frozen-lockfile
+
+fi
+
+if [[ ! -d "${REPO}/cli/node_modules" ]]; then
+
+    echo -e "$FG_BLUE"
+    echo -e "################################"
+    echo -e "# Install CLI bun dependencies #"
+    echo -e "################################"
+    echo -e "$FG_RESET"
+
+    cd "${REPO}"/cli
+    bun install --frozen-lockfile
+
+fi
+
+cd "$REPO"
+
+NODE_NO_WARNINGS=1 exec bun "$REPO/cli/bin/run.ts" "$@"

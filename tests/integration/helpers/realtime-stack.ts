@@ -85,14 +85,14 @@ export function requireRealtimeStack(): RealtimeStack {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? environment.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !anonKey) {
         throw new Error(
-            "Realtime security tests require NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. Run `pnpm db:start`."
+            "Realtime security tests require NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. Run `run db start`."
         );
     }
     try {
         return { supabaseUrl, anonKey, jwtSecret: requireLocalRealtimeJwtSecret() };
     } catch (cause) {
         throw new Error(
-            "Realtime security tests require the running local Supabase Realtime stack or a server-only SUPABASE_JWT_SECRET. Run `pnpm db:start`.",
+            "Realtime security tests require the running local Supabase Realtime stack or a server-only SUPABASE_JWT_SECRET. Run `run db start`.",
             { cause }
         );
     }

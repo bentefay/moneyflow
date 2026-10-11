@@ -9,7 +9,7 @@ metadata:
 
 When computing the per-run md5 digest for a repeated-run E2E validation campaign, exclude
 `next-env.d.ts`: `git diff <base>..HEAD -- . ':!next-env.d.ts' | md5sum`. Playwright's `webServer`
-runs `pnpm dev`, and Next rewrites that file's import between `./.next/types/routes.d.ts` and
+runs `run dev`, and Next rewrites that file's import between `./.next/types/routes.d.ts` and
 `./.next/dev/types/routes.d.ts` on start, so a bare `git diff | md5sum` changes between run 1 and
 run 2 by construction.
 

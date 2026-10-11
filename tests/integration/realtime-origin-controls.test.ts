@@ -16,7 +16,7 @@
  *     enforced by RLS on every read.
  *
  * The upshot a reviewer should take away: any design that leaned on origin allow-lists to protect
- * this socket would be unprotected. Requires the local Supabase stack (`pnpm db:start`).
+ * this socket would be unprotected. Requires the local Supabase stack (`run db start`).
  */
 
 import { randomUUID } from "node:crypto";

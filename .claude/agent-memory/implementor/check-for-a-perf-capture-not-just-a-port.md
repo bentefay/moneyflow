@@ -12,7 +12,7 @@ Before running **anything** CPU-heavy, check for a running measurement campaign,
 conflict: `cat /proc/loadavg` and `pgrep -af "tests/perf|PERF_ARM"`.
 
 **Why:** I checked port 3000 and for a `next dev` holding this repo's `.next` — the two things that
-had burned me before — and launched `pnpm build` plus the full 32-thread unit suite into another
+had burned me before — and launched `run build` plus the full 32-thread unit suite into another
 agent's in-flight arm-A perf capture (started 12:19:45; my runs 12:22–12:28; load average 9.14).
 That capture's thresholds are ≥59 presented fps and p95 presented-frame interval ≤17ms, which is
 precisely what CPU contention destroys. A perf capture binds a port that is deliberately _neither_

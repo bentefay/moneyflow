@@ -42,7 +42,7 @@ function requireLocalRealtimeJwtSecret(): string {
         return secret;
     } catch {
         throw new Error(
-            "Playwright requires the running local Supabase Realtime stack or a server-only SUPABASE_JWT_SECRET. Run `pnpm db:start` before E2E."
+            "Playwright requires the running local Supabase Realtime stack or a server-only SUPABASE_JWT_SECRET. Run `run db start` before E2E."
         );
     }
 }
@@ -76,7 +76,7 @@ export default defineConfig({
         }
     ],
     webServer: {
-        command: "bun run dev",
+        command: "run dev",
         env: { SUPABASE_JWT_SECRET: localRealtimeJwtSecret },
         url: "http://localhost:3000",
         reuseExistingServer: false

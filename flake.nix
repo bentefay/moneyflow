@@ -193,8 +193,11 @@
             ];
 
           shellHook = ''
+            REPO=$(git rev-parse --show-toplevel)
+            export PATH="$REPO/cli/bin:$PATH"
+
             uv sync --quiet
-            export PATH="$PWD/.venv/bin:$PATH"
+            export PATH="$REPO/.venv/bin:$PATH"
 
             # Background check for safe-chain updates (minor/major only)
             (

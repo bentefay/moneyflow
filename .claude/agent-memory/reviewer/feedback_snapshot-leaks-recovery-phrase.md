@@ -8,11 +8,11 @@ metadata:
     type: feedback
 ---
 
-During the mandated manual checkpoint, `pnpm exec playwright-cli -s=<s> snapshot` on `/new-user`
-after clicking "Generate Recovery Phrase" prints all twelve words in cleartext — as the accessible
-value of the hidden `textbox "Recovery phrase"` that exists so password managers can capture it. The
-visible grid still renders `•••••` and you never clicked "Click to reveal", so the constraint reads
-as satisfied while the phrase is already in the transcript.
+During the mandated manual checkpoint, `run browser -s=<s> snapshot` on `/new-user` after clicking
+"Generate Recovery Phrase" prints all twelve words in cleartext — as the accessible value of the
+hidden `textbox "Recovery phrase"` that exists so password managers can capture it. The visible grid
+still renders `•••••` and you never clicked "Click to reveal", so the constraint reads as satisfied
+while the phrase is already in the transcript.
 
 **Why:** the credential field is deliberate product behaviour (HS-019), so this is a
 reviewer-workflow hazard, not a product defect — but the dispatch constraint "never reveal the

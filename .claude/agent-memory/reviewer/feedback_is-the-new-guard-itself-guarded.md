@@ -15,10 +15,9 @@ Apply the revision's own stated principle to every line it added.
 F-2 by adding unit guards plus a loud harness failure for the install line. Deleting the install
 line turned two guards red; deleting the _gate_ line left typecheck, lint, format and all 2489 unit
 tests green while the harness-only seam returned to the production bundle. E2E could not catch it
-either - the suite runs against `pnpm run dev`, where the gate is inactive in both directions - so
-the only possible instrument is a stubbed-environment unit test or a build-time grep. Failing a
-revision for an unguarded install and passing it with an unguarded gate applies two standards to one
-change.
+either - the suite runs against `run dev`, where the gate is inactive in both directions - so the
+only possible instrument is a stubbed-environment unit test or a build-time grep. Failing a revision
+for an unguarded install and passing it with an unguarded gate applies two standards to one change.
 
 **How to apply:** Prove the gap by mutation in a throwaway tree, not by inspection - delete the new
 line and run every gate. Then, before prescribing a fix, prove the fix is _possible_: I ran a

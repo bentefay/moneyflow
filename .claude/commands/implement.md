@@ -170,11 +170,11 @@ safety rules, and completion checklist baked in. You provide the dynamic context
 
     ```
     Project tooling:
-      Format:    pnpm format
-      Lint:      pnpm lint
-      Typecheck: pnpm typecheck
-      Build:     pnpm build
-      Test:      pnpm test && pnpm test:e2e
+      Format:    run format
+      Lint:      run lint
+      Typecheck: run tsc
+      Build:     run build
+      Test:      run test unit && run test e2e
     ```
 
 4. **Example files** — specific files to reference for patterns (from your research). Tell the

@@ -13,11 +13,10 @@ the SHARED main checkout that other agents are using. Always target
 `/home/ben-agents/Code/moneyflow/.claude/worktrees/<name>/src/...`, and confirm the prefix before
 the first edit of a session.
 
-**Why:** I hit this on P29. Every product edit I made went into shared `main` while
-`pnpm exec vitest` in the worktree reported "Failed to resolve import" for a file I had just created
-— the import error was the only symptom, and it reads like a path-alias problem, not a wrong-tree
-problem. Concurrent agents were working that checkout, so those edits were live in someone else's
-tree.
+**Why:** I hit this on P29. Every product edit I made went into shared `main` while `bun run vitest`
+in the worktree reported "Failed to resolve import" for a file I had just created — the import error
+was the only symptom, and it reads like a path-alias problem, not a wrong-tree problem. Concurrent
+agents were working that checkout, so those edits were live in someone else's tree.
 
 **How to apply:** In a worktree session, before editing, run `git rev-parse --show-toplevel` in Bash
 and use exactly that prefix for every Edit/Write. If a test cannot see a file you just wrote, check

@@ -13,8 +13,8 @@ real socket.
 
 **Why:** on P22 all five static gates were green on the exact commit that shipped a false
 `editing: true` presence signal to peers. The defect was invisible until full-suite E2E ran two
-identities against a live Supabase realtime stack. A green `pnpm test` says the pure logic is sound,
-nothing more.
+identities against a live Supabase realtime stack. A green `run test unit` says the pure logic is
+sound, nothing more.
 
 **How to apply:** when E2E is blocked or deferred, say explicitly what the passing gates do and do
 not cover rather than implying near-completion. When a change touches focus, selection, presence,

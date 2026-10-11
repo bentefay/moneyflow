@@ -1,13 +1,13 @@
 // @vitest-environment node
 /**
- * Measurement entry point. NOT part of `pnpm test` — it needs a running
+ * Measurement entry point. NOT part of `run test unit` — it needs a running
  * production server and takes tens of minutes. Run it explicitly:
  *
  *   PERF_ARM=A-before-cd81290 \
  *   PERF_UPSTREAM_PORT=3100 \
  *   PERF_TLS_PEM=/tmp/mf-perf-probe/tls.pem \
  *   PERF_SESSIONS=2 PERF_REPEATS=5 \
- *   pnpm exec vitest run --config tests/perf/vitest.measure.config.ts
+ *   bun run vitest run --config tests/perf/vitest.measure.config.ts
  *
  * It asserts the product-goal thresholds ON EVERY RUN, so a route that passes
  * four times and fails once fails the campaign. Artifacts are rewritten after

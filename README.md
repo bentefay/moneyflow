@@ -24,12 +24,14 @@ encrypted on your device before storage—the server never sees your plaintext d
 
 ### Prerequisites
 
-| Tool         | Version  | Installation                                         |
-| ------------ | -------- | ---------------------------------------------------- |
-| Node.js      | 20.x LTS | [nodejs.org](https://nodejs.org) or `nvm install 20` |
-| pnpm         | 8.x+     | `npm install -g pnpm`                                |
-| Docker       | Latest   | [docker.com](https://www.docker.com/get-started)     |
-| Supabase CLI | Latest   | `brew install supabase/tap/supabase`                 |
+| Tool   | Installation                                                      |
+| ------ | ----------------------------------------------------------------- |
+| Nix    | [nixos.org/download](https://nixos.org/download) (flakes enabled) |
+| direnv | [direnv.net](https://direnv.net) with `nix-direnv`                |
+| Docker | [docker.com](https://www.docker.com/get-started)                  |
+
+The flake provides Node.js, Bun, safe-chain and the `run` CLI, and direnv loads it when you enter
+the repo. Bun installs packages through safe-chain and only accepts versions at least 48 hours old.
 
 ### Development Setup
 
@@ -38,21 +40,24 @@ encrypted on your device before storage—the server never sees your plaintext d
 git clone https://github.com/your-org/moneyflow.git
 cd moneyflow
 
+# Load the dev shell, which puts `run` on PATH
+direnv allow
+
 # Install dependencies
-pnpm install
+bun install
 
 # Copy environment template
 cp .env.local.example .env.local
 
 # Start local Supabase (requires Docker)
-supabase start
+run db start
 
 # The above command outputs local credentials. Update .env.local with:
 # - NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 # - NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-local-anon-key>
 
 # Start Next.js dev server
-pnpm dev
+run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
@@ -61,25 +66,25 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
 # Unit tests (Vitest)
-pnpm test
+run test unit
 
 # Unit tests in watch mode
-pnpm test:watch
+run test unit --watch
 
 # E2E tests (requires Supabase running)
-supabase start
-pnpm test:e2e
+run db start
+run test e2e
 
 # E2E tests with UI
-pnpm test:e2e:ui
+run test e2e --ui
 
 # Manual browser smoke testing (agent-friendly, no Playwright MCP)
-pnpm browser:install
-pnpm exec playwright-cli -s=smoke open http://localhost:3000
-pnpm exec playwright-cli -s=smoke snapshot
-pnpm exec playwright-cli -s=smoke console error
-pnpm exec playwright-cli -s=smoke close
-pnpm exec playwright-cli -s=smoke delete-data
+run browser install
+run browser -s=smoke open http://localhost:3000
+run browser -s=smoke snapshot
+run browser -s=smoke console error
+run browser -s=smoke close
+run browser -s=smoke delete-data
 ```
 
 ## 📁 Project Structure
@@ -124,28 +129,35 @@ supabase/
 ## 🛠️ Available Commands
 
 ```bash
+run --help                 # Every command; `run <command> --help` for one
+
 # Development
-pnpm dev              # Start dev server (Turbopack)
-pnpm build            # Production build
-pnpm start            # Start production server
+run dev                    # Start dev server (Turbopack)
+run build                  # Production build
+run start                  # Start production server
 
 # Code Quality
-pnpm lint             # ESLint
-pnpm typecheck        # TypeScript type checking
-pnpm format           # oxfmt format
-pnpm format:check     # Check formatting (CI)
+run check                  # Every pre-commit gate, stopping at the first failure
+run lint                   # oxlint
+run tsc                    # TypeScript type checking for the app and the CLI
+run format                 # oxfmt format
+run format --check         # Check formatting (CI)
 
 # Testing
-pnpm test             # Run all unit tests
-pnpm test:watch       # Unit tests in watch mode
-pnpm test:e2e         # E2E tests (Playwright)
-pnpm test:e2e:ui      # E2E tests with UI
+run test unit              # App unit and integration tests
+run test unit --watch      # Unit tests in watch mode
+run test cli               # CLI tests
+run test e2e               # E2E tests (Playwright)
+run test e2e --ui # E2E tests with UI
 
 # Database
-pnpm db:start         # Start local Supabase
-pnpm db:stop          # Stop local Supabase
-pnpm db:reset         # Reset DB and apply migrations
-pnpm db:types         # Generate TypeScript types from schema
+run db start               # Start local Supabase
+run db stop                # Stop local Supabase
+run db reset               # Reset DB and apply migrations
+run db types               # Generate TypeScript types from schema
+
+# Dependencies
+run deps outdated          # Updates old enough to pass the minimum release age
 ```
 
 ## 🔐 Security Architecture
@@ -165,7 +177,7 @@ design.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Run tests and linting (`pnpm test && pnpm lint && pnpm typecheck`)
+3. Run every check (`run check`)
 4. Commit your changes (`git commit -m 'feat: add amazing feature'`)
 5. Push to the branch (`git push origin feature/amazing-feature`)
 6. Open a Pull Request
