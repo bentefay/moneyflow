@@ -80,3 +80,6 @@
 - [Ask what can write before attesting](feedback_ask-what-can-write-before-attesting.md) — a cron
   committed mid-chain and voided four results; capture HEAD/tree/status before AND after every
   command, and scope the re-run by what the delta can reach.
+- [Subagent handback silence](feedback_subagent-handback-silence.md) — verification subagents may
+  never report; run gate commands directly and check `uptime` for cross-checkout load before
+  reporting timeouts.
