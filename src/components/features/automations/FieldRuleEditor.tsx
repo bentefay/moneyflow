@@ -40,12 +40,10 @@ import {
     applyModeTargetsNewOnly,
     type RuleEditorDraft,
     type RuleEditorFieldErrors
-} from "./rule-editor-model";
+} from "./legacy-rule-editor-model";
+import { type RuleEditorOption } from "./rule-editor-data";
 
-export interface RuleEditorOption {
-    readonly id: string;
-    readonly label: string;
-}
+export type { RuleEditorOption };
 
 export interface FieldRuleEditorProps {
     readonly draft: RuleEditorDraft;

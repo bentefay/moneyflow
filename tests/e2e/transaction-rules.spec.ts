@@ -36,15 +36,17 @@ async function createDescriptionAliasRule(
     input: { readonly description: string; readonly aliasName: string }
 ): Promise<void> {
     await goToAutomations(page);
-    await page.locator('[data-testid="new-rule-btn"]').click();
-    await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
-    await page.locator('[data-testid="rule-field"]').click();
-    await page.getByRole("option", { name: "Description alias" }).click();
+    await page.getByTestId("new-rule-btn").click();
+    await expect(page.getByRole("group", { name: "New rule" })).toBeVisible();
     await page.getByLabel(/exact description text/i).fill(input.description);
-    await page.locator('[data-testid="rule-alias"]').click();
+    await page.getByRole("combobox", { name: "Add output" }).click();
+    await page.getByRole("option", { name: "Description", exact: true }).click();
+    await page.getByTestId("rule-alias").click();
     await page.getByRole("option", { name: input.aliasName, exact: true }).click();
-    await page.locator('[data-testid="rule-save"]').click();
-    await expect(page.getByText(new RegExp(input.description))).toBeVisible();
+    await page.getByTestId("rule-save").click();
+    await expect(
+        page.getByTestId("rule-list").getByRole("button").filter({ hasText: input.description })
+    ).toHaveCount(1);
 }
 
 /** Import one transaction per row via an inline CSV buffer, landing on /transactions. */

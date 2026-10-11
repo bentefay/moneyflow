@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { Temporal } from "temporal-polyfill";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type RuleEditorDraft } from "@/components/features/automations/rule-editor-model";
+import { type RuleEditorDraft } from "@/components/features/automations/legacy-rule-editor-model";
 import { type FieldRuleProposalState } from "@/components/features/transactions/field-rule-proposal-state";
 import { type RobotCurrentValue } from "@/components/features/transactions/field-rule-robot-state";
 import { asTransactionId } from "@/components/features/transactions/table-model";

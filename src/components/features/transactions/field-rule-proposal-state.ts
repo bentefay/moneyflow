@@ -24,7 +24,7 @@
 import type {
     RuleEditorDraft,
     RuleEditorFieldErrors
-} from "@/components/features/automations/rule-editor-model";
+} from "@/components/features/automations/legacy-rule-editor-model";
 import {
     fieldAppliesToManual,
     type FieldRule,
@@ -32,33 +32,12 @@ import {
     type RuleMatchSubject,
     selectWinningRule
 } from "@/lib/domain/automation/rules";
-import { getCurrency, type MoneyMinorUnits, toMajorUnits } from "@/lib/domain/currency";
 import { assertNever } from "@/lib/utils/exhaustive";
 
 import { type RobotCurrentValue } from "./field-rule-robot-state";
 
-/**
- * Render a transaction's amount for the frozen "only if $x" restriction label (`:258-259`), where x
- * is that transaction's own amount. Falls back to the bare major-units number for a currency the
- * platform cannot format. A blank amount renders as a dash; the editor rejects an amount scope
- * seeded from it.
- */
-export function formatAmountForRuleLabel(
-    amount: MoneyMinorUnits | undefined,
-    currencyCode: string,
-    locale?: Intl.LocalesArgument
-): string {
-    if (amount == null) return "—";
-    const majorUnits = toMajorUnits(amount, currencyCode);
-    const currency = getCurrency(currencyCode);
-    if (currency == null) return String(majorUnits);
-    return new Intl.NumberFormat(locale, {
-        style: "currency",
-        currency: currency.code,
-        minimumFractionDigits: currency.decimal_digits,
-        maximumFractionDigits: currency.decimal_digits
-    }).format(majorUnits);
-}
+/** Re-exported from the shared rule editor data so the inspector and the page format alike. */
+export { formatAmountForRuleLabel } from "@/components/features/automations/rule-editor-data";
 
 /**
  * Whether the user's just-made change can be offered as a rule, and if so whether applying it would
