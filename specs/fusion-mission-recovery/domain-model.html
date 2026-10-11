@@ -739,18 +739,18 @@
                 </text>
 
                 <rect class="box fill-muted" x="740" y="90" width="240" height="110" rx="10" />
-                <text class="title" x="756" y="114">What stays per user</text>
+                <text class="title" x="756" y="114">Not on the rule</text>
                 <text class="small" x="756" y="138" style="font-size: 12px">
-                    Scope (Update all / new) and Apply on
+                    Update all / new and Apply on blur
                 </text>
                 <text class="small" x="756" y="156" style="font-size: 12px">
-                    blur describe a gesture and a habit,
+                    are a user's remembered last choices,
                 </text>
                 <text class="small" x="756" y="174" style="font-size: 12px">
-                    not what the rule does. They remain
+                    global to that user. A rule stores
                 </text>
                 <text class="small" x="756" y="192" style="font-size: 12px">
-                    in UserAutomationPreference.
+                    nothing about how it was applied.
                 </text>
             </svg>
             <figcaption>
@@ -828,7 +828,7 @@
                     rx="8"
                 />
                 <text class="mono" x="794" y="182">r1-tags COFFEE SHOP 123</text>
-                <text class="mono" x="794" y="200">any · any copied</text>
+                <text class="mono" x="794" y="200">any · any</text>
                 <text class="mono" x="794" y="218">tags add #coffee</text>
 
                 <text class="muted" x="530" y="258" style="font-size: 11px">
@@ -883,11 +883,10 @@
         </ul>
 
         <div class="callout">
-            <strong>Open decision.</strong> The saved plan says a split "copies application
-            settings", which reads as if scope and Apply on blur were stored on the rule. The
-            recommendation above keeps them per user, with the split copying the editor's current
-            choices into the new rule's editor without persisting them. If you want apply settings
-            on the rule, Figure 6 gains an <code>apply</code> block.
+            <strong>Resolved.</strong> The saved plan said a split "copies application settings".
+            There are none: a rule holds its match conditions and its outputs, and Update all /
+            Update new and Apply on blur are a user's remembered last choices, independent of any
+            rule. A split copies the match conditions only.
         </div>
     </body>
 </html>
