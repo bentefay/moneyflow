@@ -3,6 +3,9 @@ name = "moneyflow"
 version = "0.1.0"
 description = "MoneyFlow project"
 requires-python = ">=3.11"
-dependencies = ["specify-cli @ git+https://github.com/github/spec-kit.git"]
+dependencies = ["specify-cli @ git+https://github.com/github/spec-kit.git@v1.1.2"]
 
 [tool.uv]
+# Matches safe-chain's 48 hour minimum package age for registry packages. Git dependencies are not
+# covered, so pin them to a tag at least that old.
+exclude-newer = "2 days"
