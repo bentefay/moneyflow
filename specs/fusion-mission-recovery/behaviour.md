@@ -39,6 +39,8 @@ implementation. Table interaction changes do not need mockups.
 
 ## 2. How rules match — behaviour that must not change
 
+The entities and the matching pipeline are drawn in [domain-model.html](domain-model.html).
+
 This is the existing contract, which you wrote and the audit confirmed is what ships.
 
 **[confirmed]** A rule is keyed by exact description text. It may additionally be restricted to one
