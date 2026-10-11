@@ -7,6 +7,8 @@ export default defineConfig({
     plugins: [react()],
     test: {
         environment: "jsdom",
+        // Vitest 5 defaults this to true; the suite was written against v4's accumulating mocks.
+        clearMocks: false,
         globals: true,
         setupFiles: ["./tests/setup.ts"],
         include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
