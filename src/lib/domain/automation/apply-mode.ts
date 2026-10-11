@@ -64,3 +64,21 @@ export function applyModeIsAutomatic(mode: ApplyMode): boolean {
             return assertNever(mode, "apply mode");
     }
 }
+
+/**
+ * Which transactions an apply targets: every matching one, or only those on or after the reference
+ * date (plus future imports). One of the two independent axes the four modes encode.
+ */
+export type ApplyScope = "all" | "new";
+
+/** Recombine the scope and automatic axes into the four-mode value the preference wire stores. */
+export function applyModeFrom(scope: ApplyScope, applyOnBlur: boolean): ApplyMode {
+    switch (scope) {
+        case "all":
+            return applyOnBlur ? "updatingAll" : "updateAll";
+        case "new":
+            return applyOnBlur ? "updatingNew" : "updateNew";
+        default:
+            return assertNever(scope, "apply scope");
+    }
+}

@@ -115,6 +115,11 @@ function gridCell(marker: string, transactionId = TRANSACTION_ID): HTMLElement {
 }
 
 describe("transaction page tag commit", () => {
+    // Mounting the whole transactions page costs up to ~4s alone and overruns the 5s default under
+    // a saturated full-suite run. This is a budget ceiling, not a wait: every assertion below still
+    // settles on its own condition rather than on elapsed time.
+    vi.setConfig({ testTimeout: 30_000 });
+
     let mediaQuery: InspectorMediaQuery;
     let restoreLayout: () => void;
 
@@ -739,7 +744,7 @@ describe("transaction page tag commit", () => {
         expect(committedTagIds).toHaveLength(1);
         expect(storedTransactionTagIds(destinationId)).toEqual(committedTagIds);
         expect(fieldRuleCreateCalls[0]).toMatchObject({
-            action: { field: "tags", mode: "add", tagIds: committedTagIds },
+            outputs: { tags: { mode: "add", tagIds: committedTagIds } },
             descriptionText: description
         });
         expect(screen.getByTestId("transaction-inspector")).toHaveAttribute(

@@ -48,6 +48,7 @@ import {
 import { type FieldRuleInput, type TransactionInput, type VaultState } from "@/lib/crdt/schema";
 import { asMinorUnits } from "@/lib/domain/currency";
 import { resolveAlias } from "@/lib/domain/description-aliases";
+import { asPercentage } from "@/types";
 
 const ACCOUNT = "account-1";
 const OTHER_ACCOUNT = "account-2";
@@ -126,6 +127,8 @@ function wireTagsRule(
         tagIds: [],
         allocations: {},
         deletedAtEpochMs: undefined,
+        // Legacy wire shape: no output list, so the rule has exactly the one output `field` names.
+        outputFields: [],
         ...overrides
     };
 }
@@ -150,7 +153,7 @@ describe("MF-005 matching audit — links and provenance", () => {
             createFieldRule(state, {
                 id: "rule-provenance",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-coffee"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-coffee"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -187,7 +190,7 @@ describe("MF-005 matching audit — links and provenance", () => {
             createFieldRule(state, {
                 id: "rule-alias",
                 descriptionText: DESCRIPTION,
-                action: { field: "descriptionAlias", aliasId: "alias-coffee" },
+                outputs: { descriptionAlias: { aliasId: "alias-coffee" } },
                 createdAtEpochMs: 1000
             });
         });
@@ -233,7 +236,7 @@ describe("MF-005 matching audit — precedence and matching", () => {
                         descriptionText: DESCRIPTION,
                         accountId: rule.accountId,
                         amount: rule.amount == null ? undefined : asMinorUnits(rule.amount),
-                        action: { field: "tags", mode: "set", tagIds: [rule.tag] },
+                        outputs: { tags: { mode: "set", tagIds: [rule.tag] } },
                         // Deliberately ascending with insertion order: if rank were ignored, the
                         // recency tie-break would pick a different winner per permutation.
                         createdAtEpochMs: 1000 + index
@@ -284,6 +287,45 @@ describe("MF-005 matching audit — precedence and matching", () => {
         }
     });
 
+    it("resolves a duplicate slot between a grouped and a single-output wire rule per field", () => {
+        // Only the tags slot is duplicated. Its tie still breaks on recency, while the grouped
+        // rule's allocation output has no competitor and applies regardless of who won tags.
+        for (const order of [
+            ["rule-grouped", "rule-tags"],
+            ["rule-tags", "rule-grouped"]
+        ] as const) {
+            const vault = createVaultMirror();
+            vault.mirror.setState((state: VaultState) => {
+                seed(state, { id: "t-1" });
+                for (const id of order) {
+                    putWireFieldRule(
+                        state,
+                        id === "rule-grouped"
+                            ? wireTagsRule({
+                                  id,
+                                  createdAtEpochMs: 7000,
+                                  outputFields: ["tags", "allocation"],
+                                  tagIds: ["tag-grouped"],
+                                  allocations: { "person-1": asPercentage(100) }
+                              })
+                            : wireTagsRule({ id, createdAtEpochMs: 8000, tagIds: ["tag-newer"] })
+                    );
+                }
+            });
+            vault.mirror.setState((state: VaultState) => {
+                applyFieldRulesToAllTransactions(state);
+            });
+            expect(storedTagIds(vault, "t-1"), `wire order ${order.join(",")}`).toEqual([
+                "tag-newer"
+            ]);
+            const stored = findTransactionInStore(
+                vault.mirror.getState().transactions,
+                locationOf("t-1")
+            );
+            expect(stored?.allocations["person-1"]).toBe(100);
+        }
+    });
+
     // MA-MATCH-01 / MA-MATCH-04 (negative half).
     it("does not match on case, whitespace, account or amount differences", () => {
         const vault = createVaultMirror();
@@ -299,7 +341,7 @@ describe("MF-005 matching audit — precedence and matching", () => {
                 const created = createFieldRule(state, {
                     id: near.id,
                     descriptionText: near.descriptionText,
-                    action: { field: "tags", mode: "add", tagIds: [near.id] },
+                    outputs: { tags: { mode: "add", tagIds: [near.id] } },
                     createdAtEpochMs: 1000
                 });
                 expect(created.ok).toBe(true);
@@ -308,14 +350,14 @@ describe("MF-005 matching audit — precedence and matching", () => {
                 id: "rule-wrong-account",
                 descriptionText: DESCRIPTION,
                 accountId: OTHER_ACCOUNT,
-                action: { field: "tags", mode: "add", tagIds: ["rule-wrong-account"] },
+                outputs: { tags: { mode: "add", tagIds: ["rule-wrong-account"] } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
                 id: "rule-wrong-amount",
                 descriptionText: DESCRIPTION,
                 amount: asMinorUnits(AMOUNT + 1),
-                action: { field: "tags", mode: "add", tagIds: ["rule-wrong-amount"] },
+                outputs: { tags: { mode: "add", tagIds: ["rule-wrong-amount"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -330,7 +372,7 @@ describe("MF-005 matching audit — precedence and matching", () => {
             createFieldRule(state, {
                 id: "rule-exact",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-exact"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-exact"] } },
                 createdAtEpochMs: 2000
             });
         });
@@ -355,7 +397,7 @@ describe("MF-005 matching audit — precedence and matching", () => {
             const emptyRule = createFieldRule(state, {
                 id: "rule-empty-text",
                 descriptionText: "",
-                action: { field: "tags", mode: "add", tagIds: ["tag-empty"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-empty"] } },
                 createdAtEpochMs: 1000
             });
             expect(emptyRule.ok).toBe(true);
@@ -378,7 +420,7 @@ describe("MF-005 matching audit — precedence and matching", () => {
             createFieldRule(state, {
                 id: "rule-tags-rank0",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "set", tagIds: ["tag-broad"] },
+                outputs: { tags: { mode: "set", tagIds: ["tag-broad"] } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
@@ -386,14 +428,14 @@ describe("MF-005 matching audit — precedence and matching", () => {
                 descriptionText: DESCRIPTION,
                 accountId: ACCOUNT,
                 amount: asMinorUnits(AMOUNT),
-                action: { field: "tags", mode: "set", tagIds: ["tag-narrow"] },
+                outputs: { tags: { mode: "set", tagIds: ["tag-narrow"] } },
                 createdAtEpochMs: 1000
             });
             // allocation: only a rank-0 rule exists, and it still applies.
             createFieldRule(state, {
                 id: "rule-alloc-rank0",
                 descriptionText: DESCRIPTION,
-                action: { field: "allocation", allocations: { "person-1": 100 } },
+                outputs: { allocation: { allocations: { "person-1": 100 } } },
                 createdAtEpochMs: 1000
             });
         });
@@ -421,13 +463,13 @@ describe("MF-005 matching audit — precedence and matching", () => {
                 id: "rule-zero",
                 descriptionText: DESCRIPTION,
                 amount: asMinorUnits(0),
-                action: { field: "tags", mode: "set", tagIds: ["tag-zero"] },
+                outputs: { tags: { mode: "set", tagIds: ["tag-zero"] } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
                 id: "rule-any-amount",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "set", tagIds: ["tag-any"] },
+                outputs: { tags: { mode: "set", tagIds: ["tag-any"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -465,13 +507,13 @@ describe("MF-005 matching audit — manual versus imported eligibility", () => {
             createFieldRule(state, {
                 id: "rule-raw",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-raw"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-raw"] } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
                 id: "rule-display-name",
                 descriptionText: "Completely Different",
-                action: { field: "tags", mode: "add", tagIds: ["tag-display"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-display"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -517,21 +559,21 @@ describe("MF-005 matching audit — manual versus imported eligibility", () => {
             for (const rule of [
                 {
                     id: "rule-manual-tags",
-                    action: { field: "tags", mode: "add", tagIds: ["tag-groceries"] } as const
+                    outputs: { tags: { mode: "add", tagIds: ["tag-groceries"] } } as const
                 },
                 {
                     id: "rule-manual-alloc",
-                    action: { field: "allocation", allocations: { "person-1": 100 } } as const
+                    outputs: { allocation: { allocations: { "person-1": 100 } } } as const
                 },
                 {
                     id: "rule-manual-alias",
-                    action: { field: "descriptionAlias", aliasId: "alias-elsewhere" } as const
+                    outputs: { descriptionAlias: { aliasId: "alias-elsewhere" } } as const
                 }
             ]) {
                 const created = createFieldRule(state, {
                     id: rule.id,
                     descriptionText: MANUAL_NAME,
-                    action: rule.action,
+                    outputs: rule.outputs,
                     createdAtEpochMs: 1000
                 });
                 expect(created.ok).toBe(true);
@@ -714,14 +756,14 @@ describe("MF-005 matching audit — application boundaries and preferences", () 
             createFieldRule(state, {
                 id: "rule-tags",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-applied"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-applied"] } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
                 id: "rule-alias-missing",
                 descriptionText: DESCRIPTION,
                 // A rule pointing at an alias that does not exist: the alias boundary rejects it.
-                action: { field: "descriptionAlias", aliasId: "alias-missing" },
+                outputs: { descriptionAlias: { aliasId: "alias-missing" } },
                 createdAtEpochMs: 1000
             });
         });

@@ -223,19 +223,19 @@ export function useFieldRuleProposal(params: {
             setErrorOverride({ errors: validation.errors, generation: draftGeneration });
             return false;
         }
-        const { accountId, amount, action } = validation.value;
+        const { accountId, amount, outputs } = validation.value;
 
         // Frozen `:287-289`: when the changed field already has a matching rule the same controls
         // UPDATE that rule instead of creating a second one for the same description text.
         const result =
             proposal.kind === "update"
-                ? update({ id: proposal.rule.id, accountId, amount, action })
+                ? update({ id: proposal.rule.id, accountId, amount, outputs })
                 : create({
                       id: crypto.randomUUID(),
                       descriptionText: proposal.descriptionText,
                       accountId,
                       amount,
-                      action,
+                      outputs,
                       createdAtEpochMs: Date.now()
                   });
 

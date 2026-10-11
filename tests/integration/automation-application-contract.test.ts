@@ -14,15 +14,15 @@
  * 1. `applyFieldRulesToAllTransactions` reaches every active matching row at any date, and the
  *    returned entries are NOT a proxy for mutation — an entry exists for every active row, including
  *    ones no rule matched. Assertions therefore read the stored values back.
- * 2. `applyFieldRulesToNewerTransactions` is STRICTLY newer today: rows sharing the reference date
- *    are excluded. The confirmed target is inclusive ("on or after"). The gap is measured, not
- *    fixed — MF-003 changes no comparator.
+ * 2. `applyFieldRulesToNewerTransactions` is inclusive ("on or after"): rows sharing the reference
+ *    date are updated along with later ones. MF-003 measured a strictly-newer comparator; the
+ *    grouped-rules work adopted the confirmed inclusive target and restated it as the baseline.
  * 3. Both bulk entry points evaluate EVERY active rule, not only the rule an editor happens to have
  *    open.
  * 4. Import arrival is independent of the UI apply mode and of the transaction's own date: a
  *    backdated row committed through `commitImportBatch` still receives its rule.
  * 5. Outside a transaction context the manager passes `Temporal.Now.plainDateISO()`, so "Apply new"
- *    rewrites EXISTING rows dated after today rather than only future imports.
+ *    rewrites EXISTING rows dated today or later rather than only future imports.
  * 6. Deletion is a soft delete of the RULE: already-written field values survive, later arrivals no
  *    longer receive it, unrelated rules are untouched.
  * 7. Bulk apply reads SAVED rules; an unsaved editor draft has no effect.
@@ -111,15 +111,9 @@ const SCOPE_ROWS: readonly SeedRow[] = [
     row({ id: "d-deleted", date: AFTER, deleted: true })
 ];
 
-/** Rows a strictly-newer application reaches today, given `SELECTED_DATE` as the reference. */
-const BASELINE_NEWER_IDS = ["m-after"] as const;
-
 /**
- * Rows the CONFIRMED TARGET population ("matching rows dated on or after the selected row") names.
- *
- * This is the downstream acceptance set for the approved inclusive-date intent. It is stated here as
- * documentation and compared against the measured baseline below; it is deliberately NOT asserted as
- * current behaviour, because MF-003 changes no comparator.
+ * Rows the CONFIRMED TARGET population ("matching rows dated on or after the selected row") names,
+ * which is what apply-new reaches given `SELECTED_DATE` as the reference.
  */
 const TARGET_NEWER_IDS = ["m-same-a", "m-same-b", "m-after"] as const;
 
@@ -166,7 +160,7 @@ function seedScopedTagRule(state: VaultState): void {
         descriptionText: DESCRIPTION,
         accountId: ACCOUNT,
         amount: AMOUNT,
-        action: { field: "tags", mode: "add", tagIds: [TAG] },
+        outputs: { tags: { mode: "add", tagIds: [TAG] } },
         createdAtEpochMs: 1000
     });
     if (!result.ok) throw new Error(`rule seed failed: ${result.error.type}`);
@@ -179,7 +173,7 @@ function seedUnrelatedAliasRule(state: VaultState): void {
     const result = createFieldRule(state, {
         id: "rule-alias",
         descriptionText: OTHER_DESCRIPTION,
-        action: { field: "descriptionAlias", aliasId: "alias-other" },
+        outputs: { descriptionAlias: { aliasId: "alias-other" } },
         createdAtEpochMs: 2000
     });
     if (!result.ok) throw new Error(`alias rule seed failed: ${result.error.type}`);
@@ -279,8 +273,8 @@ describe("apply-all target population", () => {
     });
 });
 
-describe("apply-new target population is strictly newer today", () => {
-    it("excludes rows sharing the selected row's date", () => {
+describe("apply-new target population is on or after the reference date", () => {
+    it("includes rows sharing the selected row's date and excludes earlier ones", () => {
         const vault = createVaultMirror();
         vault.mirror.setState((state: VaultState) => {
             seedRows(state, SCOPE_ROWS);
@@ -291,15 +285,9 @@ describe("apply-new target population is strictly newer today", () => {
         });
 
         const state = vault.mirror.getState();
-        expect(rowsTaggedBy(state, SCOPE_ROWS)).toEqual([...BASELINE_NEWER_IDS]);
-    });
-
-    it("differs from the confirmed inclusive-date target by exactly the same-date rows", () => {
-        // Recorded, not fixed. The gap between measured baseline and downstream acceptance is the
-        // whole point of this assertion: it fails the day the comparator changes, which is the day
-        // the target row set must be re-stated as the baseline.
-        const missing = TARGET_NEWER_IDS.filter((id) => !BASELINE_NEWER_IDS.includes(id as never));
-        expect(missing).toEqual(["m-same-a", "m-same-b"]);
+        // Exactly the confirmed target: both same-date rows, the later row, and none of the
+        // earlier, non-matching or deleted controls.
+        expect(rowsTaggedBy(state, SCOPE_ROWS)).toEqual([...TARGET_NEWER_IDS]);
     });
 });
 
@@ -357,7 +345,7 @@ describe("import arrival is independent of transaction date and UI apply mode", 
 });
 
 describe("context-free apply-new uses today as its reference date", () => {
-    it("rewrites EXISTING rows dated after today and spares today and earlier", () => {
+    it("rewrites EXISTING rows dated today or later and spares earlier ones", () => {
         // `FieldRulesManager.handleApplyNew` calls `applyNewerThan(Temporal.Now.plainDateISO())`
         // (src/components/features/automations/FieldRulesManager.tsx). The reference date is derived
         // the same way here so the fixture cannot drift from the wall clock.
@@ -382,8 +370,9 @@ describe("context-free apply-new uses today as its reference date", () => {
 
         const state = vault.mirror.getState();
         // `c-tomorrow` is an EXISTING future-dated row, not a future import: outside a transaction
-        // context the button still rewrites it. Today's implicit cutoff is recorded, not concealed.
-        expect(rowsTaggedBy(state, rows)).toEqual(["c-tomorrow"]);
+        // context the button still rewrites it. Today's implicit, inclusive cutoff is recorded, not
+        // concealed.
+        expect(rowsTaggedBy(state, rows)).toEqual(["c-today", "c-tomorrow"]);
     });
 });
 
@@ -484,14 +473,14 @@ describe("rule deletion is a soft delete of the rule, not a rollback of its writ
 
             const update = updateFieldRule(state, {
                 id: "rule-tags",
-                action: { field: "tags", mode: "add", tagIds: ["tag-late"] }
+                outputs: { tags: { mode: "add", tagIds: ["tag-late"] } }
             });
             expect(update.ok).toBe(false);
             if (!update.ok) expect(update.error.type).toBe("not-found");
 
             const unknown = updateFieldRule(state, {
                 id: "rule-never-existed",
-                action: { field: "tags", mode: "add", tagIds: ["tag-late"] }
+                outputs: { tags: { mode: "add", tagIds: ["tag-late"] } }
             });
             expect(unknown.ok).toBe(false);
             if (!unknown.ok) expect(unknown.error.type).toBe("not-found");

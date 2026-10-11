@@ -8,41 +8,49 @@
  */
 
 import { type FieldRuleMutationError } from "@/lib/crdt/field-rule-mutations";
-import { type FieldRule, type TagRuleMode } from "@/lib/domain/automation/rules";
+import {
+    type FieldRule,
+    primaryOutputField,
+    type TagRuleMode
+} from "@/lib/domain/automation/rules";
 import { type MoneyMinorUnits, toMajorUnits } from "@/lib/domain/currency";
 import { assertNever } from "@/lib/utils/exhaustive";
 
 import { type ApplyMode, emptyRuleDraft, type RuleEditorDraft } from "./rule-editor-model";
 
-/** Build an editable draft that reproduces an existing rule's field, scope, action and values. */
+/**
+ * Build an editable draft that reproduces an existing rule's scope and values. The draft edits one
+ * field, the rule's first output; every output's value is carried so switching field shows it.
+ */
 export function draftFromRule(
     rule: FieldRule,
     currencyCode: string,
     applyMode: ApplyMode
 ): RuleEditorDraft {
+    const { descriptionAlias, tags, allocation } = rule.outputs;
     const base = emptyRuleDraft({
-        field: rule.action.field,
-        tagMode: rule.action.field === "tags" ? rule.action.mode : "add",
+        field: primaryOutputField(rule.outputs),
+        tagMode: tags?.mode ?? "add",
         useAccountScope: rule.accountId != null,
         useAmountScope: rule.amount != null,
         applyMode
     });
     const allocations: Record<string, string> =
-        rule.action.field === "allocation"
-            ? Object.fromEntries(
-                  Object.entries(rule.action.allocations).map(([personId, value]) => [
+        allocation == null
+            ? {}
+            : Object.fromEntries(
+                  Object.entries(allocation.allocations).map(([personId, value]) => [
                       personId,
                       String(value)
                   ])
-              )
-            : {};
+              );
     return {
         ...base,
         descriptionText: rule.descriptionText,
         accountId: rule.accountId ?? "",
         amountText: rule.amount == null ? "" : String(toMajorUnits(rule.amount, currencyCode)),
-        aliasId: rule.action.field === "descriptionAlias" ? rule.action.aliasId : "",
-        tagIds: rule.action.field === "tags" ? [...rule.action.tagIds] : [],
+        aliasId: descriptionAlias?.aliasId ?? "",
+        tagIds: tags == null ? [] : [...tags.tagIds],
         allocations
     };
 }
@@ -128,6 +136,9 @@ export function mutationErrorToFieldErrors(error: FieldRuleMutationError): {
             return { allocations: "Enter a valid percentage set (each between -100 and 100)." };
         case "invalid-rule":
         case "not-found":
+        case "missing-output":
+        case "single-output":
+        case "predicate-mismatch":
             return { descriptionText: "This rule is not valid. Check the fields and try again." };
         default:
             return assertNever(error);

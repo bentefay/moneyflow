@@ -11,7 +11,13 @@
  * is the caller's concern (deferred with root wiring — see Q-P17A-DEFAULTS).
  */
 
-import { type ApplyMode, DEFAULT_APPLY_MODE } from "./apply-mode";
+import {
+    type ApplyMode,
+    applyModeIsAutomatic,
+    applyModeTargetsNewOnly,
+    type ApplyScope,
+    DEFAULT_APPLY_MODE
+} from "./apply-mode";
 import { type RuleField, type TagRuleMode } from "./rules";
 
 /** Structural view of a stored per-user preference record. */
@@ -73,4 +79,14 @@ export function nextUserPreference(
         lastUseAmountScope: choice.useAmountScope,
         lastApplyMode: choice.applyMode
     };
+}
+
+/** The remembered scope axis of the stored four-mode choice. */
+export function rememberedScope(choice: RememberedRuleChoice): ApplyScope {
+    return applyModeTargetsNewOnly(choice.applyMode) ? "new" : "all";
+}
+
+/** The remembered automatic axis of the stored four-mode choice: apply when focus leaves the row. */
+export function rememberedApplyOnBlur(choice: RememberedRuleChoice): boolean {
+    return applyModeIsAutomatic(choice.applyMode);
 }

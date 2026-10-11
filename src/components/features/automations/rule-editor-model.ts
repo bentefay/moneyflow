@@ -2,16 +2,16 @@
  * Pure model for the shared field-rule editor (HS-007 / P17B).
  *
  * The editor UI is a thin, controlled shell over this module: a {@link RuleEditorDraft} is the
- * editable form state, and {@link validateRuleDraft} turns a draft into either a ready-to-write
- * action (consumed by the P17B CRUD mutations) or per-field validation errors. Keeping this pure
+ * editable form state, and {@link validateRuleDraft} turns a draft into either ready-to-write
+ * outputs (consumed by the P17B CRUD mutations) or per-field validation errors. Keeping this pure
  * makes the four-mode/constraint/validation logic testable without React and lets the SAME editor
  * mount on the Automations page now and in the P17C contextual popup later.
  *
- * It reuses the P17A domain types (`RuleField`, `TagRuleMode`, `FieldRuleActionInput`) and never
+ * It reuses the P17A domain types (`RuleField`, `TagRuleMode`, `FieldRuleOutputsInput`) and never
  * re-implements precedence, matching or application — those stay in the engine.
  */
 
-import { type FieldRuleActionInput } from "@/lib/crdt/field-rule-mutations";
+import { type FieldRuleOutputsInput } from "@/lib/crdt/field-rule-mutations";
 import {
     type ApplyMode,
     APPLY_MODES,
@@ -93,11 +93,11 @@ export interface RuleEditorFieldErrors {
     readonly allocations?: string;
 }
 
-/** The scope + action a valid draft resolves to, ready for the CRUD mutations. */
+/** The scope + outputs a valid draft resolves to, ready for the CRUD mutations. */
 export interface ResolvedRuleWrite {
     readonly accountId?: string;
     readonly amount?: number;
-    readonly action: FieldRuleActionInput;
+    readonly outputs: FieldRuleOutputsInput;
 }
 
 export type RuleEditorValidation =
@@ -149,17 +149,17 @@ export function validateRuleDraft(
     }
 
     const amount = parseAmount(draft, currencyCode, errors);
-    const action = parseAction(draft, errors);
+    const outputs = parseOutputs(draft, errors);
 
     if (hasAnyError(errors)) return { ok: false, errors };
-    if (action == null) return { ok: false, errors };
+    if (outputs == null) return { ok: false, errors };
 
     return {
         ok: true,
         value: {
             accountId: accountId == null || accountId.length === 0 ? undefined : accountId,
             amount,
-            action
+            outputs
         }
     };
 }
@@ -189,10 +189,11 @@ function parseAmount(
     return toMinorUnitsForCurrency(parsed, currencyCode);
 }
 
-function parseAction(
+/** The draft edits one field, so it resolves to exactly one output. */
+function parseOutputs(
     draft: RuleEditorDraft,
     errors: Mutable<RuleEditorFieldErrors>
-): FieldRuleActionInput | null {
+): FieldRuleOutputsInput | null {
     switch (draft.field) {
         case "descriptionAlias": {
             const aliasId = draft.aliasId.trim();
@@ -200,7 +201,7 @@ function parseAction(
                 errors.aliasId = "Choose the description alias to apply.";
                 return null;
             }
-            return { field: "descriptionAlias", aliasId };
+            return { descriptionAlias: { aliasId } };
         }
         case "tags": {
             const tagIds = draft.tagIds.filter((id) => id.length > 0);
@@ -208,12 +209,12 @@ function parseAction(
                 errors.tagIds = "Choose at least one tag to add.";
                 return null;
             }
-            return { field: "tags", mode: draft.tagMode, tagIds };
+            return { tags: { mode: draft.tagMode, tagIds } };
         }
         case "allocation": {
             const allocations = parseAllocations(draft.allocations, errors);
             if (allocations == null) return null;
-            return { field: "allocation", allocations };
+            return { allocation: { allocations } };
         }
         default:
             return assertNever(draft.field);
