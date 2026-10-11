@@ -308,5 +308,5 @@ open or closed.
 1. Whether the Update new cutoff is inclusive of the same date, as the saved plan says, or strictly
    later, as your scratch file says.
 2. Whether to approve the proposed ownership resolutions in section 4, or change them.
-3. What the mockups should look like. Only the ownership prototype exists; the full editor mockup
-   was never produced.
+3. Whether the editor mockup at `mockups/rule-editor.html` is the design you want. It covers the
+   three mockup features of the saved plan and is unapproved until you say otherwise.
