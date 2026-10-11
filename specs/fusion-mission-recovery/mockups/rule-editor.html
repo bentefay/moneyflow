@@ -881,7 +881,7 @@
                     preApplied: ["r1"],
                     openSplit: "tags",
                     notes: [
-                        "Split moves exactly one output. The new rule copies the conditions and the scope settings.",
+                        "Split moves exactly one output. The new rule has the same match conditions. Scope and Apply on blur are your remembered choices, not part of either rule.",
                         "Afterwards, edits to either rule are independent. A single-output rule has no Split control.",
                         "A split that would collide with an existing rule at the same conditions is refused, and the holder is named."
                     ]
@@ -1451,14 +1451,11 @@
             function renderSplit(r, field, d) {
                 const remaining = outputFields(r).filter((f) => f !== field);
                 const cond = ruleName(r).replace(r.text + " · ", "");
-                const scopeText =
-                    (d.scope === "all" ? "Update all" : "Update new") +
-                    (d.blur ? ", apply on blur" : "");
                 return h`<div class="panel" role="group" aria-label="Split preview">
-    <p><strong>Split ${fieldLabel(field).toLowerCase()} into its own rule.</strong> Both rules keep the same conditions and apply settings. No transaction changes.</p>
+    <p><strong>Split ${fieldLabel(field).toLowerCase()} into its own rule.</strong> Both rules keep the same match conditions. No transaction changes.</p>
     <div class="split-preview">
-      <div class="mini"><span class="n">${esc(r.text)}</span><span class="muted">${esc(cond)} · ${esc(scopeText)}</span>${remaining.map((f) => h`<span>${fieldLabel(f)}: ${esc(valueLabel(f, r.outputs[f]))}</span>`).join("")}</div>
-      <div class="mini"><span class="n">${esc(r.text)} <span class="chip pending">new</span></span><span class="muted">${esc(cond)} · ${esc(scopeText)}</span><span>${fieldLabel(field)}: ${esc(valueLabel(field, r.outputs[field]))}</span></div>
+      <div class="mini"><span class="n">${esc(r.text)}</span><span class="muted">${esc(cond)}</span>${remaining.map((f) => h`<span>${fieldLabel(f)}: ${esc(valueLabel(f, r.outputs[f]))}</span>`).join("")}</div>
+      <div class="mini"><span class="n">${esc(r.text)} <span class="chip pending">new</span></span><span class="muted">${esc(cond)}</span><span>${fieldLabel(field)}: ${esc(valueLabel(field, r.outputs[field]))}</span></div>
     </div>
     <div class="actions" style="border:0;padding:0"><button class="btn primary" type="button" data-act="confirm-split" data-field="${field}">Confirm split</button><button class="btn" type="button" data-act="cancel-split">Back</button></div>
   </div>`;

@@ -139,9 +139,10 @@ editor says so and re-presents it rather than overwriting or silently recreating
 ## 5. Splitting an output out of a rule
 
 **[saved plan]** Each output badge on a rule has a Split control. Splitting moves exactly that one
-output into a new rule that copies the original's match conditions and application settings. The
-original keeps its remaining outputs. Immediately after the split every transaction looks the same;
-subsequent edits to either rule are independent.
+output into a new rule with the same match conditions. The original keeps its remaining outputs.
+Nothing else is copied: scope and Apply on blur are your own remembered choices, not properties of a
+rule. Immediately after the split every transaction looks the same; subsequent edits to either rule
+are independent.
 
 **[saved plan]** The behaviour when the rule has only one output, or when the split would collide
 with an existing rule at the same level of restriction, follows the approved contract.
