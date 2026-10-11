@@ -39,8 +39,6 @@ implementation. Table interaction changes do not need mockups.
 
 ## 2. How rules match — behaviour that must not change
 
-The entities and the matching pipeline are drawn in [domain-model.html](domain-model.html).
-
 This is the existing contract, which you wrote and the audit confirmed is what ships.
 
 **[confirmed]** A rule is keyed by exact description text. It may additionally be restricted to one
@@ -139,10 +137,9 @@ editor says so and re-presents it rather than overwriting or silently recreating
 ## 5. Splitting an output out of a rule
 
 **[saved plan]** Each output badge on a rule has a Split control. Splitting moves exactly that one
-output into a new rule with the same match conditions. The original keeps its remaining outputs.
-Nothing else is copied: scope and Apply on blur are your own remembered choices, not properties of a
-rule. Immediately after the split every transaction looks the same; subsequent edits to either rule
-are independent.
+output into a new rule that copies the original's match conditions and application settings. The
+original keeps its remaining outputs. Immediately after the split every transaction looks the same;
+subsequent edits to either rule are independent.
 
 **[saved plan]** The behaviour when the rule has only one output, or when the split would collide
 with an existing rule at the same level of restriction, follows the approved contract.
@@ -166,8 +163,8 @@ and keyboard access.
 
 **[confirmed]** From a transaction, a matching rule is shown with an indicator. If the transaction's
 current values agree with what the rule implies, the indicator is neutral. If they differ, the
-indicator turns orange, not red, and the editor offers an "apply to this transaction" action.
-Applying to one transaction does not create a link to the rule.
+indicator shows the divergence and the editor offers an "apply to this transaction" action. Applying
+to one transaction does not create a link to the rule.
 
 **[saved plan]** The inspector is roomier than today and scrolls independently when its content is
 long.
@@ -306,27 +303,10 @@ open or closed.
 
 ---
 
-## 8. Decisions recorded on 2026-10-11
-
-**[confirmed]** You reviewed the editor mockup scenarios for ownership conflicts, split, mismatch
-and pending edits and agreed with them:
-
-- After a split, editing the split-out field updates its own rule by default, and rejoining it to
-  the description rule is an explicit choice offered only while the conditions are still identical.
-- Divergence between a rule and a transaction must be obvious. The marker is orange, not red, since
-  it is information rather than an error.
-- Editing one row without changing its rule is done by cancelling or not applying the proposal. The
-  row then shows as divergent. A deliberate exception is accepted as indistinguishable from drift
-  for now.
-- Cell edits are written to the transaction before the rule proposal appears; the proposal concerns
-  only the rule.
-
-## 9. What you still need to decide
+## 8. What you still need to decide
 
 1. Whether the Update new cutoff is inclusive of the same date, as the saved plan says, or strictly
    later, as your scratch file says.
 2. Whether to approve the proposed ownership resolutions in section 4, or change them.
-3. Whether to remember the Apply on blur preference separately for creating a rule and for changing
-   an existing one, with the latter defaulting off, to avoid rewriting other rows on leaving a row.
-4. Whether the remaining editor mockup scenarios at `mockups/rule-editor.html` are the design you
-   want. Scenarios 4 to 7 are agreed; the rest are unapproved until you say otherwise.
+3. What the mockups should look like. Only the ownership prototype exists; the full editor mockup
+   was never produced.

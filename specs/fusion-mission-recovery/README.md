@@ -6,6 +6,9 @@ rules**, mission `M-MTPN1LI4-0001-JANZ`, onto the grid/inspector implementation 
 
 ## Specification and outstanding implementation
 
+[The recovered behaviour description](behaviour.md) reconstructs the desired app behaviour in
+product terms, marking each statement as confirmed, saved-plan or agent-proposed.
+
 [The recovered specification](specification.md) contains all three saved milestones, seven slices,
 and 21 original feature descriptions and acceptance criteria. It was exported read-only from the
 project-scoped Fusion database. The original interview transcript was not available; the saved plan
