@@ -53,7 +53,7 @@ describe("validateRuleDraft", () => {
         );
         expect(result.ok).toBe(true);
         if (result.ok) {
-            expect(result.value.action.field).toBe("tags");
+            expect(result.value.outputs).toEqual({ tags: { mode: "add", tagIds: ["t1"] } });
             expect(result.value.accountId).toBeUndefined();
             expect(result.value.amount).toBeUndefined();
         }
@@ -116,10 +116,7 @@ describe("validateRuleDraft", () => {
             "USD"
         );
         expect(result.ok).toBe(true);
-        if (result.ok && result.value.action.field === "tags") {
-            expect(result.value.action.mode).toBe("set");
-            expect(result.value.action.tagIds).toEqual([]);
-        }
+        if (result.ok) expect(result.value.outputs).toEqual({ tags: { mode: "set", tagIds: [] } });
     });
 
     it("requires an alias for a descriptionAlias rule", () => {
@@ -131,14 +128,14 @@ describe("validateRuleDraft", () => {
         if (!result.ok) expect(result.errors.aliasId).toBeDefined();
     });
 
-    it("builds a descriptionAlias action from a selected alias", () => {
+    it("builds a descriptionAlias output from a selected alias", () => {
         const result = validateRuleDraft(
             draft({ field: "descriptionAlias", descriptionText: "COFFEE", aliasId: "alias-1" }),
             "USD"
         );
         expect(result.ok).toBe(true);
-        if (result.ok && result.value.action.field === "descriptionAlias") {
-            expect(result.value.action.aliasId).toBe("alias-1");
+        if (result.ok) {
+            expect(result.value.outputs).toEqual({ descriptionAlias: { aliasId: "alias-1" } });
         }
     });
 
@@ -151,7 +148,7 @@ describe("validateRuleDraft", () => {
         if (!result.ok) expect(result.errors.allocations).toBeDefined();
     });
 
-    it("builds an allocation action from parsed percentages", () => {
+    it("builds an allocation output from parsed percentages", () => {
         const result = validateRuleDraft(
             draft({
                 field: "allocation",
@@ -161,8 +158,10 @@ describe("validateRuleDraft", () => {
             "USD"
         );
         expect(result.ok).toBe(true);
-        if (result.ok && result.value.action.field === "allocation") {
-            expect(result.value.action.allocations).toEqual({ p1: 60, p2: 40 });
+        if (result.ok) {
+            expect(result.value.outputs).toEqual({
+                allocation: { allocations: { p1: 60, p2: 40 } }
+            });
         }
     });
 });

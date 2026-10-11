@@ -58,9 +58,8 @@
   that carried it.
 - [Port discipline is CPU discipline](port-discipline-is-cpu-discipline.md) — hold vitest too while
   another agent campaigns; run your own non-E2E checks BEFORE launching your campaign, never during.
-- [Port override fakes a multi-context break](port-override-fakes-multicontext-break.md) — specs pin
-  `localhost:3000` inside `newContext`; a full suite on `:3100` fails ~15 tests that look like a
-  total product break.
+- [Port override fakes a multi-context break](port-override-fakes-multicontext-break.md) — the port
+  is now one `MONEYFLOW_E2E_PORT` helper; multi-context-only failures mean a spec bypassed it.
 - [repeat-each is per test, not total](repeat-each-is-per-test-not-total.md) — K arms at
   `--repeat-each=N` gives N runs per arm; set it to the per-arm bar and tally the log per arm.
 - [The ledger carries instructions you never received](ledger-carries-instructions-you-never-received.md)

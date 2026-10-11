@@ -26,7 +26,7 @@ import {
 import {
     type FieldRule,
     type FieldRuleId,
-    type RuleAction,
+    type RuleOutputs,
     type RuleMatchSubject
 } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -45,7 +45,7 @@ const MANUAL: RuleMatchSubject = { ...IMPORTED, isManual: true };
 
 function rule(overrides: {
     readonly id: string;
-    readonly action: RuleAction;
+    readonly outputs: RuleOutputs;
     readonly accountId?: string;
     readonly amount?: number;
     readonly createdAtEpochMs?: number;
@@ -55,13 +55,13 @@ function rule(overrides: {
         descriptionText: DESCRIPTION,
         accountId: overrides.accountId,
         amount: overrides.amount == null ? undefined : asMinorUnits(overrides.amount),
-        action: overrides.action,
+        outputs: overrides.outputs,
         createdAt: Temporal.Instant.fromEpochMilliseconds(overrides.createdAtEpochMs ?? 1000)
     };
 }
 
-const ALIAS_ACTION: RuleAction = { field: "descriptionAlias", aliasId: "alias-coffee" };
-const TAGS_ACTION: RuleAction = { field: "tags", mode: "add", tagIds: ["tag-coffee"] };
+const ALIAS_OUTPUTS: RuleOutputs = { descriptionAlias: { aliasId: "alias-coffee" } };
+const TAGS_OUTPUTS: RuleOutputs = { tags: { mode: "add", tagIds: ["tag-coffee"] } };
 
 const CURRENT_ALIAS: RobotCurrentValue = {
     field: "descriptionAlias",
@@ -116,7 +116,7 @@ describe("computeFieldRuleProposal — update rather than create a second rule",
     // Frozen `:287-289`: when the changed field already has a matching rule, the same controls
     // update THAT rule instead of creating a duplicate for the same description text.
     it("proposes an UPDATE of the matching rule", () => {
-        const existing = rule({ id: "rule-1", action: TAGS_ACTION });
+        const existing = rule({ id: "rule-1", outputs: TAGS_OUTPUTS });
         const proposal = computeFieldRuleProposal([existing], IMPORTED, CURRENT_TAGS);
         expect(proposal.kind).toBe("update");
         if (proposal.kind === "update") expect(proposal.rule.id).toBe("rule-1");
@@ -125,12 +125,16 @@ describe("computeFieldRuleProposal — update rather than create a second rule",
     // Frozen `:271-274`: precedence is description < description+amount < description+account <
     // description+account+amount. The proposal must update the WINNER, never an arbitrary match.
     it("updates the highest-precedence matching rule, independent of input order", () => {
-        const unscoped = rule({ id: "rule-unscoped", action: TAGS_ACTION });
-        const amountScoped = rule({ id: "rule-amount", action: TAGS_ACTION, amount: -450 });
-        const accountScoped = rule({ id: "rule-account", action: TAGS_ACTION, accountId: ACCOUNT });
+        const unscoped = rule({ id: "rule-unscoped", outputs: TAGS_OUTPUTS });
+        const amountScoped = rule({ id: "rule-amount", outputs: TAGS_OUTPUTS, amount: -450 });
+        const accountScoped = rule({
+            id: "rule-account",
+            outputs: TAGS_OUTPUTS,
+            accountId: ACCOUNT
+        });
         const both = rule({
             id: "rule-both",
-            action: TAGS_ACTION,
+            outputs: TAGS_OUTPUTS,
             accountId: ACCOUNT,
             amount: -450
         });
@@ -147,7 +151,7 @@ describe("computeFieldRuleProposal — update rather than create a second rule",
 
     it("ignores a rule of a different field when deciding create vs update", () => {
         // An alias rule matching the same text must not make a TAG change look like an update.
-        const aliasRule = rule({ id: "rule-alias", action: ALIAS_ACTION });
+        const aliasRule = rule({ id: "rule-alias", outputs: ALIAS_OUTPUTS });
         const proposal = computeFieldRuleProposal([aliasRule], IMPORTED, CURRENT_TAGS);
         expect(proposal.kind).toBe("create");
     });

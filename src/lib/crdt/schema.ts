@@ -334,10 +334,14 @@ export const automationApplicationSchema = schema.LoroMap({
 /**
  * Field rule schema (HS-007 / P17A) - typed, field-specific exact-description automation rule.
  *
- * Serialisation for the domain model in `src/lib/domain/automation/rules.ts`. A rule targets one
- * field (descriptionAlias | tags | allocation) and matches an EXACT raw description, optionally
- * narrowed by account and/or exact amount. Action-specific fields are optional here; the domain
- * boundary (`decodeFieldRule`) validates that the ones required by `field` are present.
+ * Serialisation for the domain model in `src/lib/domain/automation/rules.ts`. A rule has one to
+ * three outputs (descriptionAlias | tags | allocation) and matches an EXACT raw description,
+ * optionally narrowed by account and/or exact amount. Output-specific fields are optional here; the
+ * domain boundary (`decodeFieldRule`) validates that the ones each listed output needs are present.
+ *
+ * `field` predates grouped rules and is still written as the first output, so an older reader
+ * decodes that one output. `outputFields` lists every output; a record without it (every record
+ * written before grouped rules) has exactly the one output `field` names.
  *
  * `createdAtEpochMs` is stored as absolute epoch milliseconds (not a wall-clock string) so
  * precedence tie-breaking is free of locale/timezone ambiguity.
@@ -345,19 +349,21 @@ export const automationApplicationSchema = schema.LoroMap({
 export const fieldRuleSchema = schema.LoroMap({
     id: schema.String({ required: true }),
     field: richSchema.StringEnum(["descriptionAlias", "tags", "allocation"], { required: true }),
+    /** Every output field of the rule, in canonical order. Validated at the domain boundary. */
+    outputFields: schema.LoroList(schema.String(), (field) => field),
     /** Exact raw imported description text this rule keys on. */
     descriptionText: schema.String({ required: true }),
     /** Optional account narrowing (absent = any account). */
     accountId: schema.String({ required: false }),
     /** Optional exact-amount narrowing in minor units (absent = any amount). */
     amount: richSchema.MoneyMinorUnits({ required: false }),
-    /** descriptionAlias action: target alias id. */
+    /** descriptionAlias output: target alias id. */
     aliasId: schema.String({ required: false }),
-    /** tags action: add (union) or set (replace). */
+    /** tags output: add (union) or set (replace). */
     tagMode: richSchema.StringEnum(["add", "set"], { required: false }),
-    /** tags action: tag ids to apply. */
+    /** tags output: tag ids to apply. */
     tagIds: schema.LoroList(schema.String(), (id) => id),
-    /** allocation action: explicit whole-person allocation set (validated at the boundary). */
+    /** allocation output: explicit whole-person allocation set (validated at the boundary). */
     allocations: schema.LoroMapRecord(richSchema.Percentage({})),
     /** Absolute creation time (epoch ms) - drives recency tie-breaks. */
     createdAtEpochMs: schema.Number({ required: true }),

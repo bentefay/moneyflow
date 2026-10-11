@@ -25,7 +25,7 @@ function aliasRule(overrides: {
         descriptionText: overrides.descriptionText,
         accountId: overrides.accountId,
         amount: overrides.amount,
-        action: { field: "descriptionAlias", aliasId: overrides.aliasId },
+        outputs: { descriptionAlias: { aliasId: overrides.aliasId } },
         createdAt: overrides.createdAt ?? CREATION
     };
 }
@@ -34,7 +34,7 @@ function tagRule(id: string, descriptionText: string): FieldRule {
     return {
         id: FieldRuleIdSchema.parse(id),
         descriptionText,
-        action: { field: "tags", mode: "add", tagIds: ["tag-1"] },
+        outputs: { tags: { mode: "add", tagIds: ["tag-1"] } },
         createdAt: CREATION
     };
 }

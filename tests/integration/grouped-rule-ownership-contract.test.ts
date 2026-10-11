@@ -9,8 +9,12 @@
  * TODAY, so the contract's "measured baseline" column has provenance and any future grouped-edit
  * implementation has a tripwire.
  *
- * These tests deliberately assert NOTHING about proposed grouped semantics. Proposals in the spec are
- * pending user approval; asserting them here would present an unapproved design as shipped behaviour.
+ * Grouped rules are now shipped at the domain and CRDT layer: a rule carries one to three outputs,
+ * `resolveRuleExtensionTarget` implements the §5.3 selection ladder, and `setFieldRuleOutput`
+ * extends a rule without disturbing its other outputs. Where a test below pinned single-field
+ * behaviour that grouping deliberately changes (EX-03, the wholesale-update case), it now asserts
+ * the grouped behaviour. The inspector's per-field proposal (`computeFieldRuleProposal`) is not yet
+ * routed through the ladder, so its assertions still describe the per-field owner it reports.
  *
  * Example ids (`EX-*`) and decision ids (`D-*`) in the test names are the spec's; keep them in sync.
  */
@@ -25,7 +29,12 @@ import {
     createDescriptionAlias,
     insertManualDescriptionAliasedTransaction
 } from "@/lib/crdt/description-aliases";
-import { createFieldRule, deleteFieldRule, updateFieldRule } from "@/lib/crdt/field-rule-mutations";
+import {
+    createFieldRule,
+    deleteFieldRule,
+    setFieldRuleOutput,
+    updateFieldRule
+} from "@/lib/crdt/field-rule-mutations";
 import { applyFieldRulesToAllTransactions, readActiveFieldRules } from "@/lib/crdt/field-rules";
 import { createVaultMirror } from "@/lib/crdt/mirror";
 import {
@@ -34,6 +43,7 @@ import {
     type TransactionLocation
 } from "@/lib/crdt/mutations";
 import { type FieldRuleInput, type TransactionInput, type VaultState } from "@/lib/crdt/schema";
+import { resolveRuleExtensionTarget } from "@/lib/domain/automation/extension";
 import { type FieldRule, type RuleMatchSubject } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 import { asPercentage } from "@/types";
@@ -147,7 +157,7 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
                 id: "r-tags-account",
                 descriptionText: DESCRIPTION,
                 accountId: ACCOUNT_A,
-                action: { field: "tags", mode: "add", tagIds: ["tag-old"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-old"] } },
                 createdAtEpochMs: 1000
             });
             expect(created.ok).toBe(true);
@@ -165,28 +175,62 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
         }
     });
 
-    // EX-03 — an alias rule already owns this description text, and the user edits TAGS. Under the
-    // shipped single-field model the alias rule is not a candidate host: the tag edit proposes a
-    // SEPARATE create. This is the exact case grouped editing would change, so it is pinned.
-    it("EX-03: an alias-only rule plus a tag edit still proposes a create today", () => {
+    // EX-03 — an alias rule already owns this description text, and the user edits TAGS. Under
+    // grouped rules the alias rule IS the extension target when the edit's predicate is identical
+    // (D-001 + D-004): the tags join it rather than creating a second rule. The per-field proposal
+    // only reports that tags have no owner yet; which rule the write lands on is the ladder's call.
+    it("EX-03: an alias-only rule plus an unscoped tag edit extends the alias rule", () => {
         const vault = createVaultMirror();
         vault.mirror.setState((state: VaultState) => {
             createDescriptionAlias(state, { aliasId: "alias-coffee", name: "Coffee" });
             const created = createFieldRule(state, {
                 id: "r-alias",
                 descriptionText: DESCRIPTION,
-                action: { field: "descriptionAlias", aliasId: "alias-coffee" },
+                outputs: { descriptionAlias: { aliasId: "alias-coffee" } },
                 createdAtEpochMs: 1000
             });
             expect(created.ok).toBe(true);
         });
 
-        const proposal = computeFieldRuleProposal(
-            readActiveFieldRules(vault.mirror.getState()),
-            IMPORTED_SUBJECT,
-            TAGS_EDIT
-        );
+        const rules = readActiveFieldRules(vault.mirror.getState());
+        const proposal = computeFieldRuleProposal(rules, IMPORTED_SUBJECT, TAGS_EDIT);
         expect(proposal.kind).toBe("create");
+
+        const unscoped = resolveRuleExtensionTarget({
+            rules,
+            subject: IMPORTED_SUBJECT,
+            field: "tags",
+            predicate: { descriptionText: DESCRIPTION }
+        });
+        expect(unscoped.kind).toBe("extend");
+        if (unscoped.kind === "extend") expect(unscoped.rule.id).toBe("r-alias");
+
+        // A narrower draft would change the tag's population by folding, so it creates instead.
+        const narrowed = resolveRuleExtensionTarget({
+            rules,
+            subject: IMPORTED_SUBJECT,
+            field: "tags",
+            predicate: {
+                descriptionText: DESCRIPTION,
+                accountId: ACCOUNT_A,
+                amount: asMinorUnits(AMOUNT_450)
+            }
+        });
+        expect(narrowed).toEqual({ kind: "create" });
+
+        // Extending it keeps the alias output and adds the tags beside it.
+        vault.mirror.setState((state: VaultState) => {
+            const extended = setFieldRuleOutput(state, {
+                id: "r-alias",
+                field: "tags",
+                output: { mode: "add", tagIds: ["tag-coffee"] }
+            });
+            expect(extended.ok).toBe(true);
+        });
+        expect(ruleById(readActiveFieldRules(vault.mirror.getState()), "r-alias").outputs).toEqual({
+            descriptionAlias: { aliasId: "alias-coffee" },
+            tags: { mode: "add", tagIds: ["tag-coffee"] }
+        });
     });
 
     // EX-04 — multiple applicable rules of the SAME field. The scope lattice decides, so the more
@@ -197,14 +241,14 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
             createFieldRule(state, {
                 id: "r-tags-unscoped",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-broad"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-broad"] } },
                 createdAtEpochMs: 9000
             });
             createFieldRule(state, {
                 id: "r-tags-amount",
                 descriptionText: DESCRIPTION,
                 amount: AMOUNT_450,
-                action: { field: "tags", mode: "add", tagIds: ["tag-amount"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-amount"] } },
                 createdAtEpochMs: 2000
             });
             createFieldRule(state, {
@@ -212,7 +256,7 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
                 descriptionText: DESCRIPTION,
                 accountId: ACCOUNT_A,
                 amount: AMOUNT_450,
-                action: { field: "tags", mode: "add", tagIds: ["tag-both"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-both"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -234,14 +278,14 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
             createFieldRule(state, {
                 id: "r-tags-unscoped",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-broad"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-broad"] } },
                 createdAtEpochMs: 9000
             });
             createFieldRule(state, {
                 id: "r-tags-zero",
                 descriptionText: DESCRIPTION,
                 amount: 0,
-                action: { field: "tags", mode: "add", tagIds: ["tag-zero"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-zero"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -264,7 +308,7 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
             createFieldRule(state, {
                 id: "r-other-text",
                 descriptionText: OTHER_DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-books"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-books"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -320,7 +364,7 @@ describe("MF-002 baseline: an explicit update writes exactly what it was given",
             createFieldRule(state, {
                 id: "r-tags",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-old"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-old"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -330,7 +374,7 @@ describe("MF-002 baseline: an explicit update writes exactly what it was given",
                 id: "r-tags",
                 accountId: ACCOUNT_A,
                 amount: AMOUNT_450,
-                action: { field: "tags", mode: "set", tagIds: ["tag-new"] }
+                outputs: { tags: { mode: "set", tagIds: ["tag-new"] } }
             });
             expect(updated.ok).toBe(true);
         });
@@ -340,38 +384,38 @@ describe("MF-002 baseline: an explicit update writes exactly what it was given",
         expect(rule.createdAt.epochMilliseconds).toBe(1000);
         expect(rule.accountId).toBe(ACCOUNT_A);
         expect(rule.amount).toBe(AMOUNT_450);
-        expect(rule.action).toEqual({ field: "tags", mode: "set", tagIds: ["tag-new"] });
+        expect(rule.outputs).toEqual({ tags: { mode: "set", tagIds: ["tag-new"] } });
     });
 
-    // No unrelated silent merge: updating one owner leaves every other rule's id, scope and action
+    // No unrelated silent merge: updating one owner leaves every other rule's id, scope and outputs
     // byte-identical, including rules of a different field on the SAME description text.
-    it("leaves every unrelated rule's id, scope and action intact", () => {
+    it("leaves every unrelated rule's id, scope and outputs intact", () => {
         const vault = createVaultMirror();
         vault.mirror.setState((state: VaultState) => {
             createDescriptionAlias(state, { aliasId: "alias-coffee", name: "Coffee" });
             createFieldRule(state, {
                 id: "r-tags",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-old"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-old"] } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
                 id: "r-alias",
                 descriptionText: DESCRIPTION,
-                action: { field: "descriptionAlias", aliasId: "alias-coffee" },
+                outputs: { descriptionAlias: { aliasId: "alias-coffee" } },
                 createdAtEpochMs: 1100
             });
             createFieldRule(state, {
                 id: "r-alloc",
                 descriptionText: DESCRIPTION,
                 accountId: ACCOUNT_B,
-                action: { field: "allocation", allocations: { "person-2": 100 } },
+                outputs: { allocation: { allocations: { "person-2": 100 } } },
                 createdAtEpochMs: 1200
             });
             createFieldRule(state, {
                 id: "r-other-text",
                 descriptionText: OTHER_DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-books"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-books"] } },
                 createdAtEpochMs: 1300
             });
         });
@@ -379,7 +423,7 @@ describe("MF-002 baseline: an explicit update writes exactly what it was given",
         vault.mirror.setState((state: VaultState) => {
             updateFieldRule(state, {
                 id: "r-tags",
-                action: { field: "tags", mode: "add", tagIds: ["tag-coffee"] }
+                outputs: { tags: { mode: "add", tagIds: ["tag-coffee"] } }
             });
         });
 
@@ -390,49 +434,65 @@ describe("MF-002 baseline: an explicit update writes exactly what it was given",
             "r-other-text",
             "r-tags"
         ]);
-        expect(ruleById(rules, "r-alias").action).toEqual({
-            field: "descriptionAlias",
-            aliasId: "alias-coffee"
+        expect(ruleById(rules, "r-alias").outputs).toEqual({
+            descriptionAlias: { aliasId: "alias-coffee" }
         });
         expect(ruleById(rules, "r-alloc").accountId).toBe(ACCOUNT_B);
-        expect(ruleById(rules, "r-alloc").action).toEqual({
-            field: "allocation",
-            allocations: { "person-2": 100 }
+        expect(ruleById(rules, "r-alloc").outputs).toEqual({
+            allocation: { allocations: { "person-2": 100 } }
         });
-        expect(ruleById(rules, "r-other-text").action).toEqual({
-            field: "tags",
-            mode: "add",
-            tagIds: ["tag-books"]
+        expect(ruleById(rules, "r-other-text").outputs).toEqual({
+            tags: { mode: "add", tagIds: ["tag-books"] }
         });
     });
 
-    // A rule cannot change the field it targets: the update writes the action it is given, so a
-    // "grouped" write would have to be a NEW capability, not a re-typed action on an existing rule.
-    it("rewrites the action wholesale, so one rule still carries exactly one field", () => {
+    // D-002's new capacity: `updateFieldRule` still writes exactly the outputs it is given, so an
+    // output it does not list is removed. Adding or changing ONE output while keeping the others is
+    // `setFieldRuleOutput`, the grouped write path.
+    it("updateFieldRule replaces outputs wholesale while setFieldRuleOutput preserves the others", () => {
         const vault = createVaultMirror();
         vault.mirror.setState((state: VaultState) => {
             createDescriptionAlias(state, { aliasId: "alias-coffee", name: "Coffee" });
             createFieldRule(state, {
                 id: "r-tags",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-old"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-old"] } },
                 createdAtEpochMs: 1000
+            });
+            createFieldRule(state, {
+                id: "r-grouped",
+                descriptionText: OTHER_DESCRIPTION,
+                outputs: { tags: { mode: "add", tagIds: ["tag-books"] } },
+                createdAtEpochMs: 1100
             });
         });
 
         vault.mirror.setState((state: VaultState) => {
             const updated = updateFieldRule(state, {
                 id: "r-tags",
-                action: { field: "descriptionAlias", aliasId: "alias-coffee" }
+                outputs: { descriptionAlias: { aliasId: "alias-coffee" } }
             });
             expect(updated.ok).toBe(true);
+            const extended = setFieldRuleOutput(state, {
+                id: "r-grouped",
+                field: "descriptionAlias",
+                output: { aliasId: "alias-coffee" }
+            });
+            expect(extended.ok).toBe(true);
         });
 
-        const rule = ruleById(readActiveFieldRules(vault.mirror.getState()), "r-tags");
-        expect(rule.action.field).toBe("descriptionAlias");
-        // The former tag output is GONE — retyping is a replacement, never an accumulation. Any
-        // grouped design must therefore add capacity rather than reuse this path (see D-002).
-        expect(JSON.stringify(rule.action)).not.toContain("tag-old");
+        const rules = readActiveFieldRules(vault.mirror.getState());
+        // The former tag output is GONE — a wholesale update is a replacement, never an
+        // accumulation.
+        expect(ruleById(rules, "r-tags").outputs).toEqual({
+            descriptionAlias: { aliasId: "alias-coffee" }
+        });
+        expect(JSON.stringify(ruleById(rules, "r-tags").outputs)).not.toContain("tag-old");
+        // The grouped write keeps the tags and adds the alias beside them.
+        expect(ruleById(rules, "r-grouped").outputs).toEqual({
+            descriptionAlias: { aliasId: "alias-coffee" },
+            tags: { mode: "add", tagIds: ["tag-books"] }
+        });
     });
 });
 
@@ -447,7 +507,7 @@ describe("MF-002 baseline: which rules a reader exposes as candidates", () => {
             createFieldRule(state, {
                 id: "r-tags",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-old"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-old"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -468,7 +528,7 @@ describe("MF-002 baseline: which rules a reader exposes as candidates", () => {
             const created = createFieldRule(state, {
                 id: "r-bad-alloc",
                 descriptionText: DESCRIPTION,
-                action: { field: "allocation", allocations: { "person-1": 900 } },
+                outputs: { allocation: { allocations: { "person-1": 900 } } },
                 createdAtEpochMs: 1000
             });
             expect(created.ok).toBe(false);
@@ -481,7 +541,7 @@ describe("MF-002 baseline: which rules a reader exposes as candidates", () => {
     // stamps `deletedAtEpochMs` BEFORE it inspects the decode result, so deleting a stored record
     // that no longer decodes mutates the vault and still reports `not-found`. The no-write property
     // measured for `createFieldRule` and `updateFieldRule` must not be generalised to every failed
-    // mutation. See `src/lib/crdt/field-rule-mutations.ts:283-292`.
+    // mutation. See `deleteFieldRule` in `src/lib/crdt/field-rule-mutations.ts`.
     it("EX-17: deleting an undecodable record stamps the deletion and still reports not-found", () => {
         const vault = createVaultMirror();
         vault.mirror.setState((state: VaultState) => {
@@ -497,7 +557,8 @@ describe("MF-002 baseline: which rules a reader exposes as candidates", () => {
                 // Out of range, so `decodeFieldRule` refuses this record at read time.
                 allocations: { "person-1": asPercentage(150) },
                 createdAtEpochMs: 1000,
-                deletedAtEpochMs: undefined
+                deletedAtEpochMs: undefined,
+                outputFields: []
             });
         });
         // The reader already ignores it — it is stored, but it is not a candidate.
@@ -535,21 +596,21 @@ describe("MF-002 baseline: application selects a winner per field independently"
             createFieldRule(state, {
                 id: "r-alias-unscoped",
                 descriptionText: DESCRIPTION,
-                action: { field: "descriptionAlias", aliasId: "alias-coffee" },
+                outputs: { descriptionAlias: { aliasId: "alias-coffee" } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
                 id: "r-tags-account",
                 descriptionText: DESCRIPTION,
                 accountId: ACCOUNT_A,
-                action: { field: "tags", mode: "add", tagIds: ["tag-coffee"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-coffee"] } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
                 id: "r-alloc-amount",
                 descriptionText: DESCRIPTION,
                 amount: AMOUNT_450,
-                action: { field: "allocation", allocations: { "person-1": 100 } },
+                outputs: { allocation: { allocations: { "person-1": 100 } } },
                 createdAtEpochMs: 1000
             });
         });
@@ -582,14 +643,14 @@ describe("MF-002 baseline: application selects a winner per field independently"
             createFieldRule(state, {
                 id: "r-tags-unscoped",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-broad"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-broad"] } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
                 id: "r-tags-account-a",
                 descriptionText: DESCRIPTION,
                 accountId: ACCOUNT_A,
-                action: { field: "tags", mode: "add", tagIds: ["tag-account-a"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-account-a"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -632,14 +693,14 @@ describe("MF-002 baseline: application selects a winner per field independently"
                 id: "r-add",
                 descriptionText: DESCRIPTION,
                 accountId: ACCOUNT_A,
-                action: { field: "tags", mode: "add", tagIds: ["tag-coffee"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-coffee"] } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
                 id: "r-set",
                 descriptionText: DESCRIPTION,
                 accountId: ACCOUNT_B,
-                action: { field: "tags", mode: "set", tagIds: ["tag-coffee"] },
+                outputs: { tags: { mode: "set", tagIds: ["tag-coffee"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -685,7 +746,7 @@ describe("MF-002 baseline: application selects a winner per field independently"
             createFieldRule(state, {
                 id: "r-tags-unscoped",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-coffee"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-coffee"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -721,14 +782,14 @@ describe("MF-002 baseline: a colliding update is refused with nothing mutated", 
             createFieldRule(state, {
                 id: "r-unscoped",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-broad"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-broad"] } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
                 id: "r-account",
                 descriptionText: DESCRIPTION,
                 accountId: ACCOUNT_A,
-                action: { field: "tags", mode: "add", tagIds: ["tag-account"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-account"] } },
                 createdAtEpochMs: 2000
             });
         });
@@ -737,7 +798,7 @@ describe("MF-002 baseline: a colliding update is refused with nothing mutated", 
             // Dropping the account narrowing would land `r-account` on `r-unscoped`'s slot.
             const collided = updateFieldRule(state, {
                 id: "r-account",
-                action: { field: "tags", mode: "set", tagIds: ["tag-moved"] }
+                outputs: { tags: { mode: "set", tagIds: ["tag-moved"] } }
             });
             expect(collided.ok).toBe(false);
             if (!collided.ok) {
@@ -751,15 +812,11 @@ describe("MF-002 baseline: a colliding update is refused with nothing mutated", 
         const rules = readActiveFieldRules(vault.mirror.getState());
         expect(rules).toHaveLength(2);
         expect(ruleById(rules, "r-account").accountId).toBe(ACCOUNT_A);
-        expect(ruleById(rules, "r-account").action).toEqual({
-            field: "tags",
-            mode: "add",
-            tagIds: ["tag-account"]
+        expect(ruleById(rules, "r-account").outputs).toEqual({
+            tags: { mode: "add", tagIds: ["tag-account"] }
         });
-        expect(ruleById(rules, "r-unscoped").action).toEqual({
-            field: "tags",
-            mode: "add",
-            tagIds: ["tag-broad"]
+        expect(ruleById(rules, "r-unscoped").outputs).toEqual({
+            tags: { mode: "add", tagIds: ["tag-broad"] }
         });
     });
 
@@ -775,14 +832,14 @@ describe("MF-002 baseline: a colliding update is refused with nothing mutated", 
             createFieldRule(state, {
                 id: "r-unscoped",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-broad"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-broad"] } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
                 id: "r-account",
                 descriptionText: DESCRIPTION,
                 accountId: ACCOUNT_A,
-                action: { field: "tags", mode: "add", tagIds: ["tag-account"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-account"] } },
                 createdAtEpochMs: 2000
             });
         });
@@ -790,7 +847,7 @@ describe("MF-002 baseline: a colliding update is refused with nothing mutated", 
         vault.mirror.setState((state: VaultState) => {
             const collided = updateFieldRule(state, {
                 id: "r-account",
-                action: { field: "tags", mode: "add", tagIds: ["tag-moved"] }
+                outputs: { tags: { mode: "add", tagIds: ["tag-moved"] } }
             });
             expect(collided.ok).toBe(false);
         });
@@ -822,7 +879,7 @@ describe("MF-002 baseline: a proposal captured before the target changed", () =>
             createFieldRule(state, {
                 id: "r-tags",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-old"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-old"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -842,7 +899,7 @@ describe("MF-002 baseline: a proposal captured before the target changed", () =>
         vault.mirror.setState((state: VaultState) => {
             const stale = updateFieldRule(state, {
                 id: "r-tags",
-                action: { field: "tags", mode: "add", tagIds: ["tag-new"] }
+                outputs: { tags: { mode: "add", tagIds: ["tag-new"] } }
             });
             expect(stale.ok).toBe(false);
             if (!stale.ok) expect(stale.error.type).toBe("not-found");
@@ -862,7 +919,7 @@ describe("MF-002 baseline: a proposal captured before the target changed", () =>
                 id: "r-account",
                 descriptionText: DESCRIPTION,
                 accountId: ACCOUNT_A,
-                action: { field: "tags", mode: "add", tagIds: ["tag-account"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-account"] } },
                 createdAtEpochMs: 1000
             });
         });
@@ -870,7 +927,7 @@ describe("MF-002 baseline: a proposal captured before the target changed", () =>
         // At this instant the unscoped slot for (tags, COFFEE SHOP 123) is free.
         expect(
             readActiveFieldRules(vault.mirror.getState()).some(
-                (rule) => rule.action.field === "tags" && rule.accountId == null
+                (rule) => rule.outputs.tags != null && rule.accountId == null
             )
         ).toBe(false);
 
@@ -880,7 +937,7 @@ describe("MF-002 baseline: a proposal captured before the target changed", () =>
                 createFieldRule(state, {
                     id: "r-unscoped",
                     descriptionText: DESCRIPTION,
-                    action: { field: "tags", mode: "add", tagIds: ["tag-broad"] },
+                    outputs: { tags: { mode: "add", tagIds: ["tag-broad"] } },
                     createdAtEpochMs: 1500
                 }).ok
             ).toBe(true);
@@ -889,7 +946,7 @@ describe("MF-002 baseline: a proposal captured before the target changed", () =>
         vault.mirror.setState((state: VaultState) => {
             const late = updateFieldRule(state, {
                 id: "r-account",
-                action: { field: "tags", mode: "add", tagIds: ["tag-account"] }
+                outputs: { tags: { mode: "add", tagIds: ["tag-account"] } }
             });
             expect(late.ok).toBe(false);
             if (!late.ok) expect(late.error.type).toBe("duplicate-key");
@@ -910,13 +967,13 @@ describe("MF-002 baseline: a proposal captured before the target changed", () =>
             createFieldRule(state, {
                 id: "r-tags",
                 descriptionText: DESCRIPTION,
-                action: { field: "tags", mode: "add", tagIds: ["tag-old"] },
+                outputs: { tags: { mode: "add", tagIds: ["tag-old"] } },
                 createdAtEpochMs: 1000
             });
             createFieldRule(state, {
                 id: "r-alias",
                 descriptionText: DESCRIPTION,
-                action: { field: "descriptionAlias", aliasId: "alias-coffee" },
+                outputs: { descriptionAlias: { aliasId: "alias-coffee" } },
                 createdAtEpochMs: 1100
             });
         });
@@ -925,7 +982,7 @@ describe("MF-002 baseline: a proposal captured before the target changed", () =>
             expect(
                 updateFieldRule(state, {
                     id: "r-tags",
-                    action: { field: "tags", mode: "add", tagIds: ["tag-new"] }
+                    outputs: { tags: { mode: "add", tagIds: ["tag-new"] } }
                 }).ok
             ).toBe(true);
             applyFieldRulesToAllTransactions(state);

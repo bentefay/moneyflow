@@ -47,10 +47,19 @@ import {
     createFieldRule,
     type DeleteFieldRuleInput,
     deleteFieldRule,
+    type FieldRuleMutationOutcome,
     type FieldRuleMutationResult,
+    type MoveFieldRuleOutputInput,
+    moveFieldRuleOutput,
+    type MoveFieldRuleOutputValue,
     persistUserAutomationPreference,
     type PersistUserAutomationPreferenceInput,
     readUserAutomationChoice,
+    type SetFieldRuleOutputInput,
+    setFieldRuleOutput,
+    type SplitFieldRuleOutputInput,
+    splitFieldRuleOutput,
+    type SplitFieldRuleOutputValue,
     type UpdateFieldRuleInput,
     updateFieldRule
 } from "./field-rule-mutations";
@@ -1171,10 +1180,21 @@ export function useActiveFieldRules(): readonly FieldRule[] {
     return useInternalVaultSelector((state) => readActiveFieldRules(state));
 }
 
-/** Create/update/delete callbacks for field rules, each one grouped undo step. */
+/** Field-rule mutation callbacks, each one grouped undo step. */
 export interface FieldRuleActions {
     readonly create: (input: CreateFieldRuleInput) => FieldRuleMutationResult;
+    /** Replaces the rule's scope and outputs wholesale. */
     readonly update: (input: UpdateFieldRuleInput) => FieldRuleMutationResult;
+    /** Adds or replaces one output, keeping the rule's other outputs. */
+    readonly setOutput: (input: SetFieldRuleOutputInput) => FieldRuleMutationResult;
+    /** Splits one output into a new rule with identical conditions. */
+    readonly split: (
+        input: SplitFieldRuleOutputInput
+    ) => FieldRuleMutationOutcome<SplitFieldRuleOutputValue>;
+    /** Moves one output into an identical-condition rule, deleting the source if it empties. */
+    readonly moveOutput: (
+        input: MoveFieldRuleOutputInput
+    ) => FieldRuleMutationOutcome<MoveFieldRuleOutputValue>;
     readonly remove: (input: DeleteFieldRuleInput) => FieldRuleMutationResult;
 }
 
@@ -1191,11 +1211,26 @@ export function useFieldRuleActions(): FieldRuleActions {
         (state, input: UpdateFieldRuleInput) => updateFieldRule(state, input),
         []
     );
+    const setOutput = useInternalVaultAction(
+        (state, input: SetFieldRuleOutputInput) => setFieldRuleOutput(state, input),
+        []
+    );
+    const split = useInternalVaultAction(
+        (state, input: SplitFieldRuleOutputInput) => splitFieldRuleOutput(state, input),
+        []
+    );
+    const moveOutput = useInternalVaultAction(
+        (state, input: MoveFieldRuleOutputInput) => moveFieldRuleOutput(state, input),
+        []
+    );
     const remove = useInternalVaultAction(
         (state, input: DeleteFieldRuleInput) => deleteFieldRule(state, input),
         []
     );
-    return useMemo(() => ({ create, update, remove }), [create, update, remove]);
+    return useMemo(
+        () => ({ create, update, setOutput, split, moveOutput, remove }),
+        [create, update, setOutput, split, moveOutput, remove]
+    );
 }
 
 /**

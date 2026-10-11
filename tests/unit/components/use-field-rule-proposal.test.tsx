@@ -134,7 +134,7 @@ interface ProposalSemanticTransition {
 
 function tagRule(id: string): FieldRule {
     return {
-        action: { field: "tags", mode: "add", tagIds: ["tag-a"] },
+        outputs: { tags: { mode: "add", tagIds: ["tag-a"] } },
         createdAt: Temporal.Instant.from("2026-08-31T00:00:00Z"),
         descriptionText: DESCRIPTION_TEXT,
         id: FieldRuleIdSchema.parse(id)
@@ -440,10 +440,11 @@ describe("useFieldRuleProposal draft ownership", () => {
         expect(workflowMocks.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 accountId: undefined,
-                action: {
-                    field: "tags",
-                    mode: "add",
-                    tagIds: ["fresh-tag"]
+                outputs: {
+                    tags: {
+                        mode: "add",
+                        tagIds: ["fresh-tag"]
+                    }
                 }
             })
         );

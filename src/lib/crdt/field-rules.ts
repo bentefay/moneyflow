@@ -31,9 +31,9 @@ import {
     decodeFieldRule,
     encodeFieldRule,
     type FieldRule,
-    type FieldRuleWireObject,
-    isNewerTransactionDate,
+    isOnOrAfterTransactionDate,
     projectRuleMatchSubject,
+    type RuleField,
     type RuleMatchSubject
 } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -247,8 +247,8 @@ export function applyFieldRulesToAllTransactions(state: VaultState): readonly Bu
 }
 
 /**
- * Explicit "apply to new" — apply active rules to every active transaction strictly newer (greater
- * calendar date) than the reference date, matching the frozen "update new" semantics.
+ * Explicit "apply to new" — apply active rules to every active transaction dated on or after the
+ * reference date. Inclusive, so rows sharing the edited row's date are updated too.
  */
 export function applyFieldRulesToNewerTransactions(
     state: VaultState,
@@ -257,7 +257,7 @@ export function applyFieldRulesToNewerTransactions(
     const transactions = getAllTransactions(state.transactions).filter(
         (transaction) =>
             transaction.deletedAt == null &&
-            isNewerTransactionDate(transaction.date, input.referenceDate)
+            isOnOrAfterTransactionDate(transaction.date, input.referenceDate)
     );
     return applyToTransactions(state, transactions);
 }
@@ -275,16 +275,17 @@ export const AUTOMATION_RULES_MIGRATION_VERSION = 1;
  */
 const MIGRATED_RULE_CREATED_AT = Temporal.Instant.fromEpochMilliseconds(0);
 
-function migratedRuleId(automationId: string, field: FieldRule["action"]["field"]): string {
+function migratedRuleId(automationId: string, field: RuleField): string {
     return `fieldrule:migrated:${automationId}:${field}`;
 }
 
 /**
- * Fill every optional wire key (present, possibly undefined) so the object satisfies the loro-mirror
- * input contract without unsafe casts. The engine's {@link encodeFieldRule} keeps a clean optional
- * domain shape; this boundary adapts it to the draft's required-present-with-undefined keys.
+ * Encode a domain rule with the engine's {@link encodeFieldRule} (the only wire writer) and fill
+ * every optional wire key (present, possibly undefined) so the object satisfies the loro-mirror
+ * input contract without unsafe casts. The single adapter between a domain rule and the draft.
  */
-function toFieldRuleInput(wire: FieldRuleWireObject): FieldRuleInput {
+export function toFieldRuleInput(rule: FieldRule): FieldRuleInput {
+    const wire = encodeFieldRule(rule);
     const allocations: Record<string, Percentage> = {};
     for (const [personId, value] of Object.entries(wire.allocations)) {
         allocations[personId] = asPercentage(value);
@@ -292,6 +293,7 @@ function toFieldRuleInput(wire: FieldRuleWireObject): FieldRuleInput {
     return {
         id: wire.id,
         field: wire.field,
+        outputFields: [...wire.outputFields],
         descriptionText: wire.descriptionText,
         accountId: wire.accountId,
         amount: wire.amount == null ? undefined : asMinorUnits(wire.amount),
@@ -366,7 +368,7 @@ export function migrateVaultAutomationsToFieldRules(state: VaultState): Automati
     let migrated = 0;
     for (const rule of result.rules) {
         if (fieldRulesDraft[rule.id] != null) continue; // deterministic id already present -> converge
-        fieldRulesDraft[rule.id] = toFieldRuleInput(encodeFieldRule(rule));
+        fieldRulesDraft[rule.id] = toFieldRuleInput(rule);
         migrated += 1;
     }
 

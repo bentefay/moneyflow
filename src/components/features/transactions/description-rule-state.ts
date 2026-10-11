@@ -39,9 +39,10 @@ export function computeDescriptionRobotState(
     const winner = selectWinningRule(rules, "descriptionAlias", subject);
     if (winner == null) return { kind: "none" };
     // The winner was selected for the descriptionAlias field, but narrow explicitly (no casts) so
-    // the discriminated action gives us the implied alias id safely.
-    if (winner.action.field !== "descriptionAlias") return { kind: "none" };
-    const impliedAliasId = winner.action.aliasId;
+    // the implied alias id is read safely.
+    const output = winner.outputs.descriptionAlias;
+    if (output == null) return { kind: "none" };
+    const impliedAliasId = output.aliasId;
     return impliedAliasId === currentAliasId
         ? { kind: "match", rule: winner, impliedAliasId }
         : { kind: "drift", rule: winner, impliedAliasId };

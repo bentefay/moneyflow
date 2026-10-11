@@ -264,7 +264,8 @@ export async function createCrdtContextMock() {
         referenceDate?: Temporal.PlainDate
     ): void => {
         const rule = fieldRuleCreateCalls.at(-1);
-        if (rule == null || rule.action.field !== "tags") return;
+        const tagsOutput = rule?.outputs.tags;
+        if (rule == null || tagsOutput == null) return;
         fieldRuleApplicationCalls.push({
             inspectorOwnerAtApply:
                 document
@@ -280,15 +281,16 @@ export async function createCrdtContextMock() {
                 transaction.description !== rule.descriptionText ||
                 (rule.accountId != null && transaction.accountId !== rule.accountId) ||
                 (rule.amount != null && transaction.amount !== rule.amount) ||
+                // "Update new" is inclusive of the reference date, like the real engine.
                 (referenceDate != null &&
-                    Temporal.PlainDate.compare(transaction.date, referenceDate) <= 0)
+                    Temporal.PlainDate.compare(transaction.date, referenceDate) < 0)
             ) {
                 continue;
             }
             const tagIds =
-                rule.action.mode === "set"
-                    ? [...rule.action.tagIds]
-                    : [...new Set([...transaction.tagIds, ...rule.action.tagIds])];
+                tagsOutput.mode === "set"
+                    ? [...tagsOutput.tagIds]
+                    : [...new Set([...transaction.tagIds, ...tagsOutput.tagIds])];
             updateStoredTransaction(store, {
                 location: {
                     accountId: transaction.accountId,
