@@ -54,6 +54,7 @@
                     --input: oklch(1 0 0 / 15%);
                     --ring: oklch(0.551 0.027 264.364);
                     --ok-bg: oklch(0.3 0.06 150);
+                    --warn: oklch(0.8 0.16 70);
                     --warn-bg: oklch(0.32 0.07 80);
                     --bad-bg: oklch(0.3 0.06 27);
                     --pending-bg: oklch(0.3 0.06 264);
@@ -253,7 +254,7 @@
                 opacity: 0.55;
             }
             .robot.bad {
-                background: var(--bad);
+                background: var(--warn);
                 opacity: 1;
             }
             .tag {
@@ -437,6 +438,12 @@
                 display: flex;
                 gap: 8px;
                 align-items: center;
+                flex-wrap: wrap;
+            }
+            .badge .btns {
+                display: flex;
+                gap: 6px;
+                margin-left: auto;
             }
             .badge .row1 .btn {
                 white-space: nowrap;
@@ -451,9 +458,8 @@
             }
             .badge .value {
                 font-weight: 500;
-                flex: 1;
+                flex: 1 1 9rem;
                 min-width: 0;
-                overflow-wrap: anywhere;
             }
             .chip {
                 font-size: 0.7rem;
@@ -471,11 +477,11 @@
                 color: var(--ok);
             }
             .chip.divergent {
-                background: var(--bad-bg);
-                color: var(--bad);
+                background: var(--warn-bg);
+                color: var(--warn);
             }
             .badge.divergent {
-                border-color: var(--bad);
+                border-color: var(--warn);
             }
             .badge.pending {
                 border-color: var(--pending);
@@ -488,7 +494,7 @@
                 flex-wrap: wrap;
             }
             .badge .diff .bad {
-                color: var(--bad);
+                color: var(--warn);
             }
             .badge .edit {
                 display: grid;
@@ -883,7 +889,7 @@
                 {
                     id: "mismatch",
                     title: "6. A rule matches but the transaction disagrees",
-                    blurb: "The rule implies “Coffee” and the tag coffee, but someone set this row to “Cafe” with no tag. The indicator turns red and the editor offers to apply the rule to this one row.",
+                    blurb: "The rule implies “Coffee” and the tag coffee, but someone set this row to “Cafe” with no tag. The indicator turns orange and the editor offers to apply the rule to this one row.",
                     context: "transaction",
                     activeRow: "t4",
                     rules: [
@@ -1108,7 +1114,7 @@
                 return h`<div class="table-wrap" aria-label="Transactions, for context only">
     <table><thead><tr><th>Date</th><th>Description</th><th>Alias</th><th>Amount</th><th>Account</th><th>Tags</th><th>Alex</th><th>Sam</th></tr></thead>
     <tbody>${rows}</tbody></table>
-    <p class="muted small" style="padding:8px 10px">Table is static context. Grey robot: a rule sets this value. Red robot: a rule matches but the value differs. Outlined cell: the edit that opened the editor.${t0 ? "" : ""}</p>
+    <p class="muted small" style="padding:8px 10px">Table is static context. Grey robot: a rule sets this value. Orange robot: a rule matches but the value differs. Outlined cell: the edit that opened the editor.${t0 ? "" : ""}</p>
   </div>`;
             }
 
@@ -1388,11 +1394,7 @@
                     o.pendingValue ? "pending" : "",
                     !o.agrees ? "divergent" : ""
                 ].join(" ");
-                const chip = o.pendingValue
-                    ? '<span class="chip pending">pending</span>'
-                    : !o.agrees
-                      ? '<span class="chip divergent">differs on this transaction</span>'
-                      : "";
+                const chip = o.pendingValue ? '<span class="chip pending">pending</span>' : "";
                 const value = o.pendingValue
                     ? valueLabel(o.field, o.pendingValue)
                     : valueLabel(o.field, o.stored);
@@ -1401,7 +1403,7 @@
                         ? h`<div class="diff muted">Stored: ${esc(valueLabel(o.field, o.stored))}</div>`
                         : "";
                 const diff = !o.agrees
-                    ? h`<div class="diff"><span>Rule: ${esc(valueLabel(o.field, o.stored))}</span><span class="bad">This transaction: ${esc(rowValueLabel(o.field, t))}</span>
+                    ? h`<div class="diff"><span class="chip divergent">differs on this transaction</span><span>Rule: ${esc(valueLabel(o.field, o.stored))}</span><span class="bad">This transaction: ${esc(rowValueLabel(o.field, t))}</span>
       <button class="btn sm" type="button" data-act="apply-this" data-field="${o.field}">Apply to this transaction</button></div>`
                     : "";
                 const expanded = state.expanded === (r?.id ?? "new") + ":" + o.field;
@@ -1411,8 +1413,7 @@
       <span class="field">${fieldLabel(o.field)}</span>
       <span class="value">${esc(value)}</span>
       ${chip}
-      <button class="btn sm" type="button" data-act="toggle-edit" data-field="${o.field}" aria-expanded="${expanded}">${expanded ? "Done" : "Edit"}</button>
-      ${canSplit ? h`<button class="btn sm" type="button" data-act="split" data-field="${o.field}" aria-label="Split ${fieldLabel(o.field)} into its own rule">Split</button>` : ""}
+      <span class="btns"><button class="btn sm" type="button" data-act="toggle-edit" data-field="${o.field}" aria-expanded="${expanded}">${expanded ? "Done" : "Edit"}</button>${canSplit ? h`<button class="btn sm" type="button" data-act="split" data-field="${o.field}" aria-label="Split ${fieldLabel(o.field)} into its own rule">Split</button>` : ""}</span>
     </div>
     ${storedLine}${diff}${editor}
   </div>`;
