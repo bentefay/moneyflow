@@ -35,8 +35,8 @@ Cumulative P20B change over the range is TWO test-only files. Zero product-code 
 
 Verification:
 
-- Test-count parity (base vs HEAD, `test(`/`test.step` grep): passkey 39 == 39; transactions 173
-  == 173. No tests added/removed/skipped.
+- Test-count parity (base vs HEAD, `test(`/`test.step` grep): passkey 39 == 39; transactions
+  173 == 173. No tests added/removed/skipped.
 - No scaffolding added by the diff: no `console.log`, `DIAG`, `keyboard.type`, no new
   `as`/`any`/`!`, no `@ts-` directives. (grep hits in the files are pre-existing casts/comments,
   untouched.)

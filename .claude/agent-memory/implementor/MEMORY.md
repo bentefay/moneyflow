@@ -1,7 +1,7 @@
 # Memory Index
 
 - [Next dev lock blocks E2E](next-dev-lock-blocks-e2e.md) — any running `next dev` in this repo dir
-  blocks `pnpm test:e2e` even on a free port; report it, don't work around it.
+  blocks `run test e2e` even on a free port; report it, don't work around it.
 - [Verify process ownership before killing](verify-process-ownership-before-killing.md) — asking
   first is right, but identify the process from argv and logs, not from a stale task list.
 - [Programmatic focus publishes presence](programmatic-focus-publishes-presence.md) — a `.focus()`
@@ -13,8 +13,9 @@
   multiple elements".
 - [Port 3000 serializes E2E campaigns](e2e-port-3000-serializes-campaigns.md) — your own worktree
   doesn't buy a parallel campaign; wait for a sustained free port, and never run it with `CI=true`.
-- [Wall-clock ratio unit test flake](wall-clock-ratio-unit-test-flake.md) — a `pnpm test` failure in
-  `duplicates.test.ts` under load is CPU contention, not a defect; re-run in a quiet window.
+- [Wall-clock ratio unit test flake](wall-clock-ratio-unit-test-flake.md) — a `run test unit`
+  failure in `duplicates.test.ts` under load is CPU contention, not a defect; re-run in a quiet
+  window.
 - [Verify dispatch site enumerations](verify-dispatch-site-enumerations.md) — the sites a dispatch
   lists can be incomplete; grep the component yourself before designing, and raise divergences.
 - [Remove fallbacks, don't bypass them](remove-fallbacks-dont-bypass-them.md) — when an optional

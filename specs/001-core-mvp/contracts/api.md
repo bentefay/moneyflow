@@ -54,11 +54,11 @@ src/
 ### 1.2 Context & Middleware (Key-Only Auth)
 
 ```typescript
+import { createClient } from "@supabase/supabase-js";
 // server/trpc.ts
 import { initTRPC, TRPCError } from "@trpc/server";
-import { createClient } from "@supabase/supabase-js";
-import superjson from "superjson";
 import sodium from "libsodium-wrappers";
+import superjson from "superjson";
 
 // Context available to all procedures
 export interface Context {
@@ -268,10 +268,11 @@ export const removeMemberInput = z.object({
 ### 3.1 User Router
 
 ```typescript
+import { TRPCError } from "@trpc/server";
+
+import { upsertUserDataInput } from "../schemas/user";
 // server/routers/user.ts
 import { router, authedProcedure, publicProcedure } from "../trpc";
-import { upsertUserDataInput } from "../schemas/user";
-import { TRPCError } from "@trpc/server";
 
 export const userRouter = router({
     /**
@@ -329,9 +330,9 @@ export const userRouter = router({
 ### 3.2 Vault Router
 
 ```typescript
+import { createVaultInput, vaultIdInput } from "../schemas/vault";
 // server/routers/vault.ts
 import { router, authedProcedure, vaultProcedure } from "../trpc";
-import { createVaultInput, vaultIdInput } from "../schemas/vault";
 
 export const vaultRouter = router({
     /**
@@ -399,15 +400,16 @@ export const vaultRouter = router({
 ### 3.3 Sync Router
 
 ```typescript
-// server/routers/sync.ts
-import { router, vaultProcedure } from "../trpc";
+import { TRPCError } from "@trpc/server";
+
 import {
     createSnapshotInput,
     createUpdateInput,
     getUpdatesInput,
     vaultIdInput
 } from "../schemas/sync";
-import { TRPCError } from "@trpc/server";
+// server/routers/sync.ts
+import { router, vaultProcedure } from "../trpc";
 
 export const syncRouter = router({
     /**
@@ -516,10 +518,11 @@ export const syncRouter = router({
 ### 3.4 Invite Router
 
 ```typescript
+import { TRPCError } from "@trpc/server";
+
+import { createInviteInput, getInviteInput, redeemInviteInput } from "../schemas/invite";
 // server/routers/invite.ts
 import { router, publicProcedure, authedProcedure, ownerProcedure } from "../trpc";
-import { createInviteInput, getInviteInput, redeemInviteInput } from "../schemas/invite";
-import { TRPCError } from "@trpc/server";
 
 export const inviteRouter = router({
     /**
@@ -653,10 +656,11 @@ export const inviteRouter = router({
 ### 3.5 Membership Router
 
 ```typescript
+import { TRPCError } from "@trpc/server";
+
+import { removeMemberInput, vaultIdInput } from "../schemas/membership";
 // server/routers/membership.ts
 import { router, vaultProcedure, ownerProcedure } from "../trpc";
-import { removeMemberInput, vaultIdInput } from "../schemas/membership";
-import { TRPCError } from "@trpc/server";
 
 export const membershipRouter = router({
     /**
@@ -734,11 +738,11 @@ export const membershipRouter = router({
 ```typescript
 // server/routers/_app.ts
 import { router } from "../trpc";
-import { userRouter } from "./user";
-import { vaultRouter } from "./vault";
-import { syncRouter } from "./sync";
 import { inviteRouter } from "./invite";
 import { membershipRouter } from "./membership";
+import { syncRouter } from "./sync";
+import { userRouter } from "./user";
+import { vaultRouter } from "./vault";
 
 export const appRouter = router({
     user: userRouter,
@@ -760,8 +764,9 @@ export type AppRouter = typeof appRouter;
 ```typescript
 // lib/trpc/client.ts
 import { createTRPCReact, httpBatchLink } from "@trpc/react-query";
-import type { AppRouter } from "@/server/routers/_app";
 import sodium from "libsodium-wrappers";
+
+import type { AppRouter } from "@/server/routers/_app";
 
 export const trpc = createTRPCReact<AppRouter>();
 
@@ -963,6 +968,7 @@ Real-time sync uses **Supabase Realtime** directly (not tRPC) for WebSocket effi
 ```typescript
 // hooks/useVaultSync.ts
 import { useEffect } from "react";
+
 import { supabase } from "@/lib/supabase";
 
 export function useVaultSync(vaultId: string, onUpdate: (update: EncryptedUpdate) => void) {

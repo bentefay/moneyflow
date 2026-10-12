@@ -9,11 +9,11 @@ metadata:
 
 Seven `tests/e2e` specs create their own contexts with
 `browser.newContext({ baseURL: "http://localhost:3000" })` — `invite-redemption`, `presence`,
-`realtime-recovery`, `realtime-security`, `transactions`, `undo-redo`, `vault-settings` — and
-`tab-duplication.spec.ts` calls `goto("http://localhost:3000/...")` outright. That port is hardcoded
-and **no config override reaches it.** Run the full suite on `:3100` and you get ~15 failures, all
-`net::ERR_CONNECTION_REFUSED at http://localhost:3000/new-user`, landing in `helpers/auth.ts`
-`createNewIdentity` — which reads exactly like a total product break, not a config artifact.
+`realtime-recovery`, `realtime-security`, `transactions`, `undo-redo`, `vault-settings`. That port
+is hardcoded and **no config override reaches it.** Run the full suite on `:3100` and you get ~15
+failures, all `net::ERR_CONNECTION_REFUSED at http://localhost:3000/new-user`, landing in
+`helpers/auth.ts` `createNewIdentity` — which reads exactly like a total product break, not a config
+artifact.
 
 **Why:** the tell is the _set_ of failures, not their text. If every failure is a multi-identity or
 shared-vault test and every single-page test passes, suspect your own port before your change.

@@ -2,7 +2,7 @@
  * Config for the measurement entry point only.
  *
  * The measurement needs a running production server and takes minutes, so it
- * must never be collected by `pnpm test`. Keeping it in its own config, with an
+ * must never be collected by `run test unit`. Keeping it in its own config, with an
  * include glob the default config cannot match, is what guarantees that.
  */
 import path from "node:path";

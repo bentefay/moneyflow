@@ -20,6 +20,8 @@ const footerLinks = {
     ]
 };
 
+const copyrightYear = new Date().getFullYear();
+
 export function Footer() {
     return (
         <footer className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
@@ -87,7 +89,7 @@ export function Footer() {
                 {/* Copyright */}
                 <div className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
                     <p className="text-center text-xs text-zinc-600 dark:text-zinc-400">
-                        &copy; {new Date().getFullYear()} MoneyFlow
+                        &copy; {copyrightYear} MoneyFlow
                     </p>
                 </div>
             </div>

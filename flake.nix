@@ -18,7 +18,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
 
         # Safe-chain binary (pre-built from Aikido releases)
-        safe-chain-version = "1.5.13";
+        safe-chain-version = "1.5.25";
 
         safe-chain-platformMap = {
           "x86_64-linux" = "linuxstatic-x64";
@@ -30,10 +30,10 @@
         safe-chain-platform = safe-chain-platformMap.${system};
 
         safe-chain-hashes = {
-          "x86_64-linux" = "sha256-4bvstimrPP7hK0HJ+xVm/n4+6qnY1B4rQHB7Y7Qr5Yc=";
-          "aarch64-linux" = "sha256-BPmSzEwdCwY9DFfxj6IRGQ3KtBmGP4hfxwsXtSoIrog=";
-          "x86_64-darwin" = "sha256-ucQBMSLRnBDfIUPUkeXvEm7aPZM8wcGMnue9LR21GYs=";
-          "aarch64-darwin" = "sha256-JsI+OmqLc6WyUeGXA7IOBkol3ECXST781IbKeZ3hqCA=";
+          "x86_64-linux" = "sha256-NGKoOV+CKzkrfAgIxwEW75DheloUeeYEz8QdV7+9gnw=";
+          "aarch64-linux" = "sha256-wYDyYvk18hZ6Y3mKsZVwny+S8cWBj9EZLAfCLBFp2d8=";
+          "x86_64-darwin" = "sha256-nsCvBva7vg1BbdjANyeTDtq+OXIDYc2hs5jDKtdpw3g=";
+          "aarch64-darwin" = "sha256-W9SJaGjiFPa96qYA3I35chUBF2aGiIUT60bTrVHSLYY=";
         };
 
         safe-chain = pkgs.stdenv.mkDerivation {
@@ -64,23 +64,71 @@
           };
         };
 
-        # Safe-chain wrapped pnpm with dlx blocked. Lifecycle-only commands run
-        # directly so their children do not inherit safe-chain's registry proxy.
-        pnpm-safe = pkgs.writeShellScriptBin "pnpm" ''
-          case "$1" in
-            dlx)
-              echo "pnpm dlx: blocked by safe-chain policy. Install as a devDependency instead." >&2
-              exit 1
-              ;;
-            run|exec|node|test|start|stop|restart)
-              exec ${pkgs.pnpm}/bin/pnpm "$@"
-              ;;
-          esac
-          unset PKG_EXECPATH
-          PATH="${pkgs.pnpm}/bin:${pkgs.nodejs_22}/bin:$PATH" exec ${safe-chain}/libexec/safe-chain-bin pnpm "$@"
+        # Bun, pinned from the @oven/bun-<platform> npm-registry tarball rather than nixpkgs so the
+        # version moves only when this flake is edited, subject to the same minimum package age.
+        bun-version = "1.4.3";
+
+        bun-platformMap = {
+          "x86_64-linux" = "linux-x64";
+          "aarch64-linux" = "linux-aarch64";
+          "x86_64-darwin" = "darwin-x64";
+          "aarch64-darwin" = "darwin-aarch64";
+        };
+
+        bun-hashes = {
+          "x86_64-linux" = "sha256-79Bp1HTmrdzu3g3JwJgbRCHPNc6zNI5Lg0YgU6F3KB8=";
+          "aarch64-linux" = "sha256-VX6dVocbMWzMVoVplSg+eYg5svyyGt7vOdZBO3FWM+E=";
+          "x86_64-darwin" = "sha256-bvx8xNmFqzGF+gK72OsgC2orfngD7nzIELGt8RdxERI=";
+          "aarch64-darwin" = "sha256-76w0M7dcu+hHi9CjOfK/GW0swbyN00gRjGiTkbQSv3k=";
+        };
+
+        bun-raw = pkgs.stdenvNoCC.mkDerivation {
+          pname = "bun-raw";
+          version = bun-version;
+
+          src = pkgs.fetchurl {
+            url = "https://registry.npmjs.org/@oven/bun-${bun-platformMap.${system}}/-/bun-${bun-platformMap.${system}}-${bun-version}.tgz";
+            sha256 = bun-hashes.${system};
+          };
+
+          dontConfigure = true;
+          dontBuild = true;
+          nativeBuildInputs = pkgs.lib.optionals pkgs.stdenvNoCC.hostPlatform.isLinux [
+            pkgs.autoPatchelfHook
+          ];
+          # No glib/libsecret runtimeDependencies, which only Bun.secrets needs: on Bun 1.4.2 that
+          # RPATH segfaults every launch.
+
+          installPhase = ''
+            runHook preInstall
+            install -Dm755 bin/bun $out/bin/bun
+            runHook postInstall
+          '';
+        };
+
+        # safe-chain spawns `bun` from its own PATH, so the unwrapped binary lives in a directory only
+        # that PATH sees. Putting it first stops safe-chain re-entering the wrapper below.
+        bun-shadow = pkgs.runCommand "bun-shadow" { } ''
+          mkdir -p $out/shadow
+          ln -s ${bun-raw}/bin/bun $out/shadow/bun
         '';
 
-        # Block pnpx (alias for pnpm dlx)
+        # Package-management subcommands run through safe-chain. Everything else runs bun directly so
+        # `bun run` children do not inherit safe-chain's HTTPS_PROXY.
+        bun-safe = pkgs.writeShellScriptBin "bun" ''
+          case "$1" in
+            x|create|upgrade|publish)
+              echo "bun $1: blocked by safe-chain policy. Add a dependency to package.json instead." >&2
+              exit 1
+              ;;
+            install|i|add|a|remove|rm|update|outdated|pm|audit|link|unlink|patch|why|info)
+              unset PKG_EXECPATH
+              PATH="${bun-shadow}/shadow:${pkgs.nodejs_22}/bin:$PATH" exec ${safe-chain}/libexec/safe-chain-bin bun "$@"
+              ;;
+          esac
+          exec ${bun-raw}/bin/bun "$@"
+        '';
+
         mkBlocker =
           name: alt:
           pkgs.writeShellScriptBin name ''
@@ -96,10 +144,10 @@
           '';
 
         blockers = [
-          (mkBlocker "npm" "pnpm")
-          (mkBlocker "yarn" "pnpm")
-          (mkBlocker "bun" "pnpm")
-          (mkBlocker "deno" "pnpm")
+          (mkBlocker "npm" "bun")
+          (mkBlocker "yarn" "bun")
+          (mkBlocker "pnpm" "bun")
+          (mkBlocker "deno" "bun")
           (mkExecutorBlocker "npx")
           (mkExecutorBlocker "pnpx")
           (mkExecutorBlocker "bunx")
@@ -131,7 +179,7 @@
             blockers
             ++ [
               safe-chain-wrapped
-              pnpm-safe
+              bun-safe
               pkgs.nodejs_22
               pkgs.git
               pkgs.ripgrep
@@ -140,20 +188,16 @@
               pkgs.python312
               pkgs.uv
             ]
-            ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
               pkgs.glibcLocales
             ];
 
           shellHook = ''
+            REPO=$(git rev-parse --show-toplevel)
+            export PATH="$REPO/cli/bin:$PATH"
+
             uv sync --quiet
-            export PATH="$PWD/.venv/bin:$PATH"
-            ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-              # Playwright 1.59 predates Ubuntu 26.04 detection. Its Ubuntu 24.04
-              # browser build is compatible and avoids requiring a system Chrome.
-              export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="ubuntu24.04-${
-                if pkgs.stdenv.hostPlatform.isAarch64 then "arm64" else "x64"
-              }"
-            ''}
+            export PATH="$REPO/.venv/bin:$PATH"
 
             # Background check for safe-chain updates (minor/major only)
             (

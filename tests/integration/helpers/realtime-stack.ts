@@ -11,8 +11,9 @@ import { execFileSync } from "node:child_process";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 
+import { resolveRealtimeJwtSecret } from "../../../cli/lib/realtimeJwtSecret";
+
 const DB_CONTAINER = "supabase_db_moneyflow";
-const REALTIME_CONTAINER = "supabase_realtime_moneyflow";
 const NO_PREVIOUS_GRANT_ID = "00000000-0000-0000-0000-000000000000";
 
 export interface RealtimeStack {
@@ -44,36 +45,6 @@ function readLocalEnvironment(): Readonly<Record<string, string>> {
 }
 
 /**
- * Derives the local Realtime symmetric verification key, mirroring `playwright.config.ts`. An
- * inherited server-only `SUPABASE_JWT_SECRET` wins so CI can supply it without Docker inspection.
- */
-function requireLocalRealtimeJwtSecret(): string {
-    const inherited = process.env.SUPABASE_JWT_SECRET;
-    if (inherited && Buffer.byteLength(inherited, "utf8") >= 32) return inherited;
-
-    const containerEnvironment = execFileSync(
-        "docker",
-        ["inspect", REALTIME_CONTAINER, "--format", "{{range .Config.Env}}{{println .}}{{end}}"],
-        { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
-    );
-    const jwksLine = containerEnvironment
-        .split("\n")
-        .find((line) => line.startsWith("API_JWT_JWKS="));
-    const parsed: unknown = jwksLine ? JSON.parse(jwksLine.slice("API_JWT_JWKS=".length)) : null;
-    const keys = isUnknownRecord(parsed) ? parsed.keys : null;
-    if (!Array.isArray(keys)) throw new Error("Local Realtime JWKS is unavailable");
-    const symmetric = keys.find(
-        (key): key is { kty: "oct"; k: string } =>
-            isUnknownRecord(key) && key.kty === "oct" && typeof key.k === "string"
-    );
-    const secret = symmetric ? Buffer.from(symmetric.k, "base64url").toString("utf8") : "";
-    if (Buffer.byteLength(secret, "utf8") < 32) {
-        throw new Error("Local Realtime symmetric key is unusable");
-    }
-    return secret;
-}
-
-/**
  * Resolves the running local stack, or throws with the exact missing capability. The realtime
  * security suite is meaningless without a real server, so it fails loudly rather than skipping.
  */
@@ -85,17 +56,16 @@ export function requireRealtimeStack(): RealtimeStack {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? environment.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !anonKey) {
         throw new Error(
-            "Realtime security tests require NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. Run `pnpm db:start`."
+            "Realtime security tests require NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. Run `run db start`."
         );
     }
-    try {
-        return { supabaseUrl, anonKey, jwtSecret: requireLocalRealtimeJwtSecret() };
-    } catch (cause) {
+    const jwtSecret = resolveRealtimeJwtSecret();
+    if (!jwtSecret.ok) {
         throw new Error(
-            "Realtime security tests require the running local Supabase Realtime stack or a server-only SUPABASE_JWT_SECRET. Run `pnpm db:start`.",
-            { cause }
+            `Realtime security tests require the running local Supabase Realtime stack or a server-only SUPABASE_JWT_SECRET, but ${jwtSecret.reason}. Run \`run db start\`.`
         );
     }
+    return { supabaseUrl, anonKey, jwtSecret: jwtSecret.secret };
 }
 
 /** Runs SQL as the database superuser, returning unaligned tuple-only rows. */

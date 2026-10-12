@@ -104,11 +104,11 @@ the dev server is already running (check that `localhost:3000` or the configured
 it's not running, ask `team-lead` to ask the user to start it — do not start it yourself.
 
 Once confirmed running, use a unique non-persistent session
-(`pnpm exec playwright-cli -s=<session> open http://localhost:3000`) to exercise the key user-facing
-flows. Verify persistence with `reload`, then inspect `console error` and `requests`. Close the
-session and run `delete-data` when finished. Do not use Playwright MCP, `npx`, an ad-hoc script, or
-a temporary test file. This is not about running the existing E2E suite — it is a separate manual
-check that the feature works as intended beyond automated coverage.
+(`run browser -s=<session> open http://localhost:3000`) to exercise the key user-facing flows.
+Verify persistence with `reload`, then inspect `console error` and `requests`. Close the session and
+run `delete-data` when finished. Do not use Playwright MCP, `npx`, an ad-hoc script, or a temporary
+test file. This is not about running the existing E2E suite — it is a separate manual check that the
+feature works as intended beyond automated coverage.
 
 If the feature doesn't work as expected, report the failure with reproduction steps.
 

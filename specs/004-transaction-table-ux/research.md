@@ -143,13 +143,13 @@ The "always-editable" appearance means:
 /* Always-editable input */
 .editable-cell {
     @apply border border-transparent bg-transparent px-2 py-1;
-    @apply focus:border-primary focus:outline-none focus:ring-0;
+    @apply focus:border-primary focus:ring-0 focus:outline-none;
     @apply transition-colors duration-100;
 }
 
 /* Numeric values get monospace */
 .editable-cell-numeric {
-    @apply font-mono tabular-nums text-right;
+    @apply text-right font-mono tabular-nums;
 }
 ```
 
@@ -189,7 +189,7 @@ export function EditableCell({ value, onChange, type = "text", className }: Edit
                 "w-full border border-transparent bg-transparent px-2 py-1",
                 "focus:border-primary focus:outline-none",
                 "transition-colors duration-100",
-                type === "number" && "font-mono tabular-nums text-right",
+                type === "number" && "text-right font-mono tabular-nums",
                 className
             )}
         />

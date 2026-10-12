@@ -47,7 +47,7 @@ export type UserGetOrCreateInput = z.infer<typeof userGetOrCreateInput>;
 
 export const userGetOrCreateOutput = z.object({
     isNew: z.boolean(),
-    updatedAt: z.string().datetime().nullable()
+    updatedAt: z.iso.datetime().nullable()
 });
 
 export type UserGetOrCreateOutput = z.infer<typeof userGetOrCreateOutput>;

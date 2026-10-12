@@ -233,6 +233,7 @@ scanning.
 
 ```typescript
 import { describe, it, expect } from "vitest";
+
 import { insertTransaction, findTransaction } from "@/lib/crdt/mutations";
 
 describe("hierarchical transaction storage", () => {

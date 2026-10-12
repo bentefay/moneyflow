@@ -10,7 +10,7 @@ metadata:
 Run E2E campaigns with NOTHING else of mine running. Do not start `vitest` runs, builds, or a second
 Playwright job while a campaign is in flight, even to "use the waiting time productively".
 
-**Why:** In P27 rev 01 I started a 5-run E2E campaign, then ran two full `pnpm test` passes
+**Why:** In P27 rev 01 I started a 5-run E2E campaign, then ran two full `run test unit` passes
 concurrently to hunt for the implementer's unattributed red unit run. E2E run 1 came back
 `1 failed | 169 passed` on `transactions.spec.ts:725`, a virtualization test whose assertion is an
 `expect.poll` with a 10s budget — precisely the kind of latency assertion 117 concurrent vitest

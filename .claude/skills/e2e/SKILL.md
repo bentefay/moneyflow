@@ -17,21 +17,21 @@ description: Playwright E2E testing patterns. Use when working on files in tests
 `@playwright/test` is the automated test runner:
 
 ```bash
-pnpm exec playwright test --retries=0 --reporter=line --max-failures=1 2>&1
-pnpm exec playwright test --retries=0 --workers=4 --repeat-each=5 --reporter=line 2>&1
+run test e2e --retries=0 --reporter=line --max-failures=1 2>&1
+run test e2e --retries=0 --workers=4 --repeat-each=5 --reporter=line 2>&1
 ```
 
 `@playwright/cli` is the separate manual/agent browser CLI. Use the repository-installed binary, not
 Playwright MCP, `npx`, an ad-hoc Node script, or a temporary test file:
 
 ```bash
-pnpm exec playwright-cli --help
-pnpm exec playwright-cli -s=<unique-session> open http://localhost:3000
-pnpm exec playwright-cli -s=<unique-session> snapshot
-pnpm exec playwright-cli -s=<unique-session> console error
-pnpm exec playwright-cli -s=<unique-session> requests
-pnpm exec playwright-cli -s=<unique-session> close
-pnpm exec playwright-cli -s=<unique-session> delete-data
+run browser --help
+run browser -s=<unique-session> open http://localhost:3000
+run browser -s=<unique-session> snapshot
+run browser -s=<unique-session> console error
+run browser -s=<unique-session> requests
+run browser -s=<unique-session> close
+run browser -s=<unique-session> delete-data
 ```
 
 Use a uniquely named, non-persistent session for each smoke test. Exercise the UI through CLI

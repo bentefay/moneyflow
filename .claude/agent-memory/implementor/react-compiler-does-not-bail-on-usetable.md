@@ -34,7 +34,7 @@ inside the subtree that needs it — never by narrowing the top-level selector.
 
 **Where the coverage actually is.** Vitest does not run the compiler, so no unit test can catch a
 compiler-induced freeze; pin the identity premise instead. But `next dev` **does** compile app code,
-so the Playwright suite — whose `webServer` is `pnpm run dev` — already exercises compiled output.
+so the Playwright suite — whose `webServer` is `run dev` — already exercises compiled output.
 Verified by fetching the dev-served chunk:
 `function TransactionTable(t0) { _s(); const $ = (0, __TURBOPACK__…compiler-runtime…)(107)`.
 Turbopack mangles the runtime import, so grepping dev bundles for `_c(` or `react/compiler-runtime`

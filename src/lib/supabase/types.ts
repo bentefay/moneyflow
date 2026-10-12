@@ -5,10 +5,10 @@
  * convenience type aliases.
  *
  * To regenerate types after schema changes:
- *   pnpm db:types
+ *   run db types
  *
  * Requires Supabase to be running:
- *   pnpm db:start
+ *   run db start
  */
 
 // Re-export everything from generated types

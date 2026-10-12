@@ -58,7 +58,8 @@ raised the scope divergence to root rather than deciding it silently.
 
 ```ts
 export type MemberDisplayName =
-    { readonly kind: "named"; readonly name: string } | { readonly kind: "unnamed" };
+    | { readonly kind: "named"; readonly name: string }
+    | { readonly kind: "unnamed" };
 
 export function resolveMemberDisplayName(
     people: Readonly<Record<string, LinkedPerson | undefined>>,

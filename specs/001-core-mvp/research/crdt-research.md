@@ -182,6 +182,7 @@ Cons:
 
 ```typescript
 import { LoroDoc } from "loro-crdt";
+
 import { encrypt, decrypt } from "@/lib/crypto";
 
 // Initialize document

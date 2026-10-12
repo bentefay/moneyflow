@@ -137,8 +137,8 @@ Postgres → Electric Sync Service → HTTP/JSON → Client
 ### Code Example
 
 ```typescript
-import { createCollection } from "@tanstack/react-db";
 import { electricCollectionOptions } from "@tanstack/electric-db-collection";
+import { createCollection } from "@tanstack/react-db";
 
 // Create a collection synced via Electric
 const vaultCollection = createCollection(

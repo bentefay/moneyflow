@@ -1,53 +1,16 @@
-import { execFileSync } from "node:child_process";
-
 import { defineConfig, devices } from "@playwright/test";
 
-function requireLocalRealtimeJwtSecret(): string {
-    const inherited = process.env.SUPABASE_JWT_SECRET;
-    if (inherited && Buffer.byteLength(inherited, "utf8") >= 32) return inherited;
+import { resolveRealtimeJwtSecret } from "./cli/lib/realtimeJwtSecret";
 
-    try {
-        const containerEnvironment = execFileSync(
-            "docker",
-            [
-                "inspect",
-                "supabase_realtime_moneyflow",
-                "--format",
-                "{{range .Config.Env}}{{println .}}{{end}}"
-            ],
-            { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
-        );
-        const jwksLine = containerEnvironment
-            .split("\n")
-            .find((line) => line.startsWith("API_JWT_JWKS="));
-        const parsed: unknown = jwksLine
-            ? JSON.parse(jwksLine.slice("API_JWT_JWKS=".length))
-            : null;
-        if (typeof parsed !== "object" || parsed === null || !("keys" in parsed)) {
-            throw new Error("missing local JWKS");
-        }
-        const keys = (parsed as { keys?: unknown }).keys;
-        if (!Array.isArray(keys)) throw new Error("invalid local JWKS");
-        const symmetric = keys.find(
-            (key): key is { kty: "oct"; k: string } =>
-                typeof key === "object" &&
-                key !== null &&
-                "kty" in key &&
-                key.kty === "oct" &&
-                "k" in key &&
-                typeof key.k === "string"
-        );
-        const secret = symmetric ? Buffer.from(symmetric.k, "base64url").toString("utf8") : "";
-        if (Buffer.byteLength(secret, "utf8") < 32) throw new Error("invalid symmetric key");
-        return secret;
-    } catch {
+const localRealtimeJwtSecret = (() => {
+    const resolved = resolveRealtimeJwtSecret();
+    if (!resolved.ok) {
         throw new Error(
-            "Playwright requires the running local Supabase Realtime stack or a server-only SUPABASE_JWT_SECRET. Run `pnpm db:start` before E2E."
+            `Playwright requires the running local Supabase Realtime stack or a server-only SUPABASE_JWT_SECRET, but ${resolved.reason}. Run \`run db start\` before E2E.`
         );
     }
-}
-
-const localRealtimeJwtSecret = requireLocalRealtimeJwtSecret();
+    return resolved.secret;
+})();
 
 export default defineConfig({
     testDir: "./tests/e2e",
@@ -76,7 +39,7 @@ export default defineConfig({
         }
     ],
     webServer: {
-        command: "pnpm run dev",
+        command: "run dev",
         env: { SUPABASE_JWT_SECRET: localRealtimeJwtSecret },
         url: "http://localhost:3000",
         reuseExistingServer: false

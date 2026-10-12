@@ -11,7 +11,7 @@
  * belief about it. A denied subscription is silent by design: the server never confirms the
  * `postgres_changes` subscription and the client receives no rows.
  *
- * Requires the local Supabase stack (`pnpm db:start`). Fixtures use synthetic public vectors only;
+ * Requires the local Supabase stack (`run db start`). Fixtures use synthetic public vectors only;
  * no secret material is logged or asserted on.
  */
 

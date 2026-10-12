@@ -222,9 +222,10 @@ green.
 - **Sole settlement engine:** `src/lib/domain/settlement.ts` only. `settlement-view.ts` /
   `BalanceSummary.tsx` import `SettlementResult`/`SettlementIssue` types and consume output — no
   competing computation, no cross-currency netting, no persisted cache. Per-currency engine.
-- **Signed unit conservation:** verified by the 100k benchmark (§7) — positions sum to 0; obligation
-  == Σ source contributions; exact over decimals/negatives/over-under-allocation/stable-ID ties/
-  multiple currencies via the settlement + allocation property tests.
+- **Signed unit conservation:** verified by the 100k benchmark (§7) — positions sum to 0;
+  obligation == Σ source contributions; exact over
+  decimals/negatives/over-under-allocation/stable-ID ties/ multiple currencies via the settlement +
+  allocation property tests.
 - **Canonical examples A–H:** each has its **own named production unit/property test**
   (`settlement.test.ts:623(A),631(B),646(C),659(D),681(E),694(F),709(G),720(H)`) **and its own named
   E2E test** (`people-settlement.spec.ts:104,117,138,159,190,213,234,249`). 8 + 8 distinct, not

@@ -9,7 +9,7 @@
  * enforced by `tests/e2e/helpers/persistence.ts`.
  *
  * The production gate is covered here too. Nothing else can see it: the E2E harness runs against
- * `pnpm run dev`, so the gate is inactive there in both directions, and typecheck, lint and format
+ * `run dev`, so the gate is inactive there in both directions, and typecheck, lint and format
  * are all indifferent to the line. Deleting it would otherwise return the seam to the production
  * bundle with nothing red.
  */

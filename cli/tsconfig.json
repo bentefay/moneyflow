@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "esModuleInterop": true,
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "noEmit": true,
+        "noImplicitAny": true,
+        "noImplicitReturns": true,
+        "noUncheckedIndexedAccess": true,
+        "resolveJsonModule": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "target": "esnext",
+        "allowImportingTsExtensions": true,
+        "types": ["node", "bun"]
+    },
+    "include": [
+        "bin/**/*.ts",
+        "commands/**/*.ts",
+        "lib/**/*.ts",
+        "tests/**/*.ts",
+        "vitest.config.ts"
+    ]
+}

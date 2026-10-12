@@ -19,7 +19,7 @@ me. `TransactionTable.tsx` had mtime 13:41:40 and a new unit test 13:42:10, both
 artifact's 13:34:46 — the stopped agent's last act was to land the fix and write a test for it, then
 stall. The coordinator had read post-fix code while quoting a pre-fix failure. The real breakage was
 that the new test was red (a missing jsdom global, and an assertion that could not hold), so the fix
-was correct but unverified and `pnpm test` was failing for an unrelated-looking reason.
+was correct but unverified and `run test unit` was failing for an unrelated-looking reason.
 
 **How to apply:** on any handover of a red test: (1) run it unmodified and count; (2)
 `find <src> -newermt` against the artifact time; (3) read every untracked test file the stopped

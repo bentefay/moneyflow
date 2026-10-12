@@ -7,56 +7,56 @@
         "JavaScript": {
             "formatter": {
                 "external": {
-                    "command": "pnpm",
-                    "arguments": ["oxfmt", "--stdin-filepath", "{buffer_path}"]
+                    "command": "bun",
+                    "arguments": ["run", "oxfmt", "--stdin-filepath", "{buffer_path}"]
                 }
             }
         },
         "TypeScript": {
             "formatter": {
                 "external": {
-                    "command": "pnpm",
-                    "arguments": ["oxfmt", "--stdin-filepath", "{buffer_path}"]
+                    "command": "bun",
+                    "arguments": ["run", "oxfmt", "--stdin-filepath", "{buffer_path}"]
                 }
             }
         },
         "TSX": {
             "formatter": {
                 "external": {
-                    "command": "pnpm",
-                    "arguments": ["oxfmt", "--stdin-filepath", "{buffer_path}"]
+                    "command": "bun",
+                    "arguments": ["run", "oxfmt", "--stdin-filepath", "{buffer_path}"]
                 }
             }
         },
         "JSON": {
             "formatter": {
                 "external": {
-                    "command": "pnpm",
-                    "arguments": ["oxfmt", "--stdin-filepath", "{buffer_path}"]
+                    "command": "bun",
+                    "arguments": ["run", "oxfmt", "--stdin-filepath", "{buffer_path}"]
                 }
             }
         },
         "JSONC": {
             "formatter": {
                 "external": {
-                    "command": "pnpm",
-                    "arguments": ["oxfmt", "--stdin-filepath", "{buffer_path}"]
+                    "command": "bun",
+                    "arguments": ["run", "oxfmt", "--stdin-filepath", "{buffer_path}"]
                 }
             }
         },
         "CSS": {
             "formatter": {
                 "external": {
-                    "command": "pnpm",
-                    "arguments": ["oxfmt", "--stdin-filepath", "{buffer_path}"]
+                    "command": "bun",
+                    "arguments": ["run", "oxfmt", "--stdin-filepath", "{buffer_path}"]
                 }
             }
         },
         "GraphQL": {
             "formatter": {
                 "external": {
-                    "command": "pnpm",
-                    "arguments": ["oxfmt", "--stdin-filepath", "{buffer_path}"]
+                    "command": "bun",
+                    "arguments": ["run", "oxfmt", "--stdin-filepath", "{buffer_path}"]
                 }
             }
         }

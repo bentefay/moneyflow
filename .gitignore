@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-.pnpm-store/
+.vitest/
 .direnv/
 
 # Build outputs
@@ -30,7 +30,6 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
 
 # Testing
 coverage/

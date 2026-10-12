@@ -14,7 +14,7 @@
  * - vault_snapshots: id, vault_id, version_vector, encrypted_data, updated_at (unique per vault)
  *
  * NOTE: Until database migration is run and types regenerated, some queries use
- * explicit type assertions. Run `pnpm supabase gen types` after migration.
+ * explicit type assertions. Run `run db types` after migration.
  */
 
 import { TRPCError } from "@trpc/server";

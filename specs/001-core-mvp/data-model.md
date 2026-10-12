@@ -143,11 +143,11 @@ interface SessionData {
 single master seed. This ensures that compromising one key type doesn't compromise others.
 
 ```typescript
-import sodium from "libsodium-wrappers";
-import * as bip39 from "@scure/bip39";
-import { wordlist } from "@scure/bip39/wordlists/english";
 import { hkdf } from "@noble/hashes/hkdf";
 import { sha256 } from "@noble/hashes/sha256";
+import * as bip39 from "@scure/bip39";
+import { wordlist } from "@scure/bip39/wordlists/english";
+import sodium from "libsodium-wrappers";
 
 // Domain separation constants - NEVER change these after launch
 const DOMAIN_ED25519_SIGNING = "moneyflow-v1-ed25519-signing";
@@ -1236,6 +1236,7 @@ function derivePresenceKey(vaultKey: Uint8Array): Uint8Array {
 
 ```typescript
 import { EphemeralStore } from "loro-crdt";
+
 import { encrypt, decrypt } from "./crypto"; // Same XChaCha20-Poly1305 helpers
 
 // Initialize ephemeral store (separate from main Loro doc)

@@ -1,7 +1,7 @@
 # P22 revision 01 — independent review 01 (UR-001 add transaction focuses the description)
 
-**Reviewer:** `p22-reviewer-01` (fresh context, distinct from `p22-implementer-01`) · **BASE == HEAD
-== `9676ef63c68760e471d0b6b88a7082158b04fb67`** · **Package base for diffing:** `20b7475`
+**Reviewer:** `p22-reviewer-01` (fresh context, distinct from `p22-implementer-01`) · **BASE ==
+HEAD == `9676ef63c68760e471d0b6b88a7082158b04fb67`** · **Package base for diffing:** `20b7475`
 
 ## Verdict
 

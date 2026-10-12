@@ -18,7 +18,7 @@
  * neither schedules nor alters any persistence work — it only awaits work already in flight. It is
  * also harness-only, so it is gated out of production builds entirely: `process.env.NODE_ENV` is
  * inlined at build time, which leaves the install below as dead code a production bundle drops.
- * `playwright.config.ts` runs the harness against `pnpm run dev`, so the gate never closes on it —
+ * `playwright.config.ts` runs the harness against `run dev`, so the gate never closes on it —
  * and if a future run ever does use a production build, `tests/e2e/helpers/persistence.ts` fails
  * loudly on the absent seam rather than silently skipping the barrier.
  */

@@ -41,7 +41,7 @@ export default function SettingsPage() {
         <div className="flex h-full flex-col">
             <div className="border-b px-6 py-4">
                 <h1 className="text-2xl font-semibold">Vault Settings</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="text-muted-foreground mt-1 text-sm">
                     Configure preferences for this vault.
                 </p>
             </div>
@@ -61,6 +61,7 @@ export default function SettingsPage() {
 "use client";
 
 import { useVaultAction, useVaultPreferences } from "@/lib/crdt/context";
+
 import { CurrencySelector } from "./CurrencySelector";
 
 export function VaultSettingsForm() {
@@ -75,7 +76,7 @@ export function VaultSettingsForm() {
         <div className="max-w-md space-y-6">
             <div>
                 <label className="text-sm font-medium">Default Currency</label>
-                <p className="text-sm text-muted-foreground mb-2">
+                <p className="text-muted-foreground mb-2 text-sm">
                     New accounts will use this currency by default.
                 </p>
                 <CurrencySelector value={defaultCurrency} onChange={setDefaultCurrency} />
@@ -154,11 +155,11 @@ Add placeholder for missing account number:
 ```tsx
 {
     account.accountNumber ? (
-        <div className="truncate text-sm text-muted-foreground">
+        <div className="text-muted-foreground truncate text-sm">
             ···{account.accountNumber.slice(-4)}
         </div>
     ) : (
-        <div className="text-sm text-muted-foreground/50 italic">No account number yet</div>
+        <div className="text-muted-foreground/50 text-sm italic">No account number yet</div>
     );
 }
 ```
@@ -194,6 +195,7 @@ describe("vault preferences", () => {
 
 ```typescript
 import { test, expect } from "@playwright/test";
+
 import { loginAsNewUser, loginAsExistingUser } from "./helpers/auth";
 
 test("new user lands on settings page", async ({ page }) => {

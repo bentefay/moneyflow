@@ -11,7 +11,7 @@
  */
 
 import { CalendarRange, Clock, Copy, FileText } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -95,11 +95,13 @@ export function DuplicatesTab({
     filteredCount = 0,
     className
 }: DuplicatesTabProps) {
+    const [today] = useState(() => new Date().toISOString().split("T")[0]);
+
     // Calculate default cutoff date (newest existing transaction)
-    const defaultCutoffDate = useMemo(() => {
-        const newest = findNewestDateForAccount(existingTransactions, null);
-        return newest ?? new Date().toISOString().split("T")[0];
-    }, [existingTransactions]);
+    const defaultCutoffDate = useMemo(
+        () => findNewestDateForAccount(existingTransactions, null) ?? today,
+        [existingTransactions, today]
+    );
 
     // Handlers for duplicate detection
     const handleDateModeChange = useCallback(

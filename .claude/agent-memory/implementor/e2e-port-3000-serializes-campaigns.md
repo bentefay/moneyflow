@@ -31,5 +31,5 @@ port. Say plainly what the passing static gates do and do not cover, per
 **Never run the campaign with `CI=true`.** The config reads `workers: process.env.CI ? 1 : 4` and
 `retries: process.env.CI ? 2 : 0`. `CI=true` yields 1 worker and 2 retries — the exact opposite of
 the 4-worker `--retries=0` load profile that [[e2e-load-dependent-flake-validation]] requires, so it
-would silently produce evidence that proves nothing. `CI=true` on the worktree `pnpm install` is
-fine and unrelated.
+would silently produce evidence that proves nothing. `CI=true` on the worktree `bun install` is fine
+and unrelated.

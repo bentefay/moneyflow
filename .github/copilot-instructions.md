@@ -15,7 +15,7 @@
 
 ## Before Completing Any Task
 
-1. Run ALL checks: `pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm test:e2e`
+1. Run ALL checks: `run check`
 2. Fix any issues found
 3. **Commit the changes** - this is required, not optional
 
@@ -77,13 +77,13 @@ specs/
 
 Keep this section updated with commands for this environment:
 
-- Run `pnpm dev` to start dev server
-- Run `pnpm build` to production build
-- Run `pnpm test` to run all tests
-- Run `pnpm lint` to ESLint (Next.js rules)
-- Run `pnpm format` to run oxfmt format + import sorting + Tailwind class sorting
-- Run `pnpm format:check` to check formatting (CI)
-- Run `pnpm typecheck` to type checking
+- Run `run dev` to start dev server
+- Run `run build` to production build
+- Run `run test unit` to run the unit tests
+- Run `run lint` to lint with oxlint
+- Run `run format` to run oxfmt format + import sorting + Tailwind class sorting
+- Run `run format --check` to check formatting (CI)
+- Run `run tsc` to type checking
 - Run `bat -P` rather than `cat` (which is aliased to bat with a pager for large files).
 - Do not run `playwright` with the `--debug` flag as it opens the GUI and will block forever.
 - Use `pwd` before `cd` (as I'll need to approve it).

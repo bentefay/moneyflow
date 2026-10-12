@@ -56,8 +56,9 @@ export const authedProcedure = publicProcedure.use(async ({ ctx, next }) => {
 ```typescript
 // src/server/routers/vault.ts
 import { z } from "zod";
-import { router, authedProcedure } from "../trpc";
+
 import { createVaultSchema, updateVaultSchema } from "../schemas/vault";
+import { router, authedProcedure } from "../trpc";
 
 export const vaultRouter = router({
     create: authedProcedure.input(createVaultSchema).mutation(async ({ ctx, input }) => {
