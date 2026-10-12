@@ -66,7 +66,7 @@
 
         # Bun, pinned from the @oven/bun-<platform> npm-registry tarball rather than nixpkgs so the
         # version moves only when this flake is edited, subject to the same minimum package age.
-        bun-version = "1.4.2";
+        bun-version = "1.4.3";
 
         bun-platformMap = {
           "x86_64-linux" = "linux-x64";
@@ -76,10 +76,10 @@
         };
 
         bun-hashes = {
-          "x86_64-linux" = "sha256-DHXguU6dVs7Od6u30D6ZlbR7eVBt9dzKMEbuuIjbWTQ=";
-          "aarch64-linux" = "sha256-mrOXChlmC1zQifF/sCHZAOHKG5iNr9Rh1m0KD/TW6sQ=";
-          "x86_64-darwin" = "sha256-49KNMyofVIEoEmNbvMMLaAicPY/hKrBVsarK1rWNbEU=";
-          "aarch64-darwin" = "sha256-qd9Ibq9+nbm967H6Ql6MmAmr14OxxRjR28UJalO4Ye0=";
+          "x86_64-linux" = "sha256-79Bp1HTmrdzu3g3JwJgbRCHPNc6zNI5Lg0YgU6F3KB8=";
+          "aarch64-linux" = "sha256-VX6dVocbMWzMVoVplSg+eYg5svyyGt7vOdZBO3FWM+E=";
+          "x86_64-darwin" = "sha256-bvx8xNmFqzGF+gK72OsgC2orfngD7nzIELGt8RdxERI=";
+          "aarch64-darwin" = "sha256-76w0M7dcu+hHi9CjOfK/GW0swbyN00gRjGiTkbQSv3k=";
         };
 
         bun-raw = pkgs.stdenvNoCC.mkDerivation {
