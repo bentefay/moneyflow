@@ -62,7 +62,10 @@ import { restoreDescriptionAliasEditOrigin } from "@/components/features/transac
 import type { DescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
 import { transactionRowOrderFromCursor } from "@/components/features/transactions/cursor-row-order";
 import { tagSetChanged } from "@/components/features/transactions/field-rule-proposal-state";
-import type { RobotCurrentValue } from "@/components/features/transactions/field-rule-robot-state";
+import {
+    computeFieldRuleRobotState,
+    type RobotCurrentValue
+} from "@/components/features/transactions/field-rule-robot-state";
 import {
     useTransactionGridController,
     useTransactionGridControllerSnapshot
@@ -105,6 +108,7 @@ import { Temporal } from "temporal-polyfill";
 import { allocationPresenceField } from "@/lib/crdt/allocations";
 import {
     useActiveAccounts,
+    useActiveFieldRules,
     useActivePeople,
     useActiveTags,
     useDescriptionAliases,
@@ -824,6 +828,19 @@ function TransactionsPageContent() {
                   notes: transaction.notes
               };
     }, [automationContextFor, findTransaction, gridSnapshot.activeTransactionId]);
+    const activeFieldRules = useActiveFieldRules();
+    // The toolbar's amber dot: a rule winning a field on the active row disagrees with its value.
+    const automationDrift = useMemo(() => {
+        const automation = inspectorTransaction?.automation;
+        return (
+            automation != null &&
+            automation.currents.some(
+                (current) =>
+                    computeFieldRuleRobotState(activeFieldRules, automation.subject, current)
+                        .kind === "drift"
+            )
+        );
+    }, [activeFieldRules, inspectorTransaction]);
 
     const activeAllocationPeople = useMemo(
         () =>
@@ -1625,6 +1642,7 @@ function TransactionsPageContent() {
                         inspectorOpen={gridSnapshot.inspectorPanelOpen}
                         onInspectorOpenChange={handleInspectorOpenChange}
                         automationPending={gridSnapshot.automation.proposal?.renderable === true}
+                        automationDrift={automationDrift}
                         selectedCount={selectedCount}
                         totalCount={cursor.count}
                         isFiltered={hasActiveFilters(filters)}

@@ -228,6 +228,47 @@ describe("transaction grid inspector controller adapter", () => {
         spoof.remove();
     });
 
+    it("keeps two rule cards on one row distinct from each other and from field bindings", () => {
+        const controller = createController(["tx-1", "tx-2"]);
+        const ruleA = registration("tx-1", { kind: "automation-rule", ruleId: "rule-a" });
+        const ruleB = registration("tx-1", { kind: "automation-rule", ruleId: "rule-b" });
+        const tags = registration("tx-1", TAGS_AUTOMATION_BINDING);
+        const heading = registration("tx-1", { action: "automation", kind: "action" });
+        const ruleAControl = mountedButton();
+        const ruleBControl = mountedButton();
+        const tagsControl = mountedButton();
+        const headingControl = mountedButton();
+        controller.registerInspectorControl(ruleA, ruleAControl);
+        controller.registerInspectorControl(ruleB, ruleBControl);
+        controller.registerInspectorControl(tags, tagsControl);
+        controller.registerInspectorControl(heading, headingControl);
+
+        // Both cards stay registered: neither overwrote the other, nor the field-keyed proposal.
+        expect(controller.isRegisteredInspectorTarget(ruleA, ruleAControl)).toBe(true);
+        expect(controller.isRegisteredInspectorTarget(ruleB, ruleBControl)).toBe(true);
+        expect(controller.isRegisteredInspectorTarget(tags, tagsControl)).toBe(true);
+        expect(controller.isRegisteredInspectorTarget(heading, headingControl)).toBe(true);
+        expect(controller.isRegisteredInspectorTarget(ruleA, ruleBControl)).toBe(false);
+        expect(controller.isRegisteredInspectorTarget(ruleB, ruleAControl)).toBe(false);
+        expect(controller.isRegisteredInspectorTarget(tags, ruleAControl)).toBe(false);
+        expect(controller.isRegisteredInspectorTarget(ruleA, tagsControl)).toBe(false);
+        expect(
+            controller.isRegisteredInspectorTarget(
+                registration("tx-2", { kind: "automation-rule", ruleId: "rule-a" }),
+                ruleAControl
+            )
+        ).toBe(false);
+
+        controller.setFocusedCell("tx-1", "description");
+        controller.setInspectorPanelOpen(true);
+        ruleBControl.focus();
+        expect(controller.enterInspector(ruleBControl)).toBe(true);
+        expect(controller.getInteractionState()).toMatchObject({ kind: "inspecting" });
+        for (const element of [ruleAControl, ruleBControl, tagsControl, headingControl]) {
+            element.remove();
+        }
+    });
+
     it("owns automation controls and portals by exact transaction and rule field", () => {
         const controller = createController(["tx-1", "tx-2"]);
         const description = registration("tx-1", DESCRIPTION_AUTOMATION_BINDING);

@@ -180,6 +180,16 @@ test.describe("Automations", () => {
             await ruleListItems(page, "COFFEE SHOP 123").click();
             await page.getByRole("button", { name: "Split Tags into its own rule" }).click();
 
+            // Split previews first and writes nothing until confirmed.
+            const preview = page.getByRole("group", { name: "Split preview" });
+            await expect(preview).toBeVisible();
+            await expect(preview.getByTestId("rule-split-preview-new")).toContainText("Tags");
+            await expect(preview.getByTestId("rule-split-preview-source")).toContainText(
+                "Allocation"
+            );
+            await expect(ruleListItems(page, "COFFEE SHOP 123")).toHaveCount(1);
+            await preview.getByRole("button", { name: "Confirm split" }).click();
+
             await expect(ruleListItems(page, "COFFEE SHOP 123")).toHaveCount(2);
             await expect(page.getByText(/2 active rules/i)).toBeVisible();
             const selected = page.getByTestId("rule-list").locator('[aria-current="true"]');

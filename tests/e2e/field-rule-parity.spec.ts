@@ -2,8 +2,8 @@
  * E2E Test: Tag + allocation field-rule parity and apply-mode persistence (HS-007 / P17D)
  *
  * These journeys exercise tag and allocation parity in the shared rule editor and the stable
- * transaction inspector. Existing-rule controls are keyed to the active transaction and rule field;
- * virtual transaction rows own no rule UI. Tag and allocation rules still apply to manual rows,
+ * transaction inspector. The inspector shows one card per rule winning a field on the active
+ * transaction; virtual transaction rows own no rule UI. Tag and allocation rules still apply to manual rows,
  * while description-alias rules remain imported-only. The scope choice remains remembered.
  */
 
@@ -16,6 +16,7 @@ import {
     goToTags,
     goToTransactions,
     importTransactionRows,
+    inspectorRuleCard,
     openTransactionInspector,
     rowsWithDisplayedDescription,
     stableTransactionRow,
@@ -106,19 +107,19 @@ test.describe("Tag field-rule parity", () => {
         const row = await stableTransactionRow(page.getByTestId("transaction-row").first());
         const inspector = await openTransactionInspector(page);
         await transactionGridCell(row, "description").click();
-        const rule = inspector.getByTestId("tags-rule-inspector");
+        const rule = inspectorRuleCard(inspector, "tags");
 
         await test.step("the inspector reuses the shared editor for the active matching row", async () => {
             await expect(rule).toBeVisible();
-            await expect(rule.getByTestId("transaction-rule-popup")).toBeVisible();
             await expect(rule.getByTestId("field-rule-editor")).toBeVisible();
+            await rule.getByRole("button", { name: "Edit Tags" }).click();
             await expect(rule.getByTestId("rule-tag-mode")).toContainText(/set tags/i);
             await expect(
                 rule
                     .getByRole("group", { name: /tags to apply/i })
                     .getByRole("button", { name: "Coffee" })
             ).toHaveAttribute("aria-pressed", "true");
-            await expect(row.getByTestId("transaction-rule-popup")).toHaveCount(0, {
+            await expect(row.getByTestId("field-rule-editor")).toHaveCount(0, {
                 timeout: 3_000
             });
         });
@@ -210,22 +211,23 @@ test.describe("Manual-row applicability", () => {
         );
         const inspector = await openTransactionInspector(page);
         await transactionGridCell(row, "description").click();
-        const tagsRule = inspector.getByTestId("tags-rule-inspector");
-        const allocationRule = inspector.getByTestId("allocation-rule-inspector");
+        const tagsRule = inspectorRuleCard(inspector, "tags");
+        const allocationRule = inspectorRuleCard(inspector, "allocation");
 
         await test.step("the manual row exposes drifting tag and allocation rules but no description rule", async () => {
             await expect(tagsRule.getByTestId("transaction-rule-drift")).toBeVisible();
             await expect(allocationRule.getByTestId("transaction-rule-drift")).toBeVisible();
-            await expect(inspector.getByTestId("descriptionAlias-rule-inspector")).toHaveCount(0, {
+            await expect(inspectorRuleCard(inspector, "descriptionAlias")).toHaveCount(0, {
                 timeout: 3_000
             });
-            await expect(row.getByTestId("transaction-rule-popup")).toHaveCount(0, {
+            await expect(row.getByTestId("field-rule-editor")).toHaveCount(0, {
                 timeout: 3_000
             });
         });
 
         await test.step("apply-to-this reconciles every matching rule for the manual row", async () => {
-            await tagsRule.getByTestId("rule-apply-this").click();
+            // Apply-this is whole-row: one click resolves drift on the other rule's card too.
+            await tagsRule.getByTestId("rule-apply-this-tags").click();
             await expect(tagsRule.getByTestId("transaction-rule-drift")).toHaveCount(0, {
                 timeout: 3_000
             });
@@ -263,16 +265,10 @@ test.describe("Manual-row applicability", () => {
         const inspector = await openTransactionInspector(page);
         await transactionGridCell(row, "description").click();
 
-        await expect(inspector.getByTestId("tags-rule-inspector")).toHaveCount(0, {
-            timeout: 3_000
-        });
-        await expect(inspector.getByTestId("allocation-rule-inspector")).toHaveCount(0, {
-            timeout: 3_000
-        });
-        await expect(inspector.getByTestId("descriptionAlias-rule-inspector")).toHaveCount(0, {
-            timeout: 3_000
-        });
-        await expect(inspector.getByTestId("transaction-rule-popup")).toHaveCount(0, {
+        for (const field of ["tags", "allocation", "descriptionAlias"] as const) {
+            await expect(inspectorRuleCard(inspector, field)).toHaveCount(0, { timeout: 3_000 });
+        }
+        await expect(inspector.getByTestId("field-rule-editor")).toHaveCount(0, {
             timeout: 3_000
         });
     });
@@ -345,22 +341,22 @@ test.describe("Inspector existing rules at scale", () => {
                 await stableTransactionRow(matchingRows.nth(0)),
                 "description"
             ).click();
-            await expect(inspector.getByTestId("tags-rule-inspector")).toBeVisible();
+            await expect(inspectorRuleCard(inspector, "tags")).toBeVisible();
             await transactionGridCell(
                 await stableTransactionRow(matchingRows.nth(1)),
                 "description"
             ).click();
-            await expect(inspector.getByTestId("tags-rule-inspector")).toBeVisible();
+            await expect(inspectorRuleCard(inspector, "tags")).toBeVisible();
 
             const unrelatedRow = await stableTransactionRow(
                 rowsWithDisplayedDescription(page, "UNRELATED MERCHANT 0").first()
             );
             await transactionGridCell(unrelatedRow, "description").click();
-            await expect(inspector.getByTestId("tags-rule-inspector")).toHaveCount(0, {
+            await expect(inspectorRuleCard(inspector, "tags")).toHaveCount(0, {
                 timeout: 3_000
             });
             await expect(
-                page.getByTestId("transaction-row").getByTestId("transaction-rule-popup")
+                page.getByTestId("transaction-row").getByTestId("field-rule-editor")
             ).toHaveCount(0, { timeout: 3_000 });
         });
     });

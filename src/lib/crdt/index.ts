@@ -43,6 +43,7 @@ export {
     usePeople,
     usePersistAutomationPreference,
     usePersistDateFormat,
+    useRulePopulation,
     usePersistTransactionInspectorOpen,
     usePerson,
     useStatuses,

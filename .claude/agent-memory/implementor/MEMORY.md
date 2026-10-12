@@ -127,5 +127,5 @@
   — "row 9,999 is reachable" stayed green against the pagination it replaced; assert the BOUND.
 - [Portal tests need a ResizeObserver stub](portal-tests-need-a-resizeobserver-stub.md) — the cmdk
   tags chooser throws while MOUNTING in jsdom, so the portal never opens and the case is untestable.
-- [Radix radiogroup roving focus in jsdom](radix-radiogroup-roving-focus-in-jsdom.md) — the root is the
-  Tab stop and arrow-key focus lands in a timeout; assert the group, and `waitFor` arrow moves.
+- [Radix radiogroup roving focus in jsdom](radix-radiogroup-roving-focus-in-jsdom.md) — the root is
+  the Tab stop and arrow-key focus lands in a timeout; assert the group, and `waitFor` arrow moves.

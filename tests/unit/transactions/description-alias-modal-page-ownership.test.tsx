@@ -220,9 +220,10 @@ describe("page-level shared description alias modal ownership", () => {
         expect(screen.getByTestId("description-rule-proposal")).toBeVisible();
         const registrationsBeforeModeChange = registerFinalizer.mock.calls.length;
 
-        fireEvent.click(screen.getByTestId("proposal-apply-mode"));
-        fireEvent.click(screen.getByRole("option", { name: "Updating all" }));
-        expect(screen.getByTestId("proposal-apply-mode")).toHaveTextContent("Updating all");
+        fireEvent.click(screen.getByTestId("rule-scope-all"));
+        fireEvent.click(screen.getByTestId("rule-apply-on-blur"));
+        expect(screen.getByTestId("rule-scope-all")).toHaveAttribute("aria-checked", "true");
+        expect(screen.getByTestId("rule-apply-on-blur")).toHaveAttribute("aria-checked", "true");
         await waitFor(() =>
             expect(registerFinalizer.mock.calls.length).toBeGreaterThan(
                 registrationsBeforeModeChange

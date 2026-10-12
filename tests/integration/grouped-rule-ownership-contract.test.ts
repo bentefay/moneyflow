@@ -13,8 +13,8 @@
  * `resolveRuleExtensionTarget` implements the §5.3 selection ladder, and `setFieldRuleOutput`
  * extends a rule without disturbing its other outputs. Where a test below pinned single-field
  * behaviour that grouping deliberately changes (EX-03, the wholesale-update case), it now asserts
- * the grouped behaviour. The inspector's per-field proposal (`computeFieldRuleProposal`) is not yet
- * routed through the ladder, so its assertions still describe the per-field owner it reports.
+ * the grouped behaviour. The inspector's proposal is the eligibility gate (`computeFieldRuleProposal`)
+ * followed by the ladder over the draft's conditions; {@link proposedTarget} reproduces exactly that.
  *
  * Example ids (`EX-*`) and decision ids (`D-*`) in the test names are the spec's; keep them in sync.
  */
@@ -22,7 +22,10 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
-import { computeFieldRuleProposal } from "@/components/features/transactions/field-rule-proposal-state";
+import {
+    computeFieldRuleProposal,
+    proposalPredicate
+} from "@/components/features/transactions/field-rule-proposal-state";
 import { type RobotCurrentValue } from "@/components/features/transactions/field-rule-robot-state";
 import { applyFieldRulesToSingleTransaction } from "@/lib/crdt/apply-field-rule-to-transaction";
 import {
@@ -43,7 +46,10 @@ import {
     type TransactionLocation
 } from "@/lib/crdt/mutations";
 import { type FieldRuleInput, type TransactionInput, type VaultState } from "@/lib/crdt/schema";
-import { resolveRuleExtensionTarget } from "@/lib/domain/automation/extension";
+import {
+    resolveRuleExtensionTarget,
+    type RuleExtensionTarget
+} from "@/lib/domain/automation/extension";
 import { type FieldRule, type RuleMatchSubject } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 import { asPercentage } from "@/types";
@@ -108,6 +114,39 @@ const ALLOCATION_EDIT: RobotCurrentValue = {
     currentAllocations: { "person-1": 100 }
 };
 
+/**
+ * What the inspector proposes for a field edit: nothing when the gate refuses it, else the ladder's
+ * target for the draft's conditions. Unrestricted by default, which is what the remembered defaults
+ * seed; tick `account` or `amount` as the user would.
+ */
+function proposedTarget(
+    rules: readonly FieldRule[],
+    subject: RuleMatchSubject,
+    edit: RobotCurrentValue,
+    restrictions: { readonly account?: boolean; readonly amount?: boolean } = {}
+): RuleExtensionTarget | { readonly kind: "none" } {
+    const gate = computeFieldRuleProposal(subject, edit);
+    if (gate.kind === "none") return gate;
+    return resolveRuleExtensionTarget({
+        rules,
+        subject,
+        field: gate.field,
+        predicate: proposalPredicate(
+            gate.descriptionText,
+            {
+                useAccountScope: restrictions.account ?? false,
+                useAmountScope: restrictions.amount ?? false
+            },
+            subject
+        )
+    });
+}
+
+/** The rule id a target updates in place, or `null` for any other kind. */
+function updatedRuleId(target: RuleExtensionTarget | { readonly kind: "none" }): string | null {
+    return target.kind === "update-owner" ? target.rule.id : null;
+}
+
 function ruleById(rules: readonly FieldRule[], id: string): FieldRule {
     const found = rules.find((rule) => rule.id === id);
     if (found == null) throw new Error(`rule ${id} is not active`);
@@ -135,22 +174,24 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
     // until the user confirms.
     it("EX-01: an imported tag edit with no rules at all proposes a create", () => {
         const vault = createVaultMirror();
-        const proposal = computeFieldRuleProposal(
-            readActiveFieldRules(vault.mirror.getState()),
-            IMPORTED_SUBJECT,
-            TAGS_EDIT
-        );
-        expect(proposal.kind).toBe("create");
-        if (proposal.kind === "create") {
-            expect(proposal.field).toBe("tags");
-            expect(proposal.descriptionText).toBe(DESCRIPTION);
-        }
+        expect(computeFieldRuleProposal(IMPORTED_SUBJECT, TAGS_EDIT)).toEqual({
+            kind: "proposal",
+            field: "tags",
+            descriptionText: DESCRIPTION
+        });
+        expect(
+            proposedTarget(
+                readActiveFieldRules(vault.mirror.getState()),
+                IMPORTED_SUBJECT,
+                TAGS_EDIT
+            )
+        ).toEqual({ kind: "create" });
     });
 
-    // EX-02 — exactly one constrained rule of the edited field. The proposal targets THAT rule id,
-    // not a new one: the extension target is the winner of the edited field, never a rule chosen by
-    // recency or listing order.
-    it("EX-02: a matching account-scoped tags rule makes the edit an update of that id", () => {
+    // EX-02 — exactly one constrained rule of the edited field. A draft with the same account
+    // restriction targets THAT rule id, not a new one. An unrestricted draft has a different
+    // predicate, so folding into the account rule would change the output's population: it creates.
+    it("EX-02: a matching account-scoped tags rule makes the same-scope edit an update of that id", () => {
         const vault = createVaultMirror();
         vault.mirror.setState((state: VaultState) => {
             const created = createFieldRule(state, {
@@ -163,22 +204,16 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
             expect(created.ok).toBe(true);
         });
 
-        const proposal = computeFieldRuleProposal(
-            readActiveFieldRules(vault.mirror.getState()),
-            IMPORTED_SUBJECT,
-            TAGS_EDIT
-        );
-        expect(proposal.kind).toBe("update");
-        if (proposal.kind === "update") {
-            expect(proposal.rule.id).toBe("r-tags-account");
-            expect(proposal.field).toBe("tags");
-        }
+        const rules = readActiveFieldRules(vault.mirror.getState());
+        expect(
+            updatedRuleId(proposedTarget(rules, IMPORTED_SUBJECT, TAGS_EDIT, { account: true }))
+        ).toBe("r-tags-account");
+        expect(proposedTarget(rules, IMPORTED_SUBJECT, TAGS_EDIT)).toEqual({ kind: "create" });
     });
 
     // EX-03 — an alias rule already owns this description text, and the user edits TAGS. Under
     // grouped rules the alias rule IS the extension target when the edit's predicate is identical
-    // (D-001 + D-004): the tags join it rather than creating a second rule. The per-field proposal
-    // only reports that tags have no owner yet; which rule the write lands on is the ladder's call.
+    // (D-001 + D-004): the tags join it rather than creating a second rule.
     it("EX-03: an alias-only rule plus an unscoped tag edit extends the alias rule", () => {
         const vault = createVaultMirror();
         vault.mirror.setState((state: VaultState) => {
@@ -193,8 +228,10 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
         });
 
         const rules = readActiveFieldRules(vault.mirror.getState());
-        const proposal = computeFieldRuleProposal(rules, IMPORTED_SUBJECT, TAGS_EDIT);
-        expect(proposal.kind).toBe("create");
+        expect(proposedTarget(rules, IMPORTED_SUBJECT, TAGS_EDIT)).toMatchObject({
+            kind: "extend",
+            rule: { id: "r-alias" }
+        });
 
         const unscoped = resolveRuleExtensionTarget({
             rules,
@@ -233,9 +270,10 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
         });
     });
 
-    // EX-04 — multiple applicable rules of the SAME field. The scope lattice decides, so the more
-    // specific account+amount rule is the extension target even though the unscoped rule is newer.
-    it("EX-04: with several applicable tags rules the most specific scope is the target", () => {
+    // EX-04 — multiple applicable rules of the SAME field. The draft's conditions decide which one
+    // the edit updates: each restriction combination targets the rule with exactly that scope, never
+    // the newest one or the current winner.
+    it("EX-04: with several applicable tags rules the draft's scope picks the target", () => {
         const vault = createVaultMirror();
         vault.mirror.setState((state: VaultState) => {
             createFieldRule(state, {
@@ -261,13 +299,15 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
             });
         });
 
-        const proposal = computeFieldRuleProposal(
-            readActiveFieldRules(vault.mirror.getState()),
-            IMPORTED_SUBJECT,
-            TAGS_EDIT
-        );
-        expect(proposal.kind).toBe("update");
-        if (proposal.kind === "update") expect(proposal.rule.id).toBe("r-tags-both");
+        const rules = readActiveFieldRules(vault.mirror.getState());
+        const target = (restrictions: { readonly account?: boolean; readonly amount?: boolean }) =>
+            updatedRuleId(proposedTarget(rules, IMPORTED_SUBJECT, TAGS_EDIT, restrictions));
+        expect(target({ account: true, amount: true })).toBe("r-tags-both");
+        expect(target({ amount: true })).toBe("r-tags-amount");
+        expect(target({})).toBe("r-tags-unscoped");
+        expect(proposedTarget(rules, IMPORTED_SUBJECT, TAGS_EDIT, { account: true })).toEqual({
+            kind: "create"
+        });
     });
 
     // EX-05 — a zero amount is a real constraint, not an absent one. `amount: 0` is falsy, so this
@@ -292,12 +332,17 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
         const rules = readActiveFieldRules(vault.mirror.getState());
 
         const zeroSubject: RuleMatchSubject = { ...IMPORTED_SUBJECT, amount: asMinorUnits(0) };
-        const zeroProposal = computeFieldRuleProposal(rules, zeroSubject, TAGS_EDIT);
-        expect(zeroProposal.kind === "update" && zeroProposal.rule.id).toBe("r-tags-zero");
+        expect(updatedRuleId(proposedTarget(rules, zeroSubject, TAGS_EDIT, { amount: true }))).toBe(
+            "r-tags-zero"
+        );
 
-        // A different amount falls back to the unscoped rule rather than the zero-amount one.
-        const otherProposal = computeFieldRuleProposal(rules, IMPORTED_SUBJECT, TAGS_EDIT);
-        expect(otherProposal.kind === "update" && otherProposal.rule.id).toBe("r-tags-unscoped");
+        // A different amount is not the zero-amount rule's population, so it never targets it.
+        expect(proposedTarget(rules, IMPORTED_SUBJECT, TAGS_EDIT, { amount: true })).toEqual({
+            kind: "create"
+        });
+        expect(updatedRuleId(proposedTarget(rules, IMPORTED_SUBJECT, TAGS_EDIT))).toBe(
+            "r-tags-unscoped"
+        );
     });
 
     // EX-06 — controls. A rule for a different description text is not a candidate at all, so the
@@ -313,12 +358,13 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
             });
         });
 
-        const proposal = computeFieldRuleProposal(
-            readActiveFieldRules(vault.mirror.getState()),
-            IMPORTED_SUBJECT,
-            TAGS_EDIT
-        );
-        expect(proposal.kind).toBe("create");
+        expect(
+            proposedTarget(
+                readActiveFieldRules(vault.mirror.getState()),
+                IMPORTED_SUBJECT,
+                TAGS_EDIT
+            )
+        ).toEqual({ kind: "create" });
     });
 
     // EX-07 — cleared values produce no proposal at all, on every field.
@@ -333,19 +379,19 @@ describe("MF-002 baseline: the extension target a field edit proposes", () => {
             current: { field: "allocation", currentAllocations: {} } as RobotCurrentValue
         }
     ])("EX-07: clearing $label proposes nothing", ({ current }) => {
-        expect(computeFieldRuleProposal([], IMPORTED_SUBJECT, current).kind).toBe("none");
+        expect(computeFieldRuleProposal(IMPORTED_SUBJECT, current).kind).toBe("none");
     });
 
     // EX-08 — manual eligibility. A manual row is eligible for tags/allocation and never for the
     // description alias; a manual row with no alias exposes no matchable text at all.
     it("EX-08: manual rows are tag/allocation eligible and alias ineligible", () => {
         const manual: RuleMatchSubject = { ...IMPORTED_SUBJECT, isManual: true };
-        expect(computeFieldRuleProposal([], manual, TAGS_EDIT).kind).toBe("create");
-        expect(computeFieldRuleProposal([], manual, ALLOCATION_EDIT).kind).toBe("create");
-        expect(computeFieldRuleProposal([], manual, ALIAS_EDIT).kind).toBe("none");
+        expect(proposedTarget([], manual, TAGS_EDIT).kind).toBe("create");
+        expect(proposedTarget([], manual, ALLOCATION_EDIT).kind).toBe("create");
+        expect(proposedTarget([], manual, ALIAS_EDIT).kind).toBe("none");
 
         const textless: RuleMatchSubject = { ...manual, descriptionText: null };
-        expect(computeFieldRuleProposal([], textless, TAGS_EDIT).kind).toBe("none");
+        expect(proposedTarget([], textless, TAGS_EDIT).kind).toBe("none");
     });
 });
 
@@ -519,7 +565,7 @@ describe("MF-002 baseline: which rules a reader exposes as candidates", () => {
         const rules = readActiveFieldRules(vault.mirror.getState());
         expect(rules).toHaveLength(0);
         // With no active candidate the very same edit now proposes a CREATE rather than an update.
-        expect(computeFieldRuleProposal(rules, IMPORTED_SUBJECT, TAGS_EDIT).kind).toBe("create");
+        expect(proposedTarget(rules, IMPORTED_SUBJECT, TAGS_EDIT).kind).toBe("create");
     });
 
     it("rejects an invalid allocation set at the write boundary with zero mutation", () => {
@@ -630,8 +676,9 @@ describe("MF-002 baseline: application selects a winner per field independently"
         ).toEqual([["person-1", 100]]);
     });
 
-    // EX-10 — the edit target is NOT the applier. A user editing tags on account A targets the
-    // account-A tags rule, while a row on account B keeps taking its tags from the unscoped rule.
+    // EX-10 — the edit target is NOT the applier. A user editing tags on account A with the account
+    // restriction ticked targets the account-A tags rule, while a row on account B keeps taking its
+    // tags from the unscoped rule.
     // Grouping an edit onto one rule must not be read as "this rule now drives these rows".
     it("EX-10: the row a user edited and a sibling row can take different winners", () => {
         const vault = createVaultMirror();
@@ -656,12 +703,16 @@ describe("MF-002 baseline: application selects a winner per field independently"
         });
 
         // The edit on the account-A row targets the account-A rule.
-        const proposal = computeFieldRuleProposal(
-            readActiveFieldRules(vault.mirror.getState()),
-            IMPORTED_SUBJECT,
-            TAGS_EDIT
-        );
-        expect(proposal.kind === "update" && proposal.rule.id).toBe("r-tags-account-a");
+        expect(
+            updatedRuleId(
+                proposedTarget(
+                    readActiveFieldRules(vault.mirror.getState()),
+                    IMPORTED_SUBJECT,
+                    TAGS_EDIT,
+                    { account: true }
+                )
+            )
+        ).toBe("r-tags-account-a");
 
         vault.mirror.setState((state: VaultState) => {
             applyFieldRulesToAllTransactions(state);
@@ -885,12 +936,12 @@ describe("MF-002 baseline: a proposal captured before the target changed", () =>
         });
 
         // The surface captures its target here, while the rule is still live.
-        const captured = computeFieldRuleProposal(
+        const captured = proposedTarget(
             readActiveFieldRules(vault.mirror.getState()),
             IMPORTED_SUBJECT,
             TAGS_EDIT
         );
-        expect(captured.kind === "update" && captured.rule.id).toBe("r-tags");
+        expect(updatedRuleId(captured)).toBe("r-tags");
 
         vault.mirror.setState((state: VaultState) => {
             expect(deleteFieldRule(state, { id: "r-tags", deletedAtEpochMs: 2000 }).ok).toBe(true);

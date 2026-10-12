@@ -90,15 +90,26 @@ export interface SplitFieldRuleOutputInput {
 }
 
 /**
+ * The moved field, and optionally the value the host receives for it. Without `output` the host
+ * takes the source's stored value; with it, the user's new value lands in the same vault action, so
+ * "move and change" is one write with nothing to roll back (D-019).
+ */
+export type MoveFieldRuleOutputSelection = {
+    readonly [F in RuleField]: {
+        readonly field: F;
+        readonly output?: NonNullable<FieldRuleOutputsInput[F]>;
+    };
+}[RuleField];
+
+/**
  * Move one output from `sourceId` into `hostId`, which must have identical conditions. The source
  * is soft-deleted at `deletedAtEpochMs` when the move leaves it with no output.
  */
-export interface MoveFieldRuleOutputInput {
+export type MoveFieldRuleOutputInput = {
     readonly sourceId: string;
-    readonly field: RuleField;
     readonly hostId: string;
     readonly deletedAtEpochMs: number;
-}
+} & MoveFieldRuleOutputSelection;
 
 // ============================================================================
 // Result
@@ -192,6 +203,27 @@ function withOutput(
             return { ...outputs, allocation: change.output };
         default:
             return assertNever(change, "field-rule output");
+    }
+}
+
+/** The output a move writes into the host: the caller's replacement value, else the stored one. */
+function movedValue(
+    selection: MoveFieldRuleOutputSelection,
+    stored: RuleOutputEntry<RuleOutputsInput>
+): RuleOutputEntry<RuleOutputsInput> {
+    switch (selection.field) {
+        case "descriptionAlias":
+            return selection.output == null
+                ? stored
+                : { field: "descriptionAlias", output: selection.output };
+        case "tags":
+            return selection.output == null ? stored : { field: "tags", output: selection.output };
+        case "allocation":
+            return selection.output == null
+                ? stored
+                : { field: "allocation", output: selection.output };
+        default:
+            return assertNever(selection, "moved output");
     }
 }
 
@@ -361,7 +393,8 @@ export function splitFieldRuleOutput(
 /**
  * Move one output from a source rule into a host rule with IDENTICAL conditions, in one mutation.
  * The source loses the output and is soft-deleted when that leaves it empty, so it can never keep
- * winning the slot (D-003). Refuses a host whose conditions differ (`predicate-mismatch`), a host
+ * winning the slot (D-003). The host receives `output` when given, else the source's stored value.
+ * Refuses a host whose conditions differ (`predicate-mismatch`), a host
  * that already has an output for the field (`duplicate-key`), and a source without it
  * (`missing-output`).
  */
@@ -385,7 +418,7 @@ export function moveFieldRuleOutput(
         return err({ type: "duplicate-key", existingRuleId: host.id });
     }
 
-    const nextHost = rebuildWithOutputs(host, withOutput(host.outputs, moved));
+    const nextHost = rebuildWithOutputs(host, withOutput(host.outputs, movedValue(input, moved)));
     if (!nextHost.ok) return nextHost;
     const collision = collisionError(state, nextHost.value, new Set([source.id]));
     if (collision != null) return err(collision);
