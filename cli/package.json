@@ -4,8 +4,8 @@
     "private": true,
     "type": "module",
     "dependencies": {
-        "@optique/core": "1.3.3",
-        "@optique/run": "1.3.3",
+        "@optique/core": "1.3.4",
+        "@optique/run": "1.3.4",
         "semver": "7.8.5"
     },
     "devDependencies": {
