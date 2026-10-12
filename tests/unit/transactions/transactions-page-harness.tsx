@@ -372,6 +372,8 @@ export async function createCrdtContextMock() {
         useActivePeople: () => vaultPeople.active,
         usePeople: () => vaultPeople.all,
         useActiveFieldRules: () => noRules,
+        // The editor's "would change now" line counts over this; no rules means nothing changes.
+        useRulePopulation: () => noRules,
         useTransactionActions: () => ({
             insertTransaction: noop,
             updateTransaction: useCallback((input: UpdateTransactionInput) => {

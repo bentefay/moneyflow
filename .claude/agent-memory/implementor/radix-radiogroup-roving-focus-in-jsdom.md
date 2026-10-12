@@ -1,8 +1,10 @@
 ---
 name: radix-radiogroup-roving-focus-in-jsdom
-description: Radix RadioGroup's Tab stop is the radiogroup root, not the checked radio, and arrow-key focus lands in a setTimeout; a sync jsdom assertion on either fails.
+description:
+    Radix RadioGroup's Tab stop is the radiogroup root, not the checked radio, and arrow-key focus
+    lands in a setTimeout; a sync jsdom assertion on either fails.
 metadata:
-  type: feedback
+    type: feedback
 ---
 
 In a Radix `RadioGroup`, every radio starts at `tabIndex = -1`. The **root** `role="radiogroup"` is

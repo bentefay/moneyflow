@@ -75,6 +75,11 @@ export type RuleEditorResolution =
           readonly host: RuleEditorOption;
           readonly choice: "keep" | "move";
           readonly onChoose: (choice: "keep" | "move") => void;
+          /**
+           * The owner has other outputs, so a move leaves it in place without this one rather than
+           * deleting it. The move hint states whichever fate applies.
+           */
+          readonly ownerKeepsOtherOutputs?: boolean;
       }
     | {
           readonly kind: "ambiguous";
@@ -82,6 +87,13 @@ export type RuleEditorResolution =
           readonly choice: string | null;
           readonly onChoose: (id: string) => void;
       };
+
+/** An open "Split <field> into its own rule" preview. Nothing is written until Confirm split. */
+export interface RuleEditorSplitPreview {
+    readonly field: RuleField;
+    readonly onConfirm: () => void;
+    readonly onCancel: () => void;
+}
 
 export interface RuleEditorProps {
     /** `create` for a rule that does not exist yet; `edit` for an existing rule. */
@@ -104,7 +116,10 @@ export interface RuleEditorProps {
     readonly transaction?: RuleEditorTransaction;
     /** Shown in amber under the conditions when the rule's stored conditions differ from the row. */
     readonly storedConditionsNote?: string;
-    /** The output an unapplied edit is for. Its badge is marked pending and Split is hidden. */
+    /**
+     * The output an unapplied edit is for. Its badge is marked pending and starts expanded; Split, Add
+     * output and Edit on every other output are hidden, because only the pending output is written.
+     */
     readonly pendingField?: RuleField;
     /** Outputs whose rule value disagrees with the transaction. Information, so amber, not red. */
     readonly divergence?: Partial<Record<RuleField, RuleEditorDivergence>>;
@@ -114,7 +129,10 @@ export interface RuleEditorProps {
     readonly populationCount?: number;
     /** True only when the rule exists, has more than one output and nothing is pending. */
     readonly canSplit: boolean;
+    /** Asks to split `field` out. The caller opens {@link splitPreview}; it acts only on confirm. */
     readonly onSplit?: (field: RuleField) => void;
+    /** The open split preview, rendered under the outputs. */
+    readonly splitPreview?: RuleEditorSplitPreview;
     /** Adds an empty output for `field` to the draft. The editor expands its badge. */
     readonly onAddOutput: (field: RuleField) => void;
     readonly onApply: () => void;
@@ -183,6 +201,7 @@ export function RuleEditor(props: RuleEditorProps): React.JSX.Element {
         populationCount,
         canSplit,
         onSplit,
+        splitPreview,
         onAddOutput,
         onApply,
         onCancel,
@@ -195,7 +214,10 @@ export function RuleEditor(props: RuleEditorProps): React.JSX.Element {
         className
     } = props;
 
-    const [expanded, setExpanded] = useState<readonly RuleField[]>([]);
+    // The pending output starts open so its value controls are reachable without a click.
+    const [expanded, setExpanded] = useState<readonly RuleField[]>(
+        pendingField == null ? [] : [pendingField]
+    );
 
     const set = (partial: Partial<RuleEditorDraft>): void =>
         onDraftChange({ ...draft, ...partial });
@@ -203,7 +225,8 @@ export function RuleEditor(props: RuleEditorProps): React.JSX.Element {
     const { heading, target } = titleText(title);
     const groupLabel = target == null ? heading : `${heading} · ${target}`;
     const fields = draftOutputFields(draft);
-    const absentFields = RULE_FIELDS.filter((field) => !fields.includes(field));
+    const absentFields =
+        pendingField == null ? RULE_FIELDS.filter((field) => !fields.includes(field)) : [];
     const splitAvailable = canSplit && pendingField == null && onSplit != null;
     const unresolved = resolution?.kind === "ambiguous" && resolution.choice == null;
     const rowConditions = context === "transaction" ? transaction : undefined;
@@ -302,6 +325,7 @@ export function RuleEditor(props: RuleEditorProps): React.JSX.Element {
                                 aliases={aliases}
                                 divergence={divergence?.[field]}
                                 draft={draft}
+                                editable={pendingField == null || pendingField === field}
                                 errors={errors}
                                 expanded={expanded.includes(field)}
                                 field={field}
@@ -342,6 +366,16 @@ export function RuleEditor(props: RuleEditorProps): React.JSX.Element {
                     </div>
                 )}
                 <FieldError message={errors.outputs} testId="rule-outputs-error" />
+                {splitPreview == null ? null : (
+                    <SplitPreviewPanel
+                        accounts={accounts}
+                        aliases={aliases}
+                        draft={draft}
+                        people={people}
+                        preview={splitPreview}
+                        tags={tags}
+                    />
+                )}
             </fieldset>
 
             <fieldset className="space-y-2">
@@ -706,6 +740,8 @@ interface OutputBadgeProps {
     readonly tags: readonly RuleEditorOption[];
     readonly people: readonly RuleEditorOption[];
     readonly expanded: boolean;
+    /** False while another output is pending: only the pending output is written. */
+    readonly editable: boolean;
     readonly pending: boolean;
     readonly divergence?: RuleEditorDivergence;
     readonly idPrefix: string;
@@ -744,6 +780,7 @@ function OutputBadge(props: OutputBadgeProps): React.JSX.Element {
         tags,
         people,
         expanded,
+        editable,
         pending,
         divergence,
         idPrefix,
@@ -783,18 +820,20 @@ function OutputBadge(props: OutputBadgeProps): React.JSX.Element {
                     </Badge>
                 )}
                 <span className="flex gap-1">
-                    <Button
-                        aria-controls={expanded ? editorId : undefined}
-                        aria-expanded={expanded}
-                        aria-label={expanded ? `Done editing ${label}` : `Edit ${label}`}
-                        data-testid={`rule-output-edit-${field}`}
-                        onClick={() => onToggleExpanded(field)}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                    >
-                        {expanded ? "Done" : "Edit"}
-                    </Button>
+                    {editable ? (
+                        <Button
+                            aria-controls={expanded ? editorId : undefined}
+                            aria-expanded={expanded}
+                            aria-label={expanded ? `Done editing ${label}` : `Edit ${label}`}
+                            data-testid={`rule-output-edit-${field}`}
+                            onClick={() => onToggleExpanded(field)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                        >
+                            {expanded ? "Done" : "Edit"}
+                        </Button>
+                    ) : null}
                     {onSplit == null ? null : (
                         <Button
                             aria-label={`Split ${label} into its own rule`}
@@ -829,7 +868,7 @@ function OutputBadge(props: OutputBadgeProps): React.JSX.Element {
                     )}
                 </div>
             )}
-            {expanded ? (
+            {expanded && editable ? (
                 <div className="border-t pt-2" id={editorId}>
                     <OutputValueEditor
                         aliases={aliases}
@@ -1068,7 +1107,11 @@ function ResolutionPanel({
                             />
                         </ChoiceRow>
                         <ChoiceRow
-                            hint={`The ${resolution.owner.label} is deleted. ${fieldLabel} then applies wherever the ${resolution.host.label} applies.`}
+                            hint={`${
+                                resolution.ownerKeepsOtherOutputs === true
+                                    ? `The ${resolution.owner.label} keeps its other outputs and stops setting ${fieldLabel.toLowerCase()}.`
+                                    : `The ${resolution.owner.label} is deleted.`
+                            } ${fieldLabel} then applies wherever the ${resolution.host.label} applies.`}
                             id={`${idPrefix}-resolution-move`}
                             label={
                                 <span>
@@ -1121,4 +1164,92 @@ function ResolutionPanel({
         default:
             return assertNever(resolution);
     }
+}
+
+// ============================================================================
+// Split preview
+// ============================================================================
+
+function draftConditionsLabel(
+    draft: RuleEditorDraft,
+    accounts: readonly RuleEditorOption[]
+): string {
+    const account = draft.useAccountScope
+        ? (accounts.find((option) => option.id === draft.accountId)?.label ?? "an unknown account")
+        : "any account";
+    const amount = draft.useAmountScope ? draft.amountText : "any amount";
+    return `${account} · ${amount}`;
+}
+
+/** The two rules a split leaves: same conditions, the remaining outputs and the moved one. */
+function SplitPreviewPanel({
+    accounts,
+    aliases,
+    draft,
+    people,
+    preview,
+    tags
+}: {
+    readonly accounts: readonly RuleEditorOption[];
+    readonly aliases: readonly RuleEditorOption[];
+    readonly draft: RuleEditorDraft;
+    readonly people: readonly RuleEditorOption[];
+    readonly preview: RuleEditorSplitPreview;
+    readonly tags: readonly RuleEditorOption[];
+}): React.JSX.Element {
+    const label = RULE_FIELD_LABELS[preview.field];
+    const conditions = draftConditionsLabel(draft, accounts);
+    const remaining = draftOutputFields(draft).filter((field) => field !== preview.field);
+    const summary = (field: RuleField): string =>
+        `${RULE_FIELD_LABELS[field]}: ${outputValueSummary(field, draft.outputs, { aliases, tags, people })}`;
+    const cardClass = "bg-background grid min-w-0 gap-0.5 rounded-md border p-2 text-xs";
+    return (
+        <div
+            aria-label="Split preview"
+            className="space-y-2 rounded-md border p-3"
+            data-testid="rule-split-preview"
+            role="group"
+        >
+            <p className="text-sm">
+                <strong>Split {label.toLowerCase()} into its own rule.</strong> Both rules keep the
+                same match conditions. No transaction changes.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+                <div className={cardClass} data-testid="rule-split-preview-source">
+                    <span className="font-mono break-all">{draft.descriptionText}</span>
+                    <span className="text-muted-foreground">{conditions}</span>
+                    {remaining.map((field) => (
+                        <span key={field}>{summary(field)}</span>
+                    ))}
+                </div>
+                <div className={cardClass} data-testid="rule-split-preview-new">
+                    <span className="flex flex-wrap items-center gap-1">
+                        <span className="font-mono break-all">{draft.descriptionText}</span>
+                        <Badge variant="secondary">new</Badge>
+                    </span>
+                    <span className="text-muted-foreground">{conditions}</span>
+                    <span>{summary(preview.field)}</span>
+                </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+                <Button
+                    data-testid="rule-split-confirm"
+                    onClick={preview.onConfirm}
+                    size="sm"
+                    type="button"
+                >
+                    Confirm split
+                </Button>
+                <Button
+                    data-testid="rule-split-cancel"
+                    onClick={preview.onCancel}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                >
+                    Back
+                </Button>
+            </div>
+        </div>
+    );
 }

@@ -2,7 +2,11 @@ import fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
-import { computeFieldRuleRobotState } from "@/components/features/transactions/field-rule-robot-state";
+import {
+    computeFieldRuleRobotState,
+    computeRuleCardStates,
+    type RobotCurrentValue
+} from "@/components/features/transactions/field-rule-robot-state";
 import { AllocationPercentageSchema } from "@/lib/domain/allocation";
 import {
     type FieldRule,
@@ -200,5 +204,62 @@ describe("computeFieldRuleRobotState — description parity and precedence", () 
                 }
             )
         );
+    });
+});
+
+describe("computeRuleCardStates", () => {
+    const ALIAS = { descriptionAlias: { aliasId: "alias-coffee" } } as const;
+    const TAGS = { tags: { mode: "add", tagIds: ["coffee"] } } as const;
+    const CURRENTS: readonly RobotCurrentValue[] = [
+        { field: "descriptionAlias", currentAliasId: "alias-coffee" },
+        { field: "tags", currentTagIds: [] },
+        { field: "allocation", currentAllocations: { p1: 100 } }
+    ];
+
+    it("gives one card per winning rule, grouping the fields it wins and drifts on", () => {
+        const grouped = rule({ id: "r-grouped", outputs: { ...ALIAS, ...TAGS } });
+        const allocation = rule({ id: "r-alloc", outputs: allocationOutputs({ p1: 50, p2: 50 }) });
+        expect(computeRuleCardStates([grouped, allocation], IMPORTED, CURRENTS)).toEqual([
+            { rule: allocation, wonFields: ["allocation"], driftFields: ["allocation"] },
+            { rule: grouped, wonFields: ["descriptionAlias", "tags"], driftFields: ["tags"] }
+        ]);
+    });
+
+    it("orders the most specific rule first, then by id, whatever the input order", () => {
+        const unscoped = rule({ id: "r-a", outputs: ALIAS });
+        const accountScoped = rule({ id: "r-z", outputs: TAGS, accountId: "account-1" });
+        const amountScoped = rule({
+            id: "r-m",
+            outputs: allocationOutputs({ p1: 100 }),
+            amount: asMinorUnits(-450)
+        });
+        for (const rules of [
+            [unscoped, accountScoped, amountScoped],
+            [amountScoped, unscoped, accountScoped]
+        ]) {
+            expect(
+                computeRuleCardStates(rules, IMPORTED, CURRENTS).map((state) => state.rule.id)
+            ).toEqual(["r-z", "r-m", "r-a"]);
+        }
+    });
+
+    it("gives no card, and so no drift marker, to a rule that wins nothing on the row", () => {
+        // The broader grouped rule still has a tags output, but the account rule wins tags here.
+        const broad = rule({ id: "r-broad", outputs: { ...ALIAS, ...TAGS } });
+        const narrow = rule({
+            id: "r-narrow",
+            outputs: { tags: { mode: "add", tagIds: ["work"] } },
+            accountId: "account-1"
+        });
+        const states = computeRuleCardStates([broad, narrow], IMPORTED, CURRENTS);
+        expect(states.find((state) => state.rule.id === "r-broad")).toEqual({
+            rule: broad,
+            wonFields: ["descriptionAlias"],
+            driftFields: []
+        });
+    });
+
+    it("is empty when no rule matches", () => {
+        expect(computeRuleCardStates([], IMPORTED, CURRENTS)).toEqual([]);
     });
 });

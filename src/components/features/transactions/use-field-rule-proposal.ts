@@ -1,83 +1,97 @@
 "use client";
 
 /**
- * Transaction-context rule PROPOSAL workflow (HS-007 / UR-009).
+ * The rule proposal a field edit on a transaction offers (HS-007 / UR-009).
  *
- * The sibling {@link useTransactionRuleWorkflow} drives the robot, which edits a rule that already
- * exists. This hook drives the other frozen surface: the controls that appear when the user CHANGES
- * a field, offering to turn that change into a rule (frozen `:249-256`, extended to tags and
- * allocation by `:289-292`).
+ * {@link computeFieldRuleProposal} decides whether the edit can be offered at all. Which rule it then
+ * creates or joins is the ownership ladder's answer, `resolveRuleExtensionTarget`, recomputed from
+ * the draft's conditions on every change, so ticking "Only this account" re-derives the target. When
+ * the ladder needs the user to choose (a conflict between the owner and the description rule, or
+ * several candidates), the choice is held beside the draft in the controller-owned override, so it
+ * survives a re-render and the inspector closing and reopening.
  *
- * It reuses, rather than duplicates:
- * - the P17A matcher, via {@link computeFieldRuleProposal}, so "already matches a rule" means exactly
- *   what it means for the robot;
- * - the shared editor's draft/validation model (`validateRuleDraft`), so the four apply modes and the
- *   two restrictions behave identically on both surfaces;
- * - the P17B CRUD mutations for the write, and the P17A engine hooks for application — so allocation
- *   writes stay P16C-only and alias writes stay on the P11 boundary. It never writes a transaction,
- *   allocation key or alias directly.
- *
- * `apply` covers both halves of the frozen text: it CREATES a rule when nothing matched yet and
- * UPDATES the winning rule when one did (frozen `:287-289`), then applies it at the chosen scope —
- * "…All" through the engine's apply-all, "…New" scoped to rows strictly newer than this transaction.
+ * `apply` makes exactly one rule mutation, then applies at the chosen scope through the engine. A
+ * refused mutation applies nothing and remembers nothing.
  */
 
 import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { type Temporal } from "temporal-polyfill";
 
-import { usePubkeyHash } from "@/hooks/use-identity";
+import { useActiveFieldRules, useApplyFieldRules, useFieldRuleActions } from "@/lib/crdt";
 import {
-    useActiveAccounts,
-    useActiveDescriptionAliases,
-    useActiveFieldRules,
-    useActivePeople,
-    useActiveTags,
-    useAccounts,
-    useApplyFieldRules,
-    useFieldRuleActions,
-    usePersistAutomationPreference,
-    useUserAutomationChoice,
-    useVaultPreferences
-} from "@/lib/crdt";
-import { resolvePersonDisplayName } from "@/lib/crdt/person";
-import { applyModeTargetsNewOnly } from "@/lib/domain/automation/apply-mode";
-import { type RuleMatchSubject } from "@/lib/domain/automation/rules";
-import { resolveAccountCurrency } from "@/lib/domain/currency";
+    type FieldRuleMutationError,
+    type FieldRuleOutputChange,
+    type FieldRuleOutputsInput
+} from "@/lib/crdt/field-rule-mutations";
+import {
+    resolveRuleExtensionTarget,
+    type RuleExtensionTarget
+} from "@/lib/domain/automation/extension";
+import {
+    type FieldRule,
+    type RuleField,
+    ruleMatchesSubject,
+    type RuleMatchSubject,
+    ruleOutputFields
+} from "@/lib/domain/automation/rules";
+import { assertNever } from "@/lib/utils/exhaustive";
 
-import { type RuleEditorOption } from "../automations/FieldRuleEditor";
 import {
     draftFromProposal,
     mutationErrorToFieldErrors,
+    type RuleEditorOption,
     type RuleProposalSeed
-} from "../automations/legacy-rule-editor-data";
+} from "../automations/rule-editor-data";
 import {
     type RuleEditorDraft,
     type RuleEditorFieldErrors,
     validateRuleDraft
-} from "../automations/legacy-rule-editor-model";
+} from "../automations/rule-editor-model";
+import { useRuleEditorOptions } from "../automations/use-rule-editor-options";
 import {
     computeFieldRuleProposal,
     type FieldRuleProposalState,
+    proposalPredicate,
     type RuleProposalDraftGeneration,
     type RuleProposalDraftOverride,
-    type RuleProposalErrorOverride
+    type RuleProposalErrorOverride,
+    type RuleProposalResolutionChoice
 } from "./field-rule-proposal-state";
 import { type RobotCurrentValue } from "./field-rule-robot-state";
 import { type TransactionId } from "./table-model";
+import {
+    useRememberedRuleChoice,
+    useTransactionCurrencyCode
+} from "./use-transaction-rule-workflow";
+
+/**
+ * The user's answer to the target's required choice, already checked against the current target. A
+ * conflict defaults to keeping the owner; an ambiguous target has no default.
+ */
+export type RuleProposalResolution =
+    | { readonly kind: "conflict"; readonly choice: "keep" | "move" }
+    | { readonly kind: "ambiguous"; readonly ruleId: string | null };
 
 export interface FieldRuleProposalWorkflow {
     readonly proposal: FieldRuleProposalState;
+    /** Which rule Apply writes to, for the draft's current conditions. `null` with no proposal. */
+    readonly target: RuleExtensionTarget | null;
     readonly draft: RuleEditorDraft | null;
     readonly errors: RuleEditorFieldErrors;
+    /** `null` unless the target is a conflict or ambiguous. */
+    readonly resolution: RuleProposalResolution | null;
+    /** False for an ineligible target and for an ambiguous one with no rule chosen. */
+    readonly canApply: boolean;
     readonly accounts: readonly RuleEditorOption[];
     readonly tags: readonly RuleEditorOption[];
     readonly people: readonly RuleEditorOption[];
     readonly aliases: readonly RuleEditorOption[];
     readonly currencyCode: string;
     readonly setDraft: (next: RuleEditorDraft) => void;
+    readonly setResolution: (choice: RuleProposalResolutionChoice) => void;
     /**
-     * Write the proposed rule and apply it at the draft's chosen scope. Returns true when the write
-     * succeeded, false when validation or the mutation rejected it (errors are then populated).
+     * Write the proposed output and apply at the draft's scope. True when the write succeeded; false
+     * when validation, the target or the mutation refused it (errors are then populated).
      */
     readonly apply: () => boolean;
 }
@@ -97,13 +111,62 @@ type RuleProposalCurrentValueKey =
           readonly allocations: readonly (readonly [string, number])[];
       };
 
+/** The draft output for `field` as one validated output change, or `null` if it has none. */
+function pendingOutputChange(
+    outputs: FieldRuleOutputsInput,
+    field: RuleField
+): FieldRuleOutputChange | null {
+    switch (field) {
+        case "descriptionAlias":
+            return outputs.descriptionAlias == null
+                ? null
+                : { field, output: outputs.descriptionAlias };
+        case "tags":
+            return outputs.tags == null ? null : { field, output: outputs.tags };
+        case "allocation":
+            return outputs.allocation == null ? null : { field, output: outputs.allocation };
+        default:
+            return assertNever(field);
+    }
+}
+
+/** Keep a stored choice only while it still answers the current target. */
+function validResolution(
+    target: RuleExtensionTarget | null,
+    stored: RuleProposalResolutionChoice | null
+): RuleProposalResolution | null {
+    if (target == null) return null;
+    switch (target.kind) {
+        case "conflict":
+            return {
+                kind: "conflict",
+                choice: stored?.kind === "conflict" ? stored.choice : "keep"
+            };
+        case "ambiguous": {
+            const chosen =
+                stored?.kind === "ambiguous" &&
+                target.candidates.some((candidate) => candidate.id === stored.ruleId)
+                    ? stored.ruleId
+                    : null;
+            return { kind: "ambiguous", ruleId: chosen };
+        }
+        case "ineligible":
+        case "create":
+        case "update-owner":
+        case "extend":
+            return null;
+        default:
+            return assertNever(target);
+    }
+}
+
 export function useFieldRuleProposal(params: {
     readonly subject: RuleMatchSubject;
     /** Stable owner whose current value seeded this proposal. */
     readonly transactionId: TransactionId;
     /** The value the transaction currently carries for the changed field. */
     readonly current: RobotCurrentValue;
-    /** This transaction's date; "…New" modes are scoped to strictly-newer rows (frozen `:263-264`). */
+    /** This transaction's date; Update new applies to rows on or after it. */
     readonly referenceDate: Temporal.PlainDate;
     /** Optional controller-owned persistence used by the stable transaction inspector. */
     readonly persistence?: FieldRuleProposalPersistence;
@@ -111,44 +174,21 @@ export function useFieldRuleProposal(params: {
     const { subject, transactionId, current, referenceDate, persistence } = params;
 
     const rules = useActiveFieldRules();
-    const accountsRecord = useActiveAccounts();
-    const allAccountsRecord = useAccounts();
-    const tagsRecord = useActiveTags();
-    const peopleRecord = useActivePeople();
-    const aliasesCollection = useActiveDescriptionAliases();
-    const preferences = useVaultPreferences();
-    const pubkeyHash = usePubkeyHash();
-    const remembered = useUserAutomationChoice(pubkeyHash);
-
-    const { create, update } = useFieldRuleActions();
+    const options = useRuleEditorOptions();
+    const currencyCode = useTransactionCurrencyCode(subject.accountId);
+    const { remembered, remember } = useRememberedRuleChoice();
+    const { create, setOutput, moveOutput } = useFieldRuleActions();
     const { applyAll, applyNewerThan } = useApplyFieldRules();
-    const persistPreference = usePersistAutomationPreference();
 
-    const subjectAccount = allAccountsRecord[subject.accountId];
-    const currencyCode = resolveAccountCurrency(
-        typeof subjectAccount === "object" ? subjectAccount.currency : undefined,
-        preferences?.defaultCurrency
-    ).code;
-
-    const proposal = useMemo(
-        () => computeFieldRuleProposal(rules, subject, current),
-        [rules, subject, current]
-    );
+    const proposal = useMemo(() => computeFieldRuleProposal(subject, current), [subject, current]);
     const draftKey = useMemo(
-        () => ruleProposalDraftKey(transactionId, proposal, current, subject, currencyCode),
-        [currencyCode, current, proposal, subject, transactionId]
+        () => ruleProposalDraftKey(transactionId, proposal, rules, current, subject, currencyCode),
+        [currencyCode, current, proposal, rules, subject, transactionId]
     );
     const draftGeneration = useMemo<RuleProposalDraftGeneration>(
         () => ({ semanticKey: draftKey }),
         [draftKey]
     );
-
-    const options = useRuleEditorOptions({
-        accountsRecord,
-        aliasesCollection,
-        peopleRecord,
-        tagsRecord
-    });
 
     const [localDraftOverride, setLocalDraftOverride] = useState<RuleProposalDraftOverride | null>(
         null
@@ -168,6 +208,8 @@ export function useFieldRuleProposal(params: {
         errorOverride != null && generationMatches(errorOverride.generation)
             ? errorOverride.errors
             : {};
+    const liveOverride =
+        draftOverride != null && generationMatches(draftOverride.generation) ? draftOverride : null;
 
     // An inspector remount gets a new local token, but its controller-owned override still belongs to
     // the same semantic proposal. A semantic mismatch is ignored immediately and retired before an
@@ -196,49 +238,93 @@ export function useFieldRuleProposal(params: {
     ]);
 
     // The draft is DERIVED from the proposal, so the controls never need an effect to seed
-    // themselves when they appear. User edits are held in `draftOverride`.
+    // themselves when they appear. User edits are held in the override.
     const baselineDraft = useMemo<RuleEditorDraft | null>(() => {
         if (proposal.kind === "none") return null;
         const seed = seedFromCurrent(proposal.descriptionText, current, subject);
         return draftFromProposal(seed, currencyCode, remembered);
     }, [proposal, current, subject, currencyCode, remembered]);
-    const draft =
-        draftOverride != null && generationMatches(draftOverride.generation)
-            ? draftOverride.draft
-            : baselineDraft;
+    const draft = proposal.kind === "none" ? null : (liveOverride?.draft ?? baselineDraft);
+    const storedResolution = liveOverride?.resolution ?? null;
+
+    const useAccountScope = draft?.useAccountScope ?? false;
+    const useAmountScope = draft?.useAmountScope ?? false;
+    const target = useMemo<RuleExtensionTarget | null>(() => {
+        if (proposal.kind === "none") return null;
+        return resolveRuleExtensionTarget({
+            rules,
+            subject,
+            field: proposal.field,
+            predicate: proposalPredicate(
+                proposal.descriptionText,
+                { useAccountScope, useAmountScope },
+                subject
+            )
+        });
+    }, [proposal, rules, subject, useAccountScope, useAmountScope]);
+    const resolution = validResolution(target, storedResolution);
+    const canApply =
+        draft != null &&
+        target != null &&
+        target.kind !== "ineligible" &&
+        !(resolution?.kind === "ambiguous" && resolution.ruleId == null);
 
     const setDraft = useCallback(
         (next: RuleEditorDraft) => {
             if (proposal.kind === "none") return;
-            setDraftOverride({ draft: next, generation: draftGeneration });
+            setDraftOverride({
+                draft: next,
+                generation: draftGeneration,
+                resolution: storedResolution
+            });
             setErrorOverride(null);
         },
-        [draftGeneration, proposal.kind, setDraftOverride, setErrorOverride]
+        [draftGeneration, proposal.kind, setDraftOverride, setErrorOverride, storedResolution]
+    );
+
+    const setResolution = useCallback(
+        (choice: RuleProposalResolutionChoice) => {
+            if (draft == null) return;
+            setDraftOverride({ draft, generation: draftGeneration, resolution: choice });
+        },
+        [draft, draftGeneration, setDraftOverride]
     );
 
     const apply = useCallback((): boolean => {
-        if (draft == null || proposal.kind === "none") return false;
+        if (draft == null || proposal.kind === "none" || target == null) return false;
         const validation = validateRuleDraft(draft, currencyCode);
         if (!validation.ok) {
             setErrorOverride({ errors: validation.errors, generation: draftGeneration });
             return false;
         }
         const { accountId, amount, outputs } = validation.value;
+        const change = pendingOutputChange(outputs, proposal.field);
+        if (change == null) return false;
 
-        // Frozen `:287-289`: when the changed field already has a matching rule the same controls
-        // UPDATE that rule instead of creating a second one for the same description text.
-        const result =
-            proposal.kind === "update"
-                ? update({ id: proposal.rule.id, accountId, amount, outputs })
-                : create({
-                      id: crypto.randomUUID(),
-                      descriptionText: proposal.descriptionText,
-                      accountId,
-                      amount,
-                      outputs,
-                      createdAtEpochMs: Date.now()
-                  });
-
+        const result = writeProposal({
+            target,
+            resolution,
+            change,
+            create: () =>
+                create({
+                    id: crypto.randomUUID(),
+                    descriptionText: proposal.descriptionText,
+                    accountId,
+                    amount,
+                    // The proposal draft holds only the pending output, so this is exactly it.
+                    outputs,
+                    createdAtEpochMs: Date.now()
+                }),
+            setOutput: (ruleId) => setOutput({ id: ruleId, ...change }),
+            moveOutput: (owner, host) =>
+                moveOutput({
+                    sourceId: owner.id,
+                    hostId: host.id,
+                    deletedAtEpochMs: Date.now(),
+                    ...change
+                })
+        });
+        if (result == null) return false;
         if (!result.ok) {
             setErrorOverride({
                 errors: mutationErrorToFieldErrors(result.error),
@@ -247,25 +333,11 @@ export function useFieldRuleProposal(params: {
             return false;
         }
 
-        // "…New" applies only to transactions newer than this one (frozen `:263-264`); "…All"
-        // applies to every existing and new matching transaction (frozen `:261-263`). Both route
-        // through the P17A engine, so a rule that cannot legally apply to a row is rejected there
-        // rather than half-written here.
-        if (applyModeTargetsNewOnly(draft.applyMode)) applyNewerThan(referenceDate);
+        // Both scopes apply every active rule to the targeted rows: the engine's frozen semantics.
+        if (draft.scope === "new") applyNewerThan(referenceDate);
         else applyAll();
 
-        if (pubkeyHash != null) {
-            persistPreference({
-                pubkeyHash,
-                choice: {
-                    field: draft.field,
-                    tagMode: draft.tagMode,
-                    useAccountScope: draft.useAccountScope,
-                    useAmountScope: draft.useAmountScope,
-                    applyMode: draft.applyMode
-                }
-            });
-        }
+        remember(draft);
         setDraftOverride(null);
         setErrorOverride(null);
         return true;
@@ -276,47 +348,99 @@ export function useFieldRuleProposal(params: {
         currencyCode,
         draft,
         draftGeneration,
-        persistPreference,
+        moveOutput,
         proposal,
-        pubkeyHash,
         referenceDate,
+        remember,
+        resolution,
         setDraftOverride,
         setErrorOverride,
-        update
+        setOutput,
+        target
     ]);
 
     return {
         proposal,
+        target,
         draft,
         errors,
+        resolution,
+        canApply,
         ...options,
         currencyCode,
         setDraft,
+        setResolution,
         apply
     };
 }
 
-/** Stable semantic identity for the proposal facts an editable override was seeded from. */
+type ProposalWriteResult =
+    | { readonly ok: true }
+    | { readonly ok: false; readonly error: FieldRuleMutationError };
+
+/**
+ * The one rule mutation the target calls for, or `null` when nothing may be written: an ineligible
+ * target, or an ambiguous one the user has not answered.
+ */
+function writeProposal(input: {
+    readonly target: RuleExtensionTarget;
+    readonly resolution: RuleProposalResolution | null;
+    readonly change: FieldRuleOutputChange;
+    readonly create: () => ProposalWriteResult;
+    readonly setOutput: (ruleId: string) => ProposalWriteResult;
+    readonly moveOutput: (owner: FieldRule, host: FieldRule) => ProposalWriteResult;
+}): ProposalWriteResult | null {
+    const { target, resolution } = input;
+    switch (target.kind) {
+        case "ineligible":
+            return null;
+        case "create":
+            return input.create();
+        case "update-owner":
+        case "extend":
+            return input.setOutput(target.rule.id);
+        case "conflict":
+            return resolution?.kind === "conflict" && resolution.choice === "move"
+                ? input.moveOutput(target.owner, target.host)
+                : input.setOutput(target.owner.id);
+        case "ambiguous":
+            // `setFieldRuleOutput` adds or replaces, so it covers an owner and a non-owner alike.
+            return resolution?.kind === "ambiguous" && resolution.ruleId != null
+                ? input.setOutput(resolution.ruleId)
+                : null;
+        default:
+            return assertNever(target);
+    }
+}
+
+/**
+ * Stable semantic identity for the facts an override was made against. It must not include the
+ * target, which depends on the override's own conditions and would retire it on every checkbox tick.
+ * The signature of same-text rules matching the row does retire it when another writer changes the
+ * candidate set, so the proposal is re-presented rather than written over a changed rule.
+ */
 function ruleProposalDraftKey(
     transactionId: TransactionId,
     proposal: FieldRuleProposalState,
+    rules: readonly FieldRule[],
     current: RobotCurrentValue,
     subject: RuleMatchSubject,
     currencyCode: string
 ): string {
-    const currentValue = ruleProposalCurrentValueKey(current);
-    const proposalOwner = proposal.kind === "update" ? proposal.rule.id : null;
-    const proposalDescription =
-        proposal.kind === "none" ? subject.descriptionText : proposal.descriptionText;
+    const ruleSignature = rules
+        .filter((rule) => ruleMatchesSubject(rule, subject))
+        .map((rule) => [rule.id, ruleOutputFields(rule)] as const)
+        .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
     return JSON.stringify([
         transactionId,
         proposal.kind,
-        proposalOwner,
-        proposalDescription,
+        current.field,
+        subject.descriptionText,
         subject.accountId,
         subject.amount,
         currencyCode,
-        currentValue
+        ruleProposalCurrentValueKey(current),
+        ruleSignature
     ]);
 }
 
@@ -333,6 +457,8 @@ function ruleProposalCurrentValueKey(current: RobotCurrentValue): RuleProposalCu
                 ),
                 field: current.field
             };
+        default:
+            return assertNever(current);
     }
 }
 
@@ -356,56 +482,7 @@ function seedFromCurrent(
                 ...scope,
                 value: { field: "allocation", allocations: current.currentAllocations }
             };
+        default:
+            return assertNever(current);
     }
-}
-
-/**
- * Project the vault's option records into the shared editor's `{ id, label }` options. Identical in
- * shape to the robot workflow's projection, kept here so the two surfaces present the same choices.
- */
-function useRuleEditorOptions(records: {
-    readonly accountsRecord: ReturnType<typeof useActiveAccounts>;
-    readonly tagsRecord: ReturnType<typeof useActiveTags>;
-    readonly peopleRecord: ReturnType<typeof useActivePeople>;
-    readonly aliasesCollection: ReturnType<typeof useActiveDescriptionAliases>;
-}): {
-    readonly accounts: readonly RuleEditorOption[];
-    readonly tags: readonly RuleEditorOption[];
-    readonly people: readonly RuleEditorOption[];
-    readonly aliases: readonly RuleEditorOption[];
-} {
-    const { accountsRecord, tagsRecord, peopleRecord, aliasesCollection } = records;
-    const accounts = useMemo<readonly RuleEditorOption[]>(
-        () =>
-            Object.values(accountsRecord).flatMap((account) =>
-                typeof account === "object" ? [{ id: account.id, label: account.name }] : []
-            ),
-        [accountsRecord]
-    );
-    const tags = useMemo<readonly RuleEditorOption[]>(
-        () =>
-            Object.values(tagsRecord).flatMap((tag) =>
-                typeof tag === "object" ? [{ id: tag.id, label: tag.name }] : []
-            ),
-        [tagsRecord]
-    );
-    const people = useMemo<readonly RuleEditorOption[]>(
-        () =>
-            Object.values(peopleRecord).flatMap((person) =>
-                typeof person === "object"
-                    ? [{ id: person.id, label: resolvePersonDisplayName(person) }]
-                    : []
-            ),
-        [peopleRecord]
-    );
-    const aliases = useMemo<readonly RuleEditorOption[]>(
-        () =>
-            Object.values(aliasesCollection).flatMap((alias) =>
-                typeof alias === "object" && alias.kind === "real"
-                    ? [{ id: alias.id, label: alias.name }]
-                    : []
-            ),
-        [aliasesCollection]
-    );
-    return { accounts, tags, people, aliases };
 }

@@ -2,9 +2,9 @@
  * The shared rule editor rendered in each state the mockup defines
  * (`specs/fusion-mission-recovery/mockups/rule-editor.html`).
  *
- * The inspector props (pending, divergence, resolution, transaction conditions) have no production
- * caller yet. They are pinned here so the inspector can adopt the editor without changing its API.
- * Assertions use roles and accessible names; copy is asserted only where it is the behaviour.
+ * The inspector and the Automations page both drive these props; the inspector's own tests mock the
+ * editor, so its behaviour is pinned here. Assertions use roles and accessible names; copy is
+ * asserted only where it is the behaviour.
  */
 
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -203,6 +203,53 @@ describe("RuleEditor: edit with three outputs", () => {
         expect(onSplit).toHaveBeenCalledWith("tags");
     });
 
+    it("previews a split as two rules with the same conditions and acts only on confirm", () => {
+        const onConfirm = vi.fn();
+        const onCancel = vi.fn();
+        render(<RuleEditor {...props({ splitPreview: { field: "tags", onConfirm, onCancel } })} />);
+
+        const preview = screen.getByRole("group", { name: "Split preview" });
+        expect(preview).toHaveTextContent("Split tags into its own rule.");
+        const source = within(preview).getByTestId("rule-split-preview-source");
+        const split = within(preview).getByTestId("rule-split-preview-new");
+        for (const card of [source, split]) {
+            expect(card).toHaveTextContent("COFFEE SHOP 123");
+            expect(card).toHaveTextContent("any account · any amount");
+        }
+        expect(source).toHaveTextContent("Description: rename to “Coffee”");
+        expect(source).toHaveTextContent("Allocation: Alex 50% / Sam 50%");
+        expect(source).not.toHaveTextContent("Tags:");
+        expect(split).toHaveTextContent("Tags: add #coffee");
+        expect(split).not.toHaveTextContent("Description:");
+        expect(within(split).getByText("new")).toBeVisible();
+        expect(onConfirm).not.toHaveBeenCalled();
+
+        fireEvent.click(within(preview).getByRole("button", { name: "Back" }));
+        expect(onCancel).toHaveBeenCalledTimes(1);
+        fireEvent.click(within(preview).getByRole("button", { name: "Confirm split" }));
+        expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+
+    it("names the restricted account and amount in the split preview", () => {
+        render(
+            <RuleEditor
+                {...props({
+                    draft: {
+                        ...THREE_OUTPUTS,
+                        useAccountScope: true,
+                        accountId: "acc-b",
+                        useAmountScope: true,
+                        amountText: "-4.5"
+                    },
+                    splitPreview: { field: "allocation", onConfirm: vi.fn(), onCancel: vi.fn() }
+                })}
+            />
+        );
+        expect(screen.getByTestId("rule-split-preview-new")).toHaveTextContent(
+            "Credit card · -4.5"
+        );
+    });
+
     it("hides Split everywhere when splitting is not allowed", () => {
         render(<RuleEditor {...props({ canSplit: false })} />);
         expect(screen.queryByRole("button", { name: /^split/i })).toBeNull();
@@ -367,6 +414,33 @@ describe("RuleEditor: pending field", () => {
         expect(screen.queryByRole("button", { name: /^split/i })).toBeNull();
     });
 
+    it("opens the pending output's editor and locks every other output", () => {
+        render(
+            <RuleEditor
+                {...props({
+                    draft: {
+                        ...THREE_OUTPUTS,
+                        outputs: {
+                            descriptionAlias: { aliasId: "alias-coffee" },
+                            tags: { mode: "add", tagIds: ["tag-coffee"] }
+                        }
+                    },
+                    pendingField: "tags"
+                })}
+            />
+        );
+
+        // Only the pending output is written, so it alone is editable, and it starts open.
+        expect(screen.getByRole("button", { name: "Done editing Tags" })).toHaveAttribute(
+            "aria-expanded",
+            "true"
+        );
+        expect(screen.getByTestId("rule-tag-mode")).toBeVisible();
+        expect(screen.getByTestId("rule-tag-tag-coffee")).toHaveAttribute("aria-pressed", "true");
+        expect(screen.queryByRole("button", { name: "Edit Description" })).toBeNull();
+        expect(screen.queryByRole("combobox", { name: "Add output" })).toBeNull();
+    });
+
     it("names the extended rule in the title", () => {
         render(
             <RuleEditor
@@ -413,6 +487,27 @@ describe("RuleEditor: divergence", () => {
 });
 
 describe("RuleEditor: resolution panels", () => {
+    it("states that a move keeps the owner when it has other outputs", () => {
+        render(
+            <RuleEditor
+                {...props({
+                    pendingField: "tags",
+                    resolution: {
+                        kind: "conflict",
+                        owner: { id: "r-owner", label: "Tags + Allocation rule" },
+                        host: { id: "r-host", label: "Description rule" },
+                        choice: "keep",
+                        onChoose: vi.fn(),
+                        ownerKeepsOtherOutputs: true
+                    }
+                })}
+            />
+        );
+        const move = screen.getByRole("radio", { name: /move tags into the description rule/i });
+        expect(move).toHaveAccessibleDescription(/keeps its other outputs and stops setting tags/i);
+        expect(move).not.toHaveAccessibleDescription(/is deleted/i);
+    });
+
     it("defaults a conflict to keeping the owner and offers moving as a choice", () => {
         const onChoose = vi.fn();
         render(

@@ -21,6 +21,7 @@ import { useSyncExternalStore } from "react";
 import type { ComponentProps, DependencyList } from "react";
 import { Temporal } from "temporal-polyfill";
 
+import { type RulePopulationTransaction } from "@/lib/domain/automation/population";
 import { type RememberedRuleChoice } from "@/lib/domain/automation/preferences";
 import { type FieldRule } from "@/lib/domain/automation/rules";
 import { type DateFormatPreference } from "@/lib/domain/date-format-preference";
@@ -67,7 +68,8 @@ import {
     applyFieldRulesToAllTransactions,
     applyFieldRulesToNewerTransactions,
     type BulkFieldRuleEntry,
-    readActiveFieldRules
+    readActiveFieldRules,
+    readRulePopulation
 } from "./field-rules";
 import { commitImportBatch, type CommitImportBatchInput } from "./import-commit";
 import { startVaultMaintenanceScheduler } from "./maintenance";
@@ -1178,6 +1180,16 @@ export function useCommitImportBatch(): (
  */
 export function useActiveFieldRules(): readonly FieldRule[] {
     return useInternalVaultSelector((state) => readActiveFieldRules(state));
+}
+
+/**
+ * Every active transaction projected for `countRulePopulation`. Memoised on the transaction and
+ * alias stores, so a draft edit recounts without re-walking the vault.
+ */
+export function useRulePopulation(): readonly RulePopulationTransaction[] {
+    const transactions = useInternalVaultSelector((state) => state.transactions);
+    const aliases = useInternalVaultSelector((state) => state.descriptionAliases);
+    return useMemo(() => readRulePopulation(transactions, aliases), [aliases, transactions]);
 }
 
 /** Field-rule mutation callbacks, each one grouped undo step. */

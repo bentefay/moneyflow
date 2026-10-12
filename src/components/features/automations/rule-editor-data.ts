@@ -15,12 +15,18 @@ import type {
 } from "@/lib/crdt";
 import { type FieldRuleMutationError } from "@/lib/crdt/field-rule-mutations";
 import { resolvePersonDisplayName } from "@/lib/crdt/person";
+import { type RuleFieldValue } from "@/lib/domain/automation/population";
 import {
     type RememberedRuleChoice,
     rememberedApplyOnBlur,
     rememberedScope
 } from "@/lib/domain/automation/preferences";
-import { type FieldRule, type RuleField, type TagRuleMode } from "@/lib/domain/automation/rules";
+import {
+    type FieldRule,
+    type RuleField,
+    ruleOutputFields,
+    type TagRuleMode
+} from "@/lib/domain/automation/rules";
 import { getCurrency, type MoneyMinorUnits, toMajorUnits } from "@/lib/domain/currency";
 import { assertNever } from "@/lib/utils/exhaustive";
 
@@ -64,6 +70,37 @@ function allocationText(
     );
 }
 
+/** A rule's stored outputs in the editor's draft form. */
+export function draftOutputsFromRule(rule: Pick<FieldRule, "outputs">): RuleEditorDraft["outputs"] {
+    const { descriptionAlias, tags, allocation } = rule.outputs;
+    return {
+        ...(descriptionAlias == null
+            ? {}
+            : { descriptionAlias: { aliasId: descriptionAlias.aliasId } }),
+        ...(tags == null ? {} : { tags: { mode: tags.mode, tagIds: [...tags.tagIds] } }),
+        ...(allocation == null ? {} : { allocation: allocationText(allocation.allocations) })
+    };
+}
+
+/** Only the `field` output of a draft's outputs, or none. */
+export function pickDraftOutput(
+    outputs: RuleEditorDraft["outputs"],
+    field: RuleField
+): RuleEditorDraft["outputs"] {
+    switch (field) {
+        case "descriptionAlias":
+            return outputs.descriptionAlias == null
+                ? {}
+                : { descriptionAlias: outputs.descriptionAlias };
+        case "tags":
+            return outputs.tags == null ? {} : { tags: outputs.tags };
+        case "allocation":
+            return outputs.allocation == null ? {} : { allocation: outputs.allocation };
+        default:
+            return assertNever(field);
+    }
+}
+
 /**
  * A draft reproducing an existing rule: its stored conditions and every output. Scope and Apply on
  * blur are the user's remembered choices, never properties of the rule.
@@ -73,20 +110,13 @@ export function draftFromRule(
     currencyCode: string,
     remembered: RememberedRuleChoice
 ): RuleEditorDraft {
-    const { descriptionAlias, tags, allocation } = rule.outputs;
     return {
         descriptionText: rule.descriptionText,
         useAccountScope: rule.accountId != null,
         accountId: rule.accountId ?? "",
         useAmountScope: rule.amount != null,
         amountText: rule.amount == null ? "" : amountTextFromMinor(rule.amount, currencyCode),
-        outputs: {
-            ...(descriptionAlias == null
-                ? {}
-                : { descriptionAlias: { aliasId: descriptionAlias.aliasId } }),
-            ...(tags == null ? {} : { tags: { mode: tags.mode, tagIds: [...tags.tagIds] } }),
-            ...(allocation == null ? {} : { allocation: allocationText(allocation.allocations) })
-        },
+        outputs: draftOutputsFromRule(rule),
         scope: rememberedScope(remembered),
         applyOnBlur: rememberedApplyOnBlur(remembered)
     };
@@ -270,6 +300,26 @@ export function ruleConditionsLabel(
     return [rule.descriptionText, account, amount].join(" · ");
 }
 
+/** "Description + Tags rule": a rule named by what it sets, for choices between same-condition rules. */
+export function ruleOutputsLabel(rule: Pick<FieldRule, "outputs">): string {
+    return `${ruleOutputFields(rule)
+        .map((field) => RULE_FIELD_LABELS[field])
+        .join(" + ")} rule`;
+}
+
+/** Every output of a stored rule, summarised: "Description: rename to “Coffee” · Tags: add #coffee". */
+export function ruleOutputsSummary(
+    rule: Pick<FieldRule, "outputs">,
+    options: Pick<RuleEditorOptions, "aliases" | "tags" | "people">
+): string {
+    const outputs = draftOutputsFromRule(rule);
+    return ruleOutputFields(rule)
+        .map(
+            (field) => `${RULE_FIELD_LABELS[field]}: ${outputValueSummary(field, outputs, options)}`
+        )
+        .join(" · ");
+}
+
 /**
  * The one-line summary of a draft output: "rename to “Coffee”", "add #coffee #work",
  * "Alex 50% / Sam —". Blank allocation cells read as an em dash: no answer, not zero.
@@ -305,5 +355,38 @@ export function outputValueSummary(
         }
         default:
             return assertNever(field);
+    }
+}
+
+/**
+ * What a transaction currently carries for one field, worded like {@link outputValueSummary} so the
+ * divergence line reads "Rule: add #coffee" beside "This transaction: #work".
+ */
+export function currentValueLabel(
+    current: RuleFieldValue,
+    options: Pick<RuleEditorOptions, "aliases" | "tags" | "people">
+): string {
+    switch (current.field) {
+        case "descriptionAlias":
+            return current.currentAliasId == null
+                ? "no alias"
+                : `“${optionLabel(options.aliases, current.currentAliasId, "unknown alias")}”`;
+        case "tags":
+            return current.currentTagIds.length === 0
+                ? "no tags"
+                : current.currentTagIds
+                      .map((id) => `#${optionLabel(options.tags, id, "unknown")}`)
+                      .join(" ");
+        case "allocation": {
+            if (options.people.length === 0) return "no people";
+            return options.people
+                .map((person) => {
+                    const value = current.currentAllocations[person.id];
+                    return `${person.label} ${value == null ? "—" : `${value}%`}`;
+                })
+                .join(" / ");
+        }
+        default:
+            return assertNever(current);
     }
 }

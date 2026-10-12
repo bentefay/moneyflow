@@ -399,25 +399,26 @@ export function TransactionInspector({
                         data-testid="transaction-inspector-automation-section"
                         data-transaction-owner={transactionOwner}
                     >
-                        <h3
-                            className="text-sm font-medium"
-                            id="transaction-inspector-automation-title"
-                        >
-                            Automation
-                        </h3>
-                        <div className="mt-3">
-                            {transaction.automation != null ? (
-                                <TransactionInspectorAutomation
-                                    context={transaction.automation}
-                                    controller={controller}
-                                    transactionId={transactionOwner}
-                                />
-                            ) : (
+                        {transaction.automation != null ? (
+                            // Renders the heading itself: it is the cards' registered focus anchor.
+                            <TransactionInspectorAutomation
+                                context={transaction.automation}
+                                controller={controller}
+                                transactionId={transactionOwner}
+                            />
+                        ) : (
+                            <div className="space-y-3">
+                                <h3
+                                    className="text-sm font-medium"
+                                    id="transaction-inspector-automation-title"
+                                >
+                                    Automation
+                                </h3>
                                 <p className="text-muted-foreground text-sm">
                                     Automation is unavailable for this transaction.
                                 </p>
-                            )}
-                        </div>
+                            </div>
+                        )}
                     </section>
                 </div>
             )}

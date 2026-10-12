@@ -674,6 +674,53 @@ describe("field-rule CRUD mutations", () => {
                 );
             });
 
+            it("writes the caller's new value into the host in the same mutation", () => {
+                const vault = seed([
+                    { id: "rule-alias", outputs: { descriptionAlias: ALIAS_OUTPUT } },
+                    { id: "rule-tags", outputs: { tags: TAGS_OUTPUT } }
+                ]);
+                const replacement = { mode: "set", tagIds: ["tag-new"] } as const;
+                vault.mirror.setState((state: VaultState) => {
+                    const result = moveFieldRuleOutput(state, {
+                        sourceId: "rule-tags",
+                        field: "tags",
+                        output: replacement,
+                        hostId: "rule-alias",
+                        deletedAtEpochMs: 7000
+                    });
+                    expect(result.ok && result.value.host.outputs).toEqual({
+                        descriptionAlias: ALIAS_OUTPUT,
+                        tags: replacement
+                    });
+                    expect(result.ok && result.value.source).toBeNull();
+                });
+                const host = readActiveFieldRules(vault.mirror.getState()).find(
+                    (rule) => rule.id === "rule-alias"
+                );
+                expect(host?.outputs.tags).toEqual(replacement);
+                expect(vault.mirror.getState().fieldRules["rule-tags"]?.deletedAtEpochMs).toBe(
+                    7000
+                );
+            });
+
+            it("refuses an invalid new value with zero mutation", () => {
+                const vault = seed([
+                    { id: "rule-alias", outputs: { descriptionAlias: ALIAS_OUTPUT } },
+                    { id: "rule-allocation", outputs: { allocation: ALLOCATION_OUTPUT } }
+                ]);
+                expectNoRuleWrite(vault, (state) => {
+                    const result = moveFieldRuleOutput(state, {
+                        sourceId: "rule-allocation",
+                        field: "allocation",
+                        output: { allocations: { "person-1": 500 } },
+                        hostId: "rule-alias",
+                        deletedAtEpochMs: 7000
+                    });
+                    expect(result.ok).toBe(false);
+                    if (!result.ok) expect(result.error.type).toBe("invalid-allocations");
+                });
+            });
+
             it("keeps the source's remaining outputs when it is not emptied", () => {
                 const vault = seed([
                     { id: "rule-alias", outputs: { descriptionAlias: ALIAS_OUTPUT } },
@@ -779,6 +826,26 @@ describe("field-rule CRUD mutations", () => {
                 const before = storedRules(vault);
                 vault.mirror.setState((state: VaultState) => {
                     const result = moveFieldRuleOutput(state, { deletedAtEpochMs: 7000, ...input });
+                    expect(result).toEqual({ ok: false, error });
+                });
+                expect(storedRules(vault)).toBe(before);
+
+                // A replacement value changes nothing about which moves are refused.
+                vault.mirror.setState((state: VaultState) => {
+                    const result =
+                        input.field === "tags"
+                            ? moveFieldRuleOutput(state, {
+                                  deletedAtEpochMs: 7000,
+                                  ...input,
+                                  field: "tags",
+                                  output: { mode: "set", tagIds: ["tag-new"] }
+                              })
+                            : moveFieldRuleOutput(state, {
+                                  deletedAtEpochMs: 7000,
+                                  ...input,
+                                  field: "allocation",
+                                  output: { allocations: { "person-1": 100 } }
+                              });
                     expect(result).toEqual({ ok: false, error });
                 });
                 expect(storedRules(vault)).toBe(before);
