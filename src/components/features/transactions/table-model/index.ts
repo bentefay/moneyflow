@@ -97,6 +97,7 @@ export {
     type TransactionGridStaleOperationError,
     type TransactionInspectorActionBinding,
     type TransactionInspectorAutomationBinding,
+    type TransactionInspectorAutomationRuleBinding,
     type TransactionInspectorControlBinding,
     type TransactionInspectorFieldBinding,
     type TransactionOwnedControlBinding,

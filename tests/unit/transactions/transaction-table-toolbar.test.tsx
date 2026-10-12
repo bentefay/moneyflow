@@ -65,4 +65,41 @@ describe("TransactionTableToolbar narrow layout", () => {
         expect(status).toHaveTextContent("Automation proposal pending in Inspector.");
         observer.disconnect();
     });
+
+    it("shows an amber drift dot only while the panel is closed and nothing is pending", () => {
+        const props = {
+            automationDrift: true,
+            onAddClick: vi.fn(),
+            onInspectorOpenChange: vi.fn()
+        };
+        const view = render(<TransactionTableToolbar {...props} inspectorOpen={false} />);
+        const toggle = screen.getByRole("button", {
+            name: "Inspector, a rule differs from this transaction"
+        });
+        const dot = screen.getByTestId("transaction-inspector-drift-badge");
+        expect(toggle).toContainElement(dot);
+        expect(dot).toHaveClass("bg-amber-500");
+        expect(dot).toHaveAttribute("aria-hidden", "true");
+        // Drift changes with every row the cursor visits, so it is never announced.
+        expect(screen.getByRole("status")).toHaveTextContent("");
+
+        view.rerender(<TransactionTableToolbar {...props} inspectorOpen />);
+        expect(screen.queryByTestId("transaction-inspector-drift-badge")).toBeNull();
+        expect(screen.getByRole("button", { name: "Inspector" })).toBeVisible();
+
+        // A pending proposal is the user's own unfinished work, so it outranks drift.
+        view.rerender(
+            <TransactionTableToolbar {...props} automationPending inspectorOpen={false} />
+        );
+        expect(screen.queryByTestId("transaction-inspector-drift-badge")).toBeNull();
+        expect(
+            screen.getByRole("button", { name: "Inspector, automation proposal pending" })
+        ).toBeVisible();
+
+        view.rerender(
+            <TransactionTableToolbar {...props} automationDrift={false} inspectorOpen={false} />
+        );
+        expect(screen.queryByTestId("transaction-inspector-drift-badge")).toBeNull();
+        expect(screen.getByRole("button", { name: "Inspector" })).toBeVisible();
+    });
 });

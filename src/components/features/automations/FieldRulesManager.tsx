@@ -11,7 +11,7 @@
  * never writes a transaction, allocation or alias itself.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { usePubkeyHash } from "@/hooks/use-identity";
@@ -43,8 +43,9 @@ import {
     type RuleEditorFieldErrors,
     validateRuleDraft
 } from "./rule-editor-model";
-import { RuleEditor, type RuleEditorTitle } from "./RuleEditor";
+import { RuleEditor, type RuleEditorSplitPreview, type RuleEditorTitle } from "./RuleEditor";
 import { useRuleEditorOptions } from "./use-rule-editor-options";
+import { type RulePopulationCandidate, useRulePopulationCount } from "./use-rule-population-count";
 
 type EditorTarget =
     | { readonly mode: "create" }
@@ -96,6 +97,8 @@ export function FieldRulesManager({ className }: FieldRulesManagerProps): React.
     const [draft, setDraft] = useState<RuleEditorDraft | null>(null);
     const [errors, setErrors] = useState<RuleEditorFieldErrors>({});
     const [status, setStatus] = useState<string | null>(null);
+    // The output whose split preview is open. Split writes nothing until the preview is confirmed.
+    const [splitField, setSplitField] = useState<RuleField | null>(null);
 
     const selectedRule =
         target?.mode === "edit" ? (rules.find((rule) => rule.id === target.ruleId) ?? null) : null;
@@ -104,6 +107,7 @@ export function FieldRulesManager({ className }: FieldRulesManagerProps): React.
         setTarget({ mode: "edit", ruleId: rule.id });
         setDraft(draftFromRule(rule, currencyCode, choice));
         setErrors({});
+        setSplitField(null);
     };
 
     const openCreate = (): void => {
@@ -111,13 +115,32 @@ export function FieldRulesManager({ className }: FieldRulesManagerProps): React.
         setDraft(emptyRuleDraft(remembered));
         setErrors({});
         setStatus(null);
+        setSplitField(null);
     };
 
     const closeEditor = (): void => {
         setTarget(null);
         setDraft(null);
         setErrors({});
+        setSplitField(null);
     };
+
+    const populationCandidate = useMemo<RulePopulationCandidate | null>(() => {
+        if (draft == null || target == null) return null;
+        const validation = validateRuleDraft(draft, currencyCode);
+        if (!validation.ok) return null;
+        return {
+            id: target.mode === "edit" ? target.ruleId : "automations-page-draft",
+            descriptionText: draft.descriptionText.trim(),
+            write: validation.value
+        };
+    }, [currencyCode, draft, target]);
+    const populationCount = useRulePopulationCount({
+        candidate: populationCandidate,
+        scope: draft?.scope ?? "all",
+        // Update new on this page means future imports, so nothing changes now.
+        referenceDate: null
+    });
 
     const handleApply = (): void => {
         if (draft == null || target == null) return;
@@ -165,7 +188,8 @@ export function FieldRulesManager({ className }: FieldRulesManagerProps): React.
         closeEditor();
     };
 
-    const handleSplit = (ruleId: string, field: RuleField): void => {
+    const confirmSplit = (ruleId: string, field: RuleField): void => {
+        setSplitField(null);
         const result = split({
             id: ruleId,
             field,
@@ -184,6 +208,15 @@ export function FieldRulesManager({ className }: FieldRulesManagerProps): React.
         if (draft == null) return;
         setDraft(addDraftOutput(draft, field, remembered.tagMode));
     };
+
+    const splitPreview: RuleEditorSplitPreview | undefined =
+        splitField == null || target?.mode !== "edit"
+            ? undefined
+            : {
+                  field: splitField,
+                  onConfirm: () => confirmSplit(target.ruleId, splitField),
+                  onCancel: () => setSplitField(null)
+              };
 
     const handleDraftChange = (next: RuleEditorDraft): void => {
         setDraft(next);
@@ -285,12 +318,10 @@ export function FieldRulesManager({ className }: FieldRulesManagerProps): React.
                                     : undefined
                             }
                             onDraftChange={handleDraftChange}
-                            onSplit={
-                                target.mode === "edit"
-                                    ? (field) => handleSplit(target.ruleId, field)
-                                    : undefined
-                            }
+                            onSplit={target.mode === "edit" ? setSplitField : undefined}
                             people={options.people}
+                            populationCount={populationCount}
+                            splitPreview={splitPreview}
                             tags={options.tags}
                             title={editorTitle}
                         />

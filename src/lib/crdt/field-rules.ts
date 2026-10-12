@@ -27,6 +27,7 @@ import {
     migrateLegacyAutomations,
     type LegacyAutomationView
 } from "@/lib/domain/automation/migration";
+import { type RulePopulationTransaction } from "@/lib/domain/automation/population";
 import {
     decodeFieldRule,
     encodeFieldRule,
@@ -108,6 +109,37 @@ function targetForTransaction(
         },
         currentTagIds: [...transaction.tagIds]
     };
+}
+
+function explicitAllocations(allocations: unknown): Readonly<Record<string, number>> {
+    const explicit: Record<string, number> = {};
+    if (allocations == null || typeof allocations !== "object") return explicit;
+    for (const [personId, value] of Object.entries(allocations)) {
+        if (personId !== "$cid" && typeof value === "number") explicit[personId] = value;
+    }
+    return explicit;
+}
+
+/**
+ * Every active transaction as the population count sees it, projected exactly as the bulk apply
+ * projects it, so "would change now" and what Apply then changes cannot disagree.
+ */
+export function readRulePopulation(
+    transactions: TransactionStore,
+    aliases: VaultState["descriptionAliases"]
+): readonly RulePopulationTransaction[] {
+    return getAllTransactions(transactions)
+        .filter((transaction) => transaction.deletedAt == null)
+        .map((transaction) => {
+            const aliasId = transaction.descriptionAliasId;
+            return {
+                subject: subjectForTransaction(transaction, aliases),
+                date: transaction.date,
+                aliasId: aliasId == null ? null : (resolveAlias(aliasId, aliases)?.id ?? null),
+                tagIds: [...transaction.tagIds],
+                allocations: explicitAllocations(transaction.allocations)
+            };
+        });
 }
 
 // ============================================================================

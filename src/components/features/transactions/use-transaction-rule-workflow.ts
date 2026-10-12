@@ -1,33 +1,18 @@
 "use client";
 
 /**
- * Transaction-context field-rule workflow (HS-007 / P17C).
+ * One existing rule, edited from a transaction it wins a field on.
  *
- * Encapsulates every CRDT seam the inline description robot + popup need for ONE transaction, so the
- * presentational components stay thin. It:
- *
- * - derives the robot state by REUSING the P17A matcher via {@link computeFieldRuleRobotState};
- * - projects the vault option records into the shared editor's `{ id, label }` options;
- * - owns the editor draft/errors while the popup is open, seeded from the winning rule;
- * - routes every write through the already-integrated engines — rule edits/deletes via the P17B
- *   CRUD mutations, and apply-all / apply-new / apply-this via the P17A engine hooks (so allocation
- *   writes remain P16C-only and alias writes remain on the P11 boundary). It never writes a
- *   transaction, allocation key or alias directly.
- *
- * "Apply to new imports" here is scoped to THAT transaction's date: only strictly-newer rows are
- * updated, matching the frozen "apply to new" semantics in a per-row context.
+ * Owns the draft and errors for the inspector's rule card and routes every write through the vault
+ * actions: rule edits, deletes and splits through the field-rule mutations, application through the
+ * engine hooks. It never writes a transaction, allocation key or alias itself.
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { Temporal } from "temporal-polyfill";
+import { type Temporal } from "temporal-polyfill";
 
 import { usePubkeyHash } from "@/hooks/use-identity";
 import {
-    useActiveAccounts,
-    useActiveDescriptionAliases,
-    useActiveFieldRules,
-    useActivePeople,
-    useActiveTags,
     useAccounts,
     useApplyFieldRules,
     useApplyFieldRulesToTransaction,
@@ -36,149 +21,115 @@ import {
     useUserAutomationChoice,
     useVaultPreferences
 } from "@/lib/crdt";
-import { type BulkFieldRuleEntry } from "@/lib/crdt/field-rules";
-import { resolvePersonDisplayName } from "@/lib/crdt/person";
-import { type RuleMatchSubject } from "@/lib/domain/automation/rules";
+import { type RememberedRuleChoice } from "@/lib/domain/automation/preferences";
+import { type FieldRule, type RuleField } from "@/lib/domain/automation/rules";
 import { resolveAccountCurrency } from "@/lib/domain/currency";
 
-import { type RuleEditorOption } from "../automations/FieldRuleEditor";
-import { draftFromRule, mutationErrorToFieldErrors } from "../automations/legacy-rule-editor-data";
 import {
-    applyModeTargetsNewOnly,
+    draftFromRule,
+    mutationErrorToFieldErrors,
+    type RuleEditorOptions
+} from "../automations/rule-editor-data";
+import {
+    addDraftOutput,
+    rememberedChoiceFromDraft,
     type RuleEditorDraft,
     type RuleEditorFieldErrors,
     validateRuleDraft
-} from "../automations/legacy-rule-editor-model";
+} from "../automations/rule-editor-model";
+import { useRuleEditorOptions } from "../automations/use-rule-editor-options";
 import {
-    computeFieldRuleRobotState,
-    type FieldRuleRobotState,
-    type RobotCurrentValue
-} from "./field-rule-robot-state";
+    type RulePopulationCandidate,
+    useRulePopulationCount
+} from "../automations/use-rule-population-count";
 
-/** Result of applying the rule set to just this transaction / to a scope. */
-export interface ApplyOutcomeSummary {
-    readonly applied: number;
-    readonly rejected: number;
+/** The currency a transaction's amounts are written in: its account's, else the vault default. */
+export function useTransactionCurrencyCode(accountId: string): string {
+    const accounts = useAccounts();
+    const preferences = useVaultPreferences();
+    const account = accounts[accountId];
+    return resolveAccountCurrency(
+        typeof account === "object" ? account.currency : undefined,
+        preferences?.defaultCurrency
+    ).code;
+}
+
+/** The signed-in user's remembered editor choice and a way to persist a new one. */
+export function useRememberedRuleChoice(): {
+    readonly remembered: RememberedRuleChoice;
+    readonly remember: (draft: RuleEditorDraft) => void;
+} {
+    const pubkeyHash = usePubkeyHash();
+    const remembered = useUserAutomationChoice(pubkeyHash);
+    const persistPreference = usePersistAutomationPreference();
+    const remember = useCallback(
+        (draft: RuleEditorDraft) => {
+            if (pubkeyHash == null) return;
+            persistPreference({ pubkeyHash, choice: rememberedChoiceFromDraft(draft, remembered) });
+        },
+        [persistPreference, pubkeyHash, remembered]
+    );
+    return { remembered, remember };
 }
 
 export interface TransactionRuleWorkflow {
-    readonly robotState: FieldRuleRobotState;
-    readonly accounts: readonly RuleEditorOption[];
-    readonly tags: readonly RuleEditorOption[];
-    readonly people: readonly RuleEditorOption[];
-    readonly aliases: readonly RuleEditorOption[];
-    readonly currencyCode: string;
-    readonly draft: RuleEditorDraft | null;
+    readonly draft: RuleEditorDraft;
     readonly errors: RuleEditorFieldErrors;
-    /** Discard any in-progress edits, reverting the popup to the rule's baseline. */
-    readonly resetDraft: () => void;
+    readonly options: RuleEditorOptions;
+    readonly currencyCode: string;
+    /** How many transactions Apply would change now; `undefined` while the draft is invalid. */
+    readonly populationCount: number | undefined;
     readonly setDraft: (next: RuleEditorDraft) => void;
-    /** Validate + update the matching rule. Returns true when the write succeeded. */
-    readonly save: (ruleId: string) => boolean;
-    readonly remove: (ruleId: string) => void;
-    readonly applyAll: () => ApplyOutcomeSummary;
-    readonly applyNew: () => ApplyOutcomeSummary;
-    /** Apply the active rules to THIS transaction (drift resolution). */
-    readonly applyThis: () => ApplyOutcomeSummary;
-}
-
-function countBulk(entries: readonly BulkFieldRuleEntry[]): ApplyOutcomeSummary {
-    let applied = 0;
-    let rejected = 0;
-    for (const entry of entries) {
-        for (const outcome of entry.outcomes) {
-            if (outcome.status === "applied") applied += 1;
-            else if (outcome.status === "rejected" || outcome.status === "alias-error") {
-                rejected += 1;
-            }
-        }
-    }
-    return { applied, rejected };
+    readonly addOutput: (field: RuleField) => void;
+    /** Discard in-progress edits, reverting to the rule as stored. */
+    readonly resetDraft: () => void;
+    /** Update the rule, then apply at the draft's scope. True when the update was written. */
+    readonly save: () => boolean;
+    /** Soft-delete the rule. True when it was deleted. */
+    readonly remove: () => boolean;
+    /** Split `field` into a new rule with the same conditions. True when both were written. */
+    readonly split: (field: RuleField) => boolean;
+    /** Apply every winning rule to this one transaction, without linking it to any rule. */
+    readonly applyThis: () => void;
 }
 
 export function useTransactionRuleWorkflow(params: {
     readonly transactionId: string;
-    readonly subject: RuleMatchSubject;
-    /** The transaction's current value for the rule field this robot surfaces. */
-    readonly current: RobotCurrentValue;
+    readonly rule: FieldRule;
+    readonly accountId: string;
+    /** The row's date: Update new counts from it, inclusive. */
     readonly referenceDate: Temporal.PlainDate;
 }): TransactionRuleWorkflow {
-    const { transactionId, subject, current, referenceDate } = params;
+    const { transactionId, rule, accountId, referenceDate } = params;
 
-    const rules = useActiveFieldRules();
-    const accountsRecord = useActiveAccounts();
-    const allAccountsRecord = useAccounts();
-    const tagsRecord = useActiveTags();
-    const peopleRecord = useActivePeople();
-    const aliasesCollection = useActiveDescriptionAliases();
-    const preferences = useVaultPreferences();
-    const pubkeyHash = usePubkeyHash();
-    const remembered = useUserAutomationChoice(pubkeyHash);
-
-    const { update, remove } = useFieldRuleActions();
-    const { applyAll: applyAllRules, applyNewerThan } = useApplyFieldRules();
+    const options = useRuleEditorOptions();
+    const currencyCode = useTransactionCurrencyCode(accountId);
+    const { remembered, remember } = useRememberedRuleChoice();
+    const { update, remove, split } = useFieldRuleActions();
+    const { applyAll, applyNewerThan } = useApplyFieldRules();
     const applyToTransaction = useApplyFieldRulesToTransaction();
-    const persistPreference = usePersistAutomationPreference();
-
-    const subjectAccount = allAccountsRecord[subject.accountId];
-    const currencyCode = resolveAccountCurrency(
-        typeof subjectAccount === "object" ? subjectAccount.currency : undefined,
-        preferences?.defaultCurrency
-    ).code;
-
-    const robotState = useMemo(
-        () => computeFieldRuleRobotState(rules, subject, current),
-        [rules, subject, current]
-    );
-
-    const accounts = useMemo<readonly RuleEditorOption[]>(
-        () =>
-            Object.values(accountsRecord).flatMap((account) =>
-                typeof account === "object" ? [{ id: account.id, label: account.name }] : []
-            ),
-        [accountsRecord]
-    );
-    const tags = useMemo<readonly RuleEditorOption[]>(
-        () =>
-            Object.values(tagsRecord).flatMap((tag) =>
-                typeof tag === "object" ? [{ id: tag.id, label: tag.name }] : []
-            ),
-        [tagsRecord]
-    );
-    const people = useMemo<readonly RuleEditorOption[]>(
-        () =>
-            Object.values(peopleRecord).flatMap((person) =>
-                typeof person === "object"
-                    ? [{ id: person.id, label: resolvePersonDisplayName(person) }]
-                    : []
-            ),
-        [peopleRecord]
-    );
-    const aliases = useMemo<readonly RuleEditorOption[]>(
-        () =>
-            Object.values(aliasesCollection).flatMap((alias) =>
-                typeof alias === "object" && alias.kind === "real"
-                    ? [{ id: alias.id, label: alias.name }]
-                    : []
-            ),
-        [aliasesCollection]
-    );
 
     const [draftOverride, setDraftOverride] = useState<RuleEditorDraft | null>(null);
     const [errors, setErrors] = useState<RuleEditorFieldErrors>({});
 
-    // The editor draft is DERIVED from the winning rule so the popup never needs an effect to
-    // "seed" itself on open. User edits are held in `draftOverride`; clearing it reverts to the
-    // rule's current baseline. The apply-mode select is seeded from the user's remembered choice
-    // (frozen `:270`) and re-remembered on save.
-    const baselineDraft = useMemo<RuleEditorDraft | null>(
-        () =>
-            robotState.kind === "none"
-                ? null
-                : draftFromRule(robotState.rule, currencyCode, remembered.applyMode),
-        [robotState, currencyCode, remembered.applyMode]
+    // Derived from the rule, so another writer's change shows until the user starts editing.
+    const baselineDraft = useMemo(
+        () => draftFromRule(rule, currencyCode, remembered),
+        [currencyCode, remembered, rule]
     );
     const draft = draftOverride ?? baselineDraft;
+
+    const populationCandidate = useMemo<RulePopulationCandidate | null>(() => {
+        const validation = validateRuleDraft(draft, currencyCode);
+        return validation.ok
+            ? { id: rule.id, descriptionText: rule.descriptionText, write: validation.value }
+            : null;
+    }, [currencyCode, draft, rule.descriptionText, rule.id]);
+    const populationCount = useRulePopulationCount({
+        candidate: populationCandidate,
+        scope: draft.scope,
+        referenceDate
+    });
 
     const resetDraft = useCallback(() => {
         setDraftOverride(null);
@@ -190,92 +141,84 @@ export function useTransactionRuleWorkflow(params: {
         setErrors({});
     }, []);
 
-    const rememberChoice = useCallback(
-        (chosen: RuleEditorDraft) => {
-            if (pubkeyHash == null) return;
-            persistPreference({
-                pubkeyHash,
-                choice: {
-                    field: chosen.field,
-                    tagMode: chosen.tagMode,
-                    useAccountScope: chosen.useAccountScope,
-                    useAmountScope: chosen.useAmountScope,
-                    applyMode: chosen.applyMode
-                }
-            });
-        },
-        [persistPreference, pubkeyHash]
+    const addOutput = useCallback(
+        (field: RuleField) => setDraft(addDraftOutput(draft, field, remembered.tagMode)),
+        [draft, remembered.tagMode, setDraft]
     );
 
-    const save = useCallback(
-        (ruleId: string): boolean => {
-            if (draft == null) return false;
-            const validation = validateRuleDraft(draft, currencyCode);
-            if (!validation.ok) {
-                setErrors(validation.errors);
-                return false;
-            }
-            const { accountId, amount, outputs } = validation.value;
-            // Editing an existing rule from a matching transaction: UPDATE, never create.
-            const result = update({ id: ruleId, accountId, amount, outputs });
+    const save = useCallback((): boolean => {
+        const validation = validateRuleDraft(draft, currencyCode);
+        if (!validation.ok) {
+            setErrors(validation.errors);
+            return false;
+        }
+        const { accountId: ruleAccountId, amount, outputs } = validation.value;
+        const result = update({ id: rule.id, accountId: ruleAccountId, amount, outputs });
+        if (!result.ok) {
+            setErrors(mutationErrorToFieldErrors(result.error));
+            return false;
+        }
+        if (draft.scope === "new") applyNewerThan(referenceDate);
+        else applyAll();
+        remember(draft);
+        resetDraft();
+        return true;
+    }, [
+        applyAll,
+        applyNewerThan,
+        currencyCode,
+        draft,
+        referenceDate,
+        remember,
+        resetDraft,
+        rule.id,
+        update
+    ]);
+
+    const removeRule = useCallback((): boolean => {
+        const result = remove({ id: rule.id, deletedAtEpochMs: Date.now() });
+        if (!result.ok) {
+            setErrors(mutationErrorToFieldErrors(result.error));
+            return false;
+        }
+        resetDraft();
+        return true;
+    }, [remove, resetDraft, rule.id]);
+
+    const splitRule = useCallback(
+        (field: RuleField): boolean => {
+            const result = split({
+                id: rule.id,
+                field,
+                newRuleId: crypto.randomUUID(),
+                createdAtEpochMs: Date.now()
+            });
             if (!result.ok) {
                 setErrors(mutationErrorToFieldErrors(result.error));
                 return false;
             }
-            rememberChoice(draft);
             resetDraft();
             return true;
         },
-        [currencyCode, draft, rememberChoice, resetDraft, update]
+        [resetDraft, rule.id, split]
     );
 
-    const removeRule = useCallback(
-        (ruleId: string) => {
-            remove({ id: ruleId, deletedAtEpochMs: Date.now() });
-            resetDraft();
-        },
-        [remove, resetDraft]
-    );
-
-    const applyAll = useCallback(() => countBulk(applyAllRules()), [applyAllRules]);
-
-    const applyNew = useCallback(
-        () => countBulk(applyNewerThan(referenceDate)),
-        [applyNewerThan, referenceDate]
-    );
-
-    const applyThis = useCallback((): ApplyOutcomeSummary => {
-        const result = applyToTransaction(transactionId);
-        if (!result.ok) return { applied: 0, rejected: 0 };
-        let applied = 0;
-        let rejected = 0;
-        for (const outcome of result.outcomes) {
-            if (outcome.status === "applied") applied += 1;
-            else if (outcome.status === "rejected" || outcome.status === "alias-error") {
-                rejected += 1;
-            }
-        }
-        return { applied, rejected };
+    const applyThis = useCallback(() => {
+        applyToTransaction(transactionId);
     }, [applyToTransaction, transactionId]);
 
     return {
-        robotState,
-        accounts,
-        tags,
-        people,
-        aliases,
-        currencyCode,
         draft,
         errors,
-        resetDraft,
+        options,
+        currencyCode,
+        populationCount,
         setDraft,
+        addOutput,
+        resetDraft,
         save,
         remove: removeRule,
-        applyAll,
-        applyNew,
+        split: splitRule,
         applyThis
     };
 }
-
-/** Re-exported for callers that want to gate UI on whether the current mode targets new-only. */
-export { applyModeTargetsNewOnly };

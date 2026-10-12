@@ -73,7 +73,8 @@ export interface TransactionInspectorFieldBinding {
 
 export interface TransactionInspectorActionBinding {
     readonly kind: "action";
-    readonly action: "duplicate" | "delete" | "notes" | "close";
+    /** `automation` is the inspector's Automation heading: the stable focus anchor for rule cards. */
+    readonly action: "duplicate" | "delete" | "notes" | "close" | "automation";
 }
 
 export interface TransactionInspectorAutomationBinding {
@@ -81,10 +82,20 @@ export interface TransactionInspectorAutomationBinding {
     readonly field: RuleField;
 }
 
+/**
+ * One rule card in the inspector. Keyed by rule rather than field because two winning rules can share
+ * a field, and a pending proposal card for a field can sit beside the rule that currently wins it.
+ */
+export interface TransactionInspectorAutomationRuleBinding {
+    readonly kind: "automation-rule";
+    readonly ruleId: string;
+}
+
 export type TransactionInspectorControlBinding =
     | TransactionInspectorFieldBinding
     | TransactionInspectorActionBinding
-    | TransactionInspectorAutomationBinding;
+    | TransactionInspectorAutomationBinding
+    | TransactionInspectorAutomationRuleBinding;
 
 /** Compatibility name for consumers that can own either inspector binding family. */
 export type TransactionOwnedControlBinding = TransactionInspectorControlBinding;

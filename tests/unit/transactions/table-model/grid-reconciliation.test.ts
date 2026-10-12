@@ -118,6 +118,26 @@ describe("transaction inspector binding equality", () => {
             })
         ).toBe(false);
     });
+
+    it("compares rule cards by rule id, and never equal to a field-keyed automation binding", () => {
+        const ruleA = { kind: "automation-rule", ruleId: "rule-a" } as const;
+
+        expect(
+            transactionInspectorBindingEquals(ruleA, { kind: "automation-rule", ruleId: "rule-a" })
+        ).toBe(true);
+        expect(
+            transactionInspectorBindingEquals(ruleA, { kind: "automation-rule", ruleId: "rule-b" })
+        ).toBe(false);
+        expect(
+            transactionInspectorBindingEquals(ruleA, { field: "tags", kind: "automation" })
+        ).toBe(false);
+        expect(
+            transactionInspectorBindingEquals({ field: "tags", kind: "automation" }, ruleA)
+        ).toBe(false);
+        expect(
+            transactionInspectorBindingEquals(ruleA, { action: "automation", kind: "action" })
+        ).toBe(false);
+    });
 });
 
 describe("transaction grid structural reconciliation", () => {

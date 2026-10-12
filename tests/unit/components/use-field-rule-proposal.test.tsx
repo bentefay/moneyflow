@@ -2,11 +2,20 @@ import { act, renderHook } from "@testing-library/react";
 import { Temporal } from "temporal-polyfill";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type RuleEditorDraft } from "@/components/features/automations/legacy-rule-editor-model";
-import { type FieldRuleProposalState } from "@/components/features/transactions/field-rule-proposal-state";
+import {
+    draftOutputFields,
+    type RuleEditorDraft
+} from "@/components/features/automations/rule-editor-model";
+import {
+    type FieldRuleProposalState,
+    type RuleProposalDraftOverride
+} from "@/components/features/transactions/field-rule-proposal-state";
 import { type RobotCurrentValue } from "@/components/features/transactions/field-rule-robot-state";
 import { asTransactionId } from "@/components/features/transactions/table-model";
-import { useFieldRuleProposal } from "@/components/features/transactions/use-field-rule-proposal";
+import {
+    type FieldRuleProposalPersistence,
+    useFieldRuleProposal
+} from "@/components/features/transactions/use-field-rule-proposal";
 import {
     type FieldRule,
     FieldRuleIdSchema,
@@ -33,10 +42,11 @@ const workflowMocks = vi.hoisted(() => {
         applyAll: vi.fn(),
         applyNewerThan: vi.fn(),
         create: vi.fn(() => ({ ok: true })),
+        moveOutput: vi.fn(() => ({ ok: true })),
         persistPreference: vi.fn(),
         proposalOverride: (): FieldRuleProposalState | null => null,
         rules: Array<FieldRule>(),
-        update: vi.fn(() => ({ ok: true })),
+        setOutput: vi.fn((): { ok: boolean; error?: unknown } => ({ ok: true })),
         vaultDefaultCurrency: "EUR"
     };
 });
@@ -70,7 +80,8 @@ vi.mock("@/lib/crdt", () => ({
     }),
     useFieldRuleActions: () => ({
         create: workflowMocks.create,
-        update: workflowMocks.update
+        moveOutput: workflowMocks.moveOutput,
+        setOutput: workflowMocks.setOutput
     }),
     usePersistAutomationPreference: () => workflowMocks.persistPreference,
     useUserAutomationChoice: () => ({
@@ -80,30 +91,6 @@ vi.mock("@/lib/crdt", () => ({
         useAmountScope: false
     }),
     useVaultPreferences: () => ({ defaultCurrency: workflowMocks.vaultDefaultCurrency })
-}));
-
-vi.mock("@/components/features/transactions/FieldRuleProposal", () => ({
-    FieldRuleProposal: ({
-        draft,
-        onDraftChange
-    }: {
-        readonly draft: RuleEditorDraft;
-        readonly onDraftChange: (next: RuleEditorDraft) => void;
-    }) => (
-        <button
-            type="button"
-            onClick={() =>
-                onDraftChange({
-                    ...draft,
-                    accountId: "stale-account",
-                    tagIds: ["stale-tag"],
-                    useAccountScope: true
-                })
-            }
-        >
-            Customize stale proposal
-        </button>
-    )
 }));
 
 const DESCRIPTION_TEXT = "COFFEE SHOP 123";
@@ -127,8 +114,8 @@ interface ProposalSemanticTransition {
     readonly next: ProposalHookInput;
     readonly initialRules: readonly FieldRule[];
     readonly nextRules: readonly FieldRule[];
-    readonly initialProposalKind: "create" | "update";
-    readonly nextProposalKind: "create" | "update";
+    readonly initialTargetKind: "create" | "update-owner";
+    readonly nextTargetKind: "create" | "update-owner";
     readonly nextRuleId?: string;
 }
 
@@ -152,85 +139,85 @@ const RULE_B = tagRule("rule-b");
 const SEMANTIC_TRANSITIONS: readonly ProposalSemanticTransition[] = [
     {
         initial: BASE_HOOK_INPUT,
-        initialProposalKind: "create",
+        initialTargetKind: "create",
         initialRules: [],
-        name: "proposal kind",
+        name: "candidate rule set",
         next: BASE_HOOK_INPUT,
-        nextProposalKind: "update",
+        nextTargetKind: "update-owner",
         nextRuleId: "rule-a",
         nextRules: [RULE_A]
     },
     {
         initial: BASE_HOOK_INPUT,
-        initialProposalKind: "update",
+        initialTargetKind: "update-owner",
         initialRules: [RULE_A],
         name: "update-rule owner",
         next: BASE_HOOK_INPUT,
-        nextProposalKind: "update",
+        nextTargetKind: "update-owner",
         nextRuleId: "rule-b",
         nextRules: [RULE_B]
     },
     {
         initial: BASE_HOOK_INPUT,
-        initialProposalKind: "create",
+        initialTargetKind: "create",
         initialRules: [],
         name: "rule field",
         next: {
             ...BASE_HOOK_INPUT,
             current: { currentAliasId: "alias-a", field: "descriptionAlias" }
         },
-        nextProposalKind: "create",
+        nextTargetKind: "create",
         nextRules: []
     },
     {
         initial: BASE_HOOK_INPUT,
-        initialProposalKind: "create",
+        initialTargetKind: "create",
         initialRules: [],
         name: "description",
         next: {
             ...BASE_HOOK_INPUT,
             subject: { ...SUBJECT, descriptionText: "TEA SHOP 456" }
         },
-        nextProposalKind: "create",
+        nextTargetKind: "create",
         nextRules: []
     },
     {
         initial: BASE_HOOK_INPUT,
-        initialProposalKind: "create",
+        initialTargetKind: "create",
         initialRules: [],
         name: "account",
         next: { ...BASE_HOOK_INPUT, subject: { ...SUBJECT, accountId: "account-2" } },
-        nextProposalKind: "create",
+        nextTargetKind: "create",
         nextRules: []
     },
     {
         initial: BASE_HOOK_INPUT,
-        initialProposalKind: "create",
+        initialTargetKind: "create",
         initialRules: [],
         name: "amount",
         next: { ...BASE_HOOK_INPUT, subject: { ...SUBJECT, amount: asMinorUnits(-900) } },
-        nextProposalKind: "create",
+        nextTargetKind: "create",
         nextRules: []
     },
     {
         initial: BASE_HOOK_INPUT,
-        initialProposalKind: "create",
+        initialTargetKind: "create",
         initialRules: [],
         name: "transaction owner",
         next: { ...BASE_HOOK_INPUT, transactionId: "tx-2" },
-        nextProposalKind: "create",
+        nextTargetKind: "create",
         nextRules: []
     },
     {
         initial: BASE_HOOK_INPUT,
-        initialProposalKind: "create",
+        initialTargetKind: "create",
         initialRules: [],
         name: "tag current action",
         next: {
             ...BASE_HOOK_INPUT,
             current: { currentTagIds: ["tag-b"], field: "tags" }
         },
-        nextProposalKind: "create",
+        nextTargetKind: "create",
         nextRules: []
     },
     {
@@ -238,14 +225,14 @@ const SEMANTIC_TRANSITIONS: readonly ProposalSemanticTransition[] = [
             ...BASE_HOOK_INPUT,
             current: { currentAliasId: "alias-a", field: "descriptionAlias" }
         },
-        initialProposalKind: "create",
+        initialTargetKind: "create",
         initialRules: [],
         name: "alias current action",
         next: {
             ...BASE_HOOK_INPUT,
             current: { currentAliasId: "alias-b", field: "descriptionAlias" }
         },
-        nextProposalKind: "create",
+        nextTargetKind: "create",
         nextRules: []
     },
     {
@@ -253,14 +240,14 @@ const SEMANTIC_TRANSITIONS: readonly ProposalSemanticTransition[] = [
             ...BASE_HOOK_INPUT,
             current: { currentAllocations: { "person-1": 40 }, field: "allocation" }
         },
-        initialProposalKind: "create",
+        initialTargetKind: "create",
         initialRules: [],
         name: "allocation current action",
         next: {
             ...BASE_HOOK_INPUT,
             current: { currentAllocations: { "person-1": 60 }, field: "allocation" }
         },
-        nextProposalKind: "create",
+        nextTargetKind: "create",
         nextRules: []
     }
 ];
@@ -279,7 +266,7 @@ describe("useFieldRuleProposal draft ownership", () => {
         workflowMocks.create.mockImplementation(() => ({ ok: true }));
         workflowMocks.proposalOverride = () => null;
         workflowMocks.rules = [];
-        workflowMocks.update.mockImplementation(() => ({ ok: true }));
+        workflowMocks.setOutput.mockImplementation(() => ({ ok: true }));
         workflowMocks.vaultDefaultCurrency = "EUR";
     });
 
@@ -296,7 +283,7 @@ describe("useFieldRuleProposal draft ownership", () => {
                     }),
                 { initialProps: transition.initial }
             );
-            expect(hook.result.current.proposal.kind).toBe(transition.initialProposalKind);
+            expect(hook.result.current.target?.kind).toBe(transition.initialTargetKind);
             const initialDraft = hook.result.current.draft;
             if (initialDraft == null) throw new Error("Expected an initial proposal draft");
             const customizedDraft = {
@@ -310,27 +297,30 @@ describe("useFieldRuleProposal draft ownership", () => {
             workflowMocks.rules = [...transition.nextRules];
             hook.rerender(transition.next);
 
-            expect(hook.result.current.proposal.kind).toBe(transition.nextProposalKind);
+            const target = hook.result.current.target;
+            expect(target?.kind).toBe(transition.nextTargetKind);
             if (transition.nextRuleId != null) {
-                const proposal = hook.result.current.proposal;
-                if (proposal.kind !== "update") throw new Error("Expected an update proposal");
-                expect(proposal.rule.id).toBe(transition.nextRuleId);
+                if (target?.kind !== "update-owner") throw new Error("Expected an update target");
+                expect(target.rule.id).toBe(transition.nextRuleId);
             }
             expect(hook.result.current.draft).toMatchObject({
                 accountId: transition.next.subject.accountId,
                 descriptionText: transition.next.subject.descriptionText,
-                field: transition.next.current.field,
                 useAccountScope: false
             });
+            const nextDraft = hook.result.current.draft;
+            expect(nextDraft == null ? [] : draftOutputFields(nextDraft)).toEqual([
+                transition.next.current.field
+            ]);
             expect(hook.result.current.draft).not.toEqual(customizedDraft);
         }
     );
 
-    it("retires a create override across a kind-only create to none to create transition", () => {
+    it("retires an override across a kind-only proposal to none to proposal transition", () => {
         workflowMocks.proposalOverride = () => ({
             descriptionText: DESCRIPTION_TEXT,
             field: "tags",
-            kind: "create"
+            kind: "proposal"
         });
         const hook = renderHook(
             (input: ProposalHookInput) =>
@@ -358,12 +348,12 @@ describe("useFieldRuleProposal draft ownership", () => {
         workflowMocks.proposalOverride = () => ({
             descriptionText: DESCRIPTION_TEXT,
             field: "tags",
-            kind: "create"
+            kind: "proposal"
         });
         hook.rerender({ ...BASE_HOOK_INPUT, current: { ...TAG_CURRENT } });
         expect(hook.result.current.draft).toMatchObject({
             accountId: "account-1",
-            tagIds: ["tag-a"],
+            outputs: { tags: { tagIds: ["tag-a"] } },
             useAccountScope: false
         });
         expect(hook.result.current.draft).not.toEqual(customizedDraft);
@@ -393,10 +383,10 @@ describe("useFieldRuleProposal draft ownership", () => {
         );
         const initialDraft = hook.result.current.draft;
         if (initialDraft == null) throw new Error("Expected an initial proposal draft");
-        const customizedDraft = {
+        const customizedDraft: RuleEditorDraft = {
             ...initialDraft,
             accountId: "stale-account",
-            tagIds: ["stale-tag"],
+            outputs: { tags: { mode: "add", tagIds: ["stale-tag"] } },
             useAccountScope: true
         };
 
@@ -407,13 +397,13 @@ describe("useFieldRuleProposal draft ownership", () => {
         hook.rerender({ currentTagIds: ["transition-tag"], transactionId: "tx-1" });
         expect(hook.result.current.draft).toMatchObject({
             accountId: "account-1",
-            tagIds: ["transition-tag"],
+            outputs: { tags: { tagIds: ["transition-tag"] } },
             useAccountScope: false
         });
         hook.rerender({ currentTagIds: ["tag-a", "tag-b"], transactionId: "tx-1" });
         expect(hook.result.current.draft).toMatchObject({
             accountId: "account-1",
-            tagIds: ["tag-a", "tag-b"],
+            outputs: { tags: { tagIds: ["tag-a", "tag-b"] } },
             useAccountScope: false
         });
         expect(hook.result.current.draft).not.toEqual(customizedDraft);
@@ -421,7 +411,7 @@ describe("useFieldRuleProposal draft ownership", () => {
         hook.rerender({ currentTagIds: ["tag-a", "tag-b"], transactionId: "tx-2" });
         expect(hook.result.current.draft).toMatchObject({
             accountId: "account-1",
-            tagIds: ["tag-a", "tag-b"],
+            outputs: { tags: { tagIds: ["tag-a", "tag-b"] } },
             useAccountScope: false
         });
         act(() => hook.result.current.setDraft(customizedDraft));
@@ -429,7 +419,7 @@ describe("useFieldRuleProposal draft ownership", () => {
         hook.rerender({ currentTagIds: ["fresh-tag"], transactionId: "tx-2" });
         expect(hook.result.current.draft).toMatchObject({
             accountId: "account-1",
-            tagIds: ["fresh-tag"],
+            outputs: { tags: { tagIds: ["fresh-tag"] } },
             useAccountScope: false
         });
 
@@ -616,11 +606,201 @@ describe("useFieldRuleProposal draft ownership", () => {
         act(() => {
             expect(hook.result.current.apply()).toBe(false);
         });
-        expect(hook.result.current.errors.descriptionText).toContain("already exists");
+        expect(hook.result.current.errors.descriptionText).toContain("already sets");
 
         hook.rerender({ currentTagIds: ["tag-c"] });
         expect(hook.result.current.errors).toEqual({});
         hook.rerender({ currentTagIds: ["tag-a", "tag-b"] });
         expect(hook.result.current.errors).toEqual({});
+    });
+});
+
+function aliasRule(id: string, accountId?: string): FieldRule {
+    return {
+        outputs: { descriptionAlias: { aliasId: "alias-coffee" } },
+        createdAt: Temporal.Instant.from("2026-08-31T00:00:00Z"),
+        descriptionText: DESCRIPTION_TEXT,
+        accountId,
+        id: FieldRuleIdSchema.parse(id)
+    };
+}
+
+/** Controller-shaped persistence whose overrides survive a remount, as the inspector's do. */
+function controllerPersistence(): {
+    readonly persistence: () => FieldRuleProposalPersistence;
+} {
+    const store: {
+        draftOverride: RuleProposalDraftOverride | null;
+        errorOverride: FieldRuleProposalPersistence["errorOverride"];
+    } = { draftOverride: null, errorOverride: null };
+    return {
+        persistence: () => ({
+            draftOverride: store.draftOverride,
+            errorOverride: store.errorOverride,
+            setDraftOverride: (override) => {
+                store.draftOverride = override;
+            },
+            setErrorOverride: (override) => {
+                store.errorOverride = override;
+            }
+        })
+    };
+}
+
+function renderProposal(persistence?: () => FieldRuleProposalPersistence) {
+    return renderHook(() =>
+        useFieldRuleProposal({
+            current: TAG_CURRENT,
+            persistence: persistence?.(),
+            referenceDate: REFERENCE_DATE,
+            subject: SUBJECT,
+            transactionId: asTransactionId("tx-1")
+        })
+    );
+}
+
+function tick(hook: ReturnType<typeof renderProposal>, change: Partial<RuleEditorDraft>): void {
+    const draft = hook.result.current.draft;
+    if (draft == null) throw new Error("Expected a proposal draft");
+    act(() => hook.result.current.setDraft({ ...draft, ...change }));
+}
+
+describe("useFieldRuleProposal target resolution", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        workflowMocks.proposalOverride = () => null;
+        workflowMocks.rules = [];
+        workflowMocks.vaultDefaultCurrency = "EUR";
+        workflowMocks.create.mockImplementation(() => ({ ok: true }));
+        workflowMocks.setOutput.mockImplementation(() => ({ ok: true }));
+        workflowMocks.moveOutput.mockImplementation(() => ({ ok: true }));
+    });
+
+    it("re-derives the target when Only this account is ticked", () => {
+        workflowMocks.rules = [aliasRule("rule-alias-account", "account-1")];
+        const hook = renderProposal();
+        expect(hook.result.current.target).toEqual({ kind: "create" });
+
+        tick(hook, { useAccountScope: true });
+        expect(hook.result.current.target).toMatchObject({
+            kind: "extend",
+            rule: { id: "rule-alias-account" }
+        });
+
+        act(() => {
+            expect(hook.result.current.apply()).toBe(true);
+        });
+        expect(workflowMocks.setOutput).toHaveBeenCalledWith({
+            id: "rule-alias-account",
+            field: "tags",
+            output: { mode: "add", tagIds: ["tag-a"] }
+        });
+        expect(workflowMocks.create).not.toHaveBeenCalled();
+        expect(workflowMocks.applyAll).toHaveBeenCalledTimes(1);
+    });
+
+    it("updates the conflict owner by default and moves with the new value when chosen", () => {
+        workflowMocks.rules = [tagRule("rule-tags"), aliasRule("rule-alias")];
+        const hook = renderProposal();
+        expect(hook.result.current.target?.kind).toBe("conflict");
+        expect(hook.result.current.resolution).toEqual({ kind: "conflict", choice: "keep" });
+
+        act(() => {
+            expect(hook.result.current.apply()).toBe(true);
+        });
+        expect(workflowMocks.setOutput).toHaveBeenCalledWith({
+            id: "rule-tags",
+            field: "tags",
+            output: { mode: "add", tagIds: ["tag-a"] }
+        });
+        expect(workflowMocks.moveOutput).not.toHaveBeenCalled();
+
+        vi.clearAllMocks();
+        act(() => hook.result.current.setResolution({ kind: "conflict", choice: "move" }));
+        expect(hook.result.current.resolution).toEqual({ kind: "conflict", choice: "move" });
+        act(() => {
+            expect(hook.result.current.apply()).toBe(true);
+        });
+        expect(workflowMocks.moveOutput).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sourceId: "rule-tags",
+                hostId: "rule-alias",
+                field: "tags",
+                output: { mode: "add", tagIds: ["tag-a"] }
+            })
+        );
+        expect(workflowMocks.setOutput).not.toHaveBeenCalled();
+    });
+
+    it("writes nothing for an ambiguous target until a rule is chosen", () => {
+        const allocationRule = (id: string): FieldRule => ({
+            ...tagRule(id),
+            outputs: { allocation: { allocations: {} } }
+        });
+        workflowMocks.rules = [allocationRule("rule-x"), allocationRule("rule-y")];
+        const hook = renderProposal();
+        expect(hook.result.current.target?.kind).toBe("ambiguous");
+        expect(hook.result.current.canApply).toBe(false);
+
+        act(() => {
+            expect(hook.result.current.apply()).toBe(false);
+        });
+        expect(workflowMocks.setOutput).not.toHaveBeenCalled();
+        expect(workflowMocks.create).not.toHaveBeenCalled();
+        expect(workflowMocks.applyAll).not.toHaveBeenCalled();
+
+        act(() => hook.result.current.setResolution({ kind: "ambiguous", ruleId: "rule-y" }));
+        expect(hook.result.current.canApply).toBe(true);
+        act(() => {
+            expect(hook.result.current.apply()).toBe(true);
+        });
+        expect(workflowMocks.setOutput).toHaveBeenCalledWith(
+            expect.objectContaining({ id: "rule-y", field: "tags" })
+        );
+    });
+
+    it("leaves errors and neither applies nor remembers when the mutation is refused", () => {
+        workflowMocks.rules = [tagRule("rule-tags")];
+        workflowMocks.setOutput.mockImplementation(() => ({
+            ok: false,
+            error: { type: "not-found", ruleId: "rule-tags" }
+        }));
+        const hook = renderProposal();
+        act(() => {
+            expect(hook.result.current.apply()).toBe(false);
+        });
+        expect(hook.result.current.errors.descriptionText).toBe("This rule no longer exists.");
+        expect(workflowMocks.applyAll).not.toHaveBeenCalled();
+        expect(workflowMocks.applyNewerThan).not.toHaveBeenCalled();
+        expect(workflowMocks.persistPreference).not.toHaveBeenCalled();
+        expect(hook.result.current.draft).not.toBeNull();
+    });
+
+    it("keeps a resolution choice across a re-render and a remount under the same generation", () => {
+        workflowMocks.rules = [tagRule("rule-tags"), aliasRule("rule-alias")];
+        const { persistence } = controllerPersistence();
+        const hook = renderProposal(persistence);
+        act(() => hook.result.current.setResolution({ kind: "conflict", choice: "move" }));
+        hook.rerender();
+        expect(hook.result.current.resolution).toEqual({ kind: "conflict", choice: "move" });
+
+        // A draft edit keeps the choice beside it.
+        tick(hook, { scope: "new" });
+        expect(hook.result.current.resolution).toEqual({ kind: "conflict", choice: "move" });
+
+        hook.unmount();
+        const reopened = renderProposal(persistence);
+        expect(reopened.result.current.resolution).toEqual({ kind: "conflict", choice: "move" });
+        expect(reopened.result.current.draft?.scope).toBe("new");
+    });
+
+    it("drops a stored choice that no longer answers the current target", () => {
+        workflowMocks.rules = [tagRule("rule-tags"), aliasRule("rule-alias")];
+        const hook = renderProposal();
+        act(() => hook.result.current.setResolution({ kind: "conflict", choice: "move" }));
+        // Narrowing to this account leaves no identical-condition candidate: a plain create.
+        tick(hook, { useAccountScope: true });
+        expect(hook.result.current.target).toEqual({ kind: "create" });
+        expect(hook.result.current.resolution).toBeNull();
     });
 });

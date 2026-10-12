@@ -28,6 +28,7 @@ export {
     type RuleEditorDivergence,
     type RuleEditorProps,
     type RuleEditorResolution,
+    type RuleEditorSplitPreview,
     type RuleEditorTitle,
     type RuleEditorTransaction
 } from "./RuleEditor";
