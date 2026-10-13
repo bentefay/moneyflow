@@ -58,6 +58,7 @@ import {
     NONEDITABLE_TRANSACTION_GRID_KEY_CELL,
     TRANSACTION_CELL_SELECTION_OPTIONS,
     transactionGridKeyIntent,
+    transactionActiveCellFromRowKey,
     transactionCellSelectionRowKey,
     transactionCopyOnKeyDown,
     transactionSelectedCellMarkersFromRowKey,
@@ -854,9 +855,13 @@ export function TransactionTable({
                         : null,
                 viewportRowDistance
             } satisfies TransactionGridRowSurface;
-            const rowElement = (selectedCellMarkers: ReadonlySet<string>) => (
+            const rowElement = (
+                selectedCellMarkers: ReadonlySet<string>,
+                activeCellColumnId: string | null
+            ) => (
                 <TransactionRow
                     selectedCellMarkers={selectedCellMarkers}
+                    activeCellColumnId={activeCellColumnId}
                     gridCellSurface={gridCellSurface}
                     transaction={transaction}
                     ariaRowIndex={ariaRowIndex}
@@ -940,7 +945,8 @@ export function TransactionTable({
                             transactionSelectedCellMarkersFromRowKey(
                                 selectionRowKey,
                                 gridCellSurface.cells.map((cell) => cell.column.id)
-                            )
+                            ),
+                            transactionActiveCellFromRowKey(selectionRowKey)
                         )
                     }
                 </table.Subscribe>

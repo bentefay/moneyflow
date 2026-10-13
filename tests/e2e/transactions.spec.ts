@@ -3191,16 +3191,21 @@ test.describe("Transactions", () => {
                         await cell.dblclick();
                         await expect(cell).toHaveAttribute("data-cell-content", "editor");
                         await locator.hover({ force: true });
-                        await expect
-                            .poll(
-                                async () =>
-                                    paintsNothing(
-                                        page,
-                                        (await readCellPaint(cell)).backgroundColor
-                                    ),
-                                { message: `${label} outer hover fill in ${theme}` }
-                            )
-                            .toBe(false);
+                        // A modal listbox, as the status editor opens, blocks the pointer from the
+                        // page, so the outer cell can only show hover where hover reaches it. The
+                        // active cell is untinted, so no selection fill stands in for hover.
+                        if (await cell.evaluate((node) => node.matches(":hover"))) {
+                            await expect
+                                .poll(
+                                    async () =>
+                                        paintsNothing(
+                                            page,
+                                            (await readCellPaint(cell)).backgroundColor
+                                        ),
+                                    { message: `${label} outer hover fill in ${theme}` }
+                                )
+                                .toBe(false);
+                        }
                         await expect
                             .poll(
                                 async () =>
@@ -3223,20 +3228,18 @@ test.describe("Transactions", () => {
                     }
                 });
 
-                await test.step(`${theme} theme paints focus only on the whole cell`, async () => {
+                await test.step(`${theme} theme marks the focused cell active with one outline`, async () => {
                     for (const column of RESTING_CHROME_COLUMNS) {
                         const cell = row.locator(`[role="gridcell"][data-cell="${column}"]`);
                         const resting = await readCellPaint(cell);
                         await cell.focus();
                         await expect(cell).toBeFocused();
                         await expect(cell).toHaveAttribute("data-cell-content", "display");
-                        await expect
-                            .poll(
-                                async () =>
-                                    (await readCellPaint(cell)).boxShadow !== resting.boxShadow,
-                                { message: `${column} outer focus ring in ${theme}` }
-                            )
-                            .toBe(true);
+                        // Grid state marks the active cell and the selection overlay outlines it;
+                        // the cell itself gains no second, DOM-focus ring.
+                        await expect(cell).toHaveAttribute("data-active-cell", "true");
+                        await expect(page.getByTestId("cell-selection-outline")).toHaveCount(1);
+                        expect((await readCellPaint(cell)).boxShadow).toBe(resting.boxShadow);
                         await expect
                             .poll(() => measuredTextContrast(cell), {
                                 message: `${column} focused text contrast in ${theme}`
@@ -3565,7 +3568,7 @@ test.describe("Transactions", () => {
                 await expect(row.locator('[role="gridcell"][tabindex="0"]')).toHaveCount(1);
             });
 
-            await test.step("checked and unchecked checkbox cells retain canonical focus paint", async () => {
+            await test.step("checked and unchecked checkbox cells show the active-cell outline", async () => {
                 const checkbox = row.getByRole("checkbox", { name: /^Select transaction/ });
                 const checkboxCell = row.locator('[role="gridcell"][data-cell="checkbox"]');
                 const dateCell = row.locator('[role="gridcell"][data-cell="date"]');
@@ -3580,10 +3583,14 @@ test.describe("Transactions", () => {
                             "aria-checked",
                             checked ? "true" : "false"
                         );
+                        // The active cell is marked by the grid's own state and the selection
+                        // outline, not by a DOM focus ring.
+                        await expect(checkboxCell).toHaveAttribute("data-active-cell", "true");
+                        await expect(page.getByTestId("cell-selection-outline")).toHaveCount(1);
                         expect(
                             hasNoShadowExtent((await readCellPaint(checkboxCell)).boxShadow),
-                            `${theme} checked=${checked} canonical focus ring`
-                        ).toBe(false);
+                            `${theme} checked=${checked} no second focus ring`
+                        ).toBe(true);
                         await page.keyboard.press("Space");
                     }
                 }

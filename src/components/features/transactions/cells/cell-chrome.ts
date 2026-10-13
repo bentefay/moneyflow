@@ -34,9 +34,13 @@ export const TRANSACTION_GRIDCELL_VISIBLE_SELECTION_CHROME =
 export const TRANSACTION_GRIDCELL_MUTED_SELECTION_CHROME =
     "aria-selected:bg-primary/5 dark:aria-selected:bg-primary/10";
 
-/** Whole-cell focus paint, omitted while a retained range is parked behind a descendant. */
-export const TRANSACTION_GRIDCELL_FOCUS_CHROME =
-    "focus-within:z-[2] focus-within:ring-2 focus-within:ring-ring focus-within:ring-inset focus-visible:z-[2] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+/**
+ * The active cell, where typing goes and the arrows move from, is left untinted inside its range,
+ * as spreadsheets do. It follows the grid's own selection rather than DOM focus, so it neither
+ * doubles the selection outline nor disappears when the window loses focus.
+ */
+export const TRANSACTION_GRIDCELL_ACTIVE_CHROME =
+    "aria-selected:data-[active-cell=true]:bg-transparent dark:aria-selected:data-[active-cell=true]:bg-transparent aria-selected:data-[active-cell=true]:hover:bg-accent/30";
 
 /** Header cells share the exact body tracks and the same single-width neighboring rules. */
 export const TRANSACTION_GRID_HEADER_CELL_CHROME =

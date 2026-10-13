@@ -173,6 +173,8 @@ export interface TransactionRowProps {
      * cell advertises a selection state it cannot have.
      */
     selectedCellMarkers?: ReadonlySet<string>;
+    /** Column of this row's active cell, when the latest range is anchored in this row. */
+    activeCellColumnId?: string | null;
     /** Shared TanStack/controller gridcell surface when rendered inside the transaction table. */
     gridCellSurface?: TransactionGridRowSurface;
     /** Suppresses presence publication while the workspace applies programmatic description focus. */
@@ -263,6 +265,7 @@ export function TransactionRow({
     isSelected = false,
     ariaRowIndex,
     selectedCellMarkers,
+    activeCellColumnId = null,
     gridCellSurface,
     suppressDescriptionFocusPresence = false,
     onDescriptionInputElementChange,
@@ -587,6 +590,7 @@ export function TransactionRow({
                 interaction={meta.interaction}
                 interactionKind={gridCellSurface.interactionKind}
                 selected={selectedCellMarkers?.has(columnId) ?? false}
+                active={activeCellColumnId === columnId}
                 selectionVisibility={gridCellSurface.selectionVisibility}
                 isInitialTabStop={gridCellSurface.initialTabStopColumnId === columnId}
                 isParkedTabStop={gridCellSurface.parkedTabStopColumnId === columnId}

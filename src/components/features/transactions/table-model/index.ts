@@ -14,6 +14,7 @@ export {
     transactionTableRowId
 } from "./columns";
 export {
+    transactionActiveCellFromRowKey,
     transactionCellSelectionRowKey,
     transactionSelectedCellMarkersFromRowKey
 } from "./cell-selection-render";

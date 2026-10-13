@@ -8,7 +8,7 @@ import {
     RESTING_CELL_CHROME,
     TRANSACTION_GRID_EDITOR_INLINE_CHROME,
     TRANSACTION_GRIDCELL_CHROME,
-    TRANSACTION_GRIDCELL_FOCUS_CHROME,
+    TRANSACTION_GRIDCELL_ACTIVE_CHROME,
     TRANSACTION_GRID_HEADER_CELL_CHROME
 } from "@/components/features/transactions/cells/cell-chrome";
 import { CheckboxCell } from "@/components/features/transactions/cells/CheckboxCell";
@@ -105,15 +105,13 @@ describe("transaction spreadsheet chrome", () => {
         );
     });
 
-    it("keeps whole-cell focus paint separable from parked geometry", () => {
-        expect(utilities(TRANSACTION_GRIDCELL_FOCUS_CHROME)).toEqual(
-            expect.arrayContaining([
-                "focus-within:ring-2",
-                "focus-within:ring-inset",
-                "focus-visible:ring-2",
-                "focus-visible:ring-inset"
-            ])
+    it("marks the active cell from grid state, never with a DOM focus ring", () => {
+        const active = utilities(TRANSACTION_GRIDCELL_ACTIVE_CHROME);
+        expect(active).toEqual(
+            expect.arrayContaining(["aria-selected:data-[active-cell=true]:bg-transparent"])
         );
+        expect(active.some((utility) => utility.includes("focus"))).toBe(false);
+        expect(active.some((utility) => utility.includes("ring"))).toBe(false);
     });
 
     it("uses the same square neighboring rules for the header tracks", () => {

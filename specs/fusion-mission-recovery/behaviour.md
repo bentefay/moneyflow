@@ -243,6 +243,11 @@ rectangle. Browser text highlighting does not appear on non-edit cells. Inside a
 cursor placement, text dragging and copying work as normal. Selection stays correct across
 virtualised rows and when dragging to the edge scrolls the table.
 
+**[confirmed]** Agreed on 2026-10-14: a selection is drawn as one outline per rectangle, centred on
+the grid lines, and the active cell (where typing goes and arrows move from) is the untinted cell
+inside the tinted range. There is no separate focus ring on grid cells; the active cell follows the
+grid's own state, so it stays put when the window loses focus.
+
 **[confirmed]** Requested on 2026-10-13: moving between cells with the keyboard scrolls the table so
 the selected cell stays fully in view, below the sticky header and horizontally.
 

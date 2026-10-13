@@ -26,7 +26,7 @@ import {
 import { actionCellKeyResult } from "./action-cell-navigation";
 import {
     TRANSACTION_GRIDCELL_CHROME,
-    TRANSACTION_GRIDCELL_FOCUS_CHROME,
+    TRANSACTION_GRIDCELL_ACTIVE_CHROME,
     TRANSACTION_GRIDCELL_MUTED_SELECTION_CHROME,
     TRANSACTION_GRIDCELL_VISIBLE_SELECTION_CHROME
 } from "./cell-chrome";
@@ -55,6 +55,8 @@ export interface TransactionGridCellProps {
     readonly ariaColumnIndex: number;
     /** Whether the row subscription projects this cell inside the final positive selection. */
     readonly selected: boolean;
+    /** Whether this cell anchors the latest range: the active cell. */
+    readonly active?: boolean;
     /** Typed controller policy for visible, inspector-muted, or parked selection treatment. */
     readonly selectionVisibility: TransactionSelectionVisibility;
     /** Current runtime owner, used only to project the idle entry and retained tab stops. */
@@ -308,6 +310,7 @@ function editorInitializationKey(
  * that supplies a true display/editor pair and typed lifecycle.
  */
 export function TransactionGridCell({
+    active = false,
     address,
     adornment,
     ariaColumnIndex,
@@ -872,7 +875,14 @@ export function TransactionGridCell({
                 suppressNextFocus.current = false;
                 return;
             }
-            if (controller.getInteractionState().kind === "parked") {
+            const parkedAnchor = controller.getSnapshot().parkedActiveAddress;
+            // Focus returning to the retained anchor re-exposes its range. Focus landing on any
+            // other cell selects that cell, so the active cell is always the one holding focus.
+            if (
+                controller.getInteractionState().kind === "parked" &&
+                parkedAnchor?.transactionId === address.transactionId &&
+                parkedAnchor.columnId === address.columnId
+            ) {
                 setLegacyDescendantFocused(false);
                 controller.dispatchCellIntent(
                     address,
@@ -1399,11 +1409,12 @@ export function TransactionGridCell({
                 editorVisible ? "editor" : legacyInteractive ? "legacy-interactive" : "display"
             }
             data-presence={presenceColor == null ? undefined : "true"}
+            data-active-cell={active && selectionExposed ? "true" : undefined}
             className={cn(
                 TRANSACTION_GRIDCELL_CHROME,
                 selectionVisibility === "visible" && TRANSACTION_GRIDCELL_VISIBLE_SELECTION_CHROME,
                 selectionVisibility === "muted" && TRANSACTION_GRIDCELL_MUTED_SELECTION_CHROME,
-                interactionKind !== "parked" && TRANSACTION_GRIDCELL_FOCUS_CHROME,
+                TRANSACTION_GRIDCELL_ACTIVE_CHROME,
                 presenceColor != null && "z-[1] outline outline-2 -outline-offset-2",
                 className
             )}

@@ -2974,10 +2974,11 @@ describe("TransactionGridCell", () => {
         expect(controller.cellSelectionAtom.get()).toEqual([]);
     });
 
-    it("owns square selection, focus, validation and presence chrome on the outer cell", () => {
+    it("owns square selection, active-cell, validation and presence chrome on the outer cell", () => {
         const { cell, controller, interaction } = gridcellFixture();
         render(
             <TransactionGridCell
+                active
                 address={{
                     columnId: "description",
                     transactionId: asTransactionId("transaction-1")
@@ -3003,7 +3004,12 @@ describe("TransactionGridCell", () => {
         expect(gridcell).toHaveStyle({ outlineColor: "rgb(12, 34, 56)" });
         expect(gridcell.className).toContain("rounded-none");
         expect(gridcell.className).toContain("border-r");
-        expect(gridcell.className).toContain("focus-within:ring-2");
+        expect(gridcell).toHaveAttribute("data-active-cell", "true");
+        expect(gridcell.className).toContain(
+            "aria-selected:data-[active-cell=true]:bg-transparent"
+        );
+        expect(gridcell.className).not.toContain("focus-within:ring");
+        expect(gridcell.className).not.toContain("focus-visible:ring");
         expect(gridcell.className).toContain("has-[[aria-invalid=true]]:ring-2");
     });
 

@@ -707,12 +707,26 @@ test.describe("Transaction grid structure", () => {
                 bottomRight.y + bottomRight.height - 0.5,
                 1
             );
-            for (const cell of [cellOf(topId, "account"), cellOf(middleId, "description")]) {
+            const paint = (cell: Locator) =>
+                cell.evaluate((element) => {
+                    const styles = getComputedStyle(element);
+                    return { background: styles.backgroundColor, shadow: styles.boxShadow };
+                });
+            const tinted = await paint(cellOf(middleId, "description"));
+            for (const cell of [cellOf(topId, "account"), cellOf(middleId, "account")]) {
                 await expect(cell).toHaveAttribute("aria-selected", "true");
-                expect(await cell.evaluate((element) => getComputedStyle(element).boxShadow)).toBe(
-                    "none"
-                );
+                await expect(cell).not.toHaveAttribute("data-active-cell");
+                expect(await paint(cell)).toEqual(tinted);
             }
+            expect(tinted.shadow).toBe("none");
+
+            // The anchor is the active cell: untinted inside the range, with no second ring.
+            const anchor = cellOf(topId, "description");
+            await expect(anchor).toBeFocused();
+            await expect(anchor).toHaveAttribute("data-active-cell", "true");
+            const anchorPaint = await paint(anchor);
+            expect(anchorPaint.background).not.toBe(tinted.background);
+            expect(anchorPaint.shadow).toBe("none");
         });
 
         await test.step("click then Shift-click extends from the anchor without text highlighting", async () => {
