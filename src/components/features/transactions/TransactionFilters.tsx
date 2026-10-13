@@ -7,6 +7,9 @@
  * Includes date range, tags, people, accounts, status, and search filters.
  */
 
+import { useShortcutPlatform } from "@/components/features/commands";
+import { Kbd } from "@/components/ui/kbd";
+import { formatShortcut, TRANSACTION_COMMANDS } from "@/lib/commands";
 import { cn } from "@/lib/utils";
 
 import { type DateRange, DateRangeFilter } from "./filters/DateRangeFilter";
@@ -36,6 +39,8 @@ export interface TransactionFiltersProps {
     availableAccounts?: FilterOption[];
     /** Available statuses for filtering */
     availableStatuses?: FilterOption[];
+    /** Lets the page focus the search input. */
+    searchInputRef?: React.RefObject<HTMLInputElement | null>;
     /** Additional CSS classes */
     className?: string;
 }
@@ -81,8 +86,10 @@ export function TransactionFilters({
     availablePeople = [],
     availableAccounts = [],
     availableStatuses = [],
+    searchInputRef,
     className
 }: TransactionFiltersProps) {
+    const platform = useShortcutPlatform();
     const updateFilter = <K extends keyof TransactionFiltersState>(
         key: K,
         value: TransactionFiltersState[K]
@@ -111,6 +118,12 @@ export function TransactionFilters({
                 onChange={(search) => updateFilter("search", search)}
                 placeholder="Search description, notes..."
                 className="w-full"
+                inputRef={searchInputRef}
+                shortcutHint={
+                    <Kbd aria-hidden="true" data-testid="search-shortcut-hint">
+                        {formatShortcut(TRANSACTION_COMMANDS.focusSearch.shortcut, platform)[0]}
+                    </Kbd>
+                }
             />
 
             {/* Filter row */}

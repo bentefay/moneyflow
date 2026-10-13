@@ -2427,3 +2427,138 @@ describe("transaction grid workspace controller", () => {
         vi.useRealTimers();
     });
 });
+
+describe("transaction grid cell clear", () => {
+    const CLEAR = { kind: "clear" } as const;
+
+    function rangeController(rowCount: number) {
+        const rows = Array.from({ length: rowCount }, (_, index) =>
+            transaction(`tx-${index.toString().padStart(3, "0")}`)
+        );
+        const cursor = cursorFor(rows);
+        const controller = createController();
+        controller.updateProjection(cursor, COLUMNS);
+        const ids = [...cursor.values()].map((row) => row.id);
+        return { controller, ids };
+    }
+
+    it("hands a one-cell clear to the registered owner as an ordinary cell edit", () => {
+        const { controller, ids } = rangeController(2);
+        const handler = vi.fn();
+        controller.registerCellClearHandler(handler);
+        controller.setFocusedCell(ids[0], "amount");
+
+        expect(controller.dispatchCellIntent(address(ids[0], "amount"), CLEAR, 1)).toEqual({
+            ok: true,
+            value: { kind: "handled" }
+        });
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(handler).toHaveBeenCalledWith({
+            columnIds: ["amount"],
+            rows: [expect.objectContaining({ id: ids[0] })],
+            scope: "cell"
+        });
+    });
+
+    it("resolves every row of the latest rectangle through the projection, mounted or not", () => {
+        const { controller, ids } = rangeController(40);
+        const handler = vi.fn();
+        controller.registerCellClearHandler(handler);
+        controller.setFocusedCell(ids[2], "date");
+        controller.cellSelectionAtom.set([
+            {
+                anchorColumnId: "date",
+                anchorRowId: ids[2],
+                focusColumnId: "description",
+                focusRowId: ids[37],
+                operation: "include"
+            }
+        ]);
+
+        controller.dispatchCellIntent(address(ids[2], "date"), CLEAR, 1);
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        const [request] = handler.mock.calls[0] ?? [];
+        expect(request.scope).toBe("range");
+        expect(request.columnIds).toEqual(["date", "description"]);
+        expect(request.rows.map((row: { readonly id: string }) => row.id)).toEqual(
+            ids.slice(2, 38)
+        );
+    });
+
+    it("reads a reversed rectangle in display order", () => {
+        const { controller, ids } = rangeController(5);
+        controller.setFocusedCell(ids[3], "amount");
+        controller.cellSelectionAtom.set([
+            {
+                anchorColumnId: "amount",
+                anchorRowId: ids[3],
+                focusColumnId: "date",
+                focusRowId: ids[1],
+                operation: "include"
+            }
+        ]);
+
+        const rectangle = controller.readLatestSelectionRectangle(10);
+
+        expect(rectangle.ok && rectangle.value?.columnIds).toEqual(COLUMNS);
+        expect(rectangle.ok && rectangle.value?.rows.map((row) => row.id)).toEqual(ids.slice(1, 4));
+    });
+
+    it("rejects a rectangle above the row limit before handing anything to the owner", () => {
+        const { controller, ids } = rangeController(3);
+        controller.setFocusedCell(ids[0], "date");
+        controller.cellSelectionAtom.set([
+            {
+                anchorColumnId: "date",
+                anchorRowId: ids[0],
+                focusColumnId: "date",
+                focusRowId: ids[2],
+                operation: "include"
+            }
+        ]);
+
+        expect(controller.readLatestSelectionRectangle(2)).toEqual({
+            error: { kind: "range-limit", maximumRows: 2, requestedRows: 3 },
+            ok: false
+        });
+    });
+
+    it("clears nothing for a latest exclusion, as copy copies nothing", () => {
+        const { controller, ids } = rangeController(2);
+        const handler = vi.fn();
+        controller.registerCellClearHandler(handler);
+        controller.setFocusedCell(ids[0], "date");
+        controller.cellSelectionAtom.set([
+            ...controller.cellSelectionAtom.get(),
+            {
+                anchorColumnId: "date",
+                anchorRowId: ids[0],
+                focusColumnId: "amount",
+                focusRowId: ids[1],
+                operation: "exclude"
+            }
+        ]);
+
+        expect(controller.dispatchCellIntent(address(ids[0], "date"), CLEAR, 1)).toEqual({
+            ok: true,
+            value: { kind: "handled" }
+        });
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("leaves the key native without an owner, and stops calling a retired owner", () => {
+        const { controller, ids } = rangeController(1);
+        controller.setFocusedCell(ids[0], "amount");
+        expect(controller.dispatchCellIntent(address(ids[0], "amount"), CLEAR, 1)).toEqual({
+            ok: true,
+            value: { kind: "native" }
+        });
+
+        const handler = vi.fn();
+        const unregister = controller.registerCellClearHandler(handler);
+        unregister();
+        controller.dispatchCellIntent(address(ids[0], "amount"), CLEAR, 1);
+        expect(handler).not.toHaveBeenCalled();
+    });
+});

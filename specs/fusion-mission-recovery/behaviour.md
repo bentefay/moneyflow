@@ -197,6 +197,23 @@ than running on, the first Left after entering an editor only collapses its whol
 and pickers and an open suggestion list keep their arrows (interaction contract TGI-CMD-011
 amendment).
 
+**[confirmed]** Requested on 2026-10-13: Delete and Backspace clear the selected cell without
+opening its editor; typing still starts an edit. Amount and allocations become blank, tags become
+empty, and the description loses its alias, so an imported row shows the bank's text again and a
+manual row is blank. Date, account and status are required and are left alone. Clearing one cell is
+an ordinary edit, with the same rule proposal typing would raise (interaction contract TGI-ACT-002
+amendment).
+
+**[confirmed]** Requested on 2026-10-13: with several cells selected, Delete clears every clearable
+cell in the most recent rectangle, including rows scrolled out of view, and skips required ones. It
+is one undo step and never offers a rule, because it is cleanup rather than an edit (interaction
+contract TGI-COPY-005 amendment).
+
+**[confirmed]** Requested on 2026-10-13: a key on a row never deletes the transaction. Deleting is
+the "Delete selected transactions" command, on Cmd+Backspace (Ctrl+Backspace elsewhere) or in the
+Cmd+K command palette, and always asks first; keeping a suspected duplicate is in the palette
+(interaction contract TGI-ACT-003 amendment).
+
 **[proposed]** Normalisation rules, implemented and tested in `src/lib/domain/numeric-text.ts`:
 
 - Only digits, `.` and `-` matter. Letters, spaces, currency symbols, `%`, `+`, parentheses and `,`

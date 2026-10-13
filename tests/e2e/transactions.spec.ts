@@ -376,6 +376,125 @@ test.describe("Transactions", () => {
         await expect(committedRow.getByTestId("description-display")).toHaveText(
             "Ordinary empty row"
         );
+
+        const palette = page.getByTestId("command-palette");
+        const cheatSheet = page.getByTestId("keyboard-shortcuts");
+        const search = page.getByPlaceholder("Search description, notes...");
+
+        await test.step("Alt+N adds a transaction while the grid has focus", async () => {
+            const descriptionCell = committedRow.locator('[data-cell="description"]');
+            await descriptionCell.click();
+            await expect(descriptionCell).toBeFocused();
+            await page.keyboard.press("Alt+n");
+            await expect(page.getByTestId("transaction-row")).toHaveCount(4);
+            await expect(page.getByTestId("description-editable")).toBeFocused();
+            await page.keyboard.press("Escape");
+        });
+
+        await test.step("Cmd/Ctrl+K opens the palette, which lists shortcuts and runs a command", async () => {
+            await page.keyboard.press("ControlOrMeta+k");
+            await expect(palette).toBeVisible();
+            await expect(palette.getByRole("option", { name: /Add transaction/ })).toContainText(
+                process.platform === "darwin" ? "⌥N" : "Alt+N"
+            );
+            await page.keyboard.press("Escape");
+            await expect(palette).toHaveCount(0);
+
+            // The sidebar button is the visible way in, and shows the same shortcut.
+            const paletteButton = page.getByTestId("command-palette-button");
+            await expect(paletteButton).toContainText(
+                process.platform === "darwin" ? "⌘K" : "Ctrl+K"
+            );
+            await paletteButton.hover();
+            await expect(page.getByTestId("shortcut-tooltip").first()).toContainText(
+                process.platform === "darwin" ? "⌘K" : "Ctrl+K"
+            );
+            await paletteButton.click();
+            await expect(palette).toBeVisible();
+            await page.keyboard.type("focus search");
+            await page.keyboard.press("Enter");
+            await expect(palette).toHaveCount(0);
+            await expect(search).toBeFocused();
+            // The empty field shows the shortcut that focuses it.
+            await expect(page.getByTestId("search-shortcut-hint")).toContainText(
+                process.platform === "darwin" ? "⌘⇧F" : "Ctrl+Shift+F"
+            );
+        });
+
+        await test.step("? types into an input but opens the cheat sheet elsewhere", async () => {
+            await page.keyboard.press("?");
+            await expect(search).toHaveValue("?");
+            await expect(cheatSheet).toHaveCount(0, { timeout: 3_000 });
+            await search.fill("");
+
+            // Every control with a shortcut names it in its tooltip.
+            await page.getByTestId("add-transaction-button").hover();
+            await expect(page.getByTestId("shortcut-tooltip").first()).toContainText(
+                process.platform === "darwin" ? "⌥N" : "Alt+N"
+            );
+
+            await page.getByTestId("add-transaction-button").focus();
+            await page.keyboard.press("?");
+            await expect(cheatSheet).toBeVisible();
+            await expect(cheatSheet.getByRole("region", { name: "Grid" })).toBeVisible();
+            await expect(cheatSheet.getByText("Clear the selected cells")).toBeVisible();
+            await page.keyboard.press("Escape");
+            await expect(cheatSheet).toHaveCount(0);
+        });
+
+        await test.step("Cmd/Ctrl+I toggles the inspector", async () => {
+            const toggle = page.getByTestId("transaction-inspector-toggle");
+            const expanded = await toggle.getAttribute("aria-expanded");
+            await page.keyboard.press("ControlOrMeta+i");
+            await expect(toggle).not.toHaveAttribute("aria-expanded", expanded ?? "");
+            await page.keyboard.press("ControlOrMeta+i");
+            await expect(toggle).toHaveAttribute("aria-expanded", expanded ?? "");
+        });
+
+        await test.step("G then a letter goes to a top-level page", async () => {
+            await page.getByTestId("add-transaction-button").focus();
+            await page.keyboard.press("g");
+            await page.keyboard.press("a");
+            await expect(page).toHaveURL(/\/accounts$/);
+            await page.keyboard.press("g");
+            await page.keyboard.press("t");
+            await expect(page).toHaveURL(/\/transactions$/);
+        });
+
+        await test.step("Delete on a row's own controls never deletes the row", async () => {
+            await expect(page.getByTestId("transaction-row")).toHaveCount(4);
+            const deleteButton = committedRow.getByTestId("delete-button");
+            await deleteButton.focus();
+            for (const key of ["Delete", "Backspace", "d"]) await page.keyboard.press(key);
+            const checkbox = committedRow.getByRole("checkbox", { name: "Select transaction" });
+            await checkbox.focus();
+            for (const key of ["Delete", "Backspace", "d"]) await page.keyboard.press(key);
+            await expect(page.getByTestId("transaction-row")).toHaveCount(4);
+        });
+
+        await test.step("Cmd/Ctrl+Backspace deletes the selected row after confirming, as one undo step", async () => {
+            const dialog = page.getByTestId("delete-transactions-dialog");
+            const descriptionCell = committedRow.locator('[data-cell="description"]');
+            await descriptionCell.click();
+            await expect(descriptionCell).toBeFocused();
+
+            await page.keyboard.press("ControlOrMeta+Backspace");
+            await expect(dialog).toBeVisible();
+            await dialog.getByRole("button", { name: "Cancel" }).click();
+            await expect(dialog).toHaveCount(0);
+            await expect(committedRow).toBeVisible();
+
+            await descriptionCell.click();
+            await page.keyboard.press("ControlOrMeta+Backspace");
+            await dialog.getByRole("button", { name: "Delete" }).click();
+            await expect(committedRow).toHaveCount(0);
+            await expect(page.getByTestId("transaction-row")).toHaveCount(3);
+
+            await page.getByTestId("add-transaction-button").focus();
+            await page.keyboard.press("ControlOrMeta+z");
+            await expect(committedRow).toBeVisible();
+            await expect(page.getByTestId("transaction-row")).toHaveCount(4);
+        });
     });
 
     test("Add focuses the new row's description and preserves a multi-row selection", async ({
@@ -1765,6 +1884,75 @@ test.describe("Transactions", () => {
                     "aria-selected",
                     "true"
                 );
+            });
+
+            await test.step("Delete and Backspace clear one cell without entering edit mode", async () => {
+                const row = await stableTransactionRow(
+                    page.getByRole("row", { name: /Row 1 Store/ })
+                );
+                const description = transactionGridCell(row, "description");
+                const amount = transactionGridCell(row, "amount");
+                const date = transactionGridCell(row, "date");
+                const dateText = await date.innerText();
+
+                await expect(description).toBeFocused();
+                await page.keyboard.press("Delete");
+                await expect(row.getByTestId("description-display")).toHaveText("");
+                await expect(description).toHaveAttribute("data-cell-content", "display");
+                await expect(description).toBeFocused();
+
+                await page.keyboard.press("End");
+                await page.keyboard.press("ArrowLeft");
+                await expect(amount).toBeFocused();
+                await page.keyboard.press("Backspace");
+                await expect(amount).toContainText("—");
+                await expect(amount).toHaveAttribute("data-cell-content", "display");
+
+                // Required fields have no blank state, so a clear leaves them alone.
+                await page.keyboard.press("Home");
+                await page.keyboard.press("ArrowRight");
+                await expect(date).toBeFocused();
+                await page.keyboard.press("Delete");
+                await expect(date).toHaveText(dateText);
+
+                await page.keyboard.press("ControlOrMeta+z");
+                await expect(amount).toContainText("10.00");
+                await page.keyboard.press("ControlOrMeta+z");
+                await expect(row.getByTestId("description-display")).toHaveText("Row 1 Store");
+            });
+
+            await test.step("a range clear empties every clearable cell of the latest rectangle as one undo step", async () => {
+                const top = await stableTransactionRow(
+                    page.getByRole("row", { name: /Row 3 Store/ })
+                );
+                const middle = await stableTransactionRow(
+                    page.getByRole("row", { name: /Row 2 Store/ })
+                );
+                const bottom = await stableTransactionRow(
+                    page.getByRole("row", { name: /Row 1 Store/ })
+                );
+                const accountText = await transactionGridCell(top, "account").innerText();
+                const dateText = await transactionGridCell(middle, "date").innerText();
+
+                await transactionGridCell(top, "description").click();
+                await page.keyboard.press("Shift+ArrowDown");
+                await page.keyboard.press("Shift+End");
+                await page.keyboard.press("Delete");
+
+                for (const row of [top, middle]) {
+                    await expect(row.getByTestId("description-display")).toHaveText("");
+                    await expect(transactionGridCell(row, "amount")).toContainText("—");
+                    await expect(transactionGridCell(row, "account")).toHaveText(accountText);
+                }
+                await expect(transactionGridCell(middle, "date")).toHaveText(dateText);
+                await expect(bottom.getByTestId("description-display")).toHaveText("Row 1 Store");
+                await expect(transactionGridCell(bottom, "amount")).toContainText("10.00");
+
+                await page.keyboard.press("ControlOrMeta+z");
+                await expect(top.getByTestId("description-display")).toHaveText("Row 3 Store");
+                await expect(middle.getByTestId("description-display")).toHaveText("Row 2 Store");
+                await expect(transactionGridCell(top, "amount")).toContainText("30.00");
+                await expect(transactionGridCell(middle, "amount")).toContainText("20.00");
             });
         });
 

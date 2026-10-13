@@ -21,6 +21,7 @@ import {
     useState
 } from "react";
 
+import { useCommands } from "@/components/features/commands";
 import {
     DescriptionAliasChangeModal,
     type DescriptionAliasModalDecision,
@@ -61,12 +62,14 @@ import {
 import { restoreDescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
 import type { DescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
 import { transactionRowOrderFromCursor } from "@/components/features/transactions/cursor-row-order";
+import { DeleteTransactionsDialog } from "@/components/features/transactions/DeleteTransactionsDialog";
 import { tagSetChanged } from "@/components/features/transactions/field-rule-proposal-state";
 import type { RobotCurrentValue } from "@/components/features/transactions/field-rule-robot-state";
 import {
     useTransactionGridController,
     useTransactionGridControllerSnapshot
 } from "@/components/features/transactions/hooks";
+import { TRANSACTION_GRID_CLEAR_MAXIMUM_ROWS } from "@/components/features/transactions/hooks/useTransactionGridController";
 import {
     advanceTransactionRowWindowStart,
     TRANSACTION_ROW_WINDOW_ROWS,
@@ -80,6 +83,8 @@ import {
     isAllocationColumnId,
     isTransactionRowSelected,
     personIdOfAllocationColumn,
+    planTransactionRangeClear,
+    type TransactionCellClear,
     transactionGridPresence,
     type MatchingTransactionRows,
     NO_TRANSACTION_ROWS_SELECTED,
@@ -102,6 +107,7 @@ const LARGE_SELECTION_THRESHOLD = 500;
 
 import { Temporal } from "temporal-polyfill";
 
+import { type AppCommand, GRID_REFERENCE_COMMANDS, TRANSACTION_COMMANDS } from "@/lib/commands";
 import { allocationPresenceField } from "@/lib/crdt/allocations";
 import {
     useActiveAccounts,
@@ -358,6 +364,7 @@ function TransactionsPageContent() {
     }, [gridController, rowWindowStart]);
     const [revealIntent, setRevealIntent] = useState<TransactionRevealIntent | null>(null);
     const transactionTableContainerRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     // The encrypted per-viewer preference initializes and remotely controls the controller's runtime
     // panel state. A layout effect prevents the default-open value from painting closed first.
@@ -1514,6 +1521,177 @@ function TransactionsPageContent() {
         [findTransaction, setTransactionAllocation]
     );
 
+    /**
+     * Blanks one cell through the same handler typing commits through, so a cleared cell is an
+     * ordinary edit. A description clear unlinks this transaction's alias only, never a shared one.
+     */
+    const clearTransactionCell = useCallback(
+        (clear: TransactionCellClear): TransactionGridEditorCommitResult => {
+            switch (clear.kind) {
+                case "amount":
+                    handleTransactionUpdate(clear.transactionId, { amount: undefined });
+                    return TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS;
+                case "allocation":
+                    return handleTransactionAllocationUpdate(
+                        clear.transactionId,
+                        clear.personId,
+                        null
+                    );
+                case "tags":
+                    return handleTransactionTagsCommit(clear.transactionId, [], []);
+                case "description": {
+                    const tx = findTransaction(clear.transactionId);
+                    if (tx == null) return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
+                    const unlinked =
+                        clear.aliasId == null
+                            ? TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED
+                            : descriptionAliasCommitResult(
+                                  removeOneDescriptionAlias({
+                                      location: {
+                                          accountId: tx.accountId,
+                                          date: tx.date,
+                                          transactionId: tx.id
+                                      },
+                                      expectedAliasId: clear.aliasId
+                                  })
+                              );
+                    if (unlinked.status === "rejected") return unlinked;
+                    if (!clear.blankDescription) return unlinked;
+                    handleTransactionUpdate(clear.transactionId, { description: "" });
+                    return TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS;
+                }
+            }
+        },
+        [
+            findTransaction,
+            handleTransactionAllocationUpdate,
+            handleTransactionTagsCommit,
+            handleTransactionUpdate,
+            removeOneDescriptionAlias
+        ]
+    );
+
+    // Delete/Backspace on the grid. A one-cell clear publishes its commit like any edit, so automation
+    // proposes a rule exactly as it would for typing; a range clear is cleanup and proposes nothing.
+    // Every write lands in one synchronous user action, which the undo coordinator keeps as one step.
+    useLayoutEffect(
+        () =>
+            gridController.registerCellClearHandler((request) => {
+                for (const clear of planTransactionRangeClear(request.rows, request.columnIds)) {
+                    const result = clearTransactionCell(clear);
+                    if (request.scope === "cell") {
+                        gridController.publishAutomationEditorCommit(clear, result);
+                    }
+                }
+            }),
+        [clearTransactionCell, gridController]
+    );
+
+    // The keyboard opens and closes the panel without moving focus, as the external toggle does
+    // (TGI-INSPCMD-002); closing from inside still returns focus to the active cell.
+    const toggleInspector = useCallback(() => {
+        const open = !gridController.getSnapshot().inspectorPanelOpen;
+        gridController.setInspectorPanelOpen(open);
+        persistInspectorPreference(open);
+    }, [gridController, persistInspectorPreference]);
+
+    const focusSearch = useCallback(() => {
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+    }, []);
+
+    // "Selected" means the checked rows when there are any, otherwise the rows of the latest cell
+    // rectangle, otherwise the row whose own control holds focus. Read when the command runs, never
+    // in render, because enumerating checked rows costs the size of the matching set.
+    const [pendingDeletion, setPendingDeletion] = useState<{
+        readonly transactions: readonly Transaction[];
+        readonly fromRowSelection: boolean;
+    } | null>(null);
+    const hasDeletionTarget = useCallback((): boolean => {
+        const snapshot = gridController.getSnapshot();
+        return (
+            selectedCount > 0 ||
+            snapshot.activeTransactionId != null ||
+            snapshot.focusRetentionTransactionId != null
+        );
+    }, [gridController, selectedCount]);
+    const requestDeleteSelected = useCallback(() => {
+        if (selectedCount > 0) {
+            setPendingDeletion({
+                fromRowSelection: true,
+                transactions: collectSelectedTransactions()
+            });
+            return;
+        }
+        const rectangle = gridController.readLatestSelectionRectangle(
+            TRANSACTION_GRID_CLEAR_MAXIMUM_ROWS
+        );
+        if (rectangle.ok && rectangle.value?.operation === "include") {
+            setPendingDeletion({ fromRowSelection: false, transactions: rectangle.value.rows });
+            return;
+        }
+        const retainedId = gridController.getSnapshot().focusRetentionTransactionId;
+        const retained = retainedId == null ? undefined : findTransaction(retainedId);
+        if (retained != null)
+            setPendingDeletion({ fromRowSelection: false, transactions: [retained] });
+    }, [collectSelectedTransactions, findTransaction, gridController, selectedCount]);
+    const confirmDeleteSelected = useCallback(() => {
+        if (pendingDeletion == null) return;
+        // One synchronous user action, so Undo restores every row at once.
+        for (const tx of pendingDeletion.transactions) {
+            deleteTransaction({
+                location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id }
+            });
+        }
+        if (pendingDeletion.fromRowSelection) clearSelection();
+        setPendingDeletion(null);
+    }, [clearSelection, deleteTransaction, pendingDeletion]);
+
+    // The row the keyboard is on, when it holds suspected duplicates to keep.
+    const duplicateOwnerId = useCallback((): string | null => {
+        const snapshot = gridController.getSnapshot();
+        const transactionId = snapshot.focusRetentionTransactionId ?? snapshot.activeTransactionId;
+        if (transactionId == null) return null;
+        const duplicates = findTransaction(transactionId)?.suspectedDuplicates ?? [];
+        return duplicates.length > 0 ? transactionId : null;
+    }, [findTransaction, gridController]);
+    const keepDuplicate = useCallback(() => {
+        const transactionId = duplicateOwnerId();
+        if (transactionId != null) handleResolveDuplicate(transactionId);
+    }, [duplicateOwnerId, handleResolveDuplicate]);
+
+    const pageCommands = useMemo(
+        (): readonly AppCommand[] => [
+            // Literals rather than a helper call, so the compiler can see nothing runs during render.
+            { ...TRANSACTION_COMMANDS.addTransaction, kind: "action", run: handleAddTransaction },
+            { ...TRANSACTION_COMMANDS.toggleInspector, kind: "action", run: toggleInspector },
+            { ...TRANSACTION_COMMANDS.focusSearch, kind: "action", run: focusSearch },
+            {
+                ...TRANSACTION_COMMANDS.deleteSelected,
+                kind: "action",
+                run: requestDeleteSelected,
+                when: hasDeletionTarget
+            },
+            {
+                ...TRANSACTION_COMMANDS.keepDuplicate,
+                kind: "action",
+                run: keepDuplicate,
+                when: () => duplicateOwnerId() != null
+            },
+            ...GRID_REFERENCE_COMMANDS
+        ],
+        [
+            duplicateOwnerId,
+            focusSearch,
+            handleAddTransaction,
+            hasDeletionTarget,
+            keepDuplicate,
+            requestDeleteSelected,
+            toggleInspector
+        ]
+    );
+    useCommands(pageCommands);
+
     // Tag options for filter/bulk edit (with label for FilterOption)
     const tagOptions = useMemo(
         () =>
@@ -1599,6 +1777,7 @@ function TransactionsPageContent() {
                 availablePeople={peopleOptions}
                 availableAccounts={accountOptionsForFilter}
                 availableStatuses={statusOptions}
+                searchInputRef={searchInputRef}
             />
 
             <div
@@ -1688,6 +1867,12 @@ function TransactionsPageContent() {
                     availableAccounts={accountOptionsForFilter}
                 />
             )}
+
+            <DeleteTransactionsDialog
+                count={pendingDeletion?.transactions.length ?? null}
+                onCancel={() => setPendingDeletion(null)}
+                onConfirm={confirmDeleteSelected}
+            />
 
             {/* Description Alias Change Modal */}
             <DescriptionAliasChangeModal

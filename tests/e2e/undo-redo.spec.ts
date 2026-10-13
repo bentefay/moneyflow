@@ -59,7 +59,9 @@ test("document history controls group real add, edit, delete, alias and import a
         await expect(undo).toBeDisabled();
         await expect(redo).toBeDisabled();
         await undo.locator("..").hover();
-        await expect(page.getByText("Undo (Ctrl+Z)")).toBeVisible();
+        const tooltip = page.getByTestId("shortcut-tooltip");
+        await expect(tooltip).toContainText("Undo");
+        await expect(tooltip.locator("kbd")).toHaveText("Ctrl+Z");
     });
 
     await test.step("group sequential autosaved input turns around native undo", async () => {

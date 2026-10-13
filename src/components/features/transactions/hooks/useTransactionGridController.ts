@@ -4,6 +4,7 @@ import { batch, createAtom, type Atom } from "@tanstack/react-store";
 import type { CellSelectionState } from "@tanstack/table-core";
 import { useEffect, useLayoutEffect, useMemo, useSyncExternalStore } from "react";
 
+import type { Transaction } from "@/lib/crdt/schema";
 import type { TransactionCursor } from "@/lib/crdt/transaction-cursor";
 import type { RuleField } from "@/lib/domain/automation/rules";
 import { assertNever } from "@/lib/utils/exhaustive";
@@ -23,6 +24,7 @@ import {
     beginTransactionPendingActivation,
     fulfillTransactionPendingActivation,
     INACTIVE_TRANSACTION_COMPOSITION,
+    latestTransactionSelectionOperation,
     NO_TRANSACTION_CONTINUOUS_EDIT,
     reduceTransactionComposition,
     transactionGridPins,
@@ -77,6 +79,8 @@ import {
 
 const REGISTRATION_TIMEOUT_MS = 1_000;
 const MATERIALIZATION_TIMEOUT_MS = 1_000;
+/** A range clear reads at most as many rows as a copy may (TGI-COPY-005); beyond it, nothing is written. */
+export const TRANSACTION_GRID_CLEAR_MAXIMUM_ROWS = 10_000;
 const EMPTY_CELL_SELECTION: CellSelectionState = [];
 const EMPTY_PINS: readonly TransactionGridControllerPin[] = [];
 
@@ -353,6 +357,31 @@ export type TransactionGridCellCommandResult =
 
 export type TransactionGridFocusElement = HTMLElement;
 
+/** The latest selection operation, resolved through the cursor projection rather than mounted rows. */
+export interface TransactionGridSelectionRectangle {
+    readonly operation: "include" | "exclude";
+    /** Every row the rectangle spans, in matching order, whether or not the grid holds it. */
+    readonly rows: readonly Transaction[];
+    /** The rectangle's columns in display order. */
+    readonly columnIds: readonly TransactionColumnId[];
+}
+
+export type TransactionGridSelectionRectangleResult =
+    | { readonly ok: true; readonly value: TransactionGridSelectionRectangle | null }
+    | { readonly ok: false; readonly error: TransactionGridCellCommandError };
+
+/**
+ * Delete or Backspace on a navigating gridcell. `cell` is an ordinary one-cell edit; `range` is a
+ * multi-cell cleanup of the latest rectangle.
+ */
+export interface TransactionGridClearRequest {
+    readonly scope: "cell" | "range";
+    readonly rows: readonly Transaction[];
+    readonly columnIds: readonly TransactionColumnId[];
+}
+
+export type TransactionGridClearHandler = (request: TransactionGridClearRequest) => void;
+
 export interface TransactionGridWorkspaceController {
     readonly cellSelectionAtom: TransactionCellSelectionAtom;
     readonly beginActivation: (
@@ -438,6 +467,12 @@ export interface TransactionGridWorkspaceController {
         intent: TransactionGridKeyIntent,
         viewportRows: number
     ) => TransactionGridCellCommandResult;
+    /** Installs the one owner of clear writes; the grid itself never mutates the vault. */
+    readonly registerCellClearHandler: (handler: TransactionGridClearHandler) => () => void;
+    /** Resolves the latest selection rectangle's rows through the current projection. */
+    readonly readLatestSelectionRectangle: (
+        maximumRows: number
+    ) => TransactionGridSelectionRectangleResult;
     /** Extends the latest range to the registered cell containing a dragging pointer's target. */
     readonly extendSelectionFromPointer: (target: EventTarget | null) => boolean;
     /** Focuses the active anchor's registered gridcell while navigating. */
@@ -865,6 +900,7 @@ export function createTransactionGridWorkspaceController(
     let registrationWakeAuthority: TransactionGridRegistrationWakeAuthority | null = null;
     let notifiedRegistrationAuthorityToken: symbol | null = null;
     let nextCommandNumber = 1;
+    let cellClearHandler: TransactionGridClearHandler | null = null;
 
     const isRegisteredEditorPortalTarget = (
         address: TransactionGridAddress,
@@ -1859,11 +1895,95 @@ export function createTransactionGridWorkspaceController(
         );
     };
 
+    const readLatestSelectionRectangle = (
+        maximumRows: number
+    ): TransactionGridSelectionRectangleResult => {
+        const projection = currentProjection;
+        if (projection == null) return { error: { kind: "projection-unavailable" }, ok: false };
+        const canonical = canonicalSelection(cellSelectionAtom.get(), selectableColumnIds);
+        if (canonical == null) return { ok: true, value: null };
+        const latest = latestTransactionSelectionOperation(canonical);
+        const generation = generationAtom.get();
+        const anchorRow = projection.indexOf(generation, latest.anchorRowId);
+        if (!anchorRow.ok) return anchorRow;
+        const focusRow = projection.indexOf(generation, latest.focusRowId);
+        if (!focusRow.ok) return focusRow;
+        const anchorColumn = projection.selectableColumnIds.indexOf(latest.anchorColumnId);
+        const focusColumn = projection.selectableColumnIds.indexOf(latest.focusColumnId);
+        if (anchorRow.value < 0 || anchorColumn < 0) {
+            return {
+                error: {
+                    address: activeTransactionGridAddress(canonical),
+                    kind: "unknown-address"
+                },
+                ok: false
+            };
+        }
+        if (focusRow.value < 0 || focusColumn < 0) {
+            return {
+                error: {
+                    address: { columnId: latest.focusColumnId, transactionId: latest.focusRowId },
+                    kind: "unknown-address"
+                },
+                ok: false
+            };
+        }
+        const rows = projection.rowsBetween(
+            generation,
+            anchorRow.value,
+            focusRow.value,
+            maximumRows
+        );
+        if (!rows.ok) return rows;
+        return {
+            ok: true,
+            value: {
+                columnIds: projection.selectableColumnIds.slice(
+                    Math.min(anchorColumn, focusColumn),
+                    Math.max(anchorColumn, focusColumn) + 1
+                ),
+                operation: latest.operation === "exclude" ? "exclude" : "include",
+                rows: rows.value
+            }
+        };
+    };
+
+    /**
+     * Clears the latest rectangle through the registered owner. Rows beyond the held window are
+     * read through the projection and cleared too; a rectangle above the row limit is rejected
+     * before anything is written, and an exclusion clears nothing, as it copies nothing.
+     */
+    const clearLatestSelection = (
+        address: TransactionGridAddress
+    ): TransactionGridCellCommandResult => {
+        const state = getInteractionState();
+        const handler = cellClearHandler;
+        if (state.kind !== "navigating" || handler == null) {
+            return { ok: true, value: { kind: "native" } };
+        }
+        if (!registrationMatchesAddress(address, activeTransactionGridAddress(state.selection))) {
+            return { ok: true, value: { kind: "native" } };
+        }
+        const rectangle = readLatestSelectionRectangle(TRANSACTION_GRID_CLEAR_MAXIMUM_ROWS);
+        if (!rectangle.ok) return rectangle;
+        if (rectangle.value == null || rectangle.value.operation === "exclude") {
+            return { ok: true, value: { kind: "handled" } };
+        }
+        const { columnIds, rows } = rectangle.value;
+        handler({
+            columnIds,
+            rows,
+            scope: rows.length === 1 && columnIds.length === 1 ? "cell" : "range"
+        });
+        return { ok: true, value: { kind: "handled" } };
+    };
+
     const dispatchCellIntent = (
         address: TransactionGridAddress,
         intent: TransactionGridKeyIntent,
         viewportRows: number
     ): TransactionGridCellCommandResult => {
+        if (intent.kind === "clear") return clearLatestSelection(address);
         if (intent.kind === "establish") {
             const established =
                 intent.target == null
@@ -2733,6 +2853,13 @@ export function createTransactionGridWorkspaceController(
         dismissAutomationProposal,
         registerAutomationFinalizer,
         dispatchCellIntent,
+        registerCellClearHandler: (handler) => {
+            cellClearHandler = handler;
+            return () => {
+                if (cellClearHandler === handler) cellClearHandler = null;
+            };
+        },
+        readLatestSelectionRectangle,
         extendSelectionFromPointer,
         focusActiveAnchor,
         dispatchCompositionEvent,

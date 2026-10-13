@@ -21,6 +21,10 @@ export interface SearchFilterProps {
     debounceMs?: number;
     /** Additional CSS classes */
     className?: string;
+    /** Shown at the end of the empty field, e.g. the shortcut that focuses it. */
+    shortcutHint?: React.ReactNode;
+    /** Lets the page focus the input, e.g. from a "Focus search" command. */
+    inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 /**
@@ -31,11 +35,14 @@ export function SearchFilter({
     onChange,
     placeholder = "Search transactions...",
     debounceMs = 300,
-    className
+    className,
+    shortcutHint,
+    inputRef: providedInputRef
 }: SearchFilterProps) {
     const [localValue, setLocalValue] = useState(value);
     const [previousValue, setPreviousValue] = useState(value);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const ownInputRef = useRef<HTMLInputElement>(null);
+    const inputRef = providedInputRef ?? ownInputRef;
     const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     // Adjust the draft during render when an external search value arrives.
@@ -117,6 +124,13 @@ export function SearchFilter({
                     "placeholder:text-muted-foreground"
                 )}
             />
+
+            {/* A placeholder is plain text, so the shortcut badge sits over the empty field instead. */}
+            {!localValue && shortcutHint != null && (
+                <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2">
+                    {shortcutHint}
+                </span>
+            )}
 
             {/* Clear button */}
             {localValue && (

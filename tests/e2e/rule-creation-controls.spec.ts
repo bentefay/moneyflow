@@ -261,6 +261,48 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
             await expect(allocationCell).toHaveAttribute("data-cell-content", "display");
             await expect(allocationCell).toContainText("60%");
         });
+
+        await test.step("a second person's percentage leaves a set worth proposing", async () => {
+            const alexCell = await allocationGridCell(firstRow, "Alex");
+            await alexCell.dblclick();
+            const alex = firstRow.getByRole("textbox", { name: "Alex allocation percentage" });
+            await alex.fill("40");
+            await transactionGridCell(firstRow, "date").click();
+            await expect(alexCell).toContainText("40%");
+            await expect(proposal).toBeVisible();
+            await proposal.getByTestId("proposal-dismiss").click();
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
+        });
+
+        await test.step("a range clear is cleanup: it proposes nothing and undoes as one step", async () => {
+            const secondRow = rowsWithDescription(page).nth(1);
+            const firstMe = await allocationGridCell(firstRow, DEFAULT_PERSON_NAME);
+            const secondMe = await allocationGridCell(secondRow, DEFAULT_PERSON_NAME);
+            await firstMe.click();
+            await secondMe.click({ modifiers: ["Shift"] });
+            await expect(firstMe).toBeFocused();
+            await page.keyboard.press("Backspace");
+
+            await expect(firstMe).toContainText("—");
+            await expect(secondMe).toContainText("—");
+            // Alex's 40% is left, which a one-cell edit would turn into a proposal.
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
+
+            await page.keyboard.press("ControlOrMeta+z");
+            await expect(firstMe).toContainText("60%");
+            await expect(secondMe).toContainText("60%");
+        });
+
+        await test.step("Delete on one percentage is an ordinary edit and proposes like typing", async () => {
+            const meCell = await allocationGridCell(firstRow, DEFAULT_PERSON_NAME);
+            await meCell.click();
+            await expect(meCell).toBeFocused();
+            await page.keyboard.press("Delete");
+
+            await expect(meCell).toHaveAttribute("data-cell-content", "display");
+            await expect(meCell).toContainText("—");
+            await expect(proposal).toBeVisible();
+        });
     });
 
     test("a manual row offers a tag rule but never a description-alias rule", async ({ page }) => {

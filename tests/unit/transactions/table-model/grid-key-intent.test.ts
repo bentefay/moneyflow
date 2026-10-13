@@ -9,6 +9,7 @@ import {
 import {
     activationTransactionGridKeyCell,
     editableTransactionGridKeyCell,
+    NONEDITABLE_TRANSACTION_GRID_KEY_CELL,
     transactionGridCompositionStartIntent,
     transactionGridKeyContext,
     transactionGridKeyIntent,
@@ -453,6 +454,38 @@ describe("transaction grid key intent", () => {
             )
         ).toEqual({ kind: "native" });
     });
+
+    it.each(["Delete", "Backspace"])("clears with %s only while navigating", (pressed) => {
+        expect(transactionGridKeyIntent(NAVIGATING, key(pressed))).toEqual({ kind: "clear" });
+        expect(
+            transactionGridKeyIntent(
+                { cell: NONEDITABLE_TRANSACTION_GRID_KEY_CELL, mode: "navigating" },
+                key(pressed)
+            )
+        ).toEqual({ kind: "clear" });
+        for (const mode of [
+            "idle",
+            "parked",
+            "editing-quick",
+            "editing-full",
+            "inspecting",
+            "interacting-grid-editor",
+            "interacting-inspector"
+        ] as const) {
+            expect(transactionGridKeyIntent(keyContext(mode), key(pressed))).toEqual({
+                kind: "native"
+            });
+        }
+    });
+
+    it.each([{ ctrlKey: true }, { metaKey: true }, { altKey: true }])(
+        "leaves modified Backspace to the page: %o",
+        (modifiers) => {
+            expect(transactionGridKeyIntent(NAVIGATING, key("Backspace", modifiers))).toEqual({
+                kind: "native"
+            });
+        }
+    );
 
     it("preserves all four Arrow commands while exposing parked selection", () => {
         for (const [pressed, direction] of [
