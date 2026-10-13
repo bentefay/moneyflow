@@ -86,3 +86,5 @@
 - [Manual dev server needs JWT secret](feedback_manual-dev-server-needs-jwt-secret.md) — export
   SUPABASE_JWT_SECRET from the realtime container; check the assigned port is not held by another
   checkout.
+- [Probe copy needs real node_modules](feedback_probe-copy-needs-real-node-modules.md) — symlinked
+  node_modules makes pnpm try to purge the real one; cp -a it and call next/playwright directly.

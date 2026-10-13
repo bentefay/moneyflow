@@ -289,6 +289,10 @@ test.describe("Transaction rule inspector", () => {
 
             await expect(descriptionDisplay).toHaveText("Tea");
             await expect(proposal).toHaveAttribute("data-kind", "update");
+            // Updating an output the rule already has edits that rule, so it is titled as the rule.
+            await expect(
+                proposal.getByRole("group", { name: new RegExp(`^Rule · ${DESCRIPTION}`) })
+            ).toBeVisible();
             await expect(rule).toHaveCount(0, { timeout: 3_000 });
             // The rule's card is folded away, so the proposal shows the value Apply overwrites.
             await expect(proposal.getByTestId("rule-output-stored-descriptionAlias")).toHaveText(
