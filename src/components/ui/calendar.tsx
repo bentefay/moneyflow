@@ -180,11 +180,17 @@ function CalendarDayButton({
         if (modifiers.focused) ref.current?.focus();
     }, [modifiers.focused]);
 
+    // A plain button rather than `Button`: that one disables itself until a post-mount effect, so a
+    // day mounted by keyboard movement into another month refused DayPicker's focus and keyboard
+    // control fell to the page. The calendar only opens after interaction, so there is nothing to
+    // guard against here.
     return (
-        <Button
+        <button
             ref={ref}
-            variant="ghost"
-            size="icon"
+            type="button"
+            data-slot="button"
+            data-variant="ghost"
+            data-size="icon"
             data-day={day.date.toLocaleDateString()}
             data-selected-single={
                 modifiers.selected &&
@@ -196,6 +202,7 @@ function CalendarDayButton({
             data-range-end={modifiers.range_end}
             data-range-middle={modifiers.range_middle}
             className={cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
                 "data-[selected-single=true]:bg-primary data-[selected-single=true]:text-primary-foreground data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-ring/50 dark:hover:text-accent-foreground flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-[3px] data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-middle=true]:rounded-none data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md [&>span]:text-xs [&>span]:opacity-70",
                 defaultClassNames.day,
                 className

@@ -2155,6 +2155,32 @@ test.describe("Transactions", () => {
                 await page.keyboard.press("Escape");
             });
 
+            await test.step("keyboard focus survives the calendar moving to another month", async () => {
+                await dateCell.focus();
+                await dateCell.press("Enter");
+                await expect(dateInput).toBeFocused();
+                const beforeText = await dateInput.inputValue();
+                await page.keyboard.press("Tab");
+                await expect(calendar).toBeVisible();
+                const startMonth = await calendar.getAttribute("aria-label");
+
+                // Six weeks back always leaves the starting month.
+                for (let week = 0; week < 6; week += 1) await page.keyboard.press("ArrowUp");
+                await expect(calendar).not.toHaveAttribute("aria-label", startMonth ?? "");
+                await expect(calendar.locator("button:focus")).toHaveCount(1);
+                await page.keyboard.press("PageDown");
+                await expect(calendar).toHaveAttribute("aria-label", startMonth ?? "");
+                await expect(calendar.locator("button:focus")).toHaveCount(1);
+                await page.keyboard.press("ArrowLeft");
+                await page.keyboard.press("Enter");
+
+                await expect(calendar).toHaveCount(0);
+                await expect(dateCell).toBeFocused();
+                await dateCell.press("Enter");
+                expect(await dateInput.inputValue()).not.toBe(beforeText);
+                await page.keyboard.press("Escape");
+            });
+
             await test.step("a printable key quick-enters a date that is read on leaving", async () => {
                 await dateCell.focus();
                 await page.keyboard.type("1/2/2020");
