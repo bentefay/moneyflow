@@ -53,7 +53,8 @@ export type RuleEditorTitle =
 export interface RuleEditorTransaction {
     readonly accountId: string;
     readonly accountLabel: string;
-    readonly amount: MoneyMinorUnits;
+    /** `undefined` when the row's amount is blank; ticking the amount restriction then fails validation. */
+    readonly amount: MoneyMinorUnits | undefined;
     readonly amountLabel: string;
 }
 
@@ -616,7 +617,8 @@ function TransactionConditions({
             ? (accounts.find((account) => account.id === draft.accountId)?.label ??
               transaction.accountLabel)
             : transaction.accountLabel;
-    const rowAmountText = amountTextFromMinor(transaction.amount, currencyCode);
+    const rowAmountText =
+        transaction.amount == null ? "" : amountTextFromMinor(transaction.amount, currencyCode);
     const amountLabel =
         draft.useAmountScope && draft.amountText !== rowAmountText
             ? draft.amountText
