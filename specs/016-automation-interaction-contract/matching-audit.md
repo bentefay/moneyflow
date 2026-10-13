@@ -247,12 +247,12 @@ Execution paths traced at the audited revision:
   `persistUserAutomationPreference`.
 - **Robot → edit / delete / apply-this / apply-all / apply-new.**
   `specs/fusion-mission-recovery/historical/TransactionRuleRobot.tsx.txt` and
-  `src/components/features/transactions/TransactionRulePopup.tsx` →
+  `specs/fusion-mission-recovery/historical/TransactionRulePopup.tsx.txt` →
   `src/components/features/transactions/use-transaction-rule-workflow.ts` →
   `src/lib/crdt/apply-field-rule-to-transaction.ts` and `src/lib/crdt/field-rules.ts`.
 - **Automations page → Save, then explicit Apply.** `src/app/(app)/automations/page.tsx` →
   `src/components/features/automations/FieldRulesManager.tsx` →
-  `src/components/features/automations/FieldRuleEditor.tsx` with
+  `specs/fusion-mission-recovery/historical/FieldRuleEditor.tsx.txt` with
   `src/components/features/automations/rule-editor-model.ts` and
   `src/components/features/automations/rule-editor-data.ts`.
 - **Import.** `src/app/(app)/imports/new/page.tsx` →
