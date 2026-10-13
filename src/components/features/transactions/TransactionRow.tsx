@@ -79,7 +79,8 @@ export interface TransactionRowData {
     /** Notes/memo (shown in expandable row) */
     notes?: string;
     /** Amount in minor units (e.g., cents for USD) - stored as integer */
-    amount: number;
+    /** Minor units, or `undefined` when the amount is blank */
+    amount: number | undefined;
     /** Immutable amount before the first edit of an imported transaction */
     originalAmount?: number;
     account?: string;
@@ -240,7 +241,10 @@ export interface TransactionRowProps {
     /** Shared dynamic grid template */
     gridTemplateColumns?: string;
     /** Commit one person allocation through the central mutation boundary */
-    onAllocationUpdate?: (personId: string, value: number) => TransactionGridEditorCommitResult;
+    onAllocationUpdate?: (
+        personId: string,
+        value: number | null
+    ) => TransactionGridEditorCommitResult;
     /** Callback when checkbox is toggled */
     onCheckboxChange?: () => void;
     /** Callback when shift-clicking checkbox for range selection */

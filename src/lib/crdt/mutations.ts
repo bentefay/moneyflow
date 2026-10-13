@@ -527,7 +527,7 @@ function applyMutableTransactionUpdates(
     updates: UpdateTransactionInput["updates"]
 ): void {
     if (
-        updates.amount != null &&
+        "amount" in updates &&
         updates.amount !== transaction.amount &&
         transaction.importId &&
         transaction.originalAmount == null

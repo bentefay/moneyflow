@@ -192,7 +192,7 @@ function testTransactionCursor(rows: readonly TransactionRowData[]) {
     const transactions = rows.map((row, index): TransactionInput => ({
         accountId: row.accountId ?? "account-test",
         allocations: {},
-        amount: asMinorUnits(row.amount),
+        amount: row.amount == null ? undefined : asMinorUnits(row.amount),
         // The production cursor sorts equal-date rows newest-first. Decreasing fixture instants keeps
         // its canonical order aligned with the caller's row-window order.
         creationInstant: Temporal.Instant.fromEpochMilliseconds(1_700_000_000_000 - index),

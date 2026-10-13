@@ -215,8 +215,8 @@ describe("production import commit applies field rules", () => {
                     id: "r-invalid",
                     field: "allocation",
                     descriptionText: DESCRIPTION,
-                    // Out of range: must be rejected at decode, never clamped or normalised.
-                    allocations: { "person-a": asPercentage(150) }
+                    // Not a percentage: must be rejected at decode, never normalised.
+                    allocations: { "person-a": asPercentage(Number.NaN) }
                 })
             );
             // The malformed rule never becomes active.

@@ -63,7 +63,7 @@ export function calculateRunningBalances(
         let balance = accountStartingBalances[accountId] ?? 0;
 
         for (const tx of sorted) {
-            balance += tx.amount;
+            balance += tx.amount ?? 0;
             result.set(tx.id, balance);
         }
     }
@@ -105,7 +105,7 @@ export function calculateAccountBalance(
     transactions: Pick<Transaction, "amount">[],
     startingBalance = 0
 ): number {
-    return transactions.reduce((sum, tx) => sum + tx.amount, startingBalance);
+    return transactions.reduce((sum, tx) => sum + (tx.amount ?? 0), startingBalance);
 }
 
 /**
@@ -129,7 +129,7 @@ export function calculateAllAccountBalances(
     // Add transactions
     for (const tx of transactions) {
         const current = result.get(tx.accountId) ?? 0;
-        result.set(tx.accountId, current + tx.amount);
+        result.set(tx.accountId, current + (tx.amount ?? 0));
     }
 
     return result;

@@ -61,8 +61,8 @@ export interface RuleProposalSeed {
         | { readonly field: "allocation"; readonly allocations: Readonly<Record<string, number>> };
     /** This transaction's account, used when "only this account" is ticked (frozen `:259-260`). */
     readonly accountId: string;
-    /** This transaction's amount, used when "only if $x" is ticked (frozen `:258-259`). */
-    readonly amount: MoneyMinorUnits;
+    /** This transaction's amount, used when "only if $x" is ticked (frozen `:258-259`); `undefined` when blank. */
+    readonly amount: MoneyMinorUnits | undefined;
 }
 
 /**
@@ -98,7 +98,7 @@ export function draftFromProposal(
         ...base,
         descriptionText: seed.descriptionText,
         accountId: seed.accountId,
-        amountText: String(toMajorUnits(seed.amount, currencyCode)),
+        amountText: seed.amount == null ? "" : String(toMajorUnits(seed.amount, currencyCode)),
         aliasId: seed.value.field === "descriptionAlias" ? seed.value.aliasId : "",
         tagIds: seed.value.field === "tags" ? [...seed.value.tagIds] : [],
         allocations:

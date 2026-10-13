@@ -375,3 +375,23 @@ describe("calculateAllAccountBalances", () => {
         );
     });
 });
+
+describe("blank amounts", () => {
+    it("contribute nothing to account, all-account and running balances", () => {
+        const date = Temporal.PlainDate.from("2026-10-13");
+        const transactions = [
+            { id: "a", accountId: "acc", date, amount: asMinorUnits(-500) },
+            { id: "blank", accountId: "acc", date, amount: undefined },
+            { id: "b", accountId: "acc", date, amount: asMinorUnits(200) }
+        ];
+        const accounts = { acc: { balance: asMinorUnits(1_000) } } as unknown as Record<
+            string,
+            Account
+        >;
+
+        expect(calculateAccountBalance(transactions, 1_000)).toBe(700);
+        expect(calculateAllAccountBalances(transactions, accounts).get("acc")).toBe(700);
+        const running = calculateRunningBalances(transactions, { acc: 1_000 });
+        expect(running.get("blank")).toBe(running.get("a"));
+    });
+});

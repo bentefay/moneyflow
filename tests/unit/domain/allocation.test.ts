@@ -138,10 +138,10 @@ describe("allocation result graph immutability", () => {
 
     it("freezes allocation failures and combined derivation propagation", () => {
         const allocation = validateAllocationSet({
-            alice: 101,
+            alice: -0,
             bob: Number.POSITIVE_INFINITY
         });
-        const derivation = deriveEffectiveAllocations({ alice: 101 }, { owner: 50 });
+        const derivation = deriveEffectiveAllocations({ alice: -0 }, { owner: 50 });
 
         for (const result of [allocation, derivation]) {
             expectFrozenResultGraph(result);
@@ -161,11 +161,11 @@ describe("allocation result graph immutability", () => {
 
         if (allocation.ok || derivation.ok) throw new Error("Expected invalid result graphs");
         expect(allocation.errors.map(({ reason }) => reason)).toEqual([
-            "out-of-range",
+            "negative-zero",
             "not-finite"
         ]);
         expect(derivation.errors.map(({ domain, reason }) => [domain, reason])).toEqual([
-            ["allocation", "out-of-range"],
+            ["allocation", "negative-zero"],
             ["ownership", "invalid-total"]
         ]);
     });
@@ -271,18 +271,19 @@ describe("allocation result graph immutability", () => {
 
 describe("allocation validation", () => {
     it.each([
-        ["lower boundary", -100],
+        ["below -100", -150],
+        ["lower whole percentage", -100],
         ["negative decimal", -12.5],
         ["canonical zero", 0],
         ["positive decimal", 12.5],
-        ["upper boundary", 100]
-    ])("accepts %s", (_name, value) => {
+        ["upper whole percentage", 100],
+        ["above 100", 100.000_001],
+        ["far above 100", 250]
+    ])("accepts %s without clamping", (_name, value) => {
         expect(AllocationPercentageSchema.safeParse(value).success).toBe(true);
     });
 
     it.each([
-        ["below lower boundary", -100.000_001, "out-of-range"],
-        ["above upper boundary", 100.000_001, "out-of-range"],
         ["negative zero", -0, "negative-zero"],
         ["NaN", Number.NaN, "not-finite"],
         ["positive infinity", Number.POSITIVE_INFINITY, "not-finite"],
@@ -306,7 +307,8 @@ describe("allocation validation", () => {
         const cases = [
             { alice: -20, bob: 30.25 },
             { alice: 40, bob: 60 },
-            { alice: 100, bob: 75.5 }
+            { alice: 100, bob: 75.5 },
+            { alice: -101, bob: 201 }
         ] as const;
 
         for (const explicit of cases) {
@@ -321,14 +323,14 @@ describe("allocation validation", () => {
         }
 
         const invalid = validateAllocationSet({
-            alice: -101,
+            alice: "40",
             bob: Number.POSITIVE_INFINITY,
             charlie: -0
         });
         expect(invalid.ok).toBe(false);
         if (invalid.ok) throw new Error("Expected invalid allocation entries");
         expect(invalid.errors.map(({ personId, reason }) => [personId, reason])).toEqual([
-            ["alice", "out-of-range"],
+            ["alice", "not-number"],
             ["bob", "not-finite"],
             ["charlie", "negative-zero"]
         ]);
@@ -423,7 +425,7 @@ describe("owner remainder and effective allocation", () => {
     });
 
     it("returns allocation and ownership errors without deriving plausible weights", () => {
-        const allocationError = deriveEffectiveAllocations({ alice: 101 }, { alice: 100 });
+        const allocationError = deriveEffectiveAllocations({ alice: Number.NaN }, { alice: 100 });
         const ownershipError = deriveEffectiveAllocations({ alice: 50 }, { alice: 50 });
 
         expect(allocationError).toEqual({

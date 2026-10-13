@@ -133,6 +133,17 @@ export function compareTransactionOrder(
     return left.id.localeCompare(right.id);
 }
 
+/** Orders amounts by `direction` while blank amounts always sort after every present amount. */
+export function compareBlankLastAmounts(
+    left: number | undefined,
+    right: number | undefined,
+    direction: 1 | -1
+): number {
+    if (left == null) return right == null ? 0 : 1;
+    if (right == null) return -1;
+    return direction * (left - right);
+}
+
 function materializeNestedTransaction(duplicate: NestedDuplicate): Transaction {
     return { ...duplicate, suspectedDuplicates: [] };
 }
@@ -570,7 +581,7 @@ export function filterTransactions(
             case "date":
                 return multiplier * Temporal.PlainDate.compare(a.date, b.date);
             case "amount":
-                return multiplier * (a.amount - b.amount);
+                return compareBlankLastAmounts(a.amount, b.amount, multiplier);
             case "description":
                 return multiplier * (a.description ?? "").localeCompare(b.description ?? "");
             default:

@@ -354,7 +354,7 @@ describe("decodeFieldRule", () => {
             id: "rule-3",
             field: "allocation",
             descriptionText: "RENT",
-            allocations: { "person-a": 999 },
+            allocations: { "person-a": Number.POSITIVE_INFINITY },
             createdAtEpochMs
         });
         expect(result.ok).toBe(false);

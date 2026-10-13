@@ -1386,6 +1386,49 @@ test.describe("Transactions", () => {
 
                 await expect(amountCell).toContainText("-250.50");
             });
+
+            const amountCell = () =>
+                page
+                    .locator('[data-testid="transaction-row"]')
+                    .first()
+                    .locator('[role="gridcell"][data-cell="amount"]');
+            const editAmount = async (text: string): Promise<void> => {
+                await amountCell().dblclick();
+                const amountInput = amountCell().getByTestId("amount-editable");
+                await expect(amountInput).toBeFocused();
+                await amountInput.fill(text);
+                await amountInput.press("Enter");
+                await expect(amountCell()).toHaveAttribute("data-cell-content", "display");
+            };
+
+            await test.step("free text normalises at currency precision when leaving the input", async () => {
+                await editAmount("a.1");
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("0.10");
+
+                await editAmount("--3.456");
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("-3.46");
+
+                await editAmount("$1,234.5");
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("1234.50");
+            });
+
+            await test.step("explicit zero stays zero and non-numeric text clears to blank", async () => {
+                await editAmount("0");
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("0.00");
+
+                await editAmount("not a number");
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("—");
+            });
+
+            await test.step("a blank amount survives reload and stays editable", async () => {
+                await reloadPage(page);
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("—");
+
+                await amountCell().dblclick();
+                await expect(amountCell().getByTestId("amount-editable")).toHaveValue("");
+                await amountCell().getByTestId("amount-editable").press("Escape");
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("—");
+            });
         });
 
         test("T016: click to edit status cell (spreadsheet-style)", async ({ page }) => {

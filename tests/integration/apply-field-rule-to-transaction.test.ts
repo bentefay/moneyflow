@@ -185,8 +185,8 @@ describe("applyFieldRulesToSingleTransaction", () => {
                     id: "r-invalid",
                     field: "allocation",
                     descriptionText: DESCRIPTION,
-                    // 150 is out of range; must be rejected, never clamped/normalised.
-                    allocations: { "person-a": asPercentage(150) }
+                    // NaN is not a percentage; the rule must be rejected, never normalised.
+                    allocations: { "person-a": asPercentage(Number.NaN) }
                 })
             );
             const result = applyFieldRulesToSingleTransaction(state, {

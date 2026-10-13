@@ -183,7 +183,7 @@ export interface TransactionTableProps {
     onTransactionAllocationUpdate?: (
         id: string,
         personId: string,
-        value: number
+        value: number | null
     ) => TransactionGridEditorCommitResult;
     /** Callback when a transaction should be deleted */
     onTransactionDelete?: (id: string) => void;

@@ -1098,6 +1098,8 @@ export function calculateSettlementBalances(
             });
             continue;
         }
+        // A blank amount moves no money, so it is neither an obligation nor an incomplete input.
+        if (transaction.amount === undefined) continue;
         if (typeof transaction.amount !== "number" || !Number.isSafeInteger(transaction.amount)) {
             issues.push({
                 accountId: transaction.accountId,

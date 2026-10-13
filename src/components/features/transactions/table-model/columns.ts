@@ -105,13 +105,11 @@ function copyTags(value: unknown): string {
 
 /**
  * Allocation percentages copy as a bare number, or as nothing when the row stores no explicit
- * value for that person — which is exactly the information the cell shows, where an unstored or
- * zero allocation renders as an em dash and only an explicit non-zero one renders as `N%`.
+ * value for that person — which is exactly the information the cell shows, where a blank
+ * allocation renders as an em dash and an explicit one, including 0, renders as `N%`.
  */
 function copyAllocationPercentage(value: unknown): string {
-    return typeof value === "number" && Number.isFinite(value) && value !== 0
-        ? String(value)
-        : EMPTY_COPY_VALUE;
+    return typeof value === "number" && Number.isFinite(value) ? String(value) : EMPTY_COPY_VALUE;
 }
 
 const CHECKBOX_INTERACTION = {

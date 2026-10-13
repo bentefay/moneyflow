@@ -16,17 +16,12 @@ import type { ReactElement } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-    getCurrency,
-    getMinorUnitMultiplier,
-    toMinorUnitsForCurrency
-} from "@/lib/domain/currency";
+import { getCurrency, getMinorUnitMultiplier } from "@/lib/domain/currency";
+import { normaliseAmountText, normaliseNumericText } from "@/lib/domain/numeric-text";
 import { cn } from "@/lib/utils";
 
-import { parseCurrency, validateCurrencyDraft } from "./amount-draft";
 import { RESTING_CELL_CHROME, TRANSACTION_GRID_EDITOR_INLINE_CHROME } from "./cell-chrome";
 import {
-    TRANSACTION_GRID_EDITOR_COMMIT_FAILURE,
     TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS,
     TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED,
     type TransactionGridEditorCommitResult,
@@ -38,19 +33,20 @@ export interface InlineEditableAmountDisplayProps {
     readonly className?: string;
     readonly currency?: string;
     readonly originalValue?: number;
-    readonly value: number;
+    /** Minor units, or `undefined` when the amount is blank. */
+    readonly value: number | undefined;
     readonly "data-testid"?: string;
 }
 
 export interface InlineEditableAmountProps {
-    /** Current value in minor units (e.g., cents) - integer */
-    value: number;
+    /** Current value in minor units (e.g., cents), or `undefined` when blank */
+    value: number | undefined;
     /** Immutable value before the first imported-row edit */
     originalValue?: number;
     /** Currency code for conversion (default: USD) */
     currency?: string;
-    /** Callback when value is saved (returns minor units as integer) */
-    onSave: (newValue: number) => void;
+    /** Saves normalised minor units, or `undefined` when the text normalised to blank */
+    onSave: (newValue: number | undefined) => void;
     /** Reports actual input focus to the authoritative grid controller. */
     onEditingChange?: (editing: boolean) => void;
     /** Additional class names for the container */
@@ -71,12 +67,11 @@ interface TooltipTranslation {
 const INITIAL_TOOLTIP_TRANSLATION: TooltipTranslation = { x: 0, y: 0 };
 const TOOLTIP_VIEWPORT_PADDING = 8;
 
-export { parseCurrency } from "./amount-draft";
-
 /**
- * Format minor units as a display string.
+ * Format minor units as editable text; a blank amount is empty text.
  */
-function formatForDisplay(minorUnits: number, currencyCode: string): string {
+function formatForDisplay(minorUnits: number | undefined, currencyCode: string): string {
+    if (minorUnits == null) return "";
     const multiplier = getMinorUnitMultiplier(currencyCode);
     const majorUnits = minorUnits / multiplier;
     // Get decimal places from multiplier (100 = 2, 1000 = 3, 1 = 0)
@@ -107,10 +102,9 @@ export function originalAmountDescription(
         : `Original imported amount: ${formatOriginalAmount(originalValue, currencyCode)}`;
 }
 
-export function amountColorClass(value: number | null): string {
-    return value == null || value < 0
-        ? "text-red-600 dark:text-red-400"
-        : "text-green-700 dark:text-green-400";
+export function amountColorClass(value: number | undefined): string {
+    if (value == null) return "text-muted-foreground";
+    return value < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400";
 }
 
 function ImportedAmountTooltip({
@@ -236,7 +230,7 @@ export function InlineEditableAmountDisplay({
             )}
             data-testid={testId}
         >
-            {formatForDisplay(value, currency)}
+            {value == null ? "—" : formatForDisplay(value, currency)}
         </span>
     );
     return description == null ? (
@@ -271,7 +265,6 @@ export function InlineEditableAmount({
 
     const [localValue, setLocalValue] = useState(displayValue);
     const [isFocused, setIsFocused] = useState(false);
-    const [inputError, setInputError] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const isRevertingRef = useRef(false);
     const externalExitValidationResult = useRef<TransactionGridEditorCommitResult | null>(null);
@@ -281,25 +274,18 @@ export function InlineEditableAmount({
         setLocalValue(displayValue);
     }
 
+    // Free text never blocks leaving the cell: it normalises to an amount or to blank.
     const handleSave = useCallback(() => {
-        const parsedMajorUnits = validateCurrencyDraft(localValue);
-        if (!parsedMajorUnits.ok) {
-            setInputError(true);
-            return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
-        }
-        const newMinorUnits = toMinorUnitsForCurrency(parsedMajorUnits.value, currency);
-        if (newMinorUnits === value) {
-            setInputError(false);
-            return TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
-        }
+        const normalised = normaliseAmountText(localValue, currency);
+        const newMinorUnits = normalised.kind === "blank" ? undefined : normalised.minorUnits;
+        setLocalValue(formatForDisplay(newMinorUnits, currency));
+        if (newMinorUnits === value) return TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
         onSave(newMinorUnits);
-        setInputError(false);
         return TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS;
     }, [currency, localValue, onSave, value]);
 
     const handleRevert = useCallback(() => {
         setLocalValue(displayValue);
-        setInputError(false);
     }, [displayValue]);
     const editorLifecycle = useMemo<TransactionGridEditorLifecycle>(
         () => ({
@@ -343,12 +329,7 @@ export function InlineEditableAmount({
             onEditingChange?.(false);
             return;
         }
-        const committed = handleSave();
-        externalExitValidationResult.current = committed;
-        if (!committed.ok) {
-            queueMicrotask(() => inputRef.current?.focus({ preventScroll: true }));
-            return;
-        }
+        externalExitValidationResult.current = handleSave();
         setIsFocused(false);
         onEditingChange?.(false);
     }, [handleSave, onEditingChange]);
@@ -357,8 +338,8 @@ export function InlineEditableAmount({
         e.stopPropagation(); // Prevent row selection
     }, []);
 
-    const parsed = parseCurrency(localValue);
-    const colorClass = amountColorClass(parsed.ok ? parsed.value : null);
+    const typed = normaliseNumericText(localValue);
+    const colorClass = amountColorClass(typed.kind === "blank" ? undefined : typed.value);
     const originalDescription = originalAmountDescription(originalValue, currency);
     const input = (
         <Input
@@ -366,10 +347,7 @@ export function InlineEditableAmount({
             type="text"
             inputMode="decimal"
             value={localValue}
-            onChange={(e) => {
-                setLocalValue(e.target.value);
-                if (inputError) setInputError(false);
-            }}
+            onChange={(e) => setLocalValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={handleFocus}
             onBlur={handleBlur}
@@ -378,7 +356,6 @@ export function InlineEditableAmount({
             data-testid={testId}
             aria-label={`Transaction amount in ${currency}`}
             aria-description={originalDescription}
-            aria-invalid={inputError ? "true" : undefined}
             className={cn(
                 "h-7 text-right text-sm font-medium tabular-nums",
                 RESTING_CELL_CHROME,

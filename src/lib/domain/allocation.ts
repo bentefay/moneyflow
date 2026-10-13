@@ -16,12 +16,15 @@ const ExactDecimal = Decimal.clone({
     rounding: Decimal.ROUND_HALF_EVEN
 });
 
+/**
+ * One explicit allocation. Any finite value is valid: negative and above-100 allocations are
+ * deliberate answers, so they are never clamped. Negative zero is rejected so that equality and
+ * storage stay canonical.
+ */
 export const AllocationPercentageSchema = z
     .number()
     .refine(Number.isFinite)
     .refine((value) => !Object.is(value, -0))
-    .min(-100)
-    .max(100)
     .brand<"AllocationPercentage">();
 
 const ExactDecimalStringSchema = z.string().brand<"ExactDecimalString">();
@@ -49,7 +52,7 @@ export type ExactPercentageWeightsValidationResult =
           readonly ok: false;
       };
 
-type AllocationEntryErrorReason = "negative-zero" | "not-finite" | "not-number" | "out-of-range";
+type AllocationEntryErrorReason = "negative-zero" | "not-finite" | "not-number";
 
 export interface AllocationValidationError {
     readonly domain: "allocation";
@@ -127,7 +130,6 @@ function allocationEntryErrorReason(value: unknown): AllocationEntryErrorReason 
     if (typeof value !== "number") return "not-number";
     if (!Number.isFinite(value)) return "not-finite";
     if (Object.is(value, -0)) return "negative-zero";
-    if (value < -100 || value > 100) return "out-of-range";
     return null;
 }
 

@@ -103,7 +103,7 @@ describe("migrateLegacyAutomations", () => {
         ],
         [
             "invalid allocation set",
-            { actions: [{ type: "setAllocation", value: { "person-a": 999 } }] },
+            { actions: [{ type: "setAllocation", value: { "person-a": "999" } }] },
             "invalid-allocation-set"
         ],
         [

@@ -1,5 +1,4 @@
 import { allocationPresenceField, type AllocationPresenceField } from "@/lib/crdt/allocations";
-import { AllocationPercentageSchema } from "@/lib/domain";
 
 export const BASE_TRANSACTION_GRID_PREFIX = "32px 120px minmax(150px,2fr) 160px 140px 110px";
 export const BASE_TRANSACTION_GRID_SUFFIX = "112px 120px";
@@ -49,10 +48,6 @@ export interface RetainedHistoricalAllocationPeople<TFilterKey> {
     readonly filterKey: TFilterKey;
     readonly personIds: ReadonlySet<string>;
 }
-
-export type AllocationDraftResult =
-    | { readonly ok: true; readonly value: number }
-    | { readonly error: string; readonly ok: false };
 
 function compareText(left: string, right: string): number {
     return left < right ? -1 : left > right ? 1 : 0;
@@ -180,23 +175,4 @@ export function buildAllocationColumnModel({
         columns: Object.freeze(columns),
         gridTemplateColumns: buildTransactionGridTemplate(columns.length)
     });
-}
-
-export function parseAllocationDraft(input: string): AllocationDraftResult {
-    const trimmed = input.trim();
-    if (trimmed.length === 0 || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(trimmed)) {
-        return { error: "Enter a number from -100 to 100.", ok: false };
-    }
-
-    const value = Number(trimmed);
-    const parsed = AllocationPercentageSchema.safeParse(value);
-    if (!parsed.success) {
-        return {
-            error: Object.is(value, -0)
-                ? "Negative zero is not a valid allocation."
-                : "Enter a finite number from -100 to 100.",
-            ok: false
-        };
-    }
-    return { ok: true, value: parsed.data };
 }

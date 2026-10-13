@@ -396,7 +396,7 @@ test.describe("People page settlement journey", () => {
             });
         });
 
-        await test.step("12. invalid, paste, decimal and edit semantics", async () => {
+        await test.step("12. normalisation, blank, zero, paste, decimal and edit semantics", async () => {
             await goToTransactions(page);
             const row = rowById(page, transactionId);
             const cell = await allocationGridCell(row, "Bob");
@@ -408,24 +408,44 @@ test.describe("People page settlement journey", () => {
                 await expect(input).toBeFocused();
             };
 
-            await test.step("-101 is rejected without clamping", async () => {
+            await test.step("-101 and 101 are kept without clamping", async () => {
                 await activateBobAllocation();
                 await input.fill("-101");
                 await input.press("Enter");
-                await expect(input).toHaveAttribute("aria-invalid", "true");
-                await expect(row.getByRole("alert")).toBeVisible();
-                await input.press("Escape");
-                // The original value is preserved, never clamped to -100.
-                await expect(cell).toContainText("-20%");
-            });
+                await expect(cell).toHaveText(/^-101%/);
 
-            await test.step("101 is rejected without clamping", async () => {
                 await activateBobAllocation();
                 await input.fill("101");
                 await input.press("Enter");
-                await expect(input).toHaveAttribute("aria-invalid", "true");
-                await input.press("Escape");
-                await expect(cell).toContainText("-20%");
+                await expect(cell).toHaveText(/^101%/);
+                await expect(input).toHaveCount(0);
+            });
+
+            await test.step("free text normalises when leaving the input", async () => {
+                await activateBobAllocation();
+                await input.fill("a.1");
+                await input.blur();
+                await expect(cell).toHaveText(/^0\.1%/);
+            });
+
+            await test.step("explicit zero shows 0% and non-numeric text clears to a dash", async () => {
+                await activateBobAllocation();
+                await input.fill("0");
+                await input.press("Enter");
+                await expect(cell).toHaveText(/^0%/);
+
+                await activateBobAllocation();
+                await input.fill("none");
+                await input.press("Enter");
+                await expect(cell).toHaveText(/^—/);
+            });
+
+            await test.step("blank and explicit zero survive reload", async () => {
+                await setAllocation(row, "Me", "0");
+                await reloadPage(page);
+                const reloadedRow = rowById(page, transactionId);
+                await expect(await allocationGridCell(reloadedRow, "Bob")).toHaveText(/^—/);
+                await expect(await allocationGridCell(reloadedRow, "Me")).toHaveText(/^0%/);
             });
 
             await test.step("a pasted decimal is accepted and saved on Enter", async () => {
