@@ -1009,6 +1009,44 @@ test.describe("Transaction grid structure", () => {
             .poll(() => grid.evaluate((element) => element.parentElement?.scrollWidth ?? null))
             .toBe(scrollState.scrollWidth);
 
+        await test.step("Tab enters the actions cell on its first button and arrows stop at its ends", async () => {
+            await actionsCell.focus();
+            await expect(actionsCell).toBeFocused();
+            await page.keyboard.press("Tab");
+            await expect(duplicate).toBeFocused();
+            await expectVisibleActionFocusIndicator(duplicate);
+            await page.keyboard.press("ArrowLeft");
+            await expect(duplicate).toBeFocused();
+            await page.keyboard.press("ArrowRight");
+            await expect(deleteAction).toBeFocused();
+            await expectVisibleActionFocusIndicator(deleteAction);
+            await page.keyboard.press("ArrowRight");
+            await expect(deleteAction).toBeFocused();
+            await page.keyboard.press("ArrowLeft");
+            await expect(duplicate).toBeFocused();
+        });
+
+        await test.step("Enter or Space activates the focused action exactly once", async () => {
+            await page.keyboard.press("Enter");
+            await expect(duplicate).toHaveAttribute("aria-expanded", "true");
+            await page.keyboard.press(" ");
+            await expect(duplicate).toHaveAttribute("aria-expanded", "false");
+            await expect(duplicate).toBeFocused();
+        });
+
+        await test.step("Escape returns to cell navigation and Alt+Arrow leaves through the grid", async () => {
+            await page.keyboard.press("Escape");
+            await expect(actionsCell).toBeFocused();
+            await expect(actionsCell).toHaveAttribute("aria-selected", "true");
+
+            await page.keyboard.press("Tab");
+            await expect(duplicate).toBeFocused();
+            await page.keyboard.press("Alt+ArrowLeft");
+            await expect(row.locator('[role="gridcell"][data-cell="amount"]')).toBeFocused();
+            await page.keyboard.press("ArrowRight");
+            await expect(actionsCell).toBeFocused();
+        });
+
         await deleteAction.click();
         await expect(deleteAction).toHaveAttribute("title", "Click again to confirm delete");
         const deleteLabel = deleteAction.getByText("Delete", { exact: true });

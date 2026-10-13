@@ -22,6 +22,7 @@ import {
     type TransactionSelectionVisibility,
     type TransactionTableCell
 } from "../table-model";
+import { actionCellKeyResult } from "./action-cell-navigation";
 import {
     TRANSACTION_GRIDCELL_CHROME,
     TRANSACTION_GRIDCELL_FOCUS_CHROME,
@@ -1252,8 +1253,33 @@ export function TransactionGridCell({
         };
     }, [handleEditorPortalKeyDownCapture, showEditor]);
 
+    const handleActionButtonKey = useCallback(
+        (event: React.KeyboardEvent<HTMLDivElement>): boolean => {
+            if (interaction.activationKind !== "inspector" || !(event.target instanceof Element)) {
+                return false;
+            }
+            const buttons = [
+                ...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled)")
+            ];
+            const pressed = event.target.closest("button");
+            const index = pressed instanceof HTMLElement ? buttons.indexOf(pressed) : -1;
+            if (index < 0) return false;
+            const result = actionCellKeyResult(index, buttons.length, event);
+            if (result.kind === "native") return false;
+            if (result.kind === "focus-button") buttons[result.index]?.focus();
+            if (result.kind === "return-to-cell") event.currentTarget.focus();
+            return true;
+        },
+        [interaction.activationKind]
+    );
+
     const handleInteractiveDescendantKeyDownCapture = useCallback(
         (event: React.KeyboardEvent<HTMLDivElement>) => {
+            if (!showEditor && handleActionButtonKey(event)) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
             if (showEditor || !isAltArrowEvent(event)) return;
             if (!isInteractiveDescendant(event.currentTarget, event.target, legacyInteractive)) {
                 return;
@@ -1280,6 +1306,7 @@ export function TransactionGridCell({
         [
             address,
             controller,
+            handleActionButtonKey,
             interaction,
             legacyInteractive,
             requestEffect,

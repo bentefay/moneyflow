@@ -1321,7 +1321,7 @@ test.describe("Transactions", () => {
                 ).toContainText("15");
             });
 
-            await test.step("open the calendar and cancel the complete Date edit with Escape", async () => {
+            await test.step("Escape closes the calendar, then cancels the complete Date edit", async () => {
                 const row = page.locator('[data-testid="transaction-row"]').first();
                 const dateCell = row.locator('[role="gridcell"][data-cell="date"]');
                 const currentDateText = await row.getByTestId("date-display").innerText();
@@ -1330,8 +1330,11 @@ test.describe("Transactions", () => {
                 await calendarButton.click();
                 await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).toBeVisible();
 
+                // The first Escape closes only the calendar; the next cancels the edit.
                 await page.keyboard.press("Escape");
                 await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).not.toBeVisible();
+                await expect(row.getByTestId("date-editable")).toBeFocused();
+                await page.keyboard.press("Escape");
                 await expect(dateCell).toHaveAttribute("data-cell-content", "display");
                 await expect(dateCell).toBeFocused();
                 await expect(row.getByTestId("date-editable")).toHaveCount(0);
@@ -2073,6 +2076,93 @@ test.describe("Transactions", () => {
                 await dateInput.press("Tab");
 
                 await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).toBeVisible();
+            });
+
+            const row = page.locator('[data-testid="transaction-row"]').first();
+            const dateCell = row.locator('[role="gridcell"][data-cell="date"]');
+            const dateInput = row.getByTestId("date-editable");
+            const calendar = page.getByRole("grid", { name: /\w+ \d{4}/ });
+
+            await test.step("the calendar opens on the selected day and Escape closes only it", async () => {
+                const focusedDay = calendar.locator("button:focus");
+                await expect(focusedDay).toHaveCount(1);
+                await expect(focusedDay).toHaveAttribute("tabindex", "0");
+
+                await page.keyboard.press("Alt+ArrowDown");
+                await expect(calendar).toBeVisible();
+                await expect(dateCell).toHaveAttribute("data-cell-content", "editor");
+
+                await page.keyboard.press("Escape");
+                await expect(calendar).toHaveCount(0);
+                await expect(dateInput).toBeFocused();
+            });
+
+            await test.step("Escape then cancels the edit, and a further Escape parks the grid", async () => {
+                const storedText = await dateInput.inputValue();
+                await dateInput.fill("1/2/2020");
+                await page.keyboard.press("Escape");
+                await expect(dateCell).toHaveAttribute("data-cell-content", "display");
+                await expect(dateCell).toBeFocused();
+
+                await page.keyboard.press("Enter");
+                await expect(dateInput).toHaveValue(storedText);
+                await page.keyboard.press("Escape");
+                await page.keyboard.press("Escape");
+                await expect(dateCell).not.toBeFocused();
+            });
+
+            await test.step("Ctrl or Cmd with Up and Down step the typed date by a day", async () => {
+                await dateCell.focus();
+                await dateCell.press("Enter");
+                await expect(dateInput).toBeFocused();
+                const original = await dateInput.inputValue();
+
+                await page.keyboard.press("ControlOrMeta+ArrowUp");
+                const nextDay = await dateInput.inputValue();
+                expect(nextDay).not.toBe(original);
+                await page.keyboard.press("ControlOrMeta+ArrowDown");
+                await expect(dateInput).toHaveValue(original);
+                await page.keyboard.press("ControlOrMeta+ArrowDown");
+                await page.keyboard.press("ControlOrMeta+ArrowUp");
+                await page.keyboard.press("ControlOrMeta+ArrowUp");
+                await expect(dateInput).toHaveValue(nextDay);
+                await expect(dateCell).toHaveAttribute("data-cell-content", "editor");
+
+                // Leaving saves the stepped date like typed text.
+                await page.keyboard.press("Enter");
+                await expect(dateCell).toHaveAttribute("data-cell-content", "display");
+                await dateCell.dblclick();
+                await expect(dateInput).toHaveValue(nextDay);
+            });
+
+            await test.step("arrows move the calendar's day and Enter picks it back into navigation", async () => {
+                const beforeText = await dateInput.inputValue();
+                await page.keyboard.press("Tab");
+                await expect(calendar).toBeVisible();
+                await page.keyboard.press("ArrowRight");
+                await page.keyboard.press("ArrowLeft");
+                await page.keyboard.press("ArrowRight");
+                await page.keyboard.press("Enter");
+
+                await expect(calendar).toHaveCount(0);
+                await expect(dateCell).toHaveAttribute("data-cell-content", "display");
+                await expect(dateCell).toBeFocused();
+                await dateCell.press("Enter");
+                const afterText = await dateInput.inputValue();
+                expect(afterText).not.toBe(beforeText);
+                await page.keyboard.press("ControlOrMeta+ArrowDown");
+                await expect(dateInput).toHaveValue(beforeText);
+                await page.keyboard.press("Escape");
+            });
+
+            await test.step("a printable key quick-enters a date that is read on leaving", async () => {
+                await dateCell.focus();
+                await page.keyboard.type("1/2/2020");
+                await expect(dateInput).toBeFocused();
+                await expect(dateInput).toHaveValue("1/2/2020");
+                await page.keyboard.press("Enter");
+                await expect(dateCell).toHaveAttribute("data-cell-content", "display");
+                await expect(row.getByTestId("date-display")).toContainText("2020");
             });
         });
     });

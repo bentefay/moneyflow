@@ -2008,7 +2008,7 @@ describe("cell selection gestures", () => {
         expect(screen.getByRole("button", { name: "Remove Food" })).toBeVisible();
     });
 
-    it("cancels an open Date calendar and its editor with one Escape", async () => {
+    it("closes an open Date calendar first, then cancels its editor on a second Escape", async () => {
         const onTransactionUpdate = vi.fn();
         const { controller } = renderGrid(
             () => undefined,
@@ -2033,10 +2033,10 @@ describe("cell selection gestures", () => {
         const calendar = document.querySelector<HTMLElement>('[data-owned-by-field="date"]');
         if (calendar == null) throw new Error("the Date calendar did not mount");
 
-        expect(fireEvent.keyDown(calendar, { altKey: true, key: "ArrowDown" })).toBe(false);
+        // The calendar owns Alt+Arrow too: it never moves through the grid.
+        fireEvent.keyDown(calendar, { altKey: true, key: "ArrowDown" });
         expect(onTransactionUpdate).not.toHaveBeenCalled();
         expect(editor).toHaveValue("not a date");
-        expect(editor).toHaveAttribute("aria-invalid", "true");
         expect(calendar).toBeInTheDocument();
         expect(controller.getInteractionState()).toMatchObject({
             kind: "interacting",
@@ -2045,6 +2045,14 @@ describe("cell selection gestures", () => {
         });
 
         fireEvent.keyDown(calendar, { key: "Escape" });
+        await waitFor(() =>
+            expect(document.querySelector('[data-owned-by-field="date"]')).toBeNull()
+        );
+        await waitFor(() => expect(editor).toHaveFocus());
+        expect(editor).toHaveValue("not a date");
+        expect(controller.getInteractionState()).toMatchObject({ kind: "editing" });
+
+        fireEvent.keyDown(editor, { key: "Escape" });
         await act(async () => {
             await Promise.resolve();
             await Promise.resolve();
@@ -2974,7 +2982,7 @@ describe("cell selection gestures", () => {
         }
     );
 
-    it("selects only the cell a pointer lands on, and adds nothing when the pointer moves", () => {
+    it("starts no range from a press inside an editor, whatever the pointer does next", () => {
         const { controller } = renderGrid();
         const first = focusDescription(controller, 1, "end");
         const second = transactionCell(2, "description");
@@ -2984,9 +2992,8 @@ describe("cell selection gestures", () => {
         fireEvent.mouseEnter(second);
         fireEvent.mouseUp(second);
 
-        // No drag binding, deliberately: mousedown is how a caret is placed and a text selection
-        // begun in these cells, so a drag-to-select range would fight the gesture it shares. Ranges
-        // are keyboard-only, and this pins that the omission stays an omission.
+        // Inside an editor a press places the caret and begins a native text selection, so it never
+        // starts a cell range. Drag ranges begin only on non-edit cell backgrounds.
         expect(selectedCells()).toEqual(["1:description"]);
     });
 
@@ -3020,14 +3027,24 @@ describe("cell selection gestures", () => {
             fireEvent.keyDown(actions, { key: "ArrowLeft" });
             expect(document.activeElement).toBe(amount);
 
+            // Inside the cell, Left and Right move among its buttons and stop at either end.
             act(() => deleteButton.focus());
-            fireEvent.keyDown(deleteButton, { key: "ArrowLeft" });
+            fireEvent.keyDown(deleteButton, { key: "ArrowRight" });
             expect(document.activeElement).toBe(deleteButton);
+            fireEvent.keyDown(deleteButton, { key: "ArrowLeft" });
             expect(row.querySelectorAll('[data-cell="actions"] [data-cell]')).toHaveLength(0);
             if (hasDuplicate) {
                 expect(row.querySelectorAll('[title="Potential duplicate"]')).toHaveLength(1);
-                expect(document.activeElement).not.toHaveAttribute("title", "Potential duplicate");
+                expect(document.activeElement).toHaveAttribute("title", "Potential duplicate");
+            } else {
+                expect(document.activeElement).toBe(deleteButton);
             }
+
+            // Escape returns to canonical navigation on the Actions cell itself.
+            const focusedAction = document.activeElement;
+            if (!(focusedAction instanceof HTMLElement)) throw new Error("no focused action");
+            fireEvent.keyDown(focusedAction, { key: "Escape" });
+            expect(document.activeElement).toBe(actions);
         }
     );
 

@@ -452,6 +452,31 @@ function naturalLanguageDate(input: string, reference: Date): string | null {
     }).toString();
 }
 
+/** A date editor's text moved by whole days, with the ISO date it now names. */
+export interface SteppedEditedDate {
+    readonly isoDate: string;
+    readonly text: string;
+}
+
+/**
+ * Moves the date a date editor's text names by `days`, for keyboard arrow adjustment.
+ *
+ * Starts from the typed text when it names a date, otherwise from `storedIsoDate`, so a stray
+ * keystroke never resets the date to today. Returns `null` when neither names a date.
+ */
+export function stepEditedDate(
+    text: string,
+    storedIsoDate: string,
+    days: number,
+    locale?: string,
+    referenceDate?: Temporal.PlainDate
+): SteppedEditedDate | null {
+    const base = parseLocaleDate(text, locale, referenceDate) ?? (storedIsoDate || null);
+    if (base == null || !isValidISODate(base)) return null;
+    const isoDate = Temporal.PlainDate.from(base).add({ days }).toString();
+    return { isoDate, text: formatDateForEditing(isoDate, locale) };
+}
+
 /**
  * Parse a locale-formatted date string back to ISO format.
  * Falls back to native Date parsing for flexibility.

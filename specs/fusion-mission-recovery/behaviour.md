@@ -223,6 +223,11 @@ description cell, including plain arrows and Alt+Arrow.
 between buttons without wrapping, Enter or Space activates once, Escape returns to cell navigation,
 and Alt+Arrow moves through the grid from inside the cell. Focus is always visible.
 
+**[proposed]** The grid contract keeps Enter and Space on the actions cell for opening the inspector
+(TGI-ACT-002, TGI-INSPCMD-001), so entering the cell is Tab, which the contract already uses to
+reach its controls: Tab focuses the first button, Shift+Tab returns to the cell. Each action button,
+the duplicate badge included, shows its own focus ring.
+
 ### Selection
 
 **[saved plan]** Outside of editing, the grid behaves like a spreadsheet: clicking selects a cell,
@@ -239,6 +244,30 @@ table, faster the closer it is to the edge, and the selection keeps following th
 pointer, including beneath floating chrome such as the bulk-edit toolbar. Shift-click and drag move
 only the far corner of the rectangle; the cell the range started from keeps keyboard focus, so the
 next arrow key moves from it.
+
+### Date input
+
+**[confirmed]** Requested on 2026-10-13: the date cell is fully usable from the keyboard. The rules
+below are **[proposed]**, written before implementation, and stay inside the grid contract
+(`specs/016-transaction-grid-interaction-inspector/interaction-contract.md`, TGI-CMD-009 and
+TGI-TAB-002):
+
+1. **Typing.** A printable key on the date cell starts quick entry with that key; Enter or
+   double-click starts full edit, which selects the whole date text. The text is read in the
+   viewer's date locale when leaving the input, as today, and text that names no date keeps the
+   editor open and marked invalid.
+2. **Arrow adjustment.** In the text input, Ctrl+Up or Cmd+Up moves the date one day later and
+   Ctrl+Down or Cmd+Down one day earlier. The step starts from the date the text currently names, or
+   from the stored date when the text names none, and rewrites the text; it is saved on leaving like
+   typed text. Plain and Alt arrows keep their grid meaning.
+3. **Opening the calendar.** Tab from full edit opens the calendar and puts focus on the selected
+   day. Inside it the calendar owns its keys: arrows move by day and week, Page Up and Page Down by
+   month, Enter or Space picks the focused day, which saves it, closes the calendar and returns to
+   cell navigation on the date cell.
+4. **Closing the calendar and Escape order.** Escape closes only the topmost layer: the first Escape
+   closes the calendar and returns focus to the date text with the typed draft intact; the next
+   Escape cancels the edit and returns to cell navigation with the stored date; the next parks the
+   grid as usual. Alt+Arrow inside the calendar never moves through the grid.
 
 ### Viewport
 

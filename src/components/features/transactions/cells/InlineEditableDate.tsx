@@ -25,7 +25,8 @@ import { cn } from "@/lib/utils";
 import {
     formatDateForEditing,
     formatTransactionDate,
-    parseLocaleDate
+    parseLocaleDate,
+    stepEditedDate
 } from "@/lib/utils/date-format";
 import { dayPickerLocalization } from "@/lib/utils/day-picker-locale";
 
@@ -124,8 +125,9 @@ export function InlineEditableDate({
         return () => onPopupOpenChange?.("calendar", false);
     }, [isOpen, onPopupOpenChange]);
 
-    // Parse ISO date string to Date object
-    const dateValue = fromIsoDate(value);
+    // Parse ISO date string to Date object. Memoised so the calendar keeps one month identity
+    // across renders; a fresh Date rebuilds its day grid and drops keyboard focus on the day.
+    const dateValue = useMemo(() => fromIsoDate(value), [value]);
 
     // Track the month for calendar navigation
     // Uses a key-based reset: when value changes, month will be undefined initially
@@ -254,19 +256,42 @@ export function InlineEditableDate({
     );
 
     // Handle keyboard events
-    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            // Open calendar popup on Enter (like select components)
-            setIsOpen(true);
-        } else if (e.key === "Escape") {
-            e.preventDefault();
-            setIsFocused(false);
-            setInputValue("");
-            inputRef.current?.blur();
-        }
-        // Arrow up/down: don't handle here, let them bubble for grid navigation
-    }, []);
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent<HTMLInputElement>) => {
+            // Ctrl/Cmd+Up and Down step the draft by a day; plain and Alt arrows stay grid movement.
+            if (
+                (e.ctrlKey || e.metaKey) &&
+                !e.altKey &&
+                !e.shiftKey &&
+                (e.key === "ArrowUp" || e.key === "ArrowDown")
+            ) {
+                e.preventDefault();
+                const stepped = stepEditedDate(
+                    inputValue,
+                    value,
+                    e.key === "ArrowUp" ? 1 : -1,
+                    locale
+                );
+                if (stepped == null) return;
+                setInputValue(stepped.text);
+                setInputError(false);
+                setMonthOverride(fromIsoDate(stepped.isoDate));
+                return;
+            }
+            if (e.key === "Enter") {
+                e.preventDefault();
+                // Open calendar popup on Enter (like select components)
+                setIsOpen(true);
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                setIsFocused(false);
+                setInputValue("");
+                inputRef.current?.blur();
+            }
+            // Arrow up/down: don't handle here, let them bubble for grid navigation
+        },
+        [inputValue, locale, value]
+    );
 
     const handleCalendarOpenChange = useCallback((nextOpen: boolean) => {
         if (!nextOpen) calendarTriggerPointerDown.current = false;
@@ -346,6 +371,20 @@ export function InlineEditableDate({
                     ref={registerEditorPortal}
                     className="w-auto overflow-hidden p-0"
                     align="end"
+                    // The calendar owns its own keys, Escape included: the grid's Escape and
+                    // Alt+Arrow wait until the calendar has closed back to the date text.
+                    data-transaction-grid-nested-widget
+                    onOpenAutoFocus={(event) => {
+                        // Start on the selected day rather than the month dropdown, so arrows,
+                        // Page Up/Down and Enter work at once.
+                        if (!(event.currentTarget instanceof HTMLElement)) return;
+                        const day = event.currentTarget.querySelector<HTMLElement>(
+                            '[role="grid"] button[tabindex="0"]'
+                        );
+                        if (day == null) return;
+                        event.preventDefault();
+                        day.focus({ preventScroll: true });
+                    }}
                     onEscapeKeyDown={(event) => {
                         calendarEscapeKeyDown.current = true;
                         event.stopPropagation();
