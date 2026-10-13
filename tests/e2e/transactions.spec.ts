@@ -1863,6 +1863,102 @@ test.describe("Transactions", () => {
                 await destinationEditor.press("Escape");
                 await expectTransactionCellDisplay(destinationRow, "description", "Boundary Test");
             });
+
+            // Numeric cells share the description cell's three modes: navigating, quick entry from a
+            // printable key, and full edit from Enter or double-click.
+            const otherRow = page.getByRole("row", { name: /Other Row/ });
+            const boundaryRow = page.getByRole("row", { name: /Boundary Test/ });
+            const amountCell = (row: typeof otherRow) => transactionGridCell(row, "amount");
+            const allocationCell = (row: typeof otherRow) =>
+                row.locator('[role="gridcell"][data-cell^="allocation:"]').first();
+            const allocationInput = (row: typeof otherRow) =>
+                allocationCell(row).getByRole("textbox");
+
+            await test.step("printable input quick-enters an amount and plain arrows commit and move", async () => {
+                await amountCell(otherRow).focus();
+                await page.keyboard.press("7");
+                const amountInput = amountCell(otherRow).getByTestId("amount-editable");
+                await expect(amountInput).toBeFocused();
+                await expect(amountInput).toHaveValue("7");
+
+                await page.keyboard.press("ArrowLeft");
+                await expect(amountCell(otherRow).getByTestId("amount-display")).toHaveText("7.00");
+                // Continuous quick intent carries into the neighbouring numeric cell.
+                await expect(allocationInput(otherRow)).toBeFocused();
+                await page.keyboard.press("Escape");
+                await expect(allocationCell(otherRow)).toBeFocused();
+                await expect(allocationInput(otherRow)).toHaveCount(0);
+            });
+
+            await test.step("invalid quick text never blocks movement and normalises on exit", async () => {
+                await allocationCell(otherRow).focus();
+                await page.keyboard.type("x");
+                await expect(allocationInput(otherRow)).toHaveValue("x");
+                await page.keyboard.press("ArrowRight");
+                await expect(allocationCell(otherRow)).toHaveText(/^—/);
+                await expect(amountCell(otherRow).getByTestId("amount-editable")).toBeFocused();
+                await page.keyboard.press("Escape");
+                await expect(amountCell(otherRow)).toBeFocused();
+            });
+
+            await test.step("full edit keeps Left and Right inside the amount text", async () => {
+                await amountCell(otherRow).press("Enter");
+                const amountInput = amountCell(otherRow).getByTestId("amount-editable");
+                await expect(amountInput).toBeFocused();
+                await page.keyboard.press("End");
+                await page.keyboard.press("ArrowLeft");
+                await page.keyboard.press("ArrowRight");
+                await expect(amountInput).toBeFocused();
+                await page.keyboard.type("5");
+                await expect(amountInput).toHaveValue("7.005");
+            });
+
+            await test.step("full edit Down commits, normalises and continues full edit below", async () => {
+                await page.keyboard.press("ArrowDown");
+                await expect(amountCell(otherRow).getByTestId("amount-display")).toHaveText("7.01");
+                const belowInput = amountCell(boundaryRow).getByTestId("amount-editable");
+                await expect(belowInput).toBeFocused();
+                await expect(belowInput).toHaveValue("-25.00");
+            });
+
+            await test.step("Alt+Arrow moves through the grid from full edit with invalid text", async () => {
+                const belowInput = amountCell(boundaryRow).getByTestId("amount-editable");
+                await belowInput.fill("12abc");
+                await page.keyboard.press("Alt+ArrowLeft");
+                await expect(amountCell(boundaryRow).getByTestId("amount-display")).toHaveText(
+                    "12.00"
+                );
+                await expect(allocationInput(boundaryRow)).toBeFocused();
+                await page.keyboard.press("Alt+ArrowUp");
+                await expect(allocationInput(otherRow)).toBeFocused();
+                await page.keyboard.press("Escape");
+                await expect(allocationCell(otherRow)).toBeFocused();
+            });
+
+            await test.step("Enter from a full-edit amount commits and moves down", async () => {
+                await amountCell(otherRow).dblclick();
+                const amountInput = amountCell(otherRow).getByTestId("amount-editable");
+                await expect(amountInput).toBeFocused();
+                await amountInput.fill("8");
+                await page.keyboard.press("Enter");
+                await expect(amountCell(otherRow).getByTestId("amount-display")).toHaveText("8.00");
+                await expect(amountCell(boundaryRow).getByTestId("amount-editable")).toBeFocused();
+                await page.keyboard.press("Escape");
+                await expect(amountCell(boundaryRow)).toBeFocused();
+            });
+
+            // A changed allocation raises a rule proposal, and leaving the row waits for that
+            // proposal under the automation contract, so this step stays inside the row.
+            await test.step("double-click full-edits an allocation and Tab commits into the amount", async () => {
+                await allocationCell(otherRow).dblclick();
+                await expect(allocationInput(otherRow)).toBeFocused();
+                await page.keyboard.type("a.1");
+                await page.keyboard.press("Tab");
+                await expect(allocationCell(otherRow)).toHaveText(/^0\.1%/);
+                await expect(amountCell(otherRow).getByTestId("amount-editable")).toBeFocused();
+                await page.keyboard.press("Escape");
+                await expect(amountCell(otherRow)).toBeFocused();
+            });
         });
 
         test("status dropdown arrow keys navigate grid, not open dropdown", async ({ page }) => {
