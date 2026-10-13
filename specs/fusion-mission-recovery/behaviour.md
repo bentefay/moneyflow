@@ -320,13 +320,16 @@ and pending edits and agreed with them:
   for now.
 - Cell edits are written to the transaction before the rule proposal appears; the proposal concerns
   only the rule.
+- **[implemented]** Divergence shows only in the inspector and as an orange dot on the toolbar's
+  inspector toggle, with no cell markers, and Update new is inclusive of the reference date.
 
 ## 9. What you still need to decide
 
-1. Whether the Update new cutoff is inclusive of the same date, as the saved plan says, or strictly
-   later, as your scratch file says.
+1. **[decided: inclusive, implemented]** Whether the Update new cutoff is inclusive of the same
+   date, as the saved plan says, or strictly later, as your scratch file says.
 2. Whether to approve the proposed ownership resolutions in section 4, or change them.
 3. Whether to remember the Apply on blur preference separately for creating a rule and for changing
    an existing one, with the latter defaulting off, to avoid rewriting other rows on leaving a row.
-4. Whether the remaining editor mockup scenarios at `mockups/rule-editor.html` are the design you
-   want. Scenarios 4 to 7 are agreed; the rest are unapproved until you say otherwise.
+4. **[implemented per the mockup]** Whether the remaining editor mockup scenarios at
+   `mockups/rule-editor.html` are the design you want. Scenarios 4 to 7 are agreed; the rest are
+   unapproved until you say otherwise.

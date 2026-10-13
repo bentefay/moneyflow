@@ -17,6 +17,7 @@ import { TransactionInspectorAutomation } from "@/components/features/transactio
 import type { TransactionInput } from "@/lib/crdt/schema";
 import { buildTransactionIndex, createTransactionCursor } from "@/lib/crdt/transaction-cursor";
 import { AllocationPercentageSchema } from "@/lib/domain/allocation";
+import type { RuleExtensionTarget } from "@/lib/domain/automation/extension";
 import { DEFAULT_REMEMBERED_CHOICE } from "@/lib/domain/automation/preferences";
 import { type FieldRule, FieldRuleIdSchema } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -32,6 +33,8 @@ const workflowMocks = vi.hoisted(() => ({
     existingRuleHasAllocation: { current: false },
     // The rule card's draft; `null` stands for the workflow's empty draft.
     ruleDraft: { current: null as RuleEditorDraft | null },
+    // The proposal's extension target; `null` stands for a create.
+    proposalTarget: { current: null as RuleExtensionTarget | null },
     removeRule: vi.fn(() => {
         workflowMocks.existingRuleVisible.current = false;
         return true;
@@ -79,7 +82,7 @@ vi.mock("@/components/features/transactions/use-field-rule-proposal", () => ({
         setDraft: vi.fn(),
         setResolution: vi.fn(),
         tags: [],
-        target: { kind: "create" }
+        target: workflowMocks.proposalTarget.current ?? { kind: "create" }
     })
 }));
 
@@ -107,6 +110,7 @@ vi.mock("@/components/features/automations/RuleEditor", () => ({
         <div
             data-can-split={String(props.canSplit)}
             data-pending-field={props.pendingField ?? ""}
+            data-title-kind={props.title.kind}
             data-testid="field-rule-editor"
         >
             <button data-testid="rule-save" onClick={props.onApply} type="button">
@@ -217,6 +221,7 @@ beforeEach(() => {
     workflowMocks.existingRuleDrifted.current = false;
     workflowMocks.existingRuleHasAllocation.current = false;
     workflowMocks.ruleDraft.current = null;
+    workflowMocks.proposalTarget.current = null;
     workflowMocks.removeRule.mockClear();
 });
 
@@ -389,5 +394,24 @@ describe("transaction inspector rule card Split gate", () => {
         renderAutomation(createController());
         expect(cardEditor()).toHaveAttribute("data-can-split", "false");
         expect(cardEditor()).toHaveAttribute("data-pending-field", "");
+    });
+});
+
+describe("transaction inspector proposal title", () => {
+    it.each<[string, string, () => RuleExtensionTarget]>([
+        ["a create", "new", () => ({ kind: "create" })],
+        // Updating an output the rule already has edits that rule, so it reads as the rule.
+        ["an update-owner", "rule", () => ({ kind: "update-owner", rule: existingRule() })],
+        ["an extend", "extend", () => ({ kind: "extend", rule: existingRule() })]
+    ])("titles %s proposal as %s", (_label, titleKind, target) => {
+        workflowMocks.proposalTarget.current = target();
+        const controller = createController();
+        publishTagsCommit(controller);
+        renderAutomation(controller);
+        const proposal = screen.getByTestId("tags-rule-proposal");
+        expect(proposal.querySelector('[data-testid="field-rule-editor"]')).toHaveAttribute(
+            "data-title-kind",
+            titleKind
+        );
     });
 });

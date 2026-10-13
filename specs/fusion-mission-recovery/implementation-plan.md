@@ -1,6 +1,7 @@
 # Grouped automation rules — implementation plan
 
-Status: in progress. Branch `feat/transaction-editing-and-automation-rules`, no other branches.
+Status: phases 1 to 3 complete. Branch `feat/transaction-editing-and-automation-rules`, no other
+branches. The table interaction refinements in the hand-off below are not started.
 
 Source of truth for behaviour: `behaviour.md`, `domain-model.html`, `mockups/rule-editor.html`.
 Ownership semantics: `../automation-rule-ownership.md` §5.3 ladder and §7.1 decisions. Those
@@ -274,7 +275,26 @@ Work paused at the user's request. State of the branch:
   cards are `rule-inspector-<ruleId>` with `data-automation-field`. The note's
   `transaction-rule-proposal` / `transaction-rule-card` renames were not applied.
 
-**Next:** Phase 3 docs, then the table refinements below.
+**Phase 2b review fixes and Phase 3 complete, 2026-10-13**
+
+- The inspector rule card offers Split only while its draft equals the stored rule. Only the
+  inspector's proposal card locks the other outputs; the Automations page never does, because its
+  Apply writes the whole draft.
+- An update proposal shows the target's stored value under the pending badge and is titled as the
+  rule, matching mockup scenario 7. Output badges follow the mockup's layout.
+- The inspector is `clamp(22rem, 30vw, 30rem)` wide at `xl`, as the mockup used.
+- `behaviour.md` records the inclusive cutoff and the indicator surfaces as implemented.
+
+**Merging into main.** `main` has since moved from pnpm to bun with a `run` CLI (`run tsc`,
+`run lint`, `run format`, `run test unit`, `run test e2e`) in PR #68. The first step after merging
+is to re-run the whole gate with that tooling; the commands in Tooling above predate it.
+
+**Follow-ups outside this scope.** Two load-sensitive tests failed only while another checkout ran
+its own campaign on this machine, and passed when re-run quietly:
+
+- `tests/integration/vault-maintenance.test.tsx`, undo after maintenance. It fakes animation frames
+  but keeps the real clock, so its 4 ms maintenance budget chunks differently under load.
+- The maintenance and settlement tests that hit their 5 s timeouts under load.
 
 **Not started: table interaction refinements** (behaviour.md section 7, saved plan milestone 3).
 Nullable allocation and amount editing, numeric cells using the description cell's modes with

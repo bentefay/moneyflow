@@ -1800,7 +1800,7 @@ function TransactionsPageContent() {
             <div
                 className={`grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 ${
                     gridSnapshot.inspectorPanelOpen
-                        ? "min-h-[15rem] grid-rows-[minmax(8rem,1fr)_minmax(6rem,min(18rem,40%))] overflow-x-hidden overflow-y-auto xl:grid-cols-[minmax(0,1fr)_clamp(18rem,24vw,24rem)] xl:grid-rows-1 xl:overflow-hidden"
+                        ? "min-h-[15rem] grid-rows-[minmax(8rem,1fr)_minmax(6rem,min(18rem,40%))] overflow-x-hidden overflow-y-auto xl:grid-cols-[minmax(0,1fr)_clamp(22rem,30vw,30rem)] xl:grid-rows-1 xl:overflow-hidden"
                         : "min-h-[28rem] grid-rows-[minmax(0,1fr)] overflow-hidden xl:grid-cols-1 xl:grid-rows-1"
                 }`}
                 data-testid="transaction-grid-shell"

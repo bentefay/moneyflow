@@ -316,7 +316,7 @@ export function TransactionInspector({
             aria-labelledby="transaction-inspector-title"
             className={cn(
                 "bg-background border-border h-full min-h-0 min-w-0 overflow-y-auto rounded-lg border",
-                "xl:h-auto xl:w-[clamp(18rem,24vw,24rem)]",
+                "xl:h-auto xl:w-[clamp(22rem,30vw,30rem)]",
                 className
             )}
             data-testid="transaction-inspector"

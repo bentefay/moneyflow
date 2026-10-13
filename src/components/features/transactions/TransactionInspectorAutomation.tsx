@@ -372,6 +372,30 @@ function foldedRuleIds(
     }
 }
 
+/**
+ * The proposal card's heading. Updating an output the rule already has edits that rule, so it reads
+ * as the rule itself; adding an output to a rule names the output being added.
+ */
+function proposalTitle(
+    kind: RuleExtensionTarget["kind"],
+    field: RuleField,
+    conditions: string
+): RuleEditorTitle {
+    switch (kind) {
+        case "create":
+            return { kind: "new" };
+        case "update-owner":
+            return { kind: "rule", conditions };
+        case "ineligible":
+        case "extend":
+        case "conflict":
+        case "ambiguous":
+            return { kind: "extend", field, conditions };
+        default:
+            return assertNever(kind);
+    }
+}
+
 /** The proposal card's `data-kind`, kept from the per-field proposal so specs can read the ladder. */
 function proposalKind(target: RuleExtensionTarget): string {
     switch (target.kind) {
@@ -520,13 +544,11 @@ function InspectorProposalCard(props: {
 
     const title = useMemo<RuleEditorTitle>(
         () =>
-            target.kind === "create"
-                ? { kind: "new" }
-                : {
-                      kind: "extend",
-                      field,
-                      conditions: ruleConditionsLabel(predicate, options.accounts, currencyCode)
-                  },
+            proposalTitle(
+                target.kind,
+                field,
+                ruleConditionsLabel(predicate, options.accounts, currencyCode)
+            ),
         [currencyCode, field, options.accounts, predicate, target.kind]
     );
     const transaction = useMemo(
