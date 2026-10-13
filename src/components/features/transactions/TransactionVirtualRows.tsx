@@ -77,6 +77,8 @@ export interface TransactionVirtualRowsProps {
      * grid deriving a second scroll-offset formula.
      */
     readonly scrollToRowIndex: number | null;
+    /** Drawn over the rows in their own coordinate space, where row `n` starts at `n` row heights. */
+    readonly overlay?: React.ReactNode;
     /** Reports that {@link TransactionVirtualRowsProps.scrollToRowIndex} has been applied. */
     readonly onScrollToRowIndexApplied: () => void;
 }
@@ -92,6 +94,7 @@ export function TransactionVirtualRows({
     getRowKey,
     onScrollToRowIndexApplied,
     onVisibleRangeChange,
+    overlay,
     overscan,
     rangeExtractor,
     renderRow,
@@ -150,6 +153,7 @@ export function TransactionVirtualRows({
                     {renderRow(virtualRow.index, position === 0, viewportRowDistance)}
                 </div>
             ))}
+            {overlay}
         </div>
     );
 }

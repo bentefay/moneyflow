@@ -500,24 +500,31 @@ test.describe("Transaction grid structure", () => {
             expect(logicalColumnCount).toBe(9);
         });
 
-        await test.step("selected chrome computes to a real inset shadow in both themes", async () => {
+        await test.step("a selection draws one visible outline in both themes", async () => {
             const dateCell = row.locator('[role="gridcell"][data-cell="date"]');
             await dateCell.click({ position: { x: 1, y: 1 } });
-            const shadows = await dateCell.evaluate((element) => {
+            const outline = page.getByTestId("cell-selection-outline");
+            await expect(outline).toHaveCount(1);
+            const outlines = await outline.evaluate((element) => {
                 const root = element.ownerDocument.documentElement;
                 const originallyDark = root.classList.contains("dark");
-                const shadowFor = (dark: boolean): string => {
+                const outlineFor = (dark: boolean) => {
                     root.classList.toggle("dark", dark);
-                    return getComputedStyle(element).boxShadow;
+                    const styles = getComputedStyle(element);
+                    return {
+                        color: styles.outlineColor,
+                        style: styles.outlineStyle,
+                        width: Number.parseFloat(styles.outlineWidth)
+                    };
                 };
-                const result = [shadowFor(false), shadowFor(true)];
+                const result = [outlineFor(false), outlineFor(true)];
                 root.classList.toggle("dark", originallyDark);
                 return result;
             });
-            expect(shadows).toHaveLength(2);
-            for (const shadow of shadows) {
-                expect(shadow).not.toBe("none");
-                expect(shadow).toContain("inset");
+            for (const drawn of outlines) {
+                expect(drawn.width).toBe(2);
+                expect(drawn.style).not.toBe("none");
+                expect(drawn.color).not.toMatch(/rgba\([^)]*,\s*0\)$/);
             }
         });
 
@@ -673,6 +680,39 @@ test.describe("Transaction grid structure", () => {
             }
             await expect(cellOf(topId, "date")).toBeFocused();
             expect(await nativeSelectionText(page)).toBe("");
+        });
+
+        await test.step("adjacent selected cells share one outline centred on the grid lines", async () => {
+            await cellOf(topId, "description").click();
+            await cellOf(middleId, "account").click({ modifiers: ["Shift"] });
+            const outline = page.getByTestId("cell-selection-outline");
+            await expect(outline).toHaveCount(1);
+            const [outlineBox, topLeft, bottomRight] = await Promise.all([
+                outline.boundingBox(),
+                cellOf(topId, "description").boundingBox(),
+                cellOf(middleId, "account").boundingBox()
+            ]);
+            if (outlineBox == null || topLeft == null || bottomRight == null) {
+                throw new Error("selection geometry is not laid out");
+            }
+            // The outline's box runs through the middle of each 1px grid line around the 2x2: the
+            // line before the first cell, and the last pixel of the final cell.
+            expect(outlineBox.x).toBeCloseTo(topLeft.x - 0.5, 1);
+            expect(outlineBox.y).toBeCloseTo(topLeft.y - 0.5, 1);
+            expect(outlineBox.x + outlineBox.width).toBeCloseTo(
+                bottomRight.x + bottomRight.width - 0.5,
+                1
+            );
+            expect(outlineBox.y + outlineBox.height).toBeCloseTo(
+                bottomRight.y + bottomRight.height - 0.5,
+                1
+            );
+            for (const cell of [cellOf(topId, "account"), cellOf(middleId, "description")]) {
+                await expect(cell).toHaveAttribute("aria-selected", "true");
+                expect(await cell.evaluate((element) => getComputedStyle(element).boxShadow)).toBe(
+                    "none"
+                );
+            }
         });
 
         await test.step("click then Shift-click extends from the anchor without text highlighting", async () => {

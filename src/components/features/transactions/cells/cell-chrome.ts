@@ -23,13 +23,16 @@ export const TRANSACTION_GRID_EDITOR_INLINE_CHROME = "px-0 has-[>svg]:px-0";
 export const TRANSACTION_GRIDCELL_CHROME =
     "relative flex h-full min-h-0 min-w-0 items-center overflow-hidden rounded-none border-r border-b border-border/60 px-2 outline-none hover:bg-accent/30 has-[[aria-invalid=true]]:z-[3] has-[[aria-invalid=true]]:ring-2 has-[[aria-invalid=true]]:ring-destructive has-[[aria-invalid=true]]:ring-inset";
 
-/** Canonical selected-cell paint while the grid owns the interaction. */
+/**
+ * Canonical selected-cell tint while the grid owns the interaction. The outline is drawn once per
+ * rectangle by `TransactionSelectionOverlay`, so adjacent selected cells share their borders.
+ */
 export const TRANSACTION_GRIDCELL_VISIBLE_SELECTION_CHROME =
-    "aria-selected:z-[1] aria-selected:bg-primary/10 aria-selected:shadow-[inset_0_0_0_2px_color-mix(in_oklch,var(--primary)_55%,transparent)] dark:aria-selected:bg-primary/15";
+    "aria-selected:bg-primary/10 dark:aria-selected:bg-primary/15";
 
-/** Layout-neutral retained selection while the inspector owns the interaction. */
+/** Layout-neutral retained selection tint while the inspector owns the interaction. */
 export const TRANSACTION_GRIDCELL_MUTED_SELECTION_CHROME =
-    "aria-selected:z-[1] aria-selected:bg-primary/5 aria-selected:shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--primary)_30%,transparent)] dark:aria-selected:bg-primary/10";
+    "aria-selected:bg-primary/5 dark:aria-selected:bg-primary/10";
 
 /** Whole-cell focus paint, omitted while a retained range is parked behind a descendant. */
 export const TRANSACTION_GRIDCELL_FOCUS_CHROME =

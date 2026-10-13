@@ -75,6 +75,7 @@ import {
     type TransactionRowData,
     type TransactionRowPresence
 } from "./TransactionRow";
+import { TransactionSelectionOverlay } from "./TransactionSelectionOverlay";
 import { TransactionVirtualRows } from "./TransactionVirtualRows";
 
 /**
@@ -1026,6 +1027,15 @@ export function TransactionTable({
                             scrollToRowIndex={scrollToRowIndex}
                             onScrollToRowIndexApplied={handleScrollToRowIndexApplied}
                             renderRow={renderRow}
+                            overlay={
+                                <TransactionSelectionOverlay
+                                    table={table}
+                                    rowIndexes={rowWindow.indexes}
+                                    rowHeight={TRANSACTION_MAIN_ROW_HEIGHT_PX}
+                                    selectionVisibility={controllerSnapshot.selectionVisibility}
+                                    gridTemplateColumns={gridTemplateColumns}
+                                />
+                            }
                         />
                     </div>
                 </div>
