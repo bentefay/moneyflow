@@ -12,6 +12,7 @@ import { type Temporal } from "temporal-polyfill";
 import { assertNever } from "@/lib/utils/exhaustive";
 
 import { type ApplyScope } from "./apply-mode";
+import { type RuleSource, rulesKeyedOnText } from "./rule-index";
 import {
     type FieldRule,
     isOnOrAfterTransactionDate,
@@ -104,8 +105,10 @@ export function populationFieldValue(
 export interface RulePopulationQuery {
     /** The rule as Apply would leave it. Replaces any rule in `rules` with the same id. */
     readonly rule: FieldRule;
-    /** The other active rules, which can outrank `rule` on a field. */
-    readonly rules: readonly FieldRule[];
+    /** The other active rules, which can outrank `rule` on a field. A list or its index. */
+    readonly rules: RuleSource;
+    /** Rules in `rules` that Apply deletes, such as the owner a conflict move empties. */
+    readonly excludedRuleIds?: ReadonlySet<string>;
     readonly transactions: readonly RulePopulationTransaction[];
     readonly scope: ApplyScope;
     /**
@@ -122,7 +125,15 @@ export interface RulePopulationQuery {
 export function countRulePopulation(query: RulePopulationQuery): number {
     const { rule, scope, referenceDate } = query;
     if (scope === "new" && referenceDate == null) return 0;
-    const rules = [...query.rules.filter((candidate) => candidate.id !== rule.id), rule];
+    // Only rules keyed on the same text can match where `rule` does, so no other rule can outrank
+    // it anywhere it could win. Narrowing once here keeps every per-row selection small.
+    const excluded = query.excludedRuleIds;
+    const rules = [
+        ...rulesKeyedOnText(query.rules, rule.descriptionText).filter(
+            (candidate) => candidate.id !== rule.id && !(excluded?.has(candidate.id) ?? false)
+        ),
+        rule
+    ];
     const fields = RULE_FIELDS.filter((field) => rule.outputs[field] != null);
     return query.transactions.filter((transaction) => {
         if (

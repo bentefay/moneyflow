@@ -19,6 +19,7 @@ import { buildTransactionIndex, createTransactionCursor } from "@/lib/crdt/trans
 import { AllocationPercentageSchema } from "@/lib/domain/allocation";
 import type { RuleExtensionTarget } from "@/lib/domain/automation/extension";
 import { DEFAULT_REMEMBERED_CHOICE } from "@/lib/domain/automation/preferences";
+import { buildRuleIndex } from "@/lib/domain/automation/rule-index";
 import { type FieldRule, FieldRuleIdSchema } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 
@@ -64,6 +65,8 @@ function existingRule(): FieldRule {
 
 vi.mock("@/lib/crdt", () => ({
     useActiveFieldRules: () => (workflowMocks.existingRuleVisible.current ? [existingRule()] : []),
+    useActiveFieldRuleIndex: () =>
+        buildRuleIndex(workflowMocks.existingRuleVisible.current ? [existingRule()] : []),
     useRulePopulation: () => []
 }));
 

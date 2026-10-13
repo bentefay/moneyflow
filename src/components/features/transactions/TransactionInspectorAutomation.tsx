@@ -15,7 +15,7 @@
 import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Temporal } from "temporal-polyfill";
 
-import { useActiveFieldRules } from "@/lib/crdt";
+import { useActiveFieldRuleIndex } from "@/lib/crdt";
 import type { RuleExtensionTarget } from "@/lib/domain/automation/extension";
 import {
     type FieldRule,
@@ -711,7 +711,7 @@ export function TransactionInspectorAutomation({
         });
     }, [applyProposal, controller, dismiss, finalizes, owner]);
 
-    const rules = useActiveFieldRules();
+    const rules = useActiveFieldRuleIndex();
     const cardStates = useMemo(
         () => computeRuleCardStates(rules, context.subject, context.currents),
         [context.currents, context.subject, rules]
