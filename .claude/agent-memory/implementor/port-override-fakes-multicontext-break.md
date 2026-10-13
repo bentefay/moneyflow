@@ -23,5 +23,4 @@ suspecting your change.
 
 **How to apply:** if that pattern reappears, run `grep -rn 'localhost:3000' tests/e2e` to find a
 spec that bypasses the helper. Related: [[e2e-port-3000-serializes-campaigns]],
-[[port-discipline-is-cpu-discipline]],
-[[unresolvable-fixture-mimics-broken-product]].
+[[port-discipline-is-cpu-discipline]], [[unresolvable-fixture-mimics-broken-product]].
