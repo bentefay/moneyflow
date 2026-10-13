@@ -205,9 +205,10 @@ export function useTransactionRuleWorkflow(params: {
         [resetDraft, rule.id, split]
     );
 
+    // The row's own account and date locate it in one day bucket instead of walking the vault.
     const applyThis = useCallback(() => {
-        applyToTransaction(transactionId);
-    }, [applyToTransaction, transactionId]);
+        applyToTransaction({ transactionId, location: { accountId, date: referenceDate } });
+    }, [accountId, applyToTransaction, referenceDate, transactionId]);
 
     return {
         draft,

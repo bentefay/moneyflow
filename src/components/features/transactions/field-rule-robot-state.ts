@@ -18,6 +18,7 @@
  */
 
 import { ruleOutputAgrees, type RuleFieldValue } from "@/lib/domain/automation/population";
+import { type RuleSource } from "@/lib/domain/automation/rule-index";
 import {
     type FieldRule,
     type RuleField,
@@ -43,7 +44,7 @@ export type RobotCurrentValue = RuleFieldValue;
  * matches `subject`.
  */
 export function computeFieldRuleRobotState(
-    rules: readonly FieldRule[],
+    rules: RuleSource,
     subject: RuleMatchSubject,
     current: RobotCurrentValue
 ): FieldRuleRobotState {
@@ -69,7 +70,7 @@ export interface RuleCardState {
  * marker, because applying the rule would not change it.
  */
 export function computeRuleCardStates(
-    rules: readonly FieldRule[],
+    rules: RuleSource,
     subject: RuleMatchSubject,
     currents: readonly RobotCurrentValue[]
 ): readonly RuleCardState[] {

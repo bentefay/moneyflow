@@ -28,6 +28,7 @@ import {
     type LegacyAutomationView
 } from "@/lib/domain/automation/migration";
 import { type RulePopulationTransaction } from "@/lib/domain/automation/population";
+import { buildRuleIndex, type RuleSource } from "@/lib/domain/automation/rule-index";
 import {
     decodeFieldRule,
     encodeFieldRule,
@@ -186,7 +187,7 @@ export interface BulkFieldRuleEntry {
  */
 export function applyFieldRulesToTransaction(
     state: VaultState,
-    rules: readonly FieldRule[],
+    rules: RuleSource,
     transaction: Transaction
 ): readonly AppliedFieldRuleOutcome[] {
     const target = targetForTransaction(transaction, state.descriptionAliases);
@@ -246,13 +247,15 @@ function applyToTransactions(
 ): readonly BulkFieldRuleEntry[] {
     const rules = readActiveFieldRules(state);
     if (rules.length === 0) return [];
+    // One index per bulk call: each row then tests only the rules sharing its description text.
+    const index = buildRuleIndex(rules);
     return transactions.map((transaction) => ({
         location: {
             accountId: transaction.accountId,
             date: transaction.date,
             transactionId: transaction.id
         },
-        outcomes: applyFieldRulesToTransaction(state, rules, transaction)
+        outcomes: applyFieldRulesToTransaction(state, index, transaction)
     }));
 }
 

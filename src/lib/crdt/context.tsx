@@ -23,6 +23,7 @@ import { Temporal } from "temporal-polyfill";
 
 import { type RulePopulationTransaction } from "@/lib/domain/automation/population";
 import { type RememberedRuleChoice } from "@/lib/domain/automation/preferences";
+import { buildRuleIndex, type RuleIndex } from "@/lib/domain/automation/rule-index";
 import { type FieldRule } from "@/lib/domain/automation/rules";
 import { type DateFormatPreference } from "@/lib/domain/date-format-preference";
 import {
@@ -33,6 +34,7 @@ import {
 
 import {
     applyFieldRulesToSingleTransaction,
+    type ApplyFieldRulesToTransactionInput,
     type ApplyFieldRulesToTransactionResult
 } from "./apply-field-rule-to-transaction";
 import {
@@ -1183,6 +1185,16 @@ export function useActiveFieldRules(): readonly FieldRule[] {
 }
 
 /**
+ * The active field rules indexed by description text, rebuilt only when the decoded rule list
+ * changes. Hand it to the engine wherever winners, targets or counts are computed per render, so
+ * each subject tests only the rules sharing its text.
+ */
+export function useActiveFieldRuleIndex(): RuleIndex {
+    const rules = useActiveFieldRules();
+    return useMemo(() => buildRuleIndex(rules), [rules]);
+}
+
+/**
  * Every active transaction projected for `countRulePopulation`. Memoised on the transaction and
  * alias stores, so a draft edit recounts without re-walking the vault.
  */
@@ -1277,11 +1289,11 @@ export function useApplyFieldRules(): ApplyFieldRuleActions {
  * VaultState so alias application can reach `descriptionAliases`.
  */
 export function useApplyFieldRulesToTransaction(): (
-    transactionId: string
+    input: ApplyFieldRulesToTransactionInput
 ) => ApplyFieldRulesToTransactionResult {
     return useInternalVaultAction(
-        (state, transactionId: string) =>
-            applyFieldRulesToSingleTransaction(state, { transactionId }),
+        (state, input: ApplyFieldRulesToTransactionInput) =>
+            applyFieldRulesToSingleTransaction(state, input),
         [],
         "mutation"
     );

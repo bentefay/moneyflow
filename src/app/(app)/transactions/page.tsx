@@ -108,7 +108,7 @@ import { Temporal } from "temporal-polyfill";
 import { allocationPresenceField } from "@/lib/crdt/allocations";
 import {
     useActiveAccounts,
-    useActiveFieldRules,
+    useActiveFieldRuleIndex,
     useActivePeople,
     useActiveTags,
     useDescriptionAliases,
@@ -828,7 +828,7 @@ function TransactionsPageContent() {
                   notes: transaction.notes
               };
     }, [automationContextFor, findTransaction, gridSnapshot.activeTransactionId]);
-    const activeFieldRules = useActiveFieldRules();
+    const activeFieldRules = useActiveFieldRuleIndex();
     // The toolbar's amber dot: a rule winning a field on the active row disagrees with its value.
     const automationDrift = useMemo(() => {
         const automation = inspectorTransaction?.automation;
