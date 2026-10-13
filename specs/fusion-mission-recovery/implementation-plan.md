@@ -302,3 +302,23 @@ invalid text never blocking movement, action-cell keyboard navigation, no native
 outside editing, rectangular drag selection with Shift-click extension, and inspector scrolling
 containment. Also requested by the user on 2026-10-13 and absent from the Fusion spec: keyboard
 control of the date input. Capture it in behaviour.md section 7 before planning that phase.
+
+## Performance round, 2026-10-13
+
+Commits `8e79dcc`, `13ac88e`, `628b4cf`. Measured before the round at 20,000 rows and 2,000 grouped
+rules on a quiet machine: population count 290 ms, matching every row 1.27 s, apply to this
+transaction 285 ms, Update all 1.8 s. After: 1.6 ms, 4.7 ms, 71 ms (the same as a plain one-row
+write) and 0.56 s. What changed:
+
+- A `RuleIndex` keyed by exact description text, built once per rule-set change and accepted by
+  winner selection, the population count, the extension ladder and bulk apply. Property tests prove
+  the index-backed results equal the list-backed ones; `useActiveFieldRuleIndex()` memoises it.
+- Apply to this transaction resolves the row's location before entering the draft, falling back to
+  the id walk for a stale location.
+- The uniqueness check decodes the rule set once per create.
+- `tests/integration/rule-engine-performance.test.ts` pins ceilings on a 5,000-row, 500-rule vault.
+
+Still outside interaction budget and left as follow-up: Update all and Update new on large vaults
+are bulk CRDT writes, around half a second at 20,000 rows and 2,000 rules, and need a progress
+indicator or chunking rather than a click-and-wait. Creating rules one at a time is still linear in
+the number of existing rules, which only matters for bulk creation.
