@@ -35,7 +35,7 @@ const SAMPLES = 9;
 // Quiet-machine medians after the index: ~1 ms to count, ~2 ms to match every row, and ~1x a
 // plain write for the single-row apply.
 const COUNT_CEILING_MS = 10;
-const MATCH_CEILING_MS = 50;
+const MATCH_CEILING_MS = 15;
 const SINGLE_ROW_RATIO_CEILING = 2;
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
