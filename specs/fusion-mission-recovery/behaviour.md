@@ -190,6 +190,13 @@ incomplete text never blocks moving to another cell.
 **[saved plan]** Numeric cells use the same navigating / quick-edit / full-edit behaviour as the
 description cell, including plain arrows and Alt+Arrow.
 
+**[confirmed]** Agreed on 2026-10-14: while editing text in the description, date, amount or an
+allocation, Left with the caret already at the start of the text, or Right with it already at the
+end, saves and moves to the neighbouring cell, still editing. A held arrow stops at the edge rather
+than running on, the first Left after entering an editor only collapses its whole-text selection,
+and pickers and an open suggestion list keep their arrows (interaction contract TGI-CMD-011
+amendment).
+
 **[proposed]** Normalisation rules, implemented and tested in `src/lib/domain/numeric-text.ts`:
 
 - Only digits, `.` and `-` matter. Letters, spaces, currency symbols, `%`, `+`, parentheses and `,`

@@ -12,6 +12,7 @@ import {
     transactionGridCompositionStartIntent,
     transactionGridKeyContext,
     transactionGridKeyIntent,
+    type TransactionEditorCaret,
     type TransactionGridKeyCellContext,
     type TransactionGridKeyContext,
     type TransactionGridKeyMode
@@ -42,6 +43,8 @@ function key(
         keyCode: number;
         metaKey: boolean;
         shiftKey: boolean;
+        repeat: boolean;
+        caret: TransactionEditorCaret;
     }> = {}
 ) {
     return {
@@ -539,5 +542,51 @@ describe("transaction grid key intent", () => {
                 key("ArrowDown")
             )
         ).toEqual({ kind: "composition-owned" });
+    });
+
+    describe("leaving full edit at the edge of the text", () => {
+        const FULL = keyContext("editing-full");
+        const MOVE_LEFT = { direction: "left", kind: "commit-and-move", preserveEntry: "full" };
+        const MOVE_RIGHT = { direction: "right", kind: "commit-and-move", preserveEntry: "full" };
+
+        it.each([
+            ["Left at the start", "ArrowLeft", { caret: "start" }, MOVE_LEFT],
+            ["Right at the end", "ArrowRight", { caret: "end" }, MOVE_RIGHT],
+            ["Left in empty text", "ArrowLeft", { caret: "start-and-end" }, MOVE_LEFT],
+            ["Right in empty text", "ArrowRight", { caret: "start-and-end" }, MOVE_RIGHT],
+            ["Right at the start", "ArrowRight", { caret: "start" }, { kind: "native" }],
+            ["Left at the end", "ArrowLeft", { caret: "end" }, { kind: "native" }],
+            ["Left inside the text", "ArrowLeft", { caret: "inside" }, { kind: "native" }],
+            [
+                "a held Left at the start",
+                "ArrowLeft",
+                { caret: "start", repeat: true },
+                { kind: "native" }
+            ],
+            [
+                "Shift+Left at the start",
+                "ArrowLeft",
+                { caret: "start", shiftKey: true },
+                { kind: "native" }
+            ],
+            [
+                "a picker or open suggestion list",
+                "ArrowLeft",
+                { caret: "none" },
+                { kind: "native" }
+            ],
+            ["an editor that reports no caret", "ArrowRight", {}, { kind: "native" }]
+        ] as const)("%s", (_name, value, modifiers, expected) => {
+            expect(transactionGridKeyIntent(FULL, key(value, modifiers))).toEqual(expected);
+        });
+
+        it("keeps quick entry's existing arrow movement regardless of the caret", () => {
+            expect(
+                transactionGridKeyIntent(
+                    keyContext("editing-quick"),
+                    key("ArrowLeft", { caret: "inside" })
+                )
+            ).toEqual({ direction: "left", kind: "commit-and-move", preserveEntry: "quick" });
+        });
     });
 });

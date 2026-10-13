@@ -17,6 +17,7 @@ import {
     transactionGridKeyIntent,
     type TransactionColumnInteractionMeta,
     type TransactionEditEntry,
+    type TransactionEditorCaret,
     type TransactionGridAddress,
     type TransactionGridKeyIntent,
     type TransactionSelectionVisibility,
@@ -224,6 +225,33 @@ function isAltArrowEvent(event: {
             event.key === "ArrowRight" ||
             event.key === "ArrowUp")
     );
+}
+
+/** Column editors whose text field may hand a boundary arrow to the grid; pickers keep theirs. */
+const EDGE_LEAVING_EDIT_KINDS: ReadonlySet<TransactionColumnInteractionMeta["editKind"]> = new Set([
+    "amount",
+    "allocation",
+    "date",
+    "description"
+]);
+
+/** Where a collapsed caret sits in a plain text editor, for leaving it with a boundary arrow. */
+function editorCaret(
+    target: HTMLElement,
+    editKind: TransactionColumnInteractionMeta["editKind"]
+): TransactionEditorCaret {
+    if (!EDGE_LEAVING_EDIT_KINDS.has(editKind) || !(target instanceof HTMLInputElement)) {
+        return "none";
+    }
+    // An open suggestion list owns the arrows, as in the description's alias autocomplete.
+    if (target.type !== "text" || target.getAttribute("aria-expanded") === "true") return "none";
+    const start = target.selectionStart;
+    if (start == null || start !== target.selectionEnd) return "none";
+    const atStart = start === 0;
+    const atEnd = start === target.value.length;
+    if (atStart && atEnd) return "start-and-end";
+    if (atStart) return "start";
+    return atEnd ? "end" : "inside";
 }
 
 function editorText(element: HTMLElement): string | null {
@@ -1182,11 +1210,13 @@ export function TransactionGridCell({
             }
             const intent = transactionGridKeyIntent(context, {
                 altKey: event.altKey,
+                caret: editorCaret(target, interaction.editKind),
                 ctrlKey: event.ctrlKey,
                 isComposing: event.nativeEvent.isComposing,
                 key: event.key,
                 keyCode: event.keyCode,
                 metaKey: event.metaKey,
+                repeat: event.repeat,
                 shiftKey: event.shiftKey
             });
             if (intent.kind === "open-interaction") {

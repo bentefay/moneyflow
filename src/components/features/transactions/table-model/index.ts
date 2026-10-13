@@ -109,6 +109,7 @@ export {
     type TransactionGridFollowUpIntent,
     type TransactionGridKeyCellContext,
     type TransactionGridKeyContext,
+    type TransactionEditorCaret,
     type TransactionGridKeyEvent,
     type TransactionGridKeyIntent,
     type TransactionGridKeyMode,

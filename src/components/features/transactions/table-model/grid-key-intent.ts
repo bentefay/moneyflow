@@ -110,6 +110,12 @@ export function transactionGridKeyContext(
     return { cell, mode: "interacting-inspector" };
 }
 
+/**
+ * Where a text editor's caret sits, for leaving it with a plain arrow. `none` means the editor is
+ * not a plain text field (a picker, a list, an open suggestion list), so arrows stay native.
+ */
+export type TransactionEditorCaret = "none" | "inside" | "start" | "end" | "start-and-end";
+
 export interface TransactionGridKeyEvent {
     readonly key: string;
     readonly altKey: boolean;
@@ -118,6 +124,24 @@ export interface TransactionGridKeyEvent {
     readonly shiftKey: boolean;
     readonly isComposing: boolean;
     readonly keyCode: number;
+    /** Whether the key is auto-repeating; a held arrow never carries the caret out of the text. */
+    readonly repeat?: boolean;
+    /** Where a collapsed caret sits in the focused text editor; absent outside editors. */
+    readonly caret?: TransactionEditorCaret;
+}
+
+/**
+ * Full edit gives Left and Right to the caret, except that a fresh press with a collapsed caret
+ * already at that end of the text leaves the cell (TGI-CMD-011 as amended).
+ */
+function leavesTextAtEdge(
+    event: TransactionGridKeyEvent,
+    direction: CellSelectionDirection
+): boolean {
+    if (event.repeat === true || event.shiftKey) return false;
+    if (direction === "left") return event.caret === "start" || event.caret === "start-and-end";
+    if (direction === "right") return event.caret === "end" || event.caret === "start-and-end";
+    return false;
 }
 
 export type TransactionGridFollowUpIntent =
@@ -331,7 +355,7 @@ function plainNavigationIntent(
         if (isPrimaryModified(event)) return { kind: "native" };
         if (context.mode === "editing-full" && !event.altKey) {
             const horizontal = direction === "left" || direction === "right";
-            if (horizontal) return { kind: "native" };
+            if (horizontal && !leavesTextAtEdge(event, direction)) return { kind: "native" };
         }
         return movementIntent(context, direction, event.shiftKey);
     }

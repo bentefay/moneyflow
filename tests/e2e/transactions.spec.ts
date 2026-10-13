@@ -1962,6 +1962,49 @@ test.describe("Transactions", () => {
                 await page.keyboard.press("Escape");
                 await expect(amountCell(otherRow)).toBeFocused();
             });
+
+            await test.step("full edit leaves the text with a fresh arrow at its edge", async () => {
+                const descriptionCell = transactionGridCell(otherRow, "description");
+                const descriptionInput = otherRow.getByTestId("description-editable");
+                await descriptionCell.dblclick();
+                await expect(descriptionInput).toBeFocused();
+
+                // Full edit starts with everything selected, so the first Left only collapses it.
+                await page.keyboard.press("ArrowLeft");
+                await expect(descriptionInput).toBeFocused();
+                await page.keyboard.press("ArrowLeft");
+                await expect(
+                    transactionGridCell(otherRow, "date").getByTestId("date-editable")
+                ).toBeFocused();
+                await page.keyboard.press("Escape");
+                await expect(transactionGridCell(otherRow, "date")).toBeFocused();
+
+                await amountCell(otherRow).press("Enter");
+                const amountInput = amountCell(otherRow).getByTestId("amount-editable");
+                await expect(amountInput).toBeFocused();
+                await page.keyboard.press("End");
+                await page.keyboard.press("ArrowRight");
+                await expect(transactionGridCell(otherRow, "actions")).toBeFocused();
+            });
+
+            await test.step("a held arrow stops at the edge instead of carrying into the next cell", async () => {
+                const descriptionCell = transactionGridCell(otherRow, "description");
+                const descriptionInput = otherRow.getByTestId("description-editable");
+                await descriptionCell.dblclick();
+                await expect(descriptionInput).toBeFocused();
+                await page.keyboard.press("End");
+                // Auto-repeat: every press after the first reports `repeat`.
+                for (let press = 0; press < 15; press += 1) await page.keyboard.down("ArrowLeft");
+                await page.keyboard.up("ArrowLeft");
+                await expect(descriptionInput).toBeFocused();
+                expect(
+                    await descriptionInput.evaluate((element) =>
+                        element instanceof HTMLInputElement ? element.selectionStart : null
+                    )
+                ).toBe(0);
+                await page.keyboard.press("Escape");
+                await expect(descriptionCell).toBeFocused();
+            });
         });
 
         test("status dropdown arrow keys navigate grid, not open dropdown", async ({ page }) => {
