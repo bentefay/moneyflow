@@ -175,6 +175,31 @@ test.describe("Automations", () => {
             await expect(transactionGridCell(other, "tags")).not.toContainText("Coffee");
         });
 
+        await test.step("Split is withheld while the draft differs from the stored rule", async () => {
+            await goToAutomations(page);
+            await ruleListItems(page, "COFFEE SHOP 123").click();
+            const splitButtons = page.getByRole("button", {
+                name: /^split .* into its own rule$/i
+            });
+            await expect(splitButtons).toHaveCount(2);
+
+            // An unsaved value edit would be discarded by Split, so Split goes away until reverted.
+            await page.getByRole("button", { name: "Edit Allocation" }).click();
+            const alex = page.getByTestId("rule-allocation-grid").getByLabel("Alex");
+            await alex.fill("50");
+            await expect(splitButtons).toHaveCount(0);
+            await alex.fill("40");
+            await expect(splitButtons).toHaveCount(2);
+
+            // An output added but not saved is pending, and nothing is offered for splitting.
+            await addOutput(page, "Description");
+            await expect(page.getByTestId("rule-output-descriptionAlias")).toContainText("pending");
+            await expect(splitButtons).toHaveCount(0);
+
+            await page.getByTestId("rule-cancel").click();
+            await expect(ruleListItems(page, "COFFEE SHOP 123")).toHaveCount(1);
+        });
+
         await test.step("Split moves tags into a new selected rule and changes no row", async () => {
             await goToAutomations(page);
             await ruleListItems(page, "COFFEE SHOP 123").click();

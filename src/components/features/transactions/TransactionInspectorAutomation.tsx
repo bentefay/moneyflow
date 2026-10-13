@@ -254,7 +254,11 @@ function InspectorRuleCard(props: {
                           setSplitField(null);
                           workflow.split(splitField);
                       },
-                      onCancel: () => setSplitField(null)
+                      // Back unmounts the focused button, so focus moves to the heading first.
+                      onCancel: () => {
+                          focusHeading();
+                          setSplitField(null);
+                      }
                   },
         [focusHeading, splitField, workflow]
     );
@@ -370,7 +374,7 @@ function proposalKind(target: RuleExtensionTarget): string {
 function editorResolution(
     target: RuleExtensionTarget,
     resolution: RuleProposalResolution | null,
-    workflow: FieldRuleProposalWorkflow,
+    setResolution: FieldRuleProposalWorkflow["setResolution"],
     options: RuleEditorOptions
 ): RuleEditorResolution | undefined {
     const option = (rule: FieldRule): RuleEditorOption => ({
@@ -383,8 +387,8 @@ function editorResolution(
             owner: option(target.owner),
             host: option(target.host),
             choice: resolution?.kind === "conflict" ? resolution.choice : "keep",
-            onChoose: (choice) => workflow.setResolution({ kind: "conflict", choice }),
-            ownerKeepsOtherOutputs: ruleOutputFields(target.owner).length > 1
+            onChoose: (choice) => setResolution({ kind: "conflict", choice }),
+            ownerKeepsOutputs: ruleOutputFields(target.owner).length > 1
         };
     }
     if (target.kind === "ambiguous") {
@@ -395,7 +399,7 @@ function editorResolution(
                 summary: ruleOutputsSummary(rule, options)
             })),
             choice: resolution?.kind === "ambiguous" ? resolution.ruleId : null,
-            onChoose: (ruleId) => workflow.setResolution({ kind: "ambiguous", ruleId })
+            onChoose: (ruleId) => setResolution({ kind: "ambiguous", ruleId })
         };
     }
     return undefined;
@@ -506,7 +510,11 @@ function InspectorProposalCard(props: {
         () => transactionConditions(context, currencyCode),
         [context, currencyCode]
     );
-    const editorResolutionProps = editorResolution(target, resolution, workflow, options);
+    const { setResolution } = workflow;
+    const editorResolutionProps = useMemo(
+        () => editorResolution(target, resolution, setResolution, options),
+        [options, resolution, setResolution, target]
+    );
     const noop = useCallback(() => {}, []);
 
     return (
