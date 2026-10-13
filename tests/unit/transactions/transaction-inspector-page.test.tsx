@@ -117,10 +117,18 @@ async function reconcileOwnedInspectorToEmpty(
     return heading;
 }
 
+/** The toolbar's shortcut tooltips open on focus, and Radix measures their arrow. */
+class ResizeObserverMock {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+}
+
 describe("transactions page inspector shell", () => {
     let restoreLayout: () => void;
 
     beforeEach(() => {
+        vi.stubGlobal("ResizeObserver", ResizeObserverMock);
         restoreLayout = installVirtualGridLayout();
         gridControllerProbe.current = null;
         identityMock.pubkeyHash = "viewer";
@@ -130,6 +138,7 @@ describe("transactions page inspector shell", () => {
     afterEach(() => {
         cleanup();
         restoreLayout();
+        vi.unstubAllGlobals();
     });
 
     // This whole-page journey completes in 1.61–1.65s across six quiet runs, but reached 5.17s

@@ -22,6 +22,7 @@ import {
     LogOut,
     Menu,
     Receipt,
+    Search,
     Settings,
     Tags,
     TextCursorInput,
@@ -31,7 +32,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 
-import { CommandRegistryProvider, GlobalCommands } from "@/components/features/commands";
+import {
+    CommandRegistryProvider,
+    GlobalCommands,
+    ShortcutTooltip,
+    useCommandSurfaces,
+    useShortcutPlatform
+} from "@/components/features/commands";
 import { ImportFileTransferProvider } from "@/components/features/import/ImportFileTransferProvider";
 import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvatarGroup";
 import { UndoCommands, UndoControls } from "@/components/features/undo/UndoControls";
@@ -44,12 +51,14 @@ import {
 } from "@/components/providers/vault-presence-provider";
 import { VaultProvider } from "@/components/providers/vault-provider";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SyncStatus } from "@/components/ui/sync-status";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useActiveVault } from "@/hooks/use-active-vault";
 import { SyncStatusProvider, usePollUnsavedChanges, useSyncStatus } from "@/hooks/use-sync-status";
 import { AuthGuard } from "@/lib/auth";
+import { formatBinding, GLOBAL_COMMANDS } from "@/lib/commands";
 import { usePeople, useVaultPreferences } from "@/lib/crdt/context";
 import { resolveMemberDisplayName } from "@/lib/crdt/person";
 import { clearSession } from "@/lib/crypto/session";
@@ -193,6 +202,13 @@ function AppLayoutContent({
                     />
                 ))}
             </nav>
+
+            <div className="p-2 pt-0">
+                <CommandPaletteButton
+                    isCollapsed={!isMobile && isCollapsed}
+                    onClick={isMobile ? handleMobileNavClick : undefined}
+                />
+            </div>
 
             {/* Bottom Navigation */}
             <nav className="space-y-1 border-t p-2">
@@ -374,6 +390,54 @@ function AppLayoutContent({
                 </ImportFileTransferProvider>
             </main>
         </div>
+    );
+}
+
+/** The visible way into the command palette, labelled with its shortcut. */
+function CommandPaletteButton({
+    isCollapsed,
+    onClick
+}: {
+    isCollapsed: boolean;
+    onClick?: () => void;
+}) {
+    const { openPalette } = useCommandSurfaces();
+    const platform = useShortcutPlatform();
+    const shortcut = formatBinding(GLOBAL_COMMANDS.commandPalette.shortcut.keys[0], platform);
+
+    const button = (
+        <Button
+            variant="ghost"
+            onClick={() => {
+                onClick?.();
+                openPalette();
+            }}
+            aria-label="Commands"
+            aria-keyshortcuts={platform === "mac" ? "Meta+K" : "Control+K"}
+            data-testid="command-palette-button"
+            className={cn(
+                "text-muted-foreground hover:text-accent-foreground w-full min-w-0 justify-start overflow-hidden font-medium",
+                isCollapsed && "justify-center"
+            )}
+        >
+            <Search className="h-4 w-4 shrink-0" />
+            {!isCollapsed && (
+                <>
+                    <span className="min-w-0 overflow-hidden whitespace-nowrap">Commands</span>
+                    <Kbd className="ml-auto">{shortcut}</Kbd>
+                </>
+            )}
+        </Button>
+    );
+
+    return (
+        <ShortcutTooltip
+            label="Commands"
+            shortcut={GLOBAL_COMMANDS.commandPalette.shortcut}
+            side="right"
+        >
+            {button}
+        </ShortcutTooltip>
     );
 }
 

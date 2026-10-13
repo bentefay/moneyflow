@@ -9,7 +9,9 @@
 import { PanelRight, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { ShortcutTooltip } from "@/components/features/commands";
 import { Button } from "@/components/ui/button";
+import { TRANSACTION_COMMANDS } from "@/lib/commands";
 import { cn } from "@/lib/utils";
 
 export interface TransactionTableToolbarProps {
@@ -66,41 +68,51 @@ export function TransactionTableToolbar({
             data-testid="transaction-table-toolbar"
         >
             {/* Add transaction button */}
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={onAddClick}
-                className="text-muted-foreground hover:text-foreground gap-2"
-                data-testid="add-transaction-button"
+            <ShortcutTooltip
+                label="Add transaction"
+                shortcut={TRANSACTION_COMMANDS.addTransaction.shortcut}
             >
-                <Plus className="h-4 w-4" />
-                <span>Add transaction</span>
-            </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onAddClick}
+                    className="text-muted-foreground hover:text-foreground gap-2"
+                    data-testid="add-transaction-button"
+                >
+                    <Plus className="h-4 w-4" />
+                    <span>Add transaction</span>
+                </Button>
+            </ShortcutTooltip>
 
-            <Button
-                aria-controls="transaction-inspector"
-                aria-expanded={inspectorOpen}
-                aria-label={
-                    pendingWhileClosed ? "Inspector, automation proposal pending" : "Inspector"
-                }
-                className="text-muted-foreground hover:text-foreground gap-2"
-                data-testid="transaction-inspector-toggle"
-                onClick={() => onInspectorOpenChange(!inspectorOpen)}
-                size="sm"
-                type="button"
-                variant="ghost"
+            <ShortcutTooltip
+                label={inspectorOpen ? "Close inspector" : "Open inspector"}
+                shortcut={TRANSACTION_COMMANDS.toggleInspector.shortcut}
             >
-                <PanelRight className="h-4 w-4" />
-                <span>Inspector</span>
-                {pendingWhileClosed ? (
-                    <span
-                        aria-hidden="true"
-                        className="bg-primary size-2 rounded-full"
-                        data-testid="transaction-inspector-automation-badge"
-                        title="Automation proposal pending"
-                    />
-                ) : null}
-            </Button>
+                <Button
+                    aria-controls="transaction-inspector"
+                    aria-expanded={inspectorOpen}
+                    aria-label={
+                        pendingWhileClosed ? "Inspector, automation proposal pending" : "Inspector"
+                    }
+                    className="text-muted-foreground hover:text-foreground gap-2"
+                    data-testid="transaction-inspector-toggle"
+                    onClick={() => onInspectorOpenChange(!inspectorOpen)}
+                    size="sm"
+                    type="button"
+                    variant="ghost"
+                >
+                    <PanelRight className="h-4 w-4" />
+                    <span>Inspector</span>
+                    {pendingWhileClosed ? (
+                        <span
+                            aria-hidden="true"
+                            className="bg-primary size-2 rounded-full"
+                            data-testid="transaction-inspector-automation-badge"
+                            title="Automation proposal pending"
+                        />
+                    ) : null}
+                </Button>
+            </ShortcutTooltip>
             <span
                 aria-atomic="true"
                 className="sr-only"

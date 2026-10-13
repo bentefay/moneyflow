@@ -8,8 +8,7 @@ import {
     CommandGroup,
     CommandInput,
     CommandItem,
-    CommandList,
-    CommandShortcut
+    CommandList
 } from "@/components/ui/command";
 import {
     Dialog,
@@ -18,6 +17,7 @@ import {
     DialogHeader,
     DialogTitle
 } from "@/components/ui/dialog";
+import { Kbd } from "@/components/ui/kbd";
 import {
     type ActionCommand,
     type AppCommand,
@@ -81,12 +81,12 @@ export function CommandPalette({ open, onOpenChange, commands }: CommandPaletteP
                                         >
                                             <span>{command.title}</span>
                                             {command.shortcut != null && (
-                                                <CommandShortcut>
+                                                <Kbd className="ml-auto">
                                                     {formatBinding(
                                                         command.shortcut.keys[0],
                                                         platform
                                                     )}
-                                                </CommandShortcut>
+                                                </Kbd>
                                             )}
                                         </CommandItem>
                                     ))}

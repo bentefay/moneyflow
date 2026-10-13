@@ -397,10 +397,28 @@ test.describe("Transactions", () => {
             await expect(palette.getByRole("option", { name: /Add transaction/ })).toContainText(
                 process.platform === "darwin" ? "⌥N" : "Alt+N"
             );
+            await page.keyboard.press("Escape");
+            await expect(palette).toHaveCount(0);
+
+            // The sidebar button is the visible way in, and shows the same shortcut.
+            const paletteButton = page.getByTestId("command-palette-button");
+            await expect(paletteButton).toContainText(
+                process.platform === "darwin" ? "⌘K" : "Ctrl+K"
+            );
+            await paletteButton.hover();
+            await expect(page.getByTestId("shortcut-tooltip").first()).toContainText(
+                process.platform === "darwin" ? "⌘K" : "Ctrl+K"
+            );
+            await paletteButton.click();
+            await expect(palette).toBeVisible();
             await page.keyboard.type("focus search");
             await page.keyboard.press("Enter");
             await expect(palette).toHaveCount(0);
             await expect(search).toBeFocused();
+            // The empty field shows the shortcut that focuses it.
+            await expect(page.getByTestId("search-shortcut-hint")).toContainText(
+                process.platform === "darwin" ? "⌘⇧F" : "Ctrl+Shift+F"
+            );
         });
 
         await test.step("? types into an input but opens the cheat sheet elsewhere", async () => {
@@ -408,6 +426,12 @@ test.describe("Transactions", () => {
             await expect(search).toHaveValue("?");
             await expect(cheatSheet).toHaveCount(0, { timeout: 3_000 });
             await search.fill("");
+
+            // Every control with a shortcut names it in its tooltip.
+            await page.getByTestId("add-transaction-button").hover();
+            await expect(page.getByTestId("shortcut-tooltip").first()).toContainText(
+                process.platform === "darwin" ? "⌥N" : "Alt+N"
+            );
 
             await page.getByTestId("add-transaction-button").focus();
             await page.keyboard.press("?");
