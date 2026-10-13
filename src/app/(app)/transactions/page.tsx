@@ -21,6 +21,7 @@ import {
     useState
 } from "react";
 
+import { useCommands } from "@/components/features/commands";
 import {
     DescriptionAliasChangeModal,
     type DescriptionAliasModalDecision,
@@ -104,6 +105,7 @@ const LARGE_SELECTION_THRESHOLD = 500;
 
 import { Temporal } from "temporal-polyfill";
 
+import { type AppCommand, GRID_REFERENCE_COMMANDS, TRANSACTION_COMMANDS } from "@/lib/commands";
 import { allocationPresenceField } from "@/lib/crdt/allocations";
 import {
     useActiveAccounts,
@@ -360,6 +362,7 @@ function TransactionsPageContent() {
     }, [gridController, rowWindowStart]);
     const [revealIntent, setRevealIntent] = useState<TransactionRevealIntent | null>(null);
     const transactionTableContainerRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     // The encrypted per-viewer preference initializes and remotely controls the controller's runtime
     // panel state. A layout effect prevents the default-open value from painting closed first.
@@ -1582,6 +1585,31 @@ function TransactionsPageContent() {
         [clearTransactionCell, gridController]
     );
 
+    // The keyboard opens and closes the panel without moving focus, as the external toggle does
+    // (TGI-INSPCMD-002); closing from inside still returns focus to the active cell.
+    const toggleInspector = useCallback(() => {
+        const open = !gridController.getSnapshot().inspectorPanelOpen;
+        gridController.setInspectorPanelOpen(open);
+        persistInspectorPreference(open);
+    }, [gridController, persistInspectorPreference]);
+
+    const focusSearch = useCallback(() => {
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+    }, []);
+
+    const pageCommands = useMemo(
+        (): readonly AppCommand[] => [
+            // Literals rather than a helper call, so the compiler can see nothing runs during render.
+            { ...TRANSACTION_COMMANDS.addTransaction, kind: "action", run: handleAddTransaction },
+            { ...TRANSACTION_COMMANDS.toggleInspector, kind: "action", run: toggleInspector },
+            { ...TRANSACTION_COMMANDS.focusSearch, kind: "action", run: focusSearch },
+            ...GRID_REFERENCE_COMMANDS
+        ],
+        [focusSearch, handleAddTransaction, toggleInspector]
+    );
+    useCommands(pageCommands);
+
     // Tag options for filter/bulk edit (with label for FilterOption)
     const tagOptions = useMemo(
         () =>
@@ -1667,6 +1695,7 @@ function TransactionsPageContent() {
                 availablePeople={peopleOptions}
                 availableAccounts={accountOptionsForFilter}
                 availableStatuses={statusOptions}
+                searchInputRef={searchInputRef}
             />
 
             <div

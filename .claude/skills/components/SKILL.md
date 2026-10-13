@@ -35,3 +35,18 @@ description:
 
 - Semantic HTML, aria-labels on icon-only buttons
 - Keyboard navigation, focus management in modals
+
+## Keyboard shortcuts and commands
+
+- Every shortcut is a command in the registry (`src/lib/commands`). The palette (Cmd/Ctrl+K), the
+  keyboard bindings and the `?` cheat sheet all read it, so never add a bare `keydown` listener for
+  a page shortcut. Component-local keys (Escape in a popup, the grid's own cell keys) stay local.
+- Define a command's id, title, keywords and shortcut in `src/lib/commands/catalog.ts`; register its
+  behaviour while mounted with `useCommands` from `@/components/features/commands`, passing a
+  memoised array. Use `when` for availability ("a row is selected") rather than registering
+  conditionally.
+- Bindings use tinykeys syntax (`$mod+KeyK`, `Alt+KeyN`, `[Shift]+?`, `g t`). A binding without
+  Cmd/Ctrl/Alt never fires in a text field or the grid; a modified one fires in a text field only
+  with `inTextEntry: true`. Do not take Cmd+N/T/W or plain Cmd+F.
+- Keys the grid handles itself are listed as `GRID_REFERENCE_COMMANDS` so the cheat sheet stays
+  complete; update them alongside `table-model/grid-key-intent.ts`.

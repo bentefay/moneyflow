@@ -21,6 +21,8 @@ export interface SearchFilterProps {
     debounceMs?: number;
     /** Additional CSS classes */
     className?: string;
+    /** Lets the page focus the input, e.g. from a "Focus search" command. */
+    inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 /**
@@ -31,11 +33,13 @@ export function SearchFilter({
     onChange,
     placeholder = "Search transactions...",
     debounceMs = 300,
-    className
+    className,
+    inputRef: providedInputRef
 }: SearchFilterProps) {
     const [localValue, setLocalValue] = useState(value);
     const [previousValue, setPreviousValue] = useState(value);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const ownInputRef = useRef<HTMLInputElement>(null);
+    const inputRef = providedInputRef ?? ownInputRef;
     const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     // Adjust the draft during render when an external search value arrives.

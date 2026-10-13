@@ -31,6 +31,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 
+import { CommandRegistryProvider, GlobalCommands } from "@/components/features/commands";
 import { ImportFileTransferProvider } from "@/components/features/import/ImportFileTransferProvider";
 import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvatarGroup";
 import { UndoControls, UndoKeyboardShortcuts } from "@/components/features/undo/UndoControls";
@@ -99,9 +100,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <VaultProvider registerDisconnect={registerVaultDisconnect}>
                         <VaultPresenceProvider>
                             <DateLocaleProvider>
-                                <AppLayoutContent disconnectVault={disconnectVault}>
-                                    {children}
-                                </AppLayoutContent>
+                                <CommandRegistryProvider>
+                                    <AppLayoutContent disconnectVault={disconnectVault}>
+                                        {children}
+                                    </AppLayoutContent>
+                                </CommandRegistryProvider>
                             </DateLocaleProvider>
                         </VaultPresenceProvider>
                     </VaultProvider>
@@ -221,6 +224,7 @@ function AppLayoutContent({
     return (
         <div className="flex h-screen flex-col md:flex-row">
             <UndoKeyboardShortcuts />
+            <GlobalCommands />
             {/* Mobile Top Bar */}
             <header className="bg-card flex h-14 items-center justify-between border-b px-4 md:hidden">
                 {/* Logo */}

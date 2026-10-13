@@ -36,6 +36,8 @@ export interface TransactionFiltersProps {
     availableAccounts?: FilterOption[];
     /** Available statuses for filtering */
     availableStatuses?: FilterOption[];
+    /** Lets the page focus the search input. */
+    searchInputRef?: React.RefObject<HTMLInputElement | null>;
     /** Additional CSS classes */
     className?: string;
 }
@@ -81,6 +83,7 @@ export function TransactionFilters({
     availablePeople = [],
     availableAccounts = [],
     availableStatuses = [],
+    searchInputRef,
     className
 }: TransactionFiltersProps) {
     const updateFilter = <K extends keyof TransactionFiltersState>(
@@ -111,6 +114,7 @@ export function TransactionFilters({
                 onChange={(search) => updateFilter("search", search)}
                 placeholder="Search description, notes..."
                 className="w-full"
+                inputRef={searchInputRef}
             />
 
             {/* Filter row */}
