@@ -5,10 +5,12 @@ import {
     addDraftOutput,
     draftApplyMode,
     draftOutputFields,
+    draftRuleContentEquals,
     emptyRuleDraft,
     rememberedChoiceFromDraft,
     type RuleEditorDraft,
     type RuleEditorFieldErrors,
+    unsavedOutputField,
     validateRuleDraft
 } from "@/components/features/automations/rule-editor-model";
 import { APPLY_MODES, applyModeFrom, type ApplyScope } from "@/lib/domain/automation/apply-mode";
@@ -261,5 +263,102 @@ describe("validateRuleDraft", () => {
         );
         expect(on.ok && on.value.accountId).toBe("acc-1");
         expect(off.ok && off.value.accountId).toBeUndefined();
+    });
+});
+
+describe("draftRuleContentEquals", () => {
+    const STORED = draft({
+        useAccountScope: true,
+        accountId: "acc-1",
+        useAmountScope: true,
+        amountText: "12.5",
+        outputs: {
+            descriptionAlias: { aliasId: "a1" },
+            tags: { mode: "add", tagIds: ["t1", "t2"] },
+            allocation: { p1: "60", p2: "40" }
+        }
+    });
+
+    it.each<readonly [string, RuleEditorDraft]>([
+        ["the same draft", STORED],
+        ["a different scope and Apply on blur", { ...STORED, scope: "new", applyOnBlur: true }],
+        [
+            "reordered tags",
+            {
+                ...STORED,
+                outputs: { ...STORED.outputs, tags: { mode: "add", tagIds: ["t2", "t1"] } }
+            }
+        ],
+        [
+            "a blank allocation answer",
+            {
+                ...STORED,
+                outputs: { ...STORED.outputs, allocation: { p1: "60", p2: "40", p3: " " } }
+            }
+        ],
+        ["surrounding spaces on the amount", { ...STORED, amountText: " 12.5 " }],
+        [
+            "a stale account id behind an unticked restriction",
+            { ...draft({ ...STORED, useAccountScope: false }), accountId: "other" }
+        ]
+    ])("treats %s as the same rule", (_label, candidate) => {
+        const base =
+            candidate.useAccountScope === STORED.useAccountScope
+                ? STORED
+                : { ...STORED, useAccountScope: false };
+        expect(draftRuleContentEquals(candidate, base)).toBe(true);
+        expect(draftRuleContentEquals(base, candidate)).toBe(true);
+    });
+
+    it.each<readonly [string, RuleEditorDraft]>([
+        ["another description", { ...STORED, descriptionText: "TEA" }],
+        ["an unticked account restriction", { ...STORED, useAccountScope: false }],
+        ["another account", { ...STORED, accountId: "acc-2" }],
+        ["an unticked amount restriction", { ...STORED, useAmountScope: false }],
+        ["another amount", { ...STORED, amountText: "13" }],
+        [
+            "another alias",
+            { ...STORED, outputs: { ...STORED.outputs, descriptionAlias: { aliasId: "a2" } } }
+        ],
+        [
+            "a removed alias",
+            {
+                ...STORED,
+                outputs: { tags: STORED.outputs.tags, allocation: STORED.outputs.allocation }
+            }
+        ],
+        [
+            "another tag mode",
+            {
+                ...STORED,
+                outputs: { ...STORED.outputs, tags: { mode: "set", tagIds: ["t1", "t2"] } }
+            }
+        ],
+        [
+            "another tag set",
+            { ...STORED, outputs: { ...STORED.outputs, tags: { mode: "add", tagIds: ["t1"] } } }
+        ],
+        [
+            "another percentage",
+            { ...STORED, outputs: { ...STORED.outputs, allocation: { p1: "50", p2: "50" } } }
+        ],
+        ["an added output", { ...draft({ outputs: { tags: { mode: "add", tagIds: ["t1"] } } }) }]
+    ])("treats %s as a different rule", (_label, candidate) => {
+        expect(draftRuleContentEquals(candidate, STORED)).toBe(false);
+        expect(draftRuleContentEquals(STORED, candidate)).toBe(false);
+    });
+});
+
+describe("unsavedOutputField", () => {
+    it("names an output the draft has and the stored rule lacks", () => {
+        expect(
+            unsavedOutputField(draft({ outputs: { ...TAGS_ONLY, allocation: {} } }), TAGS_ONLY)
+        ).toBe("allocation");
+    });
+
+    it("is undefined when every draft output is stored, even if its value changed", () => {
+        expect(
+            unsavedOutputField(draft({ outputs: { tags: { mode: "set", tagIds: [] } } }), TAGS_ONLY)
+        ).toBeUndefined();
     });
 });

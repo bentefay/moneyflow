@@ -37,10 +37,12 @@ import {
 } from "./rule-editor-data";
 import {
     addDraftOutput,
+    draftRuleContentEquals,
     emptyRuleDraft,
     rememberedChoiceFromDraft,
     type RuleEditorDraft,
     type RuleEditorFieldErrors,
+    unsavedOutputField,
     validateRuleDraft
 } from "./rule-editor-model";
 import { RuleEditor, type RuleEditorSplitPreview, type RuleEditorTitle } from "./RuleEditor";
@@ -209,8 +211,24 @@ export function FieldRulesManager({ className }: FieldRulesManagerProps): React.
         setDraft(addDraftOutput(draft, field, remembered.tagMode));
     };
 
+    // Split rewrites the stored rule, so it is offered only while the draft still IS the stored rule:
+    // pressing it over unsaved edits would discard them, and an output added but not saved has
+    // nothing stored to split. That added output is marked pending instead.
+    const storedDraft =
+        selectedRule == null ? null : draftFromRule(selectedRule, currencyCode, remembered);
+    const pendingField =
+        draft == null || storedDraft == null
+            ? undefined
+            : unsavedOutputField(draft, storedDraft.outputs);
+    const splittable =
+        selectedRule != null &&
+        storedDraft != null &&
+        draft != null &&
+        ruleOutputFields(selectedRule).length > 1 &&
+        draftRuleContentEquals(draft, storedDraft);
+
     const splitPreview: RuleEditorSplitPreview | undefined =
-        splitField == null || target?.mode !== "edit"
+        splitField == null || target?.mode !== "edit" || !splittable
             ? undefined
             : {
                   field: splitField,
@@ -299,9 +317,7 @@ export function FieldRulesManager({ className }: FieldRulesManagerProps): React.
                             accounts={options.accounts}
                             aliases={options.aliases}
                             applyLabel={target.mode === "create" ? "Create and apply" : "Apply"}
-                            canSplit={
-                                selectedRule != null && ruleOutputFields(selectedRule).length > 1
-                            }
+                            canSplit={splittable}
                             context="standalone"
                             currencyCode={currencyCode}
                             draft={draft}
@@ -319,6 +335,7 @@ export function FieldRulesManager({ className }: FieldRulesManagerProps): React.
                             }
                             onDraftChange={handleDraftChange}
                             onSplit={target.mode === "edit" ? setSplitField : undefined}
+                            pendingField={pendingField}
                             people={options.people}
                             populationCount={populationCount}
                             splitPreview={splitPreview}

@@ -126,6 +126,81 @@ export function addDraftOutput(
     }
 }
 
+function sameTagIds(left: readonly string[], right: readonly string[]): boolean {
+    if (left.length !== right.length) return false;
+    const sortedRight = [...right].sort();
+    return [...left].sort().every((id, index) => id === sortedRight[index]);
+}
+
+/** Allocation text with blank answers dropped: blank means "no answer" and is never written. */
+function answeredAllocations(
+    allocation: Readonly<Record<string, string>>
+): readonly (readonly [string, string])[] {
+    return Object.entries(allocation)
+        .map(([personId, text]) => [personId, text.trim()] as const)
+        .filter(([, text]) => text.length > 0)
+        .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+}
+
+function sameAllocationDraft(
+    left: Readonly<Record<string, string>> | undefined,
+    right: Readonly<Record<string, string>> | undefined
+): boolean {
+    if (left == null || right == null) return left == null && right == null;
+    const leftEntries = answeredAllocations(left);
+    const rightEntries = answeredAllocations(right);
+    return (
+        leftEntries.length === rightEntries.length &&
+        leftEntries.every(
+            ([personId, text], index) =>
+                rightEntries[index]?.[0] === personId && rightEntries[index]?.[1] === text
+        )
+    );
+}
+
+function sameOutputsDraft(left: RuleEditorOutputsDraft, right: RuleEditorOutputsDraft): boolean {
+    const leftAlias = left.descriptionAlias;
+    const rightAlias = right.descriptionAlias;
+    const aliasSame =
+        leftAlias == null || rightAlias == null
+            ? leftAlias == null && rightAlias == null
+            : leftAlias.aliasId === rightAlias.aliasId;
+    const leftTags = left.tags;
+    const rightTags = right.tags;
+    const tagsSame =
+        leftTags == null || rightTags == null
+            ? leftTags == null && rightTags == null
+            : leftTags.mode === rightTags.mode && sameTagIds(leftTags.tagIds, rightTags.tagIds);
+    return aliasSame && tagsSame && sameAllocationDraft(left.allocation, right.allocation);
+}
+
+/**
+ * Whether two drafts describe the same rule: identical conditions and outputs. Scope and Apply on
+ * blur are the user's apply choice, not the rule, so they never make a draft differ. Tag order and
+ * blank allocation answers are ignored because neither changes what is written.
+ */
+export function draftRuleContentEquals(left: RuleEditorDraft, right: RuleEditorDraft): boolean {
+    return (
+        left.descriptionText === right.descriptionText &&
+        left.useAccountScope === right.useAccountScope &&
+        (!left.useAccountScope || left.accountId === right.accountId) &&
+        left.useAmountScope === right.useAmountScope &&
+        (!left.useAmountScope || left.amountText.trim() === right.amountText.trim()) &&
+        sameOutputsDraft(left.outputs, right.outputs)
+    );
+}
+
+/**
+ * The first output the draft has that the stored rule does not: one added but not yet saved. Only
+ * that output is pending; Split never applies to it because the stored rule has nothing to split.
+ */
+export function unsavedOutputField(
+    draft: Pick<RuleEditorDraft, "outputs">,
+    stored: RuleEditorOutputsDraft
+): RuleField | undefined {
+    return draftOutputFields(draft).find((field) => stored[field] == null);
+}
+
 /** The four-mode value the preference wire stores for the draft's scope and Apply on blur. */
 export function draftApplyMode(draft: Pick<RuleEditorDraft, "scope" | "applyOnBlur">): ApplyMode {
     return applyModeFrom(draft.scope, draft.applyOnBlur);

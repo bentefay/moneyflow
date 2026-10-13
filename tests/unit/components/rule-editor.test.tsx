@@ -498,13 +498,15 @@ describe("RuleEditor: resolution panels", () => {
                         host: { id: "r-host", label: "Description rule" },
                         choice: "keep",
                         onChoose: vi.fn(),
-                        ownerKeepsOtherOutputs: true
+                        ownerKeepsOutputs: true
                     }
                 })}
             />
         );
         const move = screen.getByRole("radio", { name: /move tags into the description rule/i });
-        expect(move).toHaveAccessibleDescription(/keeps its other outputs and stops setting tags/i);
+        expect(move).toHaveAccessibleDescription(
+            /tags \+ allocation rule keeps its other outputs/i
+        );
         expect(move).not.toHaveAccessibleDescription(/is deleted/i);
     });
 
@@ -519,7 +521,8 @@ describe("RuleEditor: resolution panels", () => {
                         owner: { id: "r2", label: "Tags rule · COFFEE SHOP 123" },
                         host: { id: "r1", label: "Description rule · COFFEE SHOP 123" },
                         choice: "keep",
-                        onChoose
+                        onChoose,
+                        ownerKeepsOutputs: false
                     }
                 })}
             />
@@ -535,6 +538,7 @@ describe("RuleEditor: resolution panels", () => {
         expect(move).not.toBeChecked();
         // The move option states the source rule's fate before it is chosen.
         expect(move).toHaveAccessibleDescription(/tags rule · coffee shop 123 is deleted/i);
+        expect(move).not.toHaveAccessibleDescription(/keeps its other outputs/i);
 
         fireEvent.click(move);
         expect(onChoose).toHaveBeenCalledWith("move");
@@ -549,7 +553,8 @@ describe("RuleEditor: resolution panels", () => {
                         owner: { id: "r2", label: "Owner" },
                         host: { id: "r1", label: "Host" },
                         choice: "keep",
-                        onChoose: vi.fn()
+                        onChoose: vi.fn(),
+                        ownerKeepsOutputs: false
                     }
                 })}
             />
