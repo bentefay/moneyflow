@@ -24,6 +24,7 @@ import {
     reloadPage,
     shareActiveVaultWithMember
 } from "./helpers";
+import { E2E_BASE_URL } from "./helpers/base-url";
 import { observeRealtimeLifecycle } from "./helpers/realtime";
 
 test.use({ timezoneId: "America/New_York" });
@@ -371,8 +372,8 @@ test.describe("Vault Settings", () => {
         }) => {
             // A second member who has never named themselves is the case with no name to resolve
             // and the strongest pull towards rendering the hash.
-            const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-            const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+            const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+            const memberContext = await browser.newContext({ baseURL: E2E_BASE_URL });
             const owner = await ownerContext.newPage();
             const member = await memberContext.newPage();
 

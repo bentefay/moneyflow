@@ -29,6 +29,7 @@ import {
     stableTransactionRow,
     transactionGridCell
 } from "./helpers";
+import { E2E_BASE_URL } from "./helpers/base-url";
 import { addEmptyTransaction, newlyAddedRow, readSelectedRowIds } from "./helpers/settlement";
 
 // ============================================================================
@@ -448,8 +449,8 @@ test.describe("Transactions", () => {
         // behalf, before they have touched anything, so it must stay silent — otherwise a peer is
         // told someone is editing a transaction they have not looked at. The first real gesture
         // must still report normally, which is what makes this a guard rather than a mute switch.
-        const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-        const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+        const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+        const memberContext = await browser.newContext({ baseURL: E2E_BASE_URL });
         const owner = await ownerContext.newPage();
         const member = await memberContext.newPage();
 
