@@ -173,6 +173,8 @@ test.describe("Transaction rule inspector", () => {
             await expect(rule).toHaveCount(0, { timeout: 3_000 });
             await expect(proposal.getByTestId("rule-output-descriptionAlias")).toBeVisible();
             await expect(proposal.getByTestId("rule-output-tags")).toContainText("pending");
+            // Extending adds an output the rule lacks, so there is no stored value to overwrite.
+            await expect(proposal.getByTestId("rule-output-stored-tags")).toHaveCount(0);
 
             await chooseRuleApply(proposal, { scope: "all", applyOnBlur: false });
             await proposal.getByTestId("rule-save").click();
@@ -184,6 +186,29 @@ test.describe("Transaction rule inspector", () => {
             await expect(rule).toHaveAttribute("data-automation-field", "descriptionAlias tags");
             await expectTransactionCellDisplay(otherRow, "tags", "Coffee");
             await expect(otherRow.getByTestId("description-display")).toHaveText("Coffee");
+        });
+
+        await test.step("Split is withheld while the rule card's draft has an unsaved edit", async () => {
+            // Query by test id: while the Select's listbox is open Radix hides the rest of the page
+            // from the accessibility tree, which a role query would read as Split being gone.
+            const splitButtons = rule.locator('[data-testid^="rule-split-"]');
+            const tagMode = rule.getByTestId("rule-tag-mode");
+            const listbox = page.getByRole("listbox");
+            await expect(splitButtons).toHaveCount(2);
+
+            await rule.getByRole("button", { name: "Edit Tags" }).click();
+            await tagMode.click();
+            await page.getByRole("option", { name: "Set tags (clear existing)" }).click();
+            await expect(listbox).toHaveCount(0, { timeout: 3_000 });
+            await expect(tagMode).toContainText("Set tags");
+            await expect(splitButtons).toHaveCount(0, { timeout: 3_000 });
+
+            await tagMode.click();
+            await page.getByRole("option", { name: "Add tags" }).click();
+            await expect(listbox).toHaveCount(0, { timeout: 3_000 });
+            await expect(tagMode).toContainText("Add tags");
+            await expect(splitButtons).toHaveCount(2);
+            await rule.getByRole("button", { name: "Done editing Tags" }).click();
         });
 
         await test.step("splitting tags out previews two rules and writes only on confirm", async () => {
@@ -265,6 +290,10 @@ test.describe("Transaction rule inspector", () => {
             await expect(descriptionDisplay).toHaveText("Tea");
             await expect(proposal).toHaveAttribute("data-kind", "update");
             await expect(rule).toHaveCount(0, { timeout: 3_000 });
+            // The rule's card is folded away, so the proposal shows the value Apply overwrites.
+            await expect(proposal.getByTestId("rule-output-stored-descriptionAlias")).toHaveText(
+                /^Stored: .*Coffee/
+            );
         });
 
         await test.step("cancelling keeps the rule, which now shows amber drift", async () => {

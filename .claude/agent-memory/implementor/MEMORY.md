@@ -131,3 +131,5 @@
   the Tab stop and arrow-key focus lands in a timeout; assert the group, and `waitFor` arrow moves.
 - [Vault maintenance test uses the real clock](vault-maintenance-test-uses-real-clock.md) — the undo
   test fakes frames but not `performance.now`, so heavy load changes maintenance chunking.
+- [Open Radix Select hides the page from role queries](radix-open-select-hides-page-from-role-queries.md)
+  — a role-based `toHaveCount(0)` passed with the gate deleted; wait for the listbox to close.

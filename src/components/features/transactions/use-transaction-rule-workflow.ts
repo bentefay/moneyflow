@@ -77,6 +77,8 @@ export interface TransactionRuleWorkflow {
     readonly errors: RuleEditorFieldErrors;
     readonly options: RuleEditorOptions;
     readonly currencyCode: string;
+    /** The user's remembered scope and Apply on blur, which seed the draft's apply choice. */
+    readonly remembered: RememberedRuleChoice;
     /** How many transactions Apply would change now; `undefined` while the draft is invalid. */
     readonly populationCount: number | undefined;
     readonly setDraft: (next: RuleEditorDraft) => void;
@@ -212,6 +214,7 @@ export function useTransactionRuleWorkflow(params: {
         errors,
         options,
         currencyCode,
+        remembered,
         populationCount,
         setDraft,
         addOutput,
