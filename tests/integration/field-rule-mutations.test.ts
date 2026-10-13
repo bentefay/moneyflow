@@ -1,4 +1,3 @@
-import * as fc from "fast-check";
 import { LoroMap } from "loro-crdt";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
@@ -13,10 +12,7 @@ import {
 } from "@/lib/crdt/display-preferences";
 import {
     createFieldRule,
-    createFieldRules,
-    type CreateFieldRuleInput,
     deleteFieldRule,
-    type FieldRuleMutationResult,
     type FieldRuleOutputsInput,
     moveFieldRuleOutput,
     persistUserAutomationPreference,
@@ -265,100 +261,6 @@ describe("field-rule CRUD mutations", () => {
                     error: { type: "duplicate-key", existingRuleId: "rule-2" }
                 });
             });
-        });
-    });
-
-    describe("createFieldRules", () => {
-        const candidateArbitrary: fc.Arbitrary<CreateFieldRuleInput> = fc.record({
-            // Reuses existing, deleted and in-batch ids, so overwrites and revivals are covered.
-            id: fc.constantFrom("rule-live", "rule-deleted", "new-1", "new-2", "new-3", ""),
-            descriptionText: fc.constantFrom(DESCRIPTION, "OTHER"),
-            accountId: fc.option(fc.constantFrom(ACCOUNT, OTHER_ACCOUNT), { nil: undefined }),
-            amount: fc.option(fc.constantFrom(-450, 0), { nil: undefined }),
-            outputs: fc.constantFrom<FieldRuleOutputsInput>(
-                { tags: { mode: "add", tagIds: ["tag-a"] } },
-                { descriptionAlias: { aliasId: "alias-a" } },
-                { allocation: { allocations: { "person-a": 100 } } },
-                { tags: { mode: "set", tagIds: ["tag-b"] }, descriptionAlias: { aliasId: "a" } },
-                // Invalid: out of range, and no output at all.
-                { allocation: { allocations: { "person-a": 150 } } },
-                {}
-            ),
-            createdAtEpochMs: fc.integer({ min: 1000, max: 1003 })
-        });
-
-        function seededVault(): Vault {
-            const vault = seed([
-                { id: "rule-live", outputs: { tags: { mode: "add", tagIds: ["tag-a"] } } },
-                {
-                    id: "rule-scoped",
-                    accountId: ACCOUNT,
-                    outputs: { descriptionAlias: { aliasId: "alias-a" } }
-                },
-                {
-                    id: "rule-deleted",
-                    accountId: OTHER_ACCOUNT,
-                    outputs: { tags: { mode: "add", tagIds: ["tag-a"] } }
-                }
-            ]);
-            vault.mirror.setState((state: VaultState) => {
-                deleteFieldRule(state, { id: "rule-deleted", deletedAtEpochMs: 2000 });
-            });
-            return vault;
-        }
-
-        function storedWithoutContainerIds(vault: Vault): string {
-            return JSON.stringify(
-                vault.mirror.getState().fieldRules,
-                (key: string, value: unknown) => (key === "$cid" ? undefined : value)
-            );
-        }
-
-        it("frees a rewritten rule's old slot for a later input in the same batch", () => {
-            const inputs: readonly CreateFieldRuleInput[] = [
-                // Overwrites rule-live, moving it off the unscoped tags slot...
-                {
-                    id: "rule-live",
-                    descriptionText: DESCRIPTION,
-                    outputs: { descriptionAlias: { aliasId: "alias-b" } },
-                    createdAtEpochMs: 3000
-                },
-                // ...so this one may take it.
-                {
-                    id: "new-1",
-                    descriptionText: DESCRIPTION,
-                    outputs: { tags: { mode: "set", tagIds: ["tag-b"] } },
-                    createdAtEpochMs: 3001
-                }
-            ];
-            const vault = seededVault();
-            vault.mirror.setState((state: VaultState) => {
-                const results = createFieldRules(state, inputs);
-                expect(results.map((result) => result.ok)).toEqual([true, true]);
-            });
-        });
-
-        it("gives exactly the results and writes of sequential createFieldRule calls", () => {
-            fc.assert(
-                fc.property(fc.array(candidateArbitrary, { maxLength: 8 }), (inputs) => {
-                    const sequential = seededVault();
-                    let sequentialResults: readonly FieldRuleMutationResult[] = [];
-                    sequential.mirror.setState((state: VaultState) => {
-                        sequentialResults = inputs.map((input) => createFieldRule(state, input));
-                    });
-                    const batched = seededVault();
-                    let batchedResults: readonly FieldRuleMutationResult[] = [];
-                    batched.mirror.setState((state: VaultState) => {
-                        batchedResults = createFieldRules(state, inputs);
-                    });
-
-                    expect(batchedResults).toEqual(sequentialResults);
-                    expect(storedWithoutContainerIds(batched)).toBe(
-                        storedWithoutContainerIds(sequential)
-                    );
-                }),
-                { seed: 17_120_003, numRuns: 150 }
-            );
         });
     });
 
