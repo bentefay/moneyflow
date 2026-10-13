@@ -1896,6 +1896,40 @@ test.describe("Transactions", () => {
                 await page.keyboard.press("ControlOrMeta+z");
                 await expect(row.getByTestId("description-display")).toHaveText("Row 1 Store");
             });
+
+            await test.step("a range clear empties every clearable cell of the latest rectangle as one undo step", async () => {
+                const top = await stableTransactionRow(
+                    page.getByRole("row", { name: /Row 3 Store/ })
+                );
+                const middle = await stableTransactionRow(
+                    page.getByRole("row", { name: /Row 2 Store/ })
+                );
+                const bottom = await stableTransactionRow(
+                    page.getByRole("row", { name: /Row 1 Store/ })
+                );
+                const accountText = await transactionGridCell(top, "account").innerText();
+                const dateText = await transactionGridCell(middle, "date").innerText();
+
+                await transactionGridCell(top, "description").click();
+                await page.keyboard.press("Shift+ArrowDown");
+                await page.keyboard.press("Shift+End");
+                await page.keyboard.press("Delete");
+
+                for (const row of [top, middle]) {
+                    await expect(row.getByTestId("description-display")).toHaveText("");
+                    await expect(transactionGridCell(row, "amount")).toContainText("—");
+                    await expect(transactionGridCell(row, "account")).toHaveText(accountText);
+                }
+                await expect(transactionGridCell(middle, "date")).toHaveText(dateText);
+                await expect(bottom.getByTestId("description-display")).toHaveText("Row 1 Store");
+                await expect(transactionGridCell(bottom, "amount")).toContainText("10.00");
+
+                await page.keyboard.press("ControlOrMeta+z");
+                await expect(top.getByTestId("description-display")).toHaveText("Row 3 Store");
+                await expect(middle.getByTestId("description-display")).toHaveText("Row 2 Store");
+                await expect(transactionGridCell(top, "amount")).toContainText("30.00");
+                await expect(transactionGridCell(middle, "amount")).toContainText("20.00");
+            });
         });
 
         test("arrow left/right moves focus between cells in same row", async ({ page }) => {

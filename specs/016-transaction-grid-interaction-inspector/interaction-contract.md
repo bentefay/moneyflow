@@ -261,6 +261,15 @@ typing and publishes its commit for automation exactly as typing does. In every 
 stay native (editors delete text), and Ctrl/Cmd/Alt+Backspace is never a grid command.
 Delete/Backspace on a gridcell, or on any control inside a row, never deletes a transaction.
 
+**TGI-COPY-005 amendment (2026-10-13) — Range clear.** Delete/Backspace is the one multi-cell write.
+With a rectangle of more than one cell, it clears every clearable cell in the latest operation as
+defined in the `TGI-ACT-002` amendment and skips the rest. Its rows are resolved through the
+generation-checked projection (`rowsBetween`), so rows outside the held window are cleared too;
+above the copy limit of 10,000 rows it is rejected before anything is written. A latest exclusion
+operation clears nothing, as it copies nothing. Every write lands in one synchronous user action, so
+the clear is one undo step. A range clear is cleanup: it publishes no editor commit, so it never
+raises an automation proposal. Paste, fill and formulas remain out of scope.
+
 **TGI-ACT-003 amendment (2026-10-13) — Row shortcuts become commands.** The row-level `d`,
 Delete/Backspace (delete transaction) and `k` (keep duplicate) shortcuts are removed. Deleting is
 the "Delete selected transactions" command (Ctrl/Cmd+Backspace or the command palette), which

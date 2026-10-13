@@ -204,6 +204,11 @@ manual row is blank. Date, account and status are required and are left alone. C
 an ordinary edit, with the same rule proposal typing would raise (interaction contract TGI-ACT-002
 amendment).
 
+**[confirmed]** Requested on 2026-10-13: with several cells selected, Delete clears every clearable
+cell in the most recent rectangle, including rows scrolled out of view, and skips required ones. It
+is one undo step and never offers a rule, because it is cleanup rather than an edit (interaction
+contract TGI-COPY-005 amendment).
+
 **[confirmed]** Requested on 2026-10-13: a key on a row never deletes the transaction. Deleting is
 the "Delete selected transactions" command, on Cmd+Backspace (Ctrl+Backspace elsewhere) or in the
 Cmd+K command palette, and always asks first; keeping a suspected duplicate is in the palette

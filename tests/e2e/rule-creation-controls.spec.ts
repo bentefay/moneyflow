@@ -274,6 +274,25 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
             await expect(proposal).toHaveCount(0, { timeout: 3_000 });
         });
 
+        await test.step("a range clear is cleanup: it proposes nothing and undoes as one step", async () => {
+            const secondRow = rowsWithDescription(page).nth(1);
+            const firstMe = await allocationGridCell(firstRow, DEFAULT_PERSON_NAME);
+            const secondMe = await allocationGridCell(secondRow, DEFAULT_PERSON_NAME);
+            await firstMe.click();
+            await secondMe.click({ modifiers: ["Shift"] });
+            await expect(firstMe).toBeFocused();
+            await page.keyboard.press("Backspace");
+
+            await expect(firstMe).toContainText("—");
+            await expect(secondMe).toContainText("—");
+            // Alex's 40% is left, which a one-cell edit would turn into a proposal.
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
+
+            await page.keyboard.press("ControlOrMeta+z");
+            await expect(firstMe).toContainText("60%");
+            await expect(secondMe).toContainText("60%");
+        });
+
         await test.step("Delete on one percentage is an ordinary edit and proposes like typing", async () => {
             const meCell = await allocationGridCell(firstRow, DEFAULT_PERSON_NAME);
             await meCell.click();
