@@ -205,7 +205,7 @@ describe("requireRealtimeStack refuses an unusable setup with an actionable mess
         expect(failure?.message).toContain("NEXT_PUBLIC_SUPABASE_URL");
         expect(failure?.message).toContain("NEXT_PUBLIC_SUPABASE_ANON_KEY");
         expect(failure?.message).toContain(".env.local");
-        expect(failure?.message).toContain("pnpm db:start");
+        expect(failure?.message).toContain("run db start");
         // The raw filesystem error is not what a developer needs to read here.
         expect(failure?.message).not.toContain("ENOENT");
     });
@@ -246,7 +246,7 @@ describe("requireRealtimeStack refuses an unusable setup with an actionable mess
         );
 
         expect(failure?.message).toContain("SUPABASE_JWT_SECRET");
-        expect(failure?.message).toContain("pnpm db:start");
+        expect(failure?.message).toContain("run db start");
         expect(failure?.message).not.toContain("not-symmetric");
         expect(String(failure?.cause)).not.toContain("not-symmetric");
     });
