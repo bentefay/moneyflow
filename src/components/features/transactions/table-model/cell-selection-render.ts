@@ -64,7 +64,25 @@ export function transactionCellSelectionRowKey(
             );
         }
     }
+    // The latest range's anchor is the active cell: where typing goes and the arrows move from.
+    const latest = table.atoms.cellSelection?.get().at(-1);
+    if (
+        latest != null &&
+        latest.anchorRowId === table.getRowsInDisplayOrder()[displayRowIndex]?.id
+    ) {
+        parts.push(`${ACTIVE_CELL_PREFIX}${latest.anchorColumnId}`);
+    }
     return parts.join("|");
+}
+
+const ACTIVE_CELL_PREFIX = "active=";
+
+/** The column of this row's active cell, when the latest range is anchored in this row. */
+export function transactionActiveCellFromRowKey(rowKey: string): string | null {
+    for (const part of rowKey.split("|")) {
+        if (part.startsWith(ACTIVE_CELL_PREFIX)) return part.slice(ACTIVE_CELL_PREFIX.length);
+    }
+    return null;
 }
 
 /**

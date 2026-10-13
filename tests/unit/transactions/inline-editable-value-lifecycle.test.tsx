@@ -56,7 +56,11 @@ describe("InlineEditableAmount editor lifecycle", () => {
         expect(onSave).toHaveBeenCalledWith(1_575);
     });
 
-    it("rejects malformed drafts before mutation and cancellation restores the value", () => {
+    it.each([
+        { draft: "a.1", normalised: "0.10", saved: 10 },
+        { draft: "--3.456", normalised: "-3.46", saved: -346 },
+        { draft: "invalid", normalised: "", saved: undefined }
+    ])("normalises $draft on commit instead of rejecting it", ({ draft, normalised, saved }) => {
         const onSave = vi.fn();
         const editor = renderWithCapturedLifecycle(
             <InlineEditableAmount currency="USD" onSave={onSave} value={1_250} />
@@ -64,19 +68,50 @@ describe("InlineEditableAmount editor lifecycle", () => {
         const input = screen.getByRole("textbox", { name: "Transaction amount in USD" });
         fireEvent.focus(input);
 
-        fireEvent.change(input, { target: { value: "invalid" } });
+        fireEvent.change(input, { target: { value: draft } });
         act(() => {
-            expect(editor.lifecycle().commit()).toEqual({ ok: false, status: "rejected" });
+            expect(editor.lifecycle().commit()).toEqual({ ok: true, status: "changed" });
         });
-        expect(onSave).not.toHaveBeenCalled();
-        expect(input).toHaveAttribute("aria-invalid", "true");
+        expect(onSave).toHaveBeenCalledOnce();
+        expect(onSave).toHaveBeenCalledWith(saved);
+        expect(input).toHaveValue(normalised);
+        expect(input).not.toHaveAttribute("aria-invalid");
+    });
+
+    it("cancellation restores the stored value", () => {
+        const editor = renderWithCapturedLifecycle(
+            <InlineEditableAmount currency="USD" onSave={() => undefined} value={1_250} />
+        );
+        const input = screen.getByRole("textbox", { name: "Transaction amount in USD" });
+        fireEvent.focus(input);
+        fireEvent.change(input, { target: { value: "99" } });
 
         act(() => editor.lifecycle().cancel());
         expect(input).toHaveValue("12.50");
         expect(editor.lifecycle().commit()).toEqual({ ok: true, status: "unchanged" });
     });
 
-    it("captures the result of the exact native blur validation", () => {
+    it("keeps a blank amount blank and an explicit zero as zero", () => {
+        const onSave = vi.fn();
+        const editor = renderWithCapturedLifecycle(
+            <InlineEditableAmount currency="USD" onSave={onSave} value={undefined} />
+        );
+        const input = screen.getByRole("textbox", { name: "Transaction amount in USD" });
+        expect(input).toHaveValue("");
+        fireEvent.focus(input);
+
+        act(() => {
+            expect(editor.lifecycle().commit()).toEqual({ ok: true, status: "unchanged" });
+        });
+        fireEvent.change(input, { target: { value: "0" } });
+        act(() => {
+            expect(editor.lifecycle().commit()).toEqual({ ok: true, status: "changed" });
+        });
+        expect(onSave).toHaveBeenCalledWith(0);
+        expect(input).toHaveValue("0.00");
+    });
+
+    it("captures the result of the exact native blur commit", () => {
         const editor = renderWithCapturedLifecycle(
             <InlineEditableAmount currency="USD" onSave={() => undefined} value={1_250} />
         );
@@ -91,14 +126,13 @@ describe("InlineEditableAmount editor lifecycle", () => {
         lifecycle.beginExternalExitValidation();
         expect(lifecycle.readExternalExitValidation()).toBeNull();
         fireEvent.blur(input);
-        expect(editor.lifecycle().externalExitValidation).toBe("blur");
         const currentLifecycle = editor.lifecycle();
         if (currentLifecycle.externalExitValidation !== "blur") {
             throw new Error("Amount editor must retain blur validation");
         }
         expect(currentLifecycle.readExternalExitValidation()).toEqual({
-            ok: false,
-            status: "rejected"
+            ok: true,
+            status: "changed"
         });
     });
 });

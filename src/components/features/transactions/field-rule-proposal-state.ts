@@ -40,13 +40,15 @@ import { type RobotCurrentValue } from "./field-rule-robot-state";
 /**
  * Render a transaction's amount for the frozen "only if $x" restriction label (`:258-259`), where x
  * is that transaction's own amount. Falls back to the bare major-units number for a currency the
- * platform cannot format, so the label always names a concrete amount.
+ * platform cannot format. A blank amount renders as a dash; the editor rejects an amount scope
+ * seeded from it.
  */
 export function formatAmountForRuleLabel(
-    amount: MoneyMinorUnits,
+    amount: MoneyMinorUnits | undefined,
     currencyCode: string,
     locale?: Intl.LocalesArgument
 ): string {
+    if (amount == null) return "—";
     const majorUnits = toMajorUnits(amount, currencyCode);
     const currency = getCurrency(currencyCode);
     if (currency == null) return String(majorUnits);

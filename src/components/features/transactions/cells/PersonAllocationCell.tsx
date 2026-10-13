@@ -8,9 +8,10 @@ import {
     deriveEffectiveAllocations,
     type EffectiveAllocationResult
 } from "@/lib/domain";
+import { normaliseAllocationText } from "@/lib/domain/numeric-text";
 import { cn } from "@/lib/utils";
 
-import { materializeAllocationRecord, parseAllocationDraft } from "../allocation-columns";
+import { materializeAllocationRecord } from "../allocation-columns";
 import {
     INNER_CELL_FOCUS_CHROME,
     RESTING_CELL_CHROME,
@@ -31,7 +32,11 @@ export interface PersonAllocationCellProps {
     readonly className?: string;
     readonly explicitValue?: unknown;
     readonly effectiveDerivation?: EffectiveAllocationResult;
-    readonly onCommit?: (personId: string, value: number) => TransactionGridEditorCommitResult;
+    /** Commits a normalised percentage, or `null` to leave the allocation blank. */
+    readonly onCommit?: (
+        personId: string,
+        value: number | null
+    ) => TransactionGridEditorCommitResult;
     /**
      * Reports whether this cell is in its editing state. Callers use it to tell when an allocation
      * edit has finished; the percentage VALUE is never reported.
@@ -95,7 +100,8 @@ export function allocationPresentation(
     if (!derivation.ok) return describeDerivationFailure(explicitValue);
 
     const effective = derivation.value.effectiveAllocations[personId] ?? "0";
-    const display = explicitStored && explicitValue !== 0 ? (explicitDisplay ?? "Invalid") : "—";
+    // An explicit 0 is an answered question, so only a blank allocation shows the dash.
+    const display = explicitStored ? (explicitDisplay ?? "Invalid") : "—";
     return {
         description: `${
             explicitStored ? `Explicit: ${explicitDisplay ?? "invalid"}.` : "Explicit: not stored."
@@ -210,20 +216,21 @@ export function PersonAllocationCell({
         setEditing(false);
     }, [explicitValue]);
 
+    // Free text never blocks leaving the cell: it normalises to a percentage or to blank.
     const commit = useCallback(() => {
-        const parsed = parseAllocationDraft(draft);
-        if (!parsed.ok) {
-            setError(parsed.error);
-            return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
-        }
+        const normalised = normaliseAllocationText(draft);
+        const value = normalised.kind === "blank" ? null : normalised.value;
+        setDraft(value == null ? "" : String(value));
+        setError(null);
         const stored = AllocationPercentageSchema.safeParse(explicitValue);
         const unchanged = stored.success
-            ? parsed.value === stored.data
-            : explicitValue == null && parsed.value === 0;
-        setError(null);
+            ? value === stored.data
+            : explicitValue === undefined && value == null;
         if (unchanged) return TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
         if (onCommit == null) return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
-        return onCommit(personId, parsed.value);
+        const result = onCommit(personId, value);
+        if (!result.ok) setError("The allocation could not be saved.");
+        return result;
     }, [draft, explicitValue, onCommit, personId]);
     const finishCommit = useCallback(
         (relatedTarget: EventTarget | null = null) => {

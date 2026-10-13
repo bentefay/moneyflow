@@ -393,6 +393,84 @@ describe("transaction grid workspace controller", () => {
         anchor.remove();
     });
 
+    it("extends to a dragged-over registered cell while the anchor keeps DOM focus", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor([transaction("tx-1"), transaction("tx-2")]), COLUMNS);
+        const anchor = document.createElement("div");
+        const extent = document.createElement("div");
+        const extentText = document.createElement("span");
+        extent.append(extentText);
+        const unregistered = document.createElement("div");
+        anchor.tabIndex = -1;
+        document.body.append(anchor, extent, unregistered);
+        controller.registerCell(address("tx-1", "date"), anchor);
+        controller.registerCell(address("tx-2", "amount"), extent);
+        controller.setFocusedCell("tx-1", "date");
+        anchor.focus();
+
+        expect(controller.extendSelectionFromPointer(unregistered)).toBe(false);
+        expect(controller.extendSelectionFromPointer(extentText)).toBe(true);
+        expect(controller.extendSelectionFromPointer(extent)).toBe(false);
+
+        expect(document.activeElement).toBe(anchor);
+        expect(controller.cellSelectionAtom.get()).toEqual([
+            {
+                anchorColumnId: "date",
+                anchorRowId: "tx-1",
+                focusColumnId: "amount",
+                focusRowId: "tx-2",
+                operation: "include"
+            }
+        ]);
+        anchor.remove();
+        extent.remove();
+        unregistered.remove();
+    });
+
+    it("ignores pointer extension unless the grid is navigating", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor([transaction("tx-1")]), COLUMNS);
+        const cell = document.createElement("div");
+        document.body.append(cell);
+        controller.registerCell(address("tx-1", "amount"), cell);
+
+        expect(controller.extendSelectionFromPointer(cell)).toBe(false);
+        expect(controller.cellSelectionAtom.get()).toEqual([]);
+        cell.remove();
+    });
+
+    it("reveals a mounted keyboard target inside the grid's own scroll element", () => {
+        const controller = createController();
+        controller.updateProjection(cursorFor([transaction("tx-1"), transaction("tx-2")]), COLUMNS);
+        const scrollElement = document.createElement("div");
+        const origin = document.createElement("div");
+        const target = document.createElement("div");
+        origin.tabIndex = -1;
+        target.tabIndex = -1;
+        scrollElement.append(origin, target);
+        document.body.append(scrollElement);
+        // jsdom has no layout: give the viewport 100px and put the target 40px below it.
+        Object.defineProperty(scrollElement, "clientHeight", { value: 100 });
+        Object.defineProperty(scrollElement, "clientWidth", { value: 300 });
+        scrollElement.getBoundingClientRect = () => DOMRect.fromRect({ height: 100, width: 300 });
+        target.getBoundingClientRect = () => DOMRect.fromRect({ height: 20, width: 50, y: 120 });
+        controller.registerScrollElement(scrollElement);
+        controller.registerCell(address("tx-1", "amount"), origin);
+        controller.registerCell(address("tx-2", "amount"), target);
+        controller.setFocusedCell("tx-1", "amount");
+        origin.focus();
+
+        controller.dispatchCellIntent(
+            address("tx-1", "amount"),
+            { direction: "down", kind: "move" },
+            1
+        );
+
+        expect(document.activeElement).toBe(target);
+        expect(scrollElement.scrollTop).toBe(40);
+        scrollElement.remove();
+    });
+
     it("parks canonical selection without clearing its active identity", () => {
         const controller = createController();
         controller.updateProjection(cursorFor([transaction("tx-1")]), COLUMNS);

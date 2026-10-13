@@ -29,6 +29,7 @@ import {
     stableTransactionRow,
     transactionGridCell
 } from "./helpers";
+import { E2E_BASE_URL } from "./helpers/base-url";
 import { addEmptyTransaction, newlyAddedRow, readSelectedRowIds } from "./helpers/settlement";
 
 // ============================================================================
@@ -448,8 +449,8 @@ test.describe("Transactions", () => {
         // behalf, before they have touched anything, so it must stay silent — otherwise a peer is
         // told someone is editing a transaction they have not looked at. The first real gesture
         // must still report normally, which is what makes this a guard rather than a mute switch.
-        const ownerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-        const memberContext = await browser.newContext({ baseURL: "http://localhost:3000" });
+        const ownerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+        const memberContext = await browser.newContext({ baseURL: E2E_BASE_URL });
         const owner = await ownerContext.newPage();
         const member = await memberContext.newPage();
 
@@ -1320,7 +1321,7 @@ test.describe("Transactions", () => {
                 ).toContainText("15");
             });
 
-            await test.step("open the calendar and cancel the complete Date edit with Escape", async () => {
+            await test.step("Escape closes the calendar, then cancels the complete Date edit", async () => {
                 const row = page.locator('[data-testid="transaction-row"]').first();
                 const dateCell = row.locator('[role="gridcell"][data-cell="date"]');
                 const currentDateText = await row.getByTestId("date-display").innerText();
@@ -1329,8 +1330,11 @@ test.describe("Transactions", () => {
                 await calendarButton.click();
                 await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).toBeVisible();
 
+                // The first Escape closes only the calendar; the next cancels the edit.
                 await page.keyboard.press("Escape");
                 await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).not.toBeVisible();
+                await expect(row.getByTestId("date-editable")).toBeFocused();
+                await page.keyboard.press("Escape");
                 await expect(dateCell).toHaveAttribute("data-cell-content", "display");
                 await expect(dateCell).toBeFocused();
                 await expect(row.getByTestId("date-editable")).toHaveCount(0);
@@ -1384,6 +1388,49 @@ test.describe("Transactions", () => {
                 await amountInput.press("Escape");
 
                 await expect(amountCell).toContainText("-250.50");
+            });
+
+            const amountCell = () =>
+                page
+                    .locator('[data-testid="transaction-row"]')
+                    .first()
+                    .locator('[role="gridcell"][data-cell="amount"]');
+            const editAmount = async (text: string): Promise<void> => {
+                await amountCell().dblclick();
+                const amountInput = amountCell().getByTestId("amount-editable");
+                await expect(amountInput).toBeFocused();
+                await amountInput.fill(text);
+                await amountInput.press("Enter");
+                await expect(amountCell()).toHaveAttribute("data-cell-content", "display");
+            };
+
+            await test.step("free text normalises at currency precision when leaving the input", async () => {
+                await editAmount("a.1");
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("0.10");
+
+                await editAmount("--3.456");
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("-3.46");
+
+                await editAmount("$1,234.5");
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("1234.50");
+            });
+
+            await test.step("explicit zero stays zero and non-numeric text clears to blank", async () => {
+                await editAmount("0");
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("0.00");
+
+                await editAmount("not a number");
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("—");
+            });
+
+            await test.step("a blank amount survives reload and stays editable", async () => {
+                await reloadPage(page);
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("—");
+
+                await amountCell().dblclick();
+                await expect(amountCell().getByTestId("amount-editable")).toHaveValue("");
+                await amountCell().getByTestId("amount-editable").press("Escape");
+                await expect(amountCell().getByTestId("amount-display")).toHaveText("—");
             });
         });
 
@@ -1819,6 +1866,145 @@ test.describe("Transactions", () => {
                 await destinationEditor.press("Escape");
                 await expectTransactionCellDisplay(destinationRow, "description", "Boundary Test");
             });
+
+            // Numeric cells share the description cell's three modes: navigating, quick entry from a
+            // printable key, and full edit from Enter or double-click.
+            const otherRow = page.getByRole("row", { name: /Other Row/ });
+            const boundaryRow = page.getByRole("row", { name: /Boundary Test/ });
+            const amountCell = (row: typeof otherRow) => transactionGridCell(row, "amount");
+            const allocationCell = (row: typeof otherRow) =>
+                row.locator('[role="gridcell"][data-cell^="allocation:"]').first();
+            const allocationInput = (row: typeof otherRow) =>
+                allocationCell(row).getByRole("textbox");
+
+            await test.step("printable input quick-enters an amount and plain arrows commit and move", async () => {
+                await amountCell(otherRow).focus();
+                await page.keyboard.press("7");
+                const amountInput = amountCell(otherRow).getByTestId("amount-editable");
+                await expect(amountInput).toBeFocused();
+                await expect(amountInput).toHaveValue("7");
+
+                await page.keyboard.press("ArrowLeft");
+                await expect(amountCell(otherRow).getByTestId("amount-display")).toHaveText("7.00");
+                // Continuous quick intent carries into the neighbouring numeric cell.
+                await expect(allocationInput(otherRow)).toBeFocused();
+                await page.keyboard.press("Escape");
+                await expect(allocationCell(otherRow)).toBeFocused();
+                await expect(allocationInput(otherRow)).toHaveCount(0);
+            });
+
+            await test.step("invalid quick text never blocks movement and normalises on exit", async () => {
+                await allocationCell(otherRow).focus();
+                await page.keyboard.type("x");
+                await expect(allocationInput(otherRow)).toHaveValue("x");
+                await page.keyboard.press("ArrowRight");
+                await expect(allocationCell(otherRow)).toHaveText(/^—/);
+                await expect(amountCell(otherRow).getByTestId("amount-editable")).toBeFocused();
+                await page.keyboard.press("Escape");
+                await expect(amountCell(otherRow)).toBeFocused();
+            });
+
+            await test.step("full edit keeps Left and Right inside the amount text", async () => {
+                await amountCell(otherRow).press("Enter");
+                const amountInput = amountCell(otherRow).getByTestId("amount-editable");
+                await expect(amountInput).toBeFocused();
+                await page.keyboard.press("End");
+                await page.keyboard.press("ArrowLeft");
+                await page.keyboard.press("ArrowRight");
+                await expect(amountInput).toBeFocused();
+                await page.keyboard.type("5");
+                await expect(amountInput).toHaveValue("7.005");
+            });
+
+            await test.step("full edit Down commits, normalises and continues full edit below", async () => {
+                await page.keyboard.press("ArrowDown");
+                await expect(amountCell(otherRow).getByTestId("amount-display")).toHaveText("7.01");
+                const belowInput = amountCell(boundaryRow).getByTestId("amount-editable");
+                await expect(belowInput).toBeFocused();
+                await expect(belowInput).toHaveValue("-25.00");
+            });
+
+            await test.step("Alt+Arrow moves through the grid from full edit with invalid text", async () => {
+                const belowInput = amountCell(boundaryRow).getByTestId("amount-editable");
+                await belowInput.fill("12abc");
+                await page.keyboard.press("Alt+ArrowLeft");
+                await expect(amountCell(boundaryRow).getByTestId("amount-display")).toHaveText(
+                    "12.00"
+                );
+                await expect(allocationInput(boundaryRow)).toBeFocused();
+                await page.keyboard.press("Alt+ArrowUp");
+                await expect(allocationInput(otherRow)).toBeFocused();
+                await page.keyboard.press("Escape");
+                await expect(allocationCell(otherRow)).toBeFocused();
+            });
+
+            await test.step("Enter from a full-edit amount commits and moves down", async () => {
+                await amountCell(otherRow).dblclick();
+                const amountInput = amountCell(otherRow).getByTestId("amount-editable");
+                await expect(amountInput).toBeFocused();
+                await amountInput.fill("8");
+                await page.keyboard.press("Enter");
+                await expect(amountCell(otherRow).getByTestId("amount-display")).toHaveText("8.00");
+                await expect(amountCell(boundaryRow).getByTestId("amount-editable")).toBeFocused();
+                await page.keyboard.press("Escape");
+                await expect(amountCell(boundaryRow)).toBeFocused();
+            });
+
+            // A changed allocation raises a rule proposal, and leaving the row waits for that
+            // proposal under the automation contract, so this step stays inside the row.
+            await test.step("double-click full-edits an allocation and Tab commits into the amount", async () => {
+                await allocationCell(otherRow).dblclick();
+                await expect(allocationInput(otherRow)).toBeFocused();
+                await page.keyboard.type("a.1");
+                await page.keyboard.press("Tab");
+                await expect(allocationCell(otherRow)).toHaveText(/^0\.1%/);
+                await expect(amountCell(otherRow).getByTestId("amount-editable")).toBeFocused();
+                await page.keyboard.press("Escape");
+                await expect(amountCell(otherRow)).toBeFocused();
+            });
+
+            await test.step("full edit leaves the text with a fresh arrow at its edge", async () => {
+                const descriptionCell = transactionGridCell(otherRow, "description");
+                const descriptionInput = otherRow.getByTestId("description-editable");
+                await descriptionCell.dblclick();
+                await expect(descriptionInput).toBeFocused();
+
+                // Full edit starts with everything selected, so the first Left only collapses it.
+                await page.keyboard.press("ArrowLeft");
+                await expect(descriptionInput).toBeFocused();
+                await page.keyboard.press("ArrowLeft");
+                await expect(
+                    transactionGridCell(otherRow, "date").getByTestId("date-editable")
+                ).toBeFocused();
+                await page.keyboard.press("Escape");
+                await expect(transactionGridCell(otherRow, "date")).toBeFocused();
+
+                await amountCell(otherRow).press("Enter");
+                const amountInput = amountCell(otherRow).getByTestId("amount-editable");
+                await expect(amountInput).toBeFocused();
+                await page.keyboard.press("End");
+                await page.keyboard.press("ArrowRight");
+                await expect(transactionGridCell(otherRow, "actions")).toBeFocused();
+            });
+
+            await test.step("a held arrow stops at the edge instead of carrying into the next cell", async () => {
+                const descriptionCell = transactionGridCell(otherRow, "description");
+                const descriptionInput = otherRow.getByTestId("description-editable");
+                await descriptionCell.dblclick();
+                await expect(descriptionInput).toBeFocused();
+                await page.keyboard.press("End");
+                // Auto-repeat: every press after the first reports `repeat`.
+                for (let press = 0; press < 15; press += 1) await page.keyboard.down("ArrowLeft");
+                await page.keyboard.up("ArrowLeft");
+                await expect(descriptionInput).toBeFocused();
+                expect(
+                    await descriptionInput.evaluate((element) =>
+                        element instanceof HTMLInputElement ? element.selectionStart : null
+                    )
+                ).toBe(0);
+                await page.keyboard.press("Escape");
+                await expect(descriptionCell).toBeFocused();
+            });
         });
 
         test("status dropdown arrow keys navigate grid, not open dropdown", async ({ page }) => {
@@ -1933,6 +2119,119 @@ test.describe("Transactions", () => {
                 await dateInput.press("Tab");
 
                 await expect(page.getByRole("grid", { name: /\w+ \d{4}/ })).toBeVisible();
+            });
+
+            const row = page.locator('[data-testid="transaction-row"]').first();
+            const dateCell = row.locator('[role="gridcell"][data-cell="date"]');
+            const dateInput = row.getByTestId("date-editable");
+            const calendar = page.getByRole("grid", { name: /\w+ \d{4}/ });
+
+            await test.step("the calendar opens on the selected day and Escape closes only it", async () => {
+                const focusedDay = calendar.locator("button:focus");
+                await expect(focusedDay).toHaveCount(1);
+                await expect(focusedDay).toHaveAttribute("tabindex", "0");
+
+                await page.keyboard.press("Alt+ArrowDown");
+                await expect(calendar).toBeVisible();
+                await expect(dateCell).toHaveAttribute("data-cell-content", "editor");
+
+                await page.keyboard.press("Escape");
+                await expect(calendar).toHaveCount(0);
+                await expect(dateInput).toBeFocused();
+            });
+
+            await test.step("Escape then cancels the edit, and a further Escape parks the grid", async () => {
+                const storedText = await dateInput.inputValue();
+                await dateInput.fill("1/2/2020");
+                await page.keyboard.press("Escape");
+                await expect(dateCell).toHaveAttribute("data-cell-content", "display");
+                await expect(dateCell).toBeFocused();
+
+                await page.keyboard.press("Enter");
+                await expect(dateInput).toHaveValue(storedText);
+                await page.keyboard.press("Escape");
+                await page.keyboard.press("Escape");
+                await expect(dateCell).not.toBeFocused();
+            });
+
+            await test.step("Ctrl or Cmd with Up and Down step the typed date by a day", async () => {
+                await dateCell.focus();
+                await dateCell.press("Enter");
+                await expect(dateInput).toBeFocused();
+                const original = await dateInput.inputValue();
+
+                await page.keyboard.press("ControlOrMeta+ArrowUp");
+                const nextDay = await dateInput.inputValue();
+                expect(nextDay).not.toBe(original);
+                await page.keyboard.press("ControlOrMeta+ArrowDown");
+                await expect(dateInput).toHaveValue(original);
+                await page.keyboard.press("ControlOrMeta+ArrowDown");
+                await page.keyboard.press("ControlOrMeta+ArrowUp");
+                await page.keyboard.press("ControlOrMeta+ArrowUp");
+                await expect(dateInput).toHaveValue(nextDay);
+                await expect(dateCell).toHaveAttribute("data-cell-content", "editor");
+
+                // Leaving saves the stepped date like typed text.
+                await page.keyboard.press("Enter");
+                await expect(dateCell).toHaveAttribute("data-cell-content", "display");
+                await dateCell.dblclick();
+                await expect(dateInput).toHaveValue(nextDay);
+            });
+
+            await test.step("arrows move the calendar's day and Enter picks it back into navigation", async () => {
+                const beforeText = await dateInput.inputValue();
+                await page.keyboard.press("Tab");
+                await expect(calendar).toBeVisible();
+                await page.keyboard.press("ArrowRight");
+                await page.keyboard.press("ArrowLeft");
+                await page.keyboard.press("ArrowRight");
+                await page.keyboard.press("Enter");
+
+                await expect(calendar).toHaveCount(0);
+                await expect(dateCell).toHaveAttribute("data-cell-content", "display");
+                await expect(dateCell).toBeFocused();
+                await dateCell.press("Enter");
+                const afterText = await dateInput.inputValue();
+                expect(afterText).not.toBe(beforeText);
+                await page.keyboard.press("ControlOrMeta+ArrowDown");
+                await expect(dateInput).toHaveValue(beforeText);
+                await page.keyboard.press("Escape");
+            });
+
+            await test.step("keyboard focus survives the calendar moving to another month", async () => {
+                await dateCell.focus();
+                await dateCell.press("Enter");
+                await expect(dateInput).toBeFocused();
+                const beforeText = await dateInput.inputValue();
+                await page.keyboard.press("Tab");
+                await expect(calendar).toBeVisible();
+                const startMonth = await calendar.getAttribute("aria-label");
+
+                // Six weeks back always leaves the starting month.
+                for (let week = 0; week < 6; week += 1) await page.keyboard.press("ArrowUp");
+                await expect(calendar).not.toHaveAttribute("aria-label", startMonth ?? "");
+                await expect(calendar.locator("button:focus")).toHaveCount(1);
+                await page.keyboard.press("PageDown");
+                await expect(calendar).toHaveAttribute("aria-label", startMonth ?? "");
+                await expect(calendar.locator("button:focus")).toHaveCount(1);
+                await page.keyboard.press("ArrowLeft");
+                await page.keyboard.press("Enter");
+
+                await expect(calendar).toHaveCount(0);
+                await expect(dateCell).toBeFocused();
+                await dateCell.press("Enter");
+                expect(await dateInput.inputValue()).not.toBe(beforeText);
+                await page.keyboard.press("Escape");
+            });
+
+            await test.step("a printable key quick-enters a date that is read on leaving", async () => {
+                await dateCell.focus();
+                await page.keyboard.type("1/2/2020");
+                await expect(dateInput).toBeFocused();
+                await expect(dateInput).toHaveValue("1/2/2020");
+                await page.keyboard.press("Enter");
+                await expect(dateCell).toHaveAttribute("data-cell-content", "display");
+                await expect(row.getByTestId("date-display")).toContainText("2020");
             });
         });
     });
@@ -2892,16 +3191,21 @@ test.describe("Transactions", () => {
                         await cell.dblclick();
                         await expect(cell).toHaveAttribute("data-cell-content", "editor");
                         await locator.hover({ force: true });
-                        await expect
-                            .poll(
-                                async () =>
-                                    paintsNothing(
-                                        page,
-                                        (await readCellPaint(cell)).backgroundColor
-                                    ),
-                                { message: `${label} outer hover fill in ${theme}` }
-                            )
-                            .toBe(false);
+                        // A modal listbox, as the status editor opens, blocks the pointer from the
+                        // page, so the outer cell can only show hover where hover reaches it. The
+                        // active cell is untinted, so no selection fill stands in for hover.
+                        if (await cell.evaluate((node) => node.matches(":hover"))) {
+                            await expect
+                                .poll(
+                                    async () =>
+                                        paintsNothing(
+                                            page,
+                                            (await readCellPaint(cell)).backgroundColor
+                                        ),
+                                    { message: `${label} outer hover fill in ${theme}` }
+                                )
+                                .toBe(false);
+                        }
                         await expect
                             .poll(
                                 async () =>
@@ -2924,20 +3228,18 @@ test.describe("Transactions", () => {
                     }
                 });
 
-                await test.step(`${theme} theme paints focus only on the whole cell`, async () => {
+                await test.step(`${theme} theme marks the focused cell active with one outline`, async () => {
                     for (const column of RESTING_CHROME_COLUMNS) {
                         const cell = row.locator(`[role="gridcell"][data-cell="${column}"]`);
                         const resting = await readCellPaint(cell);
                         await cell.focus();
                         await expect(cell).toBeFocused();
                         await expect(cell).toHaveAttribute("data-cell-content", "display");
-                        await expect
-                            .poll(
-                                async () =>
-                                    (await readCellPaint(cell)).boxShadow !== resting.boxShadow,
-                                { message: `${column} outer focus ring in ${theme}` }
-                            )
-                            .toBe(true);
+                        // Grid state marks the active cell and the selection overlay outlines it;
+                        // the cell itself gains no second, DOM-focus ring.
+                        await expect(cell).toHaveAttribute("data-active-cell", "true");
+                        await expect(page.getByTestId("cell-selection-outline")).toHaveCount(1);
+                        expect((await readCellPaint(cell)).boxShadow).toBe(resting.boxShadow);
                         await expect
                             .poll(() => measuredTextContrast(cell), {
                                 message: `${column} focused text contrast in ${theme}`
@@ -3266,7 +3568,7 @@ test.describe("Transactions", () => {
                 await expect(row.locator('[role="gridcell"][tabindex="0"]')).toHaveCount(1);
             });
 
-            await test.step("checked and unchecked checkbox cells retain canonical focus paint", async () => {
+            await test.step("checked and unchecked checkbox cells show the active-cell outline", async () => {
                 const checkbox = row.getByRole("checkbox", { name: /^Select transaction/ });
                 const checkboxCell = row.locator('[role="gridcell"][data-cell="checkbox"]');
                 const dateCell = row.locator('[role="gridcell"][data-cell="date"]');
@@ -3281,10 +3583,14 @@ test.describe("Transactions", () => {
                             "aria-checked",
                             checked ? "true" : "false"
                         );
+                        // The active cell is marked by the grid's own state and the selection
+                        // outline, not by a DOM focus ring.
+                        await expect(checkboxCell).toHaveAttribute("data-active-cell", "true");
+                        await expect(page.getByTestId("cell-selection-outline")).toHaveCount(1);
                         expect(
                             hasNoShadowExtent((await readCellPaint(checkboxCell)).boxShadow),
-                            `${theme} checked=${checked} canonical focus ring`
-                        ).toBe(false);
+                            `${theme} checked=${checked} no second focus ring`
+                        ).toBe(true);
                         await page.keyboard.press("Space");
                     }
                 }

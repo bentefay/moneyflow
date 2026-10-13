@@ -71,6 +71,7 @@ export type AllocationBoundaryResult<Value = AllocationMutationSummary> =
 export interface SetTransactionAllocationInput {
     readonly location: TransactionLocation;
     readonly personId: string;
+    /** A percentage to store, including an explicit 0, or `null` to leave the allocation blank. */
     readonly value: unknown;
 }
 
@@ -171,7 +172,7 @@ function inspectOwnDataEntries(
 
 /**
  * Materialize and validate a complete explicit allocation set without invoking caller accessors.
- * Zero is valid input but is omitted because it means removal at the CRDT boundary.
+ * Zero is valid input but is omitted: a replacement set, such as a rule's, treats blank and 0% alike.
  */
 export function prepareAllocationReplacement(
     input: unknown
@@ -277,7 +278,12 @@ function replacePreparedAllocations(
     return { affectedTransactions: transactions.length, changed };
 }
 
-/** Set or remove exactly one Person key over every physical copy of a logical transaction. */
+/**
+ * Set or remove exactly one Person key over every physical copy of a logical transaction.
+ *
+ * Unlike a replacement set, a single cell keeps blank and an explicit 0 apart: `null` removes the
+ * key so the cell reads as unanswered, while 0 is stored as an answered 0%. Both contribute 0%.
+ */
 export function setTransactionAllocation(
     store: TransactionStore,
     input: SetTransactionAllocationInput
@@ -290,27 +296,30 @@ export function setTransactionAllocation(
         return error({ personId: input.personId, type: "invalid-person-id" });
     }
 
-    const candidate = Object.create(null) as Record<string, unknown>;
-    defineEntry(candidate, input.personId, input.value);
-    const prepared = prepareAllocationReplacement(candidate);
-    if (!prepared.ok) return prepared;
+    const preparedValue = (() => {
+        if (input.value === null) return { ok: true, value: null } as const;
+        const validation = validateAllocationSet({ [input.personId]: input.value });
+        return validation.ok
+            ? ({ ok: true, value: validation.value[input.personId] ?? null } as const)
+            : ({ errors: validation.errors, ok: false } as const);
+    })();
+    if (!preparedValue.ok) {
+        return error({ errors: preparedValue.errors, type: "invalid-allocations" });
+    }
 
     const transactions = findLogicalTransactions(store, input.location);
     if (transactions.length === 0) return error({ type: "transaction-not-found" });
 
-    // Zero means removal at the CRDT boundary, so prepareAllocationReplacement omits it.
-    const preparedValue = prepared.value[input.personId];
-
     let changed = false;
     for (const transaction of transactions) {
         const allocations = allocationMap(transaction);
-        if (preparedValue == null) {
+        if (preparedValue.value == null) {
             if (Object.prototype.hasOwnProperty.call(allocations, input.personId)) {
                 delete allocations[input.personId];
                 changed = true;
             }
-        } else if (!Object.is(allocations[input.personId], preparedValue)) {
-            allocations[input.personId] = preparedValue;
+        } else if (!Object.is(allocations[input.personId], preparedValue.value)) {
+            allocations[input.personId] = preparedValue.value;
             changed = true;
         }
     }

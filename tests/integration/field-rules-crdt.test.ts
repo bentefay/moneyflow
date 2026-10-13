@@ -409,8 +409,8 @@ describe("field-rule application at import and bulk operations", () => {
                     id: "r-invalid",
                     field: "allocation",
                     descriptionText: DESCRIPTION,
-                    // 150 is out of range; the rule must be rejected, never clamped/normalised.
-                    allocations: { "person-a": asPercentage(150) }
+                    // NaN is not a percentage; the rule must be rejected, never normalised.
+                    allocations: { "person-a": asPercentage(Number.NaN) }
                 })
             );
             expect(readActiveFieldRules(state)).toHaveLength(0);

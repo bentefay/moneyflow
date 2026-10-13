@@ -194,16 +194,22 @@ function normalizeWhitespace(str: string): string {
 
 /**
  * Convert existing transactions to duplicate check format.
+ *
+ * A blank amount cannot equal an imported amount, so blank rows are never duplicate candidates.
  */
 function toDuplicateCheckFormat(transactions: Transaction[]): DuplicateCheckTransaction[] {
-    return transactions
-        .filter((tx) => !tx.deletedAt)
-        .map((tx) => ({
-            id: tx.id,
-            date: toISODateString(tx.date),
-            amount: tx.amount,
-            description: tx.description ?? ""
-        }));
+    return transactions.flatMap((tx) =>
+        tx.deletedAt || tx.amount == null
+            ? []
+            : [
+                  {
+                      id: tx.id,
+                      date: toISODateString(tx.date),
+                      amount: tx.amount,
+                      description: tx.description ?? ""
+                  }
+              ]
+    );
 }
 
 /**

@@ -58,6 +58,7 @@ import {
     NONEDITABLE_TRANSACTION_GRID_KEY_CELL,
     TRANSACTION_CELL_SELECTION_OPTIONS,
     transactionGridKeyIntent,
+    transactionActiveCellFromRowKey,
     transactionCellSelectionRowKey,
     transactionCopyOnKeyDown,
     transactionSelectedCellMarkersFromRowKey,
@@ -75,6 +76,7 @@ import {
     type TransactionRowData,
     type TransactionRowPresence
 } from "./TransactionRow";
+import { TransactionSelectionOverlay } from "./TransactionSelectionOverlay";
 import { TransactionVirtualRows } from "./TransactionVirtualRows";
 
 /**
@@ -183,7 +185,7 @@ export interface TransactionTableProps {
     onTransactionAllocationUpdate?: (
         id: string,
         personId: string,
-        value: number
+        value: number | null
     ) => TransactionGridEditorCommitResult;
     /** Callback when a transaction should be deleted */
     onTransactionDelete?: (id: string) => void;
@@ -853,9 +855,13 @@ export function TransactionTable({
                         : null,
                 viewportRowDistance
             } satisfies TransactionGridRowSurface;
-            const rowElement = (selectedCellMarkers: ReadonlySet<string>) => (
+            const rowElement = (
+                selectedCellMarkers: ReadonlySet<string>,
+                activeCellColumnId: string | null
+            ) => (
                 <TransactionRow
                     selectedCellMarkers={selectedCellMarkers}
+                    activeCellColumnId={activeCellColumnId}
                     gridCellSurface={gridCellSurface}
                     transaction={transaction}
                     ariaRowIndex={ariaRowIndex}
@@ -939,7 +945,8 @@ export function TransactionTable({
                             transactionSelectedCellMarkersFromRowKey(
                                 selectionRowKey,
                                 gridCellSurface.cells.map((cell) => cell.column.id)
-                            )
+                            ),
+                            transactionActiveCellFromRowKey(selectionRowKey)
                         )
                     }
                 </table.Subscribe>
@@ -996,8 +1003,9 @@ export function TransactionTable({
                     ref={handleScrollElementChange}
                     className="flex min-h-0 flex-1 scroll-pt-[37px] flex-col overflow-auto"
                 >
+                    {/* Outside an editor the grid selects cells, not text; editors opt back in. */}
                     <div
-                        className="relative min-w-fit flex-1"
+                        className="relative min-w-fit flex-1 select-none"
                         role="grid"
                         aria-label="Transactions"
                         aria-rowcount={ariaRowCount}
@@ -1025,6 +1033,15 @@ export function TransactionTable({
                             scrollToRowIndex={scrollToRowIndex}
                             onScrollToRowIndexApplied={handleScrollToRowIndexApplied}
                             renderRow={renderRow}
+                            overlay={
+                                <TransactionSelectionOverlay
+                                    table={table}
+                                    rowIndexes={rowWindow.indexes}
+                                    rowHeight={TRANSACTION_MAIN_ROW_HEIGHT_PX}
+                                    selectionVisibility={controllerSnapshot.selectionVisibility}
+                                    gridTemplateColumns={gridTemplateColumns}
+                                />
+                            }
                         />
                     </div>
                 </div>

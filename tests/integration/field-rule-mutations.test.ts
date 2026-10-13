@@ -156,7 +156,7 @@ describe("field-rule CRUD mutations", () => {
                 const result = createFieldRule(state, {
                     id: "rule-alloc",
                     descriptionText: DESCRIPTION,
-                    action: { field: "allocation", allocations: { "person-1": 150 } },
+                    action: { field: "allocation", allocations: { "person-1": Number.NaN } },
                     createdAtEpochMs: 1000
                 });
                 expect(result.ok).toBe(false);

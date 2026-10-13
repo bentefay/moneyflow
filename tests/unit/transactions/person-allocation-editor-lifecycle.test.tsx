@@ -116,25 +116,45 @@ describe("PersonAllocationCell editor lifecycle", () => {
         expect(onCommit).not.toHaveBeenCalled();
     });
 
-    it("rejects an invalid allocation before mutation and retains the raw draft", () => {
+    it.each([
+        { draft: "101", stored: 101, shown: "101" },
+        { draft: "a.1", stored: 0.1, shown: "0.1" },
+        { draft: "0", stored: 0, shown: "0" },
+        { draft: "nothing numeric", stored: null, shown: "" }
+    ])("normalises $draft on commit and writes it once", ({ draft, stored, shown }) => {
         const onCommit = vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS);
         const editor = renderAllocationEditor({ ...baseProps, onCommit });
         fireEvent.change(screen.getByRole("textbox", { name: "Alex allocation percentage" }), {
-            target: { value: "101" }
+            target: { value: draft }
         });
 
         expect(editor.lifecycle().automation).toEqual({
-            draft: { personId: "person-a", text: "101" },
+            draft: { personId: "person-a", text: draft },
             field: "allocation",
             originalAllocations: { "person-a": 25, "person-b": 75 }
         });
         act(() => {
+            expect(editor.lifecycle().commit()).toEqual({ ok: true, status: "changed" });
+        });
+        expect(onCommit).toHaveBeenCalledOnce();
+        expect(onCommit).toHaveBeenCalledWith("person-a", stored);
+        const input = screen.getByRole("textbox", { name: "Alex allocation percentage" });
+        expect(input).toHaveValue(shown);
+        expect(input).not.toHaveAttribute("aria-invalid");
+    });
+
+    it("surfaces a failed write without discarding the draft", () => {
+        const onCommit = vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_FAILURE);
+        const editor = renderAllocationEditor({ ...baseProps, onCommit });
+        fireEvent.change(screen.getByRole("textbox", { name: "Alex allocation percentage" }), {
+            target: { value: "40" }
+        });
+
+        act(() => {
             expect(editor.lifecycle().commit()).toEqual({ ok: false, status: "rejected" });
         });
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(screen.getByRole("textbox", { name: "Alex allocation percentage" })).toHaveAttribute(
-            "aria-invalid",
-            "true"
-        );
+        const input = screen.getByRole("textbox", { name: "Alex allocation percentage" });
+        expect(input).toHaveValue("40");
+        expect(input).toHaveAttribute("aria-invalid", "true");
     });
 });

@@ -15,7 +15,7 @@
  *    cached its table reads would pass every fixture small enough to render in one page.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import {
     createNewIdentity,
@@ -219,6 +219,54 @@ async function visibleRowDistance(page: Page): Promise<number> {
             const last = Math.max(...visibleIndexes);
             return Math.max(1, last - first);
         });
+}
+
+/** Whether a cell lies fully inside its grid's scroll viewport, below the sticky header. */
+async function isInsideGridViewport(cell: Locator): Promise<boolean> {
+    return cell.evaluate((element) => {
+        const scroll = element.closest('[role="grid"]')?.parentElement;
+        const header = scroll?.querySelector('[role="row"][aria-rowindex="1"]');
+        if (!(scroll instanceof HTMLElement) || header == null) return false;
+        const viewport = scroll.getBoundingClientRect();
+        const box = element.getBoundingClientRect();
+        const tolerance = 0.5;
+        return (
+            box.top >= header.getBoundingClientRect().bottom - tolerance &&
+            box.bottom <= viewport.top + scroll.clientTop + scroll.clientHeight + tolerance &&
+            box.left >= viewport.left + scroll.clientLeft - tolerance &&
+            box.right <= viewport.left + scroll.clientLeft + scroll.clientWidth + tolerance
+        );
+    });
+}
+
+/** The page's native text selection, which spreadsheet gestures must never create. */
+async function nativeSelectionText(page: Page): Promise<string> {
+    return page.evaluate(() => document.getSelection()?.toString() ?? "");
+}
+
+async function centreOf(cell: Locator): Promise<{ readonly x: number; readonly y: number }> {
+    const box = await cell.boundingBox();
+    if (box == null) throw new Error("drag endpoint is not laid out");
+    const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    // The raw mouse API never scrolls, so prove the point really lands on the intended cell.
+    expect(
+        await cell.evaluate(
+            (element, target) => element.contains(document.elementFromPoint(target.x, target.y)),
+            point
+        )
+    ).toBe(true);
+    return point;
+}
+
+async function dragBetween(page: Page, from: Locator, to: Locator): Promise<void> {
+    await to.scrollIntoViewIfNeeded();
+    await from.scrollIntoViewIfNeeded();
+    const start = await centreOf(from);
+    const end = await centreOf(to);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 8 });
+    await page.mouse.up();
 }
 
 async function importDuplicateOfExistingRow(page: Page): Promise<void> {
@@ -452,24 +500,31 @@ test.describe("Transaction grid structure", () => {
             expect(logicalColumnCount).toBe(9);
         });
 
-        await test.step("selected chrome computes to a real inset shadow in both themes", async () => {
+        await test.step("a selection draws one visible outline in both themes", async () => {
             const dateCell = row.locator('[role="gridcell"][data-cell="date"]');
             await dateCell.click({ position: { x: 1, y: 1 } });
-            const shadows = await dateCell.evaluate((element) => {
+            const outline = page.getByTestId("cell-selection-outline");
+            await expect(outline).toHaveCount(1);
+            const outlines = await outline.evaluate((element) => {
                 const root = element.ownerDocument.documentElement;
                 const originallyDark = root.classList.contains("dark");
-                const shadowFor = (dark: boolean): string => {
+                const outlineFor = (dark: boolean) => {
                     root.classList.toggle("dark", dark);
-                    return getComputedStyle(element).boxShadow;
+                    const styles = getComputedStyle(element);
+                    return {
+                        color: styles.outlineColor,
+                        style: styles.outlineStyle,
+                        width: Number.parseFloat(styles.outlineWidth)
+                    };
                 };
-                const result = [shadowFor(false), shadowFor(true)];
+                const result = [outlineFor(false), outlineFor(true)];
                 root.classList.toggle("dark", originallyDark);
                 return result;
             });
-            expect(shadows).toHaveLength(2);
-            for (const shadow of shadows) {
-                expect(shadow).not.toBe("none");
-                expect(shadow).toContain("inset");
+            for (const drawn of outlines) {
+                expect(drawn.width).toBe(2);
+                expect(drawn.style).not.toBe("none");
+                expect(drawn.color).not.toMatch(/rgba\([^)]*,\s*0\)$/);
             }
         });
 
@@ -587,6 +642,162 @@ test.describe("Transaction grid structure", () => {
             await dateCell.focus();
             await expect(dateCell).toHaveAttribute("aria-selected", "true");
             await expect(descriptionCell).toHaveAttribute("aria-selected", "true");
+        });
+    });
+
+    test("pointer gestures select cell rectangles while editors keep native text selection", async ({
+        page
+    }) => {
+        await createNewIdentity(page);
+        await goToTransactions(page);
+
+        const bottomId = await createRow(page, "Pointer Bottom Row");
+        const middleId = await createRow(page, "Pointer Middle Row");
+        const topId = await createRow(page, "Pointer Top Row");
+        const rowOf = (transactionId: string) =>
+            page.locator(`[data-testid="transaction-row"][data-transaction-id="${transactionId}"]`);
+        const cellOf = (transactionId: string, columnId: string) =>
+            rowOf(transactionId).locator(`[role="gridcell"][data-cell="${columnId}"]`);
+        const grid = page.getByTestId("transaction-table");
+        const selectedCells = grid.locator('[role="gridcell"][aria-selected="true"]');
+        // Ends well inside the viewport: a pointer in the edge band would scroll the grid sideways.
+        const RECTANGLE_COLUMNS = ["date", "description", "account"];
+
+        await test.step("dragging across non-edit cells selects a rectangle from its anchor", async () => {
+            await dragBetween(page, cellOf(topId, "date"), cellOf(bottomId, "account"));
+            await expect(selectedCells).toHaveCount(3 * RECTANGLE_COLUMNS.length);
+            for (const transactionId of [topId, middleId, bottomId]) {
+                for (const columnId of RECTANGLE_COLUMNS) {
+                    await expect(cellOf(transactionId, columnId)).toHaveAttribute(
+                        "aria-selected",
+                        "true"
+                    );
+                }
+                await expect(cellOf(transactionId, "tags")).toHaveAttribute(
+                    "aria-selected",
+                    "false"
+                );
+            }
+            await expect(cellOf(topId, "date")).toBeFocused();
+            expect(await nativeSelectionText(page)).toBe("");
+        });
+
+        await test.step("adjacent selected cells share one outline centred on the grid lines", async () => {
+            await cellOf(topId, "description").click();
+            await cellOf(middleId, "account").click({ modifiers: ["Shift"] });
+            const outline = page.getByTestId("cell-selection-outline");
+            await expect(outline).toHaveCount(1);
+            const [outlineBox, topLeft, bottomRight] = await Promise.all([
+                outline.boundingBox(),
+                cellOf(topId, "description").boundingBox(),
+                cellOf(middleId, "account").boundingBox()
+            ]);
+            if (outlineBox == null || topLeft == null || bottomRight == null) {
+                throw new Error("selection geometry is not laid out");
+            }
+            // The outline's box runs through the middle of each 1px grid line around the 2x2: the
+            // line before the first cell, and the last pixel of the final cell.
+            expect(outlineBox.x).toBeCloseTo(topLeft.x - 0.5, 1);
+            expect(outlineBox.y).toBeCloseTo(topLeft.y - 0.5, 1);
+            expect(outlineBox.x + outlineBox.width).toBeCloseTo(
+                bottomRight.x + bottomRight.width - 0.5,
+                1
+            );
+            expect(outlineBox.y + outlineBox.height).toBeCloseTo(
+                bottomRight.y + bottomRight.height - 0.5,
+                1
+            );
+            const paint = (cell: Locator) =>
+                cell.evaluate((element) => {
+                    const styles = getComputedStyle(element);
+                    return { background: styles.backgroundColor, shadow: styles.boxShadow };
+                });
+            const tinted = await paint(cellOf(middleId, "description"));
+            for (const cell of [cellOf(topId, "account"), cellOf(middleId, "account")]) {
+                await expect(cell).toHaveAttribute("aria-selected", "true");
+                await expect(cell).not.toHaveAttribute("data-active-cell");
+                expect(await paint(cell)).toEqual(tinted);
+            }
+            expect(tinted.shadow).toBe("none");
+
+            // The anchor is the active cell: untinted inside the range, with no second ring.
+            const anchor = cellOf(topId, "description");
+            await expect(anchor).toBeFocused();
+            await expect(anchor).toHaveAttribute("data-active-cell", "true");
+            const anchorPaint = await paint(anchor);
+            expect(anchorPaint.background).not.toBe(tinted.background);
+            expect(anchorPaint.shadow).toBe("none");
+        });
+
+        await test.step("click then Shift-click extends from the anchor without text highlighting", async () => {
+            await cellOf(middleId, "description").click();
+            await expect(selectedCells).toHaveCount(1);
+            await cellOf(topId, "amount").click({ modifiers: ["Shift"] });
+
+            for (const transactionId of [topId, middleId]) {
+                for (const columnId of ["description", "account", "tags", "status", "amount"]) {
+                    await expect(cellOf(transactionId, columnId)).toHaveAttribute(
+                        "aria-selected",
+                        "true"
+                    );
+                }
+            }
+            await expect(cellOf(bottomId, "description")).toHaveAttribute("aria-selected", "false");
+            await expect(cellOf(middleId, "description")).toBeFocused();
+            expect(await nativeSelectionText(page)).toBe("");
+        });
+
+        await test.step("an editor keeps cursor placement, text dragging and copying", async () => {
+            await page.context().grantPermissions(["clipboard-read", "clipboard-write"], {
+                origin: new URL(page.url()).origin
+            });
+            await cellOf(middleId, "description").dblclick();
+            const input = rowOf(middleId).getByTestId("description-editable");
+            await expect(input).toBeFocused();
+            const box = await input.boundingBox();
+            if (box == null) throw new Error("description editor is not laid out");
+
+            await page.mouse.click(box.x + box.width * 0.4, box.y + box.height / 2);
+            const caret = await input.evaluate((element) =>
+                element instanceof HTMLInputElement
+                    ? [element.selectionStart, element.selectionEnd]
+                    : null
+            );
+            expect(caret?.[0]).toBe(caret?.[1]);
+            expect(caret?.[0]).toBeGreaterThan(0);
+
+            await page.mouse.move(box.x + 2, box.y + box.height / 2);
+            await page.mouse.down();
+            await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 6 });
+            await page.mouse.up();
+            const dragged = await input.evaluate((element) =>
+                element instanceof HTMLInputElement
+                    ? element.value.slice(element.selectionStart ?? 0, element.selectionEnd ?? 0)
+                    : ""
+            );
+            expect(dragged.length).toBeGreaterThan(0);
+            expect("Pointer Middle Row".startsWith(dragged)).toBe(true);
+            await expect(input).toBeFocused();
+            await expect(cellOf(middleId, "description")).toHaveAttribute(
+                "data-cell-content",
+                "editor"
+            );
+
+            await page.keyboard.press("ControlOrMeta+c");
+            expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(dragged);
+            await page.keyboard.press("Escape");
+            await expect(cellOf(middleId, "description")).toHaveAttribute(
+                "data-cell-content",
+                "display"
+            );
+        });
+
+        await test.step("action buttons stay clickable inside a selected rectangle", async () => {
+            await dragBetween(page, cellOf(topId, "amount"), cellOf(bottomId, "actions"));
+            await expect(cellOf(middleId, "actions")).toHaveAttribute("aria-selected", "true");
+            const deleteButton = rowOf(middleId).getByTestId("delete-button");
+            await deleteButton.click();
+            await expect(deleteButton).toHaveAttribute("title", "Click again to confirm delete");
         });
     });
 
@@ -851,6 +1062,44 @@ test.describe("Transaction grid structure", () => {
         await expect
             .poll(() => grid.evaluate((element) => element.parentElement?.scrollWidth ?? null))
             .toBe(scrollState.scrollWidth);
+
+        await test.step("Tab enters the actions cell on its first button and arrows stop at its ends", async () => {
+            await actionsCell.focus();
+            await expect(actionsCell).toBeFocused();
+            await page.keyboard.press("Tab");
+            await expect(duplicate).toBeFocused();
+            await expectVisibleActionFocusIndicator(duplicate);
+            await page.keyboard.press("ArrowLeft");
+            await expect(duplicate).toBeFocused();
+            await page.keyboard.press("ArrowRight");
+            await expect(deleteAction).toBeFocused();
+            await expectVisibleActionFocusIndicator(deleteAction);
+            await page.keyboard.press("ArrowRight");
+            await expect(deleteAction).toBeFocused();
+            await page.keyboard.press("ArrowLeft");
+            await expect(duplicate).toBeFocused();
+        });
+
+        await test.step("Enter or Space activates the focused action exactly once", async () => {
+            await page.keyboard.press("Enter");
+            await expect(duplicate).toHaveAttribute("aria-expanded", "true");
+            await page.keyboard.press(" ");
+            await expect(duplicate).toHaveAttribute("aria-expanded", "false");
+            await expect(duplicate).toBeFocused();
+        });
+
+        await test.step("Escape returns to cell navigation and Alt+Arrow leaves through the grid", async () => {
+            await page.keyboard.press("Escape");
+            await expect(actionsCell).toBeFocused();
+            await expect(actionsCell).toHaveAttribute("aria-selected", "true");
+
+            await page.keyboard.press("Tab");
+            await expect(duplicate).toBeFocused();
+            await page.keyboard.press("Alt+ArrowLeft");
+            await expect(row.locator('[role="gridcell"][data-cell="amount"]')).toBeFocused();
+            await page.keyboard.press("ArrowRight");
+            await expect(actionsCell).toBeFocused();
+        });
 
         await deleteAction.click();
         await expect(deleteAction).toHaveAttribute("title", "Click again to confirm delete");
@@ -1160,6 +1409,91 @@ test.describe("Transaction grid structure", () => {
             await expect(gridEnd).toBeFocused();
             await expect(gridEnd).toHaveAttribute("aria-selected", "true");
             await expect(gridEnd).toHaveAttribute("aria-colindex", String(logicalColumnCount));
+        });
+
+        const scrollContainerOf = grid.locator("..");
+        const cellAt = (index: number, columnId: string) =>
+            grid.locator(
+                `[data-index="${String(index)}"] [role="gridcell"][data-cell="${columnId}"]`
+            );
+        const scrollGridToTop = () =>
+            scrollContainerOf.evaluate((element) => {
+                element.scrollTop = 0;
+                element.scrollLeft = 0;
+                element.dispatchEvent(new Event("scroll"));
+            });
+
+        await test.step("keyboard movement keeps the active cell inside the viewport", async () => {
+            await scrollGridToTop();
+            await cellAt(0, "description").click();
+            await expect(cellAt(0, "description")).toBeFocused();
+            const steps = (await visibleRowDistance(page)) + 3;
+            for (let step = 0; step < steps; step += 1) {
+                await page.keyboard.press("ArrowDown");
+                await expect(cellAt(step + 1, "description")).toBeFocused();
+                expect(await isInsideGridViewport(cellAt(step + 1, "description"))).toBe(true);
+            }
+            for (let step = steps; step > 0; step -= 1) {
+                await page.keyboard.press("ArrowUp");
+                await expect(cellAt(step - 1, "description")).toBeFocused();
+                expect(await isInsideGridViewport(cellAt(step - 1, "description"))).toBe(true);
+            }
+
+            // A narrow viewport scrolls the grid sideways to keep the last column reachable.
+            const viewport = page.viewportSize();
+            await page.setViewportSize({ height: viewport?.height ?? 720, width: 640 });
+            await page.keyboard.press("End");
+            await expect(cellAt(0, "actions")).toBeFocused();
+            await expect.poll(() => isInsideGridViewport(cellAt(0, "actions"))).toBe(true);
+            await page.keyboard.press("Home");
+            await expect(cellAt(0, "checkbox")).toBeFocused();
+            await expect.poll(() => isInsideGridViewport(cellAt(0, "checkbox"))).toBe(true);
+            if (viewport != null) await page.setViewportSize(viewport);
+        });
+
+        await test.step("a drag held at the bottom edge scrolls and extends across virtual rows", async () => {
+            await scrollGridToTop();
+            const anchor = cellAt(0, "date");
+            const anchorBox = await anchor.boundingBox();
+            const viewportBox = await scrollContainerOf.boundingBox();
+            if (anchorBox == null || viewportBox == null) throw new Error("grid is not laid out");
+            const pointerX = anchorBox.x + anchorBox.width / 2;
+
+            await page.mouse.move(pointerX, anchorBox.y + anchorBox.height / 2);
+            await page.mouse.down();
+            await page.mouse.move(pointerX, viewportBox.y + viewportBox.height - 4, { steps: 6 });
+            await expect
+                .poll(() => scrollContainerOf.evaluate((element) => element.scrollTop), {
+                    timeout: 20_000
+                })
+                .toBeGreaterThan(57 * 60);
+            await page.mouse.up();
+
+            const reachedIndex = Math.max(
+                ...(await grid
+                    .locator(
+                        '[data-index]:has([role="gridcell"][data-cell="date"][aria-selected="true"])'
+                    )
+                    .evaluateAll((elements) =>
+                        elements.map((element) => Number(element.getAttribute("data-index")))
+                    ))
+            );
+            expect(reachedIndex).toBeGreaterThan(60);
+            await expect(anchor).toBeFocused();
+            await expect(cellAt(reachedIndex, "description")).toHaveAttribute(
+                "aria-selected",
+                "false"
+            );
+
+            // Rows the drag scrolled past mount afterwards and read the same rectangle.
+            const midpoint = Math.floor(reachedIndex / 2);
+            await scrollContainerOf.evaluate((element, top) => {
+                element.scrollTop = top;
+                element.dispatchEvent(new Event("scroll"));
+            }, midpoint * 57);
+            await expect(cellAt(midpoint, "date")).toHaveAttribute("aria-selected", "true");
+            await expect(cellAt(midpoint, "description")).toHaveAttribute("aria-selected", "false");
+            expect(await nativeSelectionText(page)).toBe("");
         });
     });
 });

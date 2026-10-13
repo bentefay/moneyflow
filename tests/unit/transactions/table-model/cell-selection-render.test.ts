@@ -9,6 +9,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+    transactionActiveCellFromRowKey,
     transactionCellSelectionRowKey,
     transactionSelectedCellMarkersFromRowKey
 } from "@/components/features/transactions/table-model/cell-selection-render";
@@ -78,6 +79,17 @@ describe("the per-row selection key", () => {
         const table = createTestTransactionTable({ transactions: transactions(20) });
 
         selectRows(table, "tx-2", "tx-2");
+        // A later range takes the active cell, so row 2 stays selected but is not active either side
+        // of the change below; the active cell legitimately repaints the row it leaves.
+        table.selectCellRange(
+            {
+                anchorColumnId: "description",
+                anchorRowId: "tx-18",
+                focusColumnId: "description",
+                focusRowId: "tx-18"
+            },
+            { mode: "include" }
+        );
         const key = transactionCellSelectionRowKey(table, 2);
         expect(key).not.toBe("");
 
@@ -95,7 +107,7 @@ describe("the per-row selection key", () => {
         );
 
         // Rows 2 and 8 share no edge, so row 2 must not repaint.
-        expect(table.getSelectedCellCount()).toBe(6);
+        expect(table.getSelectedCellCount()).toBe(7);
         expect(transactionCellSelectionRowKey(table, 2)).toBe(key);
     });
 
@@ -126,6 +138,56 @@ describe("selected markers from the row key", () => {
     it("returns no markers when only neighbouring rows affect the outline", () => {
         expect(transactionSelectedCellMarkersFromRowKey("-1:1-4|1:1-4", columnIds)).toEqual(
             new Set()
+        );
+    });
+});
+
+describe("the active cell in the per-row key", () => {
+    it("names the anchor's column only in the anchor's row", () => {
+        const table = createTestTransactionTable({ transactions: transactions(10) });
+        table.selectCellRange({
+            anchorColumnId: "date",
+            anchorRowId: "tx-3",
+            focusColumnId: "amount",
+            focusRowId: "tx-5"
+        });
+
+        expect(transactionActiveCellFromRowKey(transactionCellSelectionRowKey(table, 3))).toBe(
+            "date"
+        );
+        expect(
+            transactionActiveCellFromRowKey(transactionCellSelectionRowKey(table, 4))
+        ).toBeNull();
+        expect(
+            transactionActiveCellFromRowKey(transactionCellSelectionRowKey(table, 5))
+        ).toBeNull();
+    });
+
+    it("moves with the latest range rather than staying on an earlier one", () => {
+        const table = createTestTransactionTable({ transactions: transactions(10) });
+        selectRows(table, "tx-2", "tx-2", "date");
+        table.selectCellRange({
+            anchorColumnId: "amount",
+            anchorRowId: "tx-7",
+            focusColumnId: "amount",
+            focusRowId: "tx-7"
+        });
+
+        expect(transactionActiveCellFromRowKey(transactionCellSelectionRowKey(table, 7))).toBe(
+            "amount"
+        );
+        expect(
+            transactionActiveCellFromRowKey(transactionCellSelectionRowKey(table, 2))
+        ).toBeNull();
+    });
+
+    it("leaves the selected-column markers unaffected", () => {
+        const table = createTestTransactionTable({ transactions: transactions(10) });
+        selectRows(table, "tx-3", "tx-3", "date");
+        const key = transactionCellSelectionRowKey(table, 3);
+
+        expect(transactionSelectedCellMarkersFromRowKey(key, ["checkbox", "date"])).toEqual(
+            new Set(["date"])
         );
     });
 });

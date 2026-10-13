@@ -247,7 +247,7 @@ describe("allocation mutation boundary", () => {
             expect(
                 updateDescriptionAliasedTransaction(state, {
                     location: LOCATION,
-                    updates: { allocations: { mallory: 101 } }
+                    updates: { allocations: { mallory: Number.NaN } }
                 } as unknown as Parameters<typeof updateDescriptionAliasedTransaction>[1])
             ).toMatchObject({
                 error: { code: "invalid-transaction-allocations" },
@@ -295,10 +295,19 @@ describe("allocation mutation boundary", () => {
                 value: 0
             })
         ).toMatchObject({ ok: true, value: { changed: true } });
+        expect(explicitAllocations(store)).toEqual({ alice: 0, bob: 60 });
+
+        expect(
+            setTransactionAllocation(store, {
+                location: LOCATION,
+                personId: "alice",
+                value: null
+            })
+        ).toMatchObject({ ok: true, value: { changed: true } });
         expect(explicitAllocations(store)).toEqual({ bob: 60 });
     });
 
-    it("removes a malformed stored key when the repair value is zero", () => {
+    it("removes a malformed stored key when the repair value is blank", () => {
         const store = populatedStore({ alice: 40, bob: 60 });
         const transaction = findTransactionInStore(store, LOCATION);
         if (transaction == null) throw new Error("Expected the allocation transaction fixture");
@@ -307,7 +316,7 @@ describe("allocation mutation boundary", () => {
         const result = setTransactionAllocation(store, {
             location: LOCATION,
             personId: "alice",
-            value: 0
+            value: null
         });
 
         expect(result).toEqual({
@@ -323,9 +332,7 @@ describe("allocation mutation boundary", () => {
         ["positive-infinity", Number.POSITIVE_INFINITY],
         ["negative-infinity", Number.NEGATIVE_INFINITY],
         ["nan", Number.NaN],
-        ["negative-zero", -0],
-        ["below", -100.000_001],
-        ["above", 100.000_001]
+        ["negative-zero", -0]
     ])("rejects %s before a real document version changes", (_label, value) => {
         const vault = seededMirror();
         const before = vault.doc.version().encode();
@@ -344,19 +351,28 @@ describe("allocation mutation boundary", () => {
         vault.mirror.dispose();
     });
 
-    it("accepts exact signed boundaries and decimals without normalizing totals", () => {
+    it("accepts signed values beyond 100 and decimals without clamping or normalizing totals", () => {
         const store = populatedStore({ seed: 1 });
 
         expect(
             replaceTransactionAllocations(store, {
                 location: LOCATION,
-                allocations: { lower: -100, decimal: -0.125, upper: 100, totalAbove: 75.5 }
+                allocations: {
+                    below: -100.000_001,
+                    lower: -100,
+                    decimal: -0.125,
+                    upper: 100,
+                    above: 250,
+                    totalAbove: 75.5
+                }
             })
         ).toMatchObject({ ok: true });
         expect(explicitAllocations(store)).toEqual({
+            below: -100.000_001,
             lower: -100,
             decimal: -0.125,
             upper: 100,
+            above: 250,
             totalAbove: 75.5
         });
     });
@@ -368,7 +384,7 @@ describe("allocation mutation boundary", () => {
         vault.mirror.setState((state) => {
             failed = replaceTransactionAllocations(draftStore(state), {
                 location: LOCATION,
-                allocations: { alice: 50, bob: 101 }
+                allocations: { alice: 50, bob: Number.NaN }
             });
         });
 
@@ -646,15 +662,15 @@ describe("allocation mutation boundary", () => {
         const invalidEntries = [
             ["10", Number.POSITIVE_INFINITY, "not-finite"],
             ["2", -0, "negative-zero"],
-            ["", 101, "out-of-range"],
+            ["", Number.NaN, "not-finite"],
             ["é", "bad", "not-number"],
-            ["😀", -101, "out-of-range"],
+            ["😀", "-101", "not-number"],
             ["\u0000", Number.NaN, "not-finite"],
             ["constructor", null, "not-number"],
             ["__proto__", false, "not-number"],
             ["$cid-like", Number.NEGATIVE_INFINITY, "not-finite"],
             ["alpha", {}, "not-number"],
-            ["zulu", 100.001, "out-of-range"]
+            ["zulu", undefined, "not-number"]
         ] as const;
         const metadata = ["$cid", "ignored"] as const;
         const comparePersonIds = (left: string, right: string) =>
@@ -869,7 +885,7 @@ describe("allocation mutation boundary", () => {
                 (state) => {
                     replaceTransactionAllocations(draftStore(state), {
                         location: LOCATION,
-                        allocations: { alice: -10, carol: 110 }
+                        allocations: { alice: -10, carol: Number.NaN }
                     });
                 },
                 { origin }
@@ -945,7 +961,7 @@ describe("allocation mutation boundary", () => {
     it("rejects invalid automation changes before mutating status or tags", () => {
         const store = populatedStore({ alice: 40, bob: 60 });
         const failed = applyAutomationChanges(store, LOCATION, {
-            allocations: { alice: 101 },
+            allocations: { alice: Number.NaN },
             statusId: "must-not-apply",
             tagIds: ["must-not-apply"]
         });
@@ -1002,7 +1018,7 @@ describe("allocation mutation boundary", () => {
         const invalidRestoration = {
             ...application,
             previousValues: {
-                allocations: { alice: 101 },
+                allocations: { alice: Number.NaN },
                 statusId: "must-not-restore",
                 tagIds: ["must-not-restore"]
             }

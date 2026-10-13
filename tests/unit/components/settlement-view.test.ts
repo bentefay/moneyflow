@@ -273,7 +273,9 @@ describe("buildAllocationEntries", () => {
     });
 
     it("returns no context instead of a plausible substitute for invalid data", () => {
-        expect(buildAllocationEntries({ bob: 101 }, { alice: 100 }, resolvePerson)).toEqual([]);
+        expect(buildAllocationEntries({ bob: Number.NaN }, { alice: 100 }, resolvePerson)).toEqual(
+            []
+        );
         expect(buildAllocationEntries({ bob: 50 }, {}, resolvePerson)).toEqual([]);
         expect(buildAllocationEntries({ bob: 50 }, { alice: 60 }, resolvePerson)).toEqual([]);
     });

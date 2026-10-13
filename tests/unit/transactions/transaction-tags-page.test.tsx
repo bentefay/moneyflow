@@ -470,7 +470,7 @@ describe("transaction page tag commit", () => {
         fireEvent.click(screen.getByTestId("transaction-inspector-toggle"));
         fireEvent.doubleClick(gridCell(`allocation:${personId}`));
         fireEvent.change(screen.getByRole("textbox", { name: "Alex allocation percentage" }), {
-            target: { value: "0" }
+            target: { value: "" }
         });
 
         const destination = gridCell("description");

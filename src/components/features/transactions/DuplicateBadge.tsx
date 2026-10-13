@@ -11,6 +11,8 @@ import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
+import { PARKED_ACTION_FOCUS_CHROME } from "./cells/cell-chrome";
+
 export interface DuplicateBadgeProps {
     /** Confidence score (0-1) */
     confidence?: number;
@@ -75,7 +77,9 @@ export function DuplicateBadge({
                     "inline-flex items-center justify-center rounded-full p-1 text-xs font-medium",
                     "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
                     "hover:bg-yellow-200 dark:hover:bg-yellow-900/50",
-                    "transition-colors"
+                    "transition-colors",
+                    // Keyboard focus inside the actions cell must stay visibly identifiable.
+                    PARKED_ACTION_FOCUS_CHROME
                 )}
                 title="Potential duplicate"
             >

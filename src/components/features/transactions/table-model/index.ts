@@ -14,6 +14,7 @@ export {
     transactionTableRowId
 } from "./columns";
 export {
+    transactionActiveCellFromRowKey,
     transactionCellSelectionRowKey,
     transactionSelectedCellMarkersFromRowKey
 } from "./cell-selection-render";
@@ -109,6 +110,7 @@ export {
     type TransactionGridFollowUpIntent,
     type TransactionGridKeyCellContext,
     type TransactionGridKeyContext,
+    type TransactionEditorCaret,
     type TransactionGridKeyEvent,
     type TransactionGridKeyIntent,
     type TransactionGridKeyMode,

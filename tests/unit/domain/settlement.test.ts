@@ -2590,6 +2590,17 @@ describe("typed issues exclude invalid financial inputs", () => {
         });
     });
 
+    it("skips a blank amount silently: it moves no money and is not an incomplete input", () => {
+        const blank = { ...transaction("blank-amount", 0, { allocations: { bob: 50 } }) };
+        Reflect.deleteProperty(blank, "amount");
+        const result = settle([blank, transaction("counted", -100, { allocations: { bob: 50 } })]);
+        const countedOnly = settle([transaction("counted", -100, { allocations: { bob: 50 } })]);
+
+        expect(result.issues).toEqual([]);
+        expect(result.obligations).toEqual(countedOnly.obligations);
+        expect(result.qualifyingTransactionCount).toBe(countedOnly.qualifyingTransactionCount);
+    });
+
     it("reports invalid-currency instead of inventing a total", () => {
         const result = settle(
             [transaction("bad-currency", -100)],
@@ -2602,7 +2613,7 @@ describe("typed issues exclude invalid financial inputs", () => {
     it("reports every invalid allocation and excludes the transaction", () => {
         const result = settle([
             transaction("bad-allocation", -100, {
-                allocations: { bob: 101, charlie: Number.NaN }
+                allocations: { bob: Number.POSITIVE_INFINITY, charlie: Number.NaN }
             })
         ]);
 
@@ -2721,7 +2732,7 @@ describe("fixed-seed independent integer/rational properties", () => {
                                     (accountId === "usd" ? "USD" : "EUR") ===
                                     currencyPositions.currency
                             )
-                            .reduce((sum, { amount }) => sum + amount, 0);
+                            .reduce((sum, { amount }) => sum + (amount ?? 0), 0);
                         expect(
                             currencyPositions.people.reduce(
                                 (sum, position) => sum + position.amountMinor,
@@ -2829,7 +2840,7 @@ describe("runtime immutability and caller-input purity", () => {
         const transactions = [
             transaction("valid", -500, { allocations: { bob: 50 } }),
             transaction("invalid", -500, {
-                allocations: { charlie: 101 }
+                allocations: { charlie: Number.NaN }
             })
         ];
         const accounts = baseAccounts();

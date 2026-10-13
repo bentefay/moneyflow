@@ -21,6 +21,10 @@ run test e2e --retries=0 --reporter=line --max-failures=1 2>&1
 run test e2e --retries=0 --workers=4 --repeat-each=5 --reporter=line 2>&1
 ```
 
+Use `MONEYFLOW_E2E_PORT=3107 run test e2e` when another checkout owns port 3000. The managed server
+and independently created browser contexts share `E2E_BASE_URL` from
+`tests/e2e/helpers/base-url.ts`, so never hardcode an origin in a spec.
+
 `@playwright/cli` is the separate manual/agent browser CLI. Use the repository-installed binary, not
 Playwright MCP, `npx`, an ad-hoc Node script, or a temporary test file:
 

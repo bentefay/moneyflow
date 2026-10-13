@@ -735,7 +735,7 @@ function TransactionsPageContent() {
                     date: tx.date.toString(),
                     description: tx.description || "",
                     notes: tx.notes || "",
-                    amount: tx.amount as number,
+                    amount: tx.amount,
                     originalAmount: tx.originalAmount as number | undefined,
                     account: typeof acc === "object" ? acc.name : "Unknown",
                     accountId: tx.accountId,
@@ -1451,8 +1451,10 @@ function TransactionsPageContent() {
             if ("notes" in updates && updates.notes !== undefined) {
                 transactionUpdates.notes = updates.notes;
             }
-            if ("amount" in updates && updates.amount !== undefined) {
-                transactionUpdates.amount = asMinorUnits(updates.amount);
+            if ("amount" in updates) {
+                // Present with `undefined` means the amount was cleared to blank.
+                transactionUpdates.amount =
+                    updates.amount == null ? undefined : asMinorUnits(updates.amount);
             }
             if ("statusId" in updates && updates.statusId !== undefined) {
                 transactionUpdates.statusId = updates.statusId;
@@ -1491,7 +1493,7 @@ function TransactionsPageContent() {
     );
 
     const handleTransactionAllocationUpdate = useCallback(
-        (id: string, personId: string, value: number): TransactionGridEditorCommitResult => {
+        (id: string, personId: string, value: number | null): TransactionGridEditorCommitResult => {
             const transaction = findTransaction(id);
             if (transaction == null) return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
 

@@ -166,13 +166,14 @@ function compareRuleRecency(left: FieldRule, right: FieldRule): number {
 export interface RuleMatchSubject {
     readonly descriptionText: string | null;
     readonly accountId: string;
-    readonly amount: MoneyMinorUnits;
+    /** `undefined` when the amount is blank, which never satisfies an amount-scoped rule. */
+    readonly amount: MoneyMinorUnits | undefined;
     readonly isManual: boolean;
 }
 
 export interface RuleMatchTransactionFacts {
     readonly accountId: string;
-    readonly amount: MoneyMinorUnits;
+    readonly amount: MoneyMinorUnits | undefined;
     readonly description: string;
     readonly importId: string | undefined;
     readonly resolvedAliasName: string | null;

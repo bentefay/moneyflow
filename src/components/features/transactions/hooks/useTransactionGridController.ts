@@ -64,6 +64,7 @@ import {
     reconcileTransactionGridProjection,
     type TransactionGridReconciliationOutcome
 } from "../table-model/grid-reconciliation";
+import { revealInGridViewport } from "../table-model/grid-viewport";
 import {
     asTransactionId,
     asTransactionProjectionGeneration,
@@ -437,6 +438,10 @@ export interface TransactionGridWorkspaceController {
         intent: TransactionGridKeyIntent,
         viewportRows: number
     ) => TransactionGridCellCommandResult;
+    /** Extends the latest range to the registered cell containing a dragging pointer's target. */
+    readonly extendSelectionFromPointer: (target: EventTarget | null) => boolean;
+    /** Focuses the active anchor's registered gridcell while navigating. */
+    readonly focusActiveAnchor: () => boolean;
     readonly registerRow: (transactionId: TransactionId, element: HTMLElement | null) => void;
     readonly registerAfterGridElement: (element: HTMLElement | null) => void;
     readonly registerScrollElement: (element: HTMLElement | null) => void;
@@ -1701,6 +1706,42 @@ export function createTransactionGridWorkspaceController(
         return { ok: true, value: { kind: "handled" } };
     };
 
+    // Keyboard focus uses `preventScroll` so it never scrolls an ancestor. A mounted overscan row can
+    // therefore sit outside the viewport, so the grid's own scroll element reveals it instead.
+    const revealRegisteredGridcell = (address: TransactionGridAddress): void => {
+        const element = registrations.get(cellRegistrationKey(address));
+        if (scrollElement == null || element == null || !element.isConnected) return;
+        revealInGridViewport(scrollElement, element);
+    };
+
+    /** Returns DOM focus to the active anchor after a pointer extension (TGI-SEL-004). */
+    const focusActiveAnchor = (): boolean => {
+        const state = getInteractionState();
+        if (state.kind !== "navigating") return false;
+        const element = registrations.get(
+            cellRegistrationKey(activeTransactionGridAddress(state.selection))
+        );
+        if (element == null || !element.isConnected) return false;
+        element.focus({ preventScroll: true });
+        return element.ownerDocument.activeElement === element;
+    };
+
+    /** Moves the latest operation's extent to the cell under a dragging pointer; the anchor keeps focus. */
+    const extendSelectionFromPointer = (target: EventTarget | null): boolean => {
+        if (getInteractionState().kind !== "navigating") return false;
+        const address = registeredGridAddress(target);
+        if (address == null) return false;
+        const latest = cellSelectionAtom.get().at(-1);
+        if (latest == null) return false;
+        if (
+            latest.focusRowId === address.transactionId &&
+            latest.focusColumnId === address.columnId
+        )
+            return false;
+        extendSelectionTo(address);
+        return true;
+    };
+
     const navigationOrigin = (
         address: TransactionGridAddress,
         extend: boolean
@@ -1749,9 +1790,11 @@ export function createTransactionGridWorkspaceController(
             return { ok: true, value: { kind: "handled" } };
         }
         const nextContinuous = reachedClampedBoundary ? NO_TRANSACTION_CONTINUOUS_EDIT : continuous;
-        return extend
+        const navigated = extend
             ? extendSelectionTo(target, nextContinuous)
             : selectAndFocusGridcell(target, nextContinuous);
+        revealRegisteredGridcell(target);
+        return navigated;
     };
 
     const targetedNavigationCommand = (
@@ -2690,6 +2733,8 @@ export function createTransactionGridWorkspaceController(
         dismissAutomationProposal,
         registerAutomationFinalizer,
         dispatchCellIntent,
+        extendSelectionFromPointer,
+        focusActiveAnchor,
         dispatchCompositionEvent,
         registerRow: (transactionId, element) => {
             const previous = rowRegistrations.get(transactionId) ?? null;
@@ -3075,6 +3120,7 @@ export function createTransactionGridWorkspaceController(
                 reconciliationFocusAtom.set(null);
                 publishInteractionState(fulfilled.value);
             });
+            revealRegisteredGridcell(request.state.target);
             return "focused";
         },
         focusReconciliation: (expectedGeneration) => {

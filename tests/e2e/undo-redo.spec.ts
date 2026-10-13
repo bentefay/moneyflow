@@ -9,6 +9,7 @@ import {
     goToTxDescriptions,
     reloadPage
 } from "./helpers";
+import { E2E_BASE_URL } from "./helpers/base-url";
 
 const IMPORT_CSV = `Date,Description,Amount
 2026-07-01,Undo Import One,-10.00
@@ -270,15 +271,19 @@ test("remote history stays excluded while local undo syncs to a second client", 
         throw new Error("Authenticated second-client fixture state is unavailable");
     }
     const authenticatedSessionState = {
+        origin: E2E_BASE_URL,
         activeVault: sessionState.activeVault,
         session: sessionState.session
     };
-    const secondContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    await secondContext.addInitScript((state: { activeVault: string; session: string }) => {
-        if (location.origin !== "http://localhost:3000") return;
-        localStorage.setItem("moneyflow_active_vault", state.activeVault);
-        sessionStorage.setItem("moneyflow_session", state.session);
-    }, authenticatedSessionState);
+    const secondContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+    await secondContext.addInitScript(
+        (state: { activeVault: string; session: string; origin: string }) => {
+            if (location.origin !== state.origin) return;
+            localStorage.setItem("moneyflow_active_vault", state.activeVault);
+            sessionStorage.setItem("moneyflow_session", state.session);
+        },
+        authenticatedSessionState
+    );
     const secondPage = await secondContext.newPage();
 
     try {
@@ -329,15 +334,19 @@ test("a failed offline undo push retries on browser reconnect without another mu
         throw new Error("Authenticated offline peer fixture state is unavailable");
     }
     const authenticatedSessionState = {
+        origin: E2E_BASE_URL,
         activeVault: sessionState.activeVault,
         session: sessionState.session
     };
-    const peerContext = await browser.newContext({ baseURL: "http://localhost:3000" });
-    await peerContext.addInitScript((state: { activeVault: string; session: string }) => {
-        if (location.origin !== "http://localhost:3000") return;
-        localStorage.setItem("moneyflow_active_vault", state.activeVault);
-        sessionStorage.setItem("moneyflow_session", state.session);
-    }, authenticatedSessionState);
+    const peerContext = await browser.newContext({ baseURL: E2E_BASE_URL });
+    await peerContext.addInitScript(
+        (state: { activeVault: string; session: string; origin: string }) => {
+            if (location.origin !== state.origin) return;
+            localStorage.setItem("moneyflow_active_vault", state.activeVault);
+            sessionStorage.setItem("moneyflow_session", state.session);
+        },
+        authenticatedSessionState
+    );
     const peer = await peerContext.newPage();
 
     try {

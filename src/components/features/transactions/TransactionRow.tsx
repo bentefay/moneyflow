@@ -79,7 +79,8 @@ export interface TransactionRowData {
     /** Notes/memo (shown in expandable row) */
     notes?: string;
     /** Amount in minor units (e.g., cents for USD) - stored as integer */
-    amount: number;
+    /** Minor units, or `undefined` when the amount is blank */
+    amount: number | undefined;
     /** Immutable amount before the first edit of an imported transaction */
     originalAmount?: number;
     account?: string;
@@ -172,6 +173,8 @@ export interface TransactionRowProps {
      * cell advertises a selection state it cannot have.
      */
     selectedCellMarkers?: ReadonlySet<string>;
+    /** Column of this row's active cell, when the latest range is anchored in this row. */
+    activeCellColumnId?: string | null;
     /** Shared TanStack/controller gridcell surface when rendered inside the transaction table. */
     gridCellSurface?: TransactionGridRowSurface;
     /** Suppresses presence publication while the workspace applies programmatic description focus. */
@@ -240,7 +243,10 @@ export interface TransactionRowProps {
     /** Shared dynamic grid template */
     gridTemplateColumns?: string;
     /** Commit one person allocation through the central mutation boundary */
-    onAllocationUpdate?: (personId: string, value: number) => TransactionGridEditorCommitResult;
+    onAllocationUpdate?: (
+        personId: string,
+        value: number | null
+    ) => TransactionGridEditorCommitResult;
     /** Callback when checkbox is toggled */
     onCheckboxChange?: () => void;
     /** Callback when shift-clicking checkbox for range selection */
@@ -259,6 +265,7 @@ export function TransactionRow({
     isSelected = false,
     ariaRowIndex,
     selectedCellMarkers,
+    activeCellColumnId = null,
     gridCellSurface,
     suppressDescriptionFocusPresence = false,
     onDescriptionInputElementChange,
@@ -583,6 +590,7 @@ export function TransactionRow({
                 interaction={meta.interaction}
                 interactionKind={gridCellSurface.interactionKind}
                 selected={selectedCellMarkers?.has(columnId) ?? false}
+                active={activeCellColumnId === columnId}
                 selectionVisibility={gridCellSurface.selectionVisibility}
                 isInitialTabStop={gridCellSurface.initialTabStopColumnId === columnId}
                 isParkedTabStop={gridCellSurface.parkedTabStopColumnId === columnId}

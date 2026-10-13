@@ -17,14 +17,16 @@ import {
     transactionGridKeyIntent,
     type TransactionColumnInteractionMeta,
     type TransactionEditEntry,
+    type TransactionEditorCaret,
     type TransactionGridAddress,
     type TransactionGridKeyIntent,
     type TransactionSelectionVisibility,
     type TransactionTableCell
 } from "../table-model";
+import { actionCellKeyResult } from "./action-cell-navigation";
 import {
     TRANSACTION_GRIDCELL_CHROME,
-    TRANSACTION_GRIDCELL_FOCUS_CHROME,
+    TRANSACTION_GRIDCELL_ACTIVE_CHROME,
     TRANSACTION_GRIDCELL_MUTED_SELECTION_CHROME,
     TRANSACTION_GRIDCELL_VISIBLE_SELECTION_CHROME
 } from "./cell-chrome";
@@ -33,6 +35,7 @@ import {
     type TransactionGridEditorCommitResult,
     type TransactionGridEditorLifecycle
 } from "./editor-lifecycle";
+import { startGridDragSelection } from "./grid-drag-selection";
 
 const INTERACTIVE_DESCENDANT =
     "a[href], button, input, select, textarea, [contenteditable='true'], [role='button'], " +
@@ -52,6 +55,8 @@ export interface TransactionGridCellProps {
     readonly ariaColumnIndex: number;
     /** Whether the row subscription projects this cell inside the final positive selection. */
     readonly selected: boolean;
+    /** Whether this cell anchors the latest range: the active cell. */
+    readonly active?: boolean;
     /** Typed controller policy for visible, inspector-muted, or parked selection treatment. */
     readonly selectionVisibility: TransactionSelectionVisibility;
     /** Current runtime owner, used only to project the idle entry and retained tab stops. */
@@ -224,6 +229,33 @@ function isAltArrowEvent(event: {
     );
 }
 
+/** Column editors whose text field may hand a boundary arrow to the grid; pickers keep theirs. */
+const EDGE_LEAVING_EDIT_KINDS: ReadonlySet<TransactionColumnInteractionMeta["editKind"]> = new Set([
+    "amount",
+    "allocation",
+    "date",
+    "description"
+]);
+
+/** Where a collapsed caret sits in a plain text editor, for leaving it with a boundary arrow. */
+function editorCaret(
+    target: HTMLElement,
+    editKind: TransactionColumnInteractionMeta["editKind"]
+): TransactionEditorCaret {
+    if (!EDGE_LEAVING_EDIT_KINDS.has(editKind) || !(target instanceof HTMLInputElement)) {
+        return "none";
+    }
+    // An open suggestion list owns the arrows, as in the description's alias autocomplete.
+    if (target.type !== "text" || target.getAttribute("aria-expanded") === "true") return "none";
+    const start = target.selectionStart;
+    if (start == null || start !== target.selectionEnd) return "none";
+    const atStart = start === 0;
+    const atEnd = start === target.value.length;
+    if (atStart && atEnd) return "start-and-end";
+    if (atStart) return "start";
+    return atEnd ? "end" : "inside";
+}
+
 function editorText(element: HTMLElement): string | null {
     return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement
         ? element.value
@@ -278,6 +310,7 @@ function editorInitializationKey(
  * that supplies a true display/editor pair and typed lifecycle.
  */
 export function TransactionGridCell({
+    active = false,
     address,
     adornment,
     ariaColumnIndex,
@@ -842,7 +875,14 @@ export function TransactionGridCell({
                 suppressNextFocus.current = false;
                 return;
             }
-            if (controller.getInteractionState().kind === "parked") {
+            const parkedAnchor = controller.getSnapshot().parkedActiveAddress;
+            // Focus returning to the retained anchor re-exposes its range. Focus landing on any
+            // other cell selects that cell, so the active cell is always the one holding focus.
+            if (
+                controller.getInteractionState().kind === "parked" &&
+                parkedAnchor?.transactionId === address.transactionId &&
+                parkedAnchor.columnId === address.columnId
+            ) {
                 setLegacyDescendantFocused(false);
                 controller.dispatchCellIntent(
                     address,
@@ -885,8 +925,24 @@ export function TransactionGridCell({
                 { kind: "expose-selection" },
                 viewportRowDistance
             );
-            element.focus({ preventScroll: true });
+            // A Shift extension keeps DOM focus on the anchor it extends from (TGI-SEL-004).
+            // Cancelling the press also cancels the browser's own mousedown focus on this cell.
+            if (event.shiftKey && controller.focusActiveAnchor()) {
+                event.preventDefault();
+            } else {
+                element.focus({ preventScroll: true });
+            }
             suppressNextFocus.current = false;
+            // A native selection left elsewhere on the page would otherwise grow under Shift-click.
+            element.ownerDocument.getSelection()?.removeAllRanges();
+            // The gesture outlives this cell: the virtualizer may unmount it while the grid scrolls.
+            startGridDragSelection({
+                extendTo: controller.extendSelectionFromPointer,
+                ownerDocument: element.ownerDocument,
+                pointerId: event.pointerId,
+                scrollElement: element.closest('[role="grid"]')?.parentElement ?? null,
+                start: { x: event.clientX, y: event.clientY }
+            });
         },
         [address, cell, controller, legacyInteractive, viewportRowDistance]
     );
@@ -1164,11 +1220,13 @@ export function TransactionGridCell({
             }
             const intent = transactionGridKeyIntent(context, {
                 altKey: event.altKey,
+                caret: editorCaret(target, interaction.editKind),
                 ctrlKey: event.ctrlKey,
                 isComposing: event.nativeEvent.isComposing,
                 key: event.key,
                 keyCode: event.keyCode,
                 metaKey: event.metaKey,
+                repeat: event.repeat,
                 shiftKey: event.shiftKey
             });
             if (intent.kind === "open-interaction") {
@@ -1235,8 +1293,33 @@ export function TransactionGridCell({
         };
     }, [handleEditorPortalKeyDownCapture, showEditor]);
 
+    const handleActionButtonKey = useCallback(
+        (event: React.KeyboardEvent<HTMLDivElement>): boolean => {
+            if (interaction.activationKind !== "inspector" || !(event.target instanceof Element)) {
+                return false;
+            }
+            const buttons = [
+                ...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled)")
+            ];
+            const pressed = event.target.closest("button");
+            const index = pressed instanceof HTMLElement ? buttons.indexOf(pressed) : -1;
+            if (index < 0) return false;
+            const result = actionCellKeyResult(index, buttons.length, event);
+            if (result.kind === "native") return false;
+            if (result.kind === "focus-button") buttons[result.index]?.focus();
+            if (result.kind === "return-to-cell") event.currentTarget.focus();
+            return true;
+        },
+        [interaction.activationKind]
+    );
+
     const handleInteractiveDescendantKeyDownCapture = useCallback(
         (event: React.KeyboardEvent<HTMLDivElement>) => {
+            if (!showEditor && handleActionButtonKey(event)) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
             if (showEditor || !isAltArrowEvent(event)) return;
             if (!isInteractiveDescendant(event.currentTarget, event.target, legacyInteractive)) {
                 return;
@@ -1263,6 +1346,7 @@ export function TransactionGridCell({
         [
             address,
             controller,
+            handleActionButtonKey,
             interaction,
             legacyInteractive,
             requestEffect,
@@ -1325,11 +1409,12 @@ export function TransactionGridCell({
                 editorVisible ? "editor" : legacyInteractive ? "legacy-interactive" : "display"
             }
             data-presence={presenceColor == null ? undefined : "true"}
+            data-active-cell={active && selectionExposed ? "true" : undefined}
             className={cn(
                 TRANSACTION_GRIDCELL_CHROME,
                 selectionVisibility === "visible" && TRANSACTION_GRIDCELL_VISIBLE_SELECTION_CHROME,
                 selectionVisibility === "muted" && TRANSACTION_GRIDCELL_MUTED_SELECTION_CHROME,
-                interactionKind !== "parked" && TRANSACTION_GRIDCELL_FOCUS_CHROME,
+                TRANSACTION_GRIDCELL_ACTIVE_CHROME,
                 presenceColor != null && "z-[1] outline outline-2 -outline-offset-2",
                 className
             )}
@@ -1347,7 +1432,7 @@ export function TransactionGridCell({
             {editorVisible ? (
                 <div
                     ref={registerEditorContainer}
-                    className="contents"
+                    className="contents select-text"
                     onBeforeInputCapture={handleBeforeInputCapture}
                     onBlurCapture={handleEditorBlurCapture}
                     onKeyDownCapture={handleEditorKeyDownCapture}

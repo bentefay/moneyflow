@@ -201,7 +201,8 @@ export async function setAllocation(
     await input.press("Enter");
     await expect(cell).toHaveAttribute("data-cell-content", "display");
     await expect(input).toHaveCount(0);
-    await expect(cell).toContainText(Number(value) === 0 ? "—" : `${value}%`);
+    // An explicit 0 is an answered 0%; only text that normalises to blank shows the dash.
+    await expect(cell).toContainText(value.trim() === "" ? "—" : `${value}%`);
 }
 
 /** Sets a transaction's status by name through the real inline status control. */

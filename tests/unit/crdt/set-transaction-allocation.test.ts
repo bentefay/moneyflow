@@ -72,13 +72,27 @@ describe("setTransactionAllocation", () => {
     });
 
     it.each([
-        ["above range", 100.000_001],
-        ["below range", -100.000_001],
+        ["above 100", 150],
+        ["below -100", -100.000_001]
+    ])("writes %s without clamping", (_label, value) => {
+        const store = populatedStore();
+
+        const result = setTransactionAllocation(store, {
+            location: LOCATION,
+            personId: "alice",
+            value
+        });
+
+        expect(result).toMatchObject({ ok: true });
+        expect(storedAllocations(store)).toEqual({ alice: value });
+    });
+
+    it.each([
         ["NaN", Number.NaN],
         ["Infinity", Number.POSITIVE_INFINITY],
         ["negative zero", -0],
         ["a string", "50"],
-        ["null", null]
+        ["undefined", undefined]
     ])("regression: does not write %s into the draft", (_label, value) => {
         const store = populatedStore();
 
@@ -99,14 +113,14 @@ describe("setTransactionAllocation", () => {
         const result = setTransactionAllocation(store, {
             location: LOCATION,
             personId: "alice",
-            value: 250
+            value: Number.NaN
         });
 
         expect(result.ok).toBe(false);
         expect(storedAllocations(store)).toEqual({ alice: 30 });
     });
 
-    it("removes the key when the value is zero", () => {
+    it("stores an explicit zero as an answered 0%", () => {
         const store = populatedStore();
         setTransactionAllocation(store, { location: LOCATION, personId: "alice", value: 30 });
 
@@ -117,6 +131,26 @@ describe("setTransactionAllocation", () => {
         });
 
         expect(result).toMatchObject({ ok: true, value: { changed: true } });
+        expect(storedAllocations(store)).toEqual({ alice: 0 });
+    });
+
+    it("removes the key when the value is null, leaving the allocation blank", () => {
+        const store = populatedStore();
+        setTransactionAllocation(store, { location: LOCATION, personId: "alice", value: 0 });
+
+        const cleared = setTransactionAllocation(store, {
+            location: LOCATION,
+            personId: "alice",
+            value: null
+        });
+        const clearedAgain = setTransactionAllocation(store, {
+            location: LOCATION,
+            personId: "alice",
+            value: null
+        });
+
+        expect(cleared).toMatchObject({ ok: true, value: { changed: true } });
+        expect(clearedAgain).toMatchObject({ ok: true, value: { changed: false } });
         expect(storedAllocations(store)).toEqual({});
     });
 });

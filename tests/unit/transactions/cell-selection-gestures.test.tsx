@@ -20,9 +20,7 @@ import type { ReactNode } from "react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AccountOption } from "@/components/features/accounts";
-import * as allocationColumns from "@/components/features/transactions/allocation-columns";
 import type { AllocationColumn } from "@/components/features/transactions/allocation-columns";
-import * as amountDraft from "@/components/features/transactions/cells/amount-draft";
 import {
     TRANSACTION_GRID_EDITOR_COMMIT_FAILURE,
     TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS,
@@ -41,6 +39,7 @@ import type { TransactionRowData } from "@/components/features/transactions/Tran
 import { TransactionTable } from "@/components/features/transactions/TransactionTable";
 import { TransactionTableToolbar } from "@/components/features/transactions/TransactionTableToolbar";
 import { allocationPresenceField } from "@/lib/crdt/allocations";
+import * as numericText from "@/lib/domain/numeric-text";
 import * as dateFormat from "@/lib/utils/date-format";
 
 import {
@@ -125,7 +124,7 @@ interface GridConfiguration {
     readonly onTransactionAllocationUpdate?: (
         transactionId: string,
         personId: string,
-        value: number
+        value: number | null
     ) => TransactionGridEditorCommitResult;
     readonly onTransactionClick?: (transactionId: string) => void;
     readonly onTransactionTagsCommit?: (
@@ -246,13 +245,11 @@ const PERSON_ALLOCATION_COLUMN = {
 } satisfies AllocationColumn;
 
 type ValidationEditorKind = "allocation" | "amount" | "date";
-type ClickOnlyInvalidEditorKind = "allocation" | "amount";
+type NormalisingEditorKind = "allocation" | "amount";
 type ValidationActivationKind = "actions" | "checkbox" | "popup";
 
-const CLICK_ONLY_INVALID_EDITOR_KINDS: readonly ClickOnlyInvalidEditorKind[] = [
-    "amount",
-    "allocation"
-];
+/** Numeric editors normalise any text on exit, so they never block a transition. */
+const NORMALISING_EDITOR_KINDS: readonly NormalisingEditorKind[] = ["amount", "allocation"];
 const ACCEPTED_EXTERNAL_EDITOR_KINDS: readonly ValidationEditorKind[] = [
     "amount",
     "date",
@@ -317,11 +314,8 @@ function validationActivation(kind: ValidationActivationKind): {
     };
 }
 
-function invalidValidationDraft(kind: ValidationEditorKind): string {
-    if (kind === "allocation") return "101";
-    if (kind === "amount") return "not-an-amount";
-    return "not a date";
-}
+/** Only the date editor still rejects text; numeric editors normalise it instead. */
+const INVALID_DATE_DRAFT = "not a date";
 
 function validValidationDraft(kind: ValidationEditorKind): string {
     if (kind === "allocation") return "25";
@@ -466,9 +460,9 @@ describe("cell selection gestures", () => {
     });
 
     it.each([
-        { activation: "checkbox", kind: "amount" },
+        { activation: "checkbox", kind: "date" },
         { activation: "actions", kind: "date" },
-        { activation: "popup", kind: "allocation" }
+        { activation: "popup", kind: "date" }
     ] as const)(
         "blocks a real cross-row $activation activation while $kind validation fails",
         async ({ activation, kind }) => {
@@ -495,7 +489,7 @@ describe("cell selection gestures", () => {
                 }
             );
             const editor = activateValidationEditor(controller, kind);
-            fireEvent.change(editor, { target: { value: invalidValidationDraft(kind) } });
+            fireEvent.change(editor, { target: { value: INVALID_DATE_DRAFT } });
             const sourceAddress = {
                 columnId: validationColumn(kind),
                 transactionId: asTransactionId("transaction-1")
@@ -514,7 +508,7 @@ describe("cell selection gestures", () => {
             expect(pointerDefaultAllowed).toBe(false);
             expect(clickDefaultAllowed).toBe(false);
             expect(target.effect()).toBe(effectBefore);
-            expect(editor).toHaveValue(invalidValidationDraft(kind));
+            expect(editor).toHaveValue(INVALID_DATE_DRAFT);
             expect(editor).toHaveAttribute("aria-invalid", "true");
             expect(editor).toHaveFocus();
             expect(target.element).not.toHaveFocus();
@@ -605,9 +599,8 @@ describe("cell selection gestures", () => {
     );
 
     it.each([
-        { external: "add", kind: "amount" },
-        { external: "filter", kind: "date" },
-        { external: "add", kind: "allocation" }
+        { external: "add", kind: "date" },
+        { external: "filter", kind: "date" }
     ] as const)(
         "blocks real external $external activation while $kind validation fails",
         async ({ external, kind }) => {
@@ -618,12 +611,7 @@ describe("cell selection gestures", () => {
             );
             const onTransactionBlur = vi.fn();
             const onTransactionUpdate = vi.fn();
-            const validationSpy =
-                kind === "amount"
-                    ? vi.spyOn(amountDraft, "validateCurrencyDraft")
-                    : kind === "date"
-                      ? vi.spyOn(dateFormat, "parseLocaleDate")
-                      : vi.spyOn(allocationColumns, "parseAllocationDraft");
+            const validationSpy = vi.spyOn(dateFormat, "parseLocaleDate");
             const { controller } = renderGrid(
                 () => undefined,
                 () => undefined,
@@ -642,7 +630,7 @@ describe("cell selection gestures", () => {
                 }
             );
             const editor = activateValidationEditor(controller, kind);
-            fireEvent.change(editor, { target: { value: invalidValidationDraft(kind) } });
+            fireEvent.change(editor, { target: { value: INVALID_DATE_DRAFT } });
             validationSpy.mockClear();
             const target = screen.getByTestId(
                 external === "add" ? "add-transaction-button" : "search-filter"
@@ -661,7 +649,7 @@ describe("cell selection gestures", () => {
 
             expect(pointerDefaultAllowed).toBe(false);
             expect(clickDefaultAllowed).toBe(false);
-            expect(editor).toHaveValue(invalidValidationDraft(kind));
+            expect(editor).toHaveValue(INVALID_DATE_DRAFT);
             expect(editor).toHaveAttribute("aria-invalid", "true");
             expect(editor).toHaveFocus();
             expect(target).not.toHaveFocus();
@@ -695,10 +683,10 @@ describe("cell selection gestures", () => {
             const onTransactionUpdate = vi.fn();
             const validationSpy =
                 kind === "amount"
-                    ? vi.spyOn(amountDraft, "validateCurrencyDraft")
+                    ? vi.spyOn(numericText, "normaliseAmountText")
                     : kind === "date"
                       ? vi.spyOn(dateFormat, "parseLocaleDate")
-                      : vi.spyOn(allocationColumns, "parseAllocationDraft");
+                      : vi.spyOn(numericText, "normaliseAllocationText");
             const { controller } = renderGrid(
                 () => undefined,
                 () => undefined,
@@ -755,8 +743,8 @@ describe("cell selection gestures", () => {
         }
     );
 
-    it.each(CLICK_ONLY_INVALID_EDITOR_KINDS)(
-        "blocks genuine click-only Add activation while $kind validation fails once",
+    it.each(NORMALISING_EDITOR_KINDS)(
+        "normalises unparseable $kind text to blank before one click-only Add activation",
         async (kind) => {
             const onAddClick = vi.fn();
             const onTransactionAllocationUpdate = vi.fn(
@@ -764,10 +752,10 @@ describe("cell selection gestures", () => {
             );
             const onTransactionBlur = vi.fn();
             const onTransactionUpdate = vi.fn();
-            const validationSpy =
+            const normaliseSpy =
                 kind === "amount"
-                    ? vi.spyOn(amountDraft, "validateCurrencyDraft")
-                    : vi.spyOn(allocationColumns, "parseAllocationDraft");
+                    ? vi.spyOn(numericText, "normaliseAmountText")
+                    : vi.spyOn(numericText, "normaliseAllocationText");
             const { controller } = renderGrid(
                 () => undefined,
                 () => undefined,
@@ -780,10 +768,9 @@ describe("cell selection gestures", () => {
                     onTransactionUpdate
                 }
             );
-            const parkSpy = vi.spyOn(controller, "parkExternalFocus");
             const editor = activateValidationEditor(controller, kind);
-            fireEvent.change(editor, { target: { value: invalidValidationDraft(kind) } });
-            validationSpy.mockClear();
+            fireEvent.change(editor, { target: { value: "not a number" } });
+            normaliseSpy.mockClear();
             const addButton = screen.getByTestId("add-transaction-button");
 
             const clickDefaultAllowed = await act(async () => {
@@ -793,71 +780,75 @@ describe("cell selection gestures", () => {
                 return allowed;
             });
 
-            expect(clickDefaultAllowed).toBe(false);
-            expect(validationSpy).toHaveBeenCalledTimes(1);
-            expect(onAddClick).not.toHaveBeenCalled();
-            expect(onTransactionUpdate).not.toHaveBeenCalled();
-            expect(onTransactionAllocationUpdate).not.toHaveBeenCalled();
-            expect(onTransactionBlur).not.toHaveBeenCalled();
-            expect(parkSpy).not.toHaveBeenCalled();
-            expect(editor).toHaveValue(invalidValidationDraft(kind));
-            expect(editor).toHaveAttribute("aria-invalid", "true");
-            expect(editor).toHaveFocus();
-            expect(addButton).not.toHaveFocus();
-            expect(controller.getSnapshot()).toMatchObject({
-                editor: {
-                    address: {
-                        columnId: validationColumn(kind),
-                        transactionId: "transaction-1"
-                    }
-                },
-                interactionKind: "editing"
-            });
-            expect(controller.getInteractionState()).toMatchObject({ kind: "editing" });
-            validationSpy.mockRestore();
-            parkSpy.mockRestore();
+            expect(clickDefaultAllowed).toBe(true);
+            expect(normaliseSpy).toHaveBeenCalledTimes(1);
+            expect(onAddClick).toHaveBeenCalledTimes(1);
+            if (kind === "amount") {
+                expect(onTransactionUpdate).toHaveBeenCalledTimes(1);
+                expect(onTransactionUpdate).toHaveBeenCalledWith("transaction-1", {
+                    amount: undefined
+                });
+                expect(onTransactionAllocationUpdate).not.toHaveBeenCalled();
+            } else {
+                expect(onTransactionAllocationUpdate).toHaveBeenCalledTimes(1);
+                expect(onTransactionAllocationUpdate).toHaveBeenCalledWith(
+                    "transaction-1",
+                    "person-1",
+                    null
+                );
+                expect(onTransactionUpdate).not.toHaveBeenCalled();
+            }
+            expect(addButton).toHaveFocus();
+            expect(controller.getSnapshot().editor).toBeNull();
+            expect(controller.getInteractionState()).toMatchObject({ kind: "parked" });
+            normaliseSpy.mockRestore();
         }
     );
 
-    it("retains invalid allocation Alt movement and writes once after correction", async () => {
-        const onTransactionAllocationUpdate = vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS);
-        const { controller } = renderGrid(
-            () => undefined,
-            () => undefined,
-            validationTransactions(),
-            () => undefined,
-            {
-                allocationColumns: [PERSON_ALLOCATION_COLUMN],
-                onTransactionAllocationUpdate
-            }
-        );
-        const editor = activateValidationEditor(controller, "allocation");
-        fireEvent.change(editor, { target: { value: "101" } });
-
-        expect(fireEvent.keyDown(editor, { altKey: true, key: "ArrowRight" })).toBe(false);
-
-        expect(onTransactionAllocationUpdate).not.toHaveBeenCalled();
-        expect(editor).toHaveAttribute("aria-invalid", "true");
-        expect(editor).toHaveFocus();
-        expect(controller.getInteractionState()).toMatchObject({ kind: "editing" });
-
-        fireEvent.change(editor, { target: { value: "25" } });
-        expect(fireEvent.keyDown(editor, { altKey: true, key: "ArrowRight" })).toBe(false);
-        await act(async () => Promise.resolve());
-
-        expect(onTransactionAllocationUpdate).toHaveBeenCalledOnce();
-        expect(onTransactionAllocationUpdate).toHaveBeenCalledWith("transaction-1", "person-1", 25);
-        expect(controller.getPendingRequest()).toMatchObject({
-            kind: "edit",
-            state: {
-                target: {
-                    columnId: "amount",
-                    transactionId: "transaction-1"
+    it.each([
+        { draft: "a.1", stored: 0.1 },
+        { draft: "101", stored: 101 },
+        { draft: "not a number", stored: null }
+    ] as const)(
+        "normalises allocation $draft on Alt movement instead of blocking it",
+        async ({ draft, stored }) => {
+            const onTransactionAllocationUpdate = vi.fn(
+                () => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS
+            );
+            const { controller } = renderGrid(
+                () => undefined,
+                () => undefined,
+                validationTransactions(),
+                () => undefined,
+                {
+                    allocationColumns: [PERSON_ALLOCATION_COLUMN],
+                    onTransactionAllocationUpdate
                 }
-            }
-        });
-        expect(controller.getInteractionState()).toMatchObject({ kind: "pending-activation" });
-    });
+            );
+            const editor = activateValidationEditor(controller, "allocation");
+            fireEvent.change(editor, { target: { value: draft } });
+
+            expect(fireEvent.keyDown(editor, { altKey: true, key: "ArrowRight" })).toBe(false);
+            await act(async () => Promise.resolve());
+
+            expect(onTransactionAllocationUpdate).toHaveBeenCalledOnce();
+            expect(onTransactionAllocationUpdate).toHaveBeenCalledWith(
+                "transaction-1",
+                "person-1",
+                stored
+            );
+            expect(controller.getPendingRequest()).toMatchObject({
+                kind: "edit",
+                state: {
+                    target: {
+                        columnId: "amount",
+                        transactionId: "transaction-1"
+                    }
+                }
+            });
+            expect(controller.getInteractionState()).toMatchObject({ kind: "pending-activation" });
+        }
+    );
 
     it("commits Amount once before one click-only Add activation", async () => {
         const onAddClick = vi.fn();
@@ -906,7 +897,7 @@ describe("cell selection gestures", () => {
         );
         const finishSpy = vi.spyOn(controller, "finishEditing");
         const editor = activateValidationEditor(controller, "date");
-        fireEvent.change(editor, { target: { value: invalidValidationDraft("date") } });
+        fireEvent.change(editor, { target: { value: INVALID_DATE_DRAFT } });
         parseDateSpy.mockClear();
         const target = validationActivation("checkbox");
         const effectBefore = target.effect();
@@ -923,7 +914,7 @@ describe("cell selection gestures", () => {
         expect(onTransactionBlur).not.toHaveBeenCalled();
         expect(finishSpy).not.toHaveBeenCalled();
         expect(parseDateSpy).toHaveBeenCalledTimes(1);
-        expect(editor).toHaveValue(invalidValidationDraft("date"));
+        expect(editor).toHaveValue(INVALID_DATE_DRAFT);
         expect(editor).toHaveAttribute("aria-invalid", "true");
         expect(editor).toHaveFocus();
         expect(target.element).not.toHaveFocus();
@@ -1067,8 +1058,8 @@ describe("cell selection gestures", () => {
             () => undefined,
             { onTransactionClick, onTransactionUpdate }
         );
-        const editor = activateValidationEditor(controller, "amount");
-        fireEvent.change(editor, { target: { value: invalidValidationDraft("amount") } });
+        const editor = activateValidationEditor(controller, "date");
+        fireEvent.change(editor, { target: { value: INVALID_DATE_DRAFT } });
         const destinationRow = screen.getAllByTestId("transaction-row")[2];
         const checkbox = destinationRow.querySelector<HTMLElement>('[data-cell="checkbox"] button');
         if (checkbox == null) throw new Error("the destination checkbox did not mount");
@@ -1083,7 +1074,7 @@ describe("cell selection gestures", () => {
 
         expect(pointerDefaultAllowed).toBe(false);
         expect(clickDefaultAllowed).toBe(false);
-        expect(editor).toHaveValue(invalidValidationDraft("amount"));
+        expect(editor).toHaveValue(INVALID_DATE_DRAFT);
         expect(editor).toHaveAttribute("aria-invalid", "true");
         expect(editor).toHaveFocus();
         expect(onRowSelectionChange).not.toHaveBeenCalled();
@@ -1091,7 +1082,7 @@ describe("cell selection gestures", () => {
         expect(onTransactionUpdate).not.toHaveBeenCalled();
         expect(controller.getSnapshot()).toMatchObject({
             editor: {
-                address: { columnId: "amount", transactionId: "transaction-1" }
+                address: { columnId: "date", transactionId: "transaction-1" }
             },
             interactionKind: "editing"
         });
@@ -1112,9 +1103,9 @@ describe("cell selection gestures", () => {
                     onTransactionUpdate
                 }
             );
-            const editor = activateValidationEditor(controller, "amount");
+            const editor = activateValidationEditor(controller, "date");
             fireEvent.change(editor, {
-                target: { value: invalidValidationDraft("amount") }
+                target: { value: INVALID_DATE_DRAFT }
             });
             const addButton = screen.getByTestId("add-transaction-button");
 
@@ -1131,7 +1122,7 @@ describe("cell selection gestures", () => {
                 );
             }
 
-            fireEvent.change(editor, { target: { value: validValidationDraft("amount") } });
+            fireEvent.change(editor, { target: { value: validValidationDraft("date") } });
             expect(fireEvent.click(addButton)).toBe(true);
             await act(async () => {
                 await Promise.resolve();
@@ -1139,7 +1130,9 @@ describe("cell selection gestures", () => {
             });
 
             expect(onTransactionUpdate).toHaveBeenCalledTimes(1);
-            expect(onTransactionUpdate).toHaveBeenCalledWith("transaction-1", { amount: 2_500 });
+            expect(onTransactionUpdate).toHaveBeenCalledWith("transaction-1", {
+                date: "2026-12-25"
+            });
             expect(onAddClick).toHaveBeenCalledTimes(1);
             expect(addButton).toHaveFocus();
             expect(controller.getSnapshot().editor).toBeNull();
@@ -1162,8 +1155,8 @@ describe("cell selection gestures", () => {
                     onTransactionUpdate
                 }
             );
-            const editor = activateValidationEditor(controller, "amount");
-            fireEvent.change(editor, { target: { value: invalidValidationDraft("amount") } });
+            const editor = activateValidationEditor(controller, "date");
+            fireEvent.change(editor, { target: { value: INVALID_DATE_DRAFT } });
             const addButton = screen.getByTestId("add-transaction-button");
 
             expect(
@@ -1175,14 +1168,14 @@ describe("cell selection gestures", () => {
             ).toBe(false);
             fireEvent.pointerUp(addButton, { button: 0, pointerId: 46, pointerType });
             fireEvent.lostPointerCapture(addButton, { pointerId: 46, pointerType });
-            fireEvent.change(editor, { target: { value: validValidationDraft("amount") } });
+            fireEvent.change(editor, { target: { value: validValidationDraft("date") } });
 
             expect(fireEvent.click(addButton)).toBe(false);
             expect(onAddClick).not.toHaveBeenCalled();
             expect(onTransactionUpdate).not.toHaveBeenCalled();
             expect(editor).toHaveFocus();
             expect(controller.getSnapshot()).toMatchObject({
-                editor: { address: { columnId: "amount", transactionId: "transaction-1" } },
+                editor: { address: { columnId: "date", transactionId: "transaction-1" } },
                 interactionKind: "editing"
             });
         }
@@ -1197,8 +1190,8 @@ describe("cell selection gestures", () => {
             () => undefined,
             { externalControls: transactionToolbar(() => undefined) }
         );
-        const editor = activateValidationEditor(controller, "amount");
-        fireEvent.change(editor, { target: { value: invalidValidationDraft("amount") } });
+        const editor = activateValidationEditor(controller, "date");
+        fireEvent.change(editor, { target: { value: INVALID_DATE_DRAFT } });
         const source = screen.getByTestId("add-transaction-button");
         const retargeted = document.createElement("button");
         retargeted.type = "button";
@@ -1236,13 +1229,13 @@ describe("cell selection gestures", () => {
                 onTransactionUpdate
             }
         );
-        const editor = activateValidationEditor(controller, "amount");
-        fireEvent.change(editor, { target: { value: invalidValidationDraft("amount") } });
+        const editor = activateValidationEditor(controller, "date");
+        fireEvent.change(editor, { target: { value: INVALID_DATE_DRAFT } });
         const addButton = screen.getByTestId("add-transaction-button");
 
         expect(fireEvent.pointerDown(addButton, { button: 0, pointerId: 47 })).toBe(false);
         fireEvent.pointerDown(editor, { button: 0, pointerId: 48 });
-        fireEvent.change(editor, { target: { value: validValidationDraft("amount") } });
+        fireEvent.change(editor, { target: { value: validValidationDraft("date") } });
         fireEvent.pointerUp(addButton, { button: 0, pointerId: 47 });
 
         expect(fireEvent.click(addButton)).toBe(false);
@@ -1250,7 +1243,7 @@ describe("cell selection gestures", () => {
         expect(onTransactionUpdate).not.toHaveBeenCalled();
         expect(editor).toHaveFocus();
         expect(controller.getSnapshot()).toMatchObject({
-            editor: { address: { columnId: "amount", transactionId: "transaction-1" } },
+            editor: { address: { columnId: "date", transactionId: "transaction-1" } },
             interactionKind: "editing"
         });
     });
@@ -1268,8 +1261,8 @@ describe("cell selection gestures", () => {
                 onTransactionUpdate
             }
         );
-        const editor = activateValidationEditor(controller, "amount");
-        fireEvent.change(editor, { target: { value: invalidValidationDraft("amount") } });
+        const editor = activateValidationEditor(controller, "date");
+        fireEvent.change(editor, { target: { value: INVALID_DATE_DRAFT } });
         const addButton = screen.getByTestId("add-transaction-button");
         expect(fireEvent.pointerDown(addButton, { button: 0, pointerId: 43 })).toBe(false);
 
@@ -1295,12 +1288,12 @@ describe("cell selection gestures", () => {
                 onTransactionUpdate
             }
         );
-        const editor = activateValidationEditor(controller, "amount");
-        fireEvent.change(editor, { target: { value: invalidValidationDraft("amount") } });
+        const editor = activateValidationEditor(controller, "date");
+        fireEvent.change(editor, { target: { value: INVALID_DATE_DRAFT } });
         const addButton = screen.getByTestId("add-transaction-button");
         expect(fireEvent.pointerDown(addButton, { button: 0, pointerId: 44 })).toBe(false);
 
-        fireEvent.change(editor, { target: { value: validValidationDraft("amount") } });
+        fireEvent.change(editor, { target: { value: validValidationDraft("date") } });
         expect(fireEvent.pointerDown(addButton, { button: 0, pointerId: 45 })).toBe(true);
         fireEvent.pointerUp(addButton, { button: 0, pointerId: 45 });
         expect(fireEvent.click(addButton)).toBe(true);
@@ -1328,7 +1321,8 @@ describe("cell selection gestures", () => {
         fireEvent.pointerDown(dateCell, { button: 0 });
         fireEvent.pointerDown(descriptionCell, { button: 0, shiftKey: true });
 
-        expect(document.activeElement).toBe(descriptionCell);
+        // The extension moves only the extent; the anchor keeps DOM focus (TGI-SEL-004).
+        expect(document.activeElement).toBe(dateCell);
         expect(selectedCells()).toEqual(["1:date", "1:description"]);
         expect(controller.cellSelectionAtom.get()).toMatchObject([
             {
@@ -1630,9 +1624,8 @@ describe("cell selection gestures", () => {
     });
 
     it.each([
-        { external: "filter", kind: "amount" },
-        { external: "toolbar", kind: "date" },
-        { external: "filter", kind: "allocation" }
+        { external: "filter", kind: "date" },
+        { external: "toolbar", kind: "date" }
     ] as const)(
         "settles invalid $kind validation before parking for external $external focus",
         async ({ external, kind }) => {
@@ -1657,7 +1650,7 @@ describe("cell selection gestures", () => {
                 columnId: validationColumn(kind),
                 transactionId: asTransactionId("transaction-1")
             };
-            fireEvent.change(editor, { target: { value: invalidValidationDraft(kind) } });
+            fireEvent.change(editor, { target: { value: INVALID_DATE_DRAFT } });
             const externalControl = document.createElement(
                 external === "filter" ? "input" : "button"
             );
@@ -1673,7 +1666,7 @@ describe("cell selection gestures", () => {
                 await Promise.resolve();
             });
 
-            expect(editor).toHaveValue(invalidValidationDraft(kind));
+            expect(editor).toHaveValue(INVALID_DATE_DRAFT);
             expect(editor).toHaveAttribute("aria-invalid", "true");
             expect(editor).toHaveFocus();
             expect(editor).toBeInTheDocument();
@@ -1716,7 +1709,7 @@ describe("cell selection gestures", () => {
             }
         );
         const editor = activateValidationEditor(controller, "date");
-        fireEvent.change(editor, { target: { value: invalidValidationDraft("date") } });
+        fireEvent.change(editor, { target: { value: INVALID_DATE_DRAFT } });
         const calendarTrigger = transactionCell(1, "date").querySelector<HTMLElement>(
             '[data-grid-open-interaction="calendar"]'
         );
@@ -1747,7 +1740,7 @@ describe("cell selection gestures", () => {
             await Promise.resolve();
         });
 
-        expect(editor).toHaveValue(invalidValidationDraft("date"));
+        expect(editor).toHaveValue(INVALID_DATE_DRAFT);
         expect(editor).toHaveAttribute("aria-invalid", "true");
         expect(editor).toHaveFocus();
         expect(editor).toBeInTheDocument();
@@ -1778,7 +1771,7 @@ describe("cell selection gestures", () => {
             const editor = activateValidationEditor(source.controller, "date");
             fireEvent.change(editor, {
                 target: {
-                    value: valid ? validValidationDraft("date") : invalidValidationDraft("date")
+                    value: valid ? validValidationDraft("date") : INVALID_DATE_DRAFT
                 }
             });
 
@@ -1826,7 +1819,7 @@ describe("cell selection gestures", () => {
                 expect(onSourceUpdate).not.toHaveBeenCalled();
                 expect(onForeignAction).not.toHaveBeenCalled();
                 expect(onSourceBlur).not.toHaveBeenCalled();
-                expect(editor).toHaveValue(invalidValidationDraft("date"));
+                expect(editor).toHaveValue(INVALID_DATE_DRAFT);
                 expect(editor).toHaveAttribute("aria-invalid", "true");
                 expect(editor).toHaveFocus();
                 expect(source.controller.getSnapshot()).toMatchObject({
@@ -2015,7 +2008,7 @@ describe("cell selection gestures", () => {
         expect(screen.getByRole("button", { name: "Remove Food" })).toBeVisible();
     });
 
-    it("cancels an open Date calendar and its editor with one Escape", async () => {
+    it("closes an open Date calendar first, then cancels its editor on a second Escape", async () => {
         const onTransactionUpdate = vi.fn();
         const { controller } = renderGrid(
             () => undefined,
@@ -2040,10 +2033,10 @@ describe("cell selection gestures", () => {
         const calendar = document.querySelector<HTMLElement>('[data-owned-by-field="date"]');
         if (calendar == null) throw new Error("the Date calendar did not mount");
 
-        expect(fireEvent.keyDown(calendar, { altKey: true, key: "ArrowDown" })).toBe(false);
+        // The calendar owns Alt+Arrow too: it never moves through the grid.
+        fireEvent.keyDown(calendar, { altKey: true, key: "ArrowDown" });
         expect(onTransactionUpdate).not.toHaveBeenCalled();
         expect(editor).toHaveValue("not a date");
-        expect(editor).toHaveAttribute("aria-invalid", "true");
         expect(calendar).toBeInTheDocument();
         expect(controller.getInteractionState()).toMatchObject({
             kind: "interacting",
@@ -2052,6 +2045,14 @@ describe("cell selection gestures", () => {
         });
 
         fireEvent.keyDown(calendar, { key: "Escape" });
+        await waitFor(() =>
+            expect(document.querySelector('[data-owned-by-field="date"]')).toBeNull()
+        );
+        await waitFor(() => expect(editor).toHaveFocus());
+        expect(editor).toHaveValue("not a date");
+        expect(controller.getInteractionState()).toMatchObject({ kind: "editing" });
+
+        fireEvent.keyDown(editor, { key: "Escape" });
         await act(async () => {
             await Promise.resolve();
             await Promise.resolve();
@@ -2448,7 +2449,7 @@ describe("cell selection gestures", () => {
             const editor = activateValidationEditor(controller, "date");
             fireEvent.change(editor, {
                 target: {
-                    value: valid ? validValidationDraft("date") : invalidValidationDraft("date")
+                    value: valid ? validValidationDraft("date") : INVALID_DATE_DRAFT
                 }
             });
             const calendarTrigger = transactionCell(1, "date").querySelector<HTMLElement>(
@@ -2500,7 +2501,7 @@ describe("cell selection gestures", () => {
                 expect(controller.getInteractionState()).toMatchObject({ kind: "parked" });
                 return;
             }
-            expect(editor).toHaveValue(invalidValidationDraft("date"));
+            expect(editor).toHaveValue(INVALID_DATE_DRAFT);
             expect(editor).toHaveAttribute("aria-invalid", "true");
             expect(editor).toHaveFocus();
             expect(onTransactionUpdate).not.toHaveBeenCalled();
@@ -2981,7 +2982,7 @@ describe("cell selection gestures", () => {
         }
     );
 
-    it("selects only the cell a pointer lands on, and adds nothing when the pointer moves", () => {
+    it("starts no range from a press inside an editor, whatever the pointer does next", () => {
         const { controller } = renderGrid();
         const first = focusDescription(controller, 1, "end");
         const second = transactionCell(2, "description");
@@ -2991,9 +2992,8 @@ describe("cell selection gestures", () => {
         fireEvent.mouseEnter(second);
         fireEvent.mouseUp(second);
 
-        // No drag binding, deliberately: mousedown is how a caret is placed and a text selection
-        // begun in these cells, so a drag-to-select range would fight the gesture it shares. Ranges
-        // are keyboard-only, and this pins that the omission stays an omission.
+        // Inside an editor a press places the caret and begins a native text selection, so it never
+        // starts a cell range. Drag ranges begin only on non-edit cell backgrounds.
         expect(selectedCells()).toEqual(["1:description"]);
     });
 
@@ -3027,14 +3027,24 @@ describe("cell selection gestures", () => {
             fireEvent.keyDown(actions, { key: "ArrowLeft" });
             expect(document.activeElement).toBe(amount);
 
+            // Inside the cell, Left and Right move among its buttons and stop at either end.
             act(() => deleteButton.focus());
-            fireEvent.keyDown(deleteButton, { key: "ArrowLeft" });
+            fireEvent.keyDown(deleteButton, { key: "ArrowRight" });
             expect(document.activeElement).toBe(deleteButton);
+            fireEvent.keyDown(deleteButton, { key: "ArrowLeft" });
             expect(row.querySelectorAll('[data-cell="actions"] [data-cell]')).toHaveLength(0);
             if (hasDuplicate) {
                 expect(row.querySelectorAll('[title="Potential duplicate"]')).toHaveLength(1);
-                expect(document.activeElement).not.toHaveAttribute("title", "Potential duplicate");
+                expect(document.activeElement).toHaveAttribute("title", "Potential duplicate");
+            } else {
+                expect(document.activeElement).toBe(deleteButton);
             }
+
+            // Escape returns to canonical navigation on the Actions cell itself.
+            const focusedAction = document.activeElement;
+            if (!(focusedAction instanceof HTMLElement)) throw new Error("no focused action");
+            fireEvent.keyDown(focusedAction, { key: "Escape" });
+            expect(document.activeElement).toBe(actions);
         }
     );
 

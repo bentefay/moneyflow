@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { createVaultMirror } from "@/lib/crdt/mirror";
 import { insertTransaction } from "@/lib/crdt/mutations";
 import {
+    compareBlankLastAmounts,
     filterTransactions,
     findTransaction,
     findTransactionById,
@@ -1134,4 +1135,24 @@ describe("filterTransactions", () => {
         expect(result.length).toBe(1);
         expect(result[0].id).toBe("tx-with-dup");
     });
+});
+
+describe("compareBlankLastAmounts", () => {
+    it.each([
+        { left: 100, right: 200, direction: 1, expected: "before" },
+        { left: 100, right: 200, direction: -1, expected: "after" },
+        { left: undefined, right: -500, direction: 1, expected: "after" },
+        { left: undefined, right: -500, direction: -1, expected: "after" },
+        { left: 0, right: undefined, direction: 1, expected: "before" },
+        { left: 0, right: undefined, direction: -1, expected: "before" },
+        { left: undefined, right: undefined, direction: 1, expected: "equal" }
+    ] as const)(
+        "orders $left against $right in direction $direction: $expected",
+        ({ left, right, direction, expected }) => {
+            const result = compareBlankLastAmounts(left, right, direction);
+            expect(Math.sign(result)).toBe(
+                expected === "before" ? -1 : expected === "after" ? 1 : 0
+            );
+        }
+    );
 });

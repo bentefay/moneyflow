@@ -15,8 +15,7 @@ import {
 } from "@/components/features/transactions/cells/editor-lifecycle";
 import {
     InlineEditableAmount,
-    InlineEditableAmountDisplay,
-    parseCurrency
+    InlineEditableAmountDisplay
 } from "@/components/features/transactions/cells/InlineEditableAmount";
 import { InlineEditableDate } from "@/components/features/transactions/cells/InlineEditableDate";
 import {
@@ -248,27 +247,16 @@ function CancelledCompositionGridCell({
     );
 }
 
-describe("parseCurrency", () => {
-    it.each([
-        ["0", 0],
-        ["1250.75", 1250.75],
-        ["-42.5", -42.5],
-        [".25", 0.25],
-        ["$1,234.56", 1234.56],
-        ["£ -9.50", -9.5]
-    ])("parses %s as finite major units", (input, expected) => {
-        expect(parseCurrency(input)).toEqual({ ok: true, value: expected });
+describe("InlineEditableAmountDisplay", () => {
+    it("renders a blank amount as a muted dash rather than zero", () => {
+        render(<InlineEditableAmountDisplay value={undefined} data-testid="blank-amount" />);
+
+        const blank = screen.getByTestId("blank-amount");
+        expect(blank).toHaveTextContent("—");
+        expect(blank).not.toHaveTextContent("0.00");
+        expect(blank.className).toContain("text-muted-foreground");
     });
 
-    it.each(["", "   ", ".", "-", "1.2.3", "1-2", "--1", "money", "1usd", "1,23"])(
-        "rejects malformed draft %j",
-        (input) => {
-            expect(parseCurrency(input)).toEqual({ ok: false });
-        }
-    );
-});
-
-describe("InlineEditableAmountDisplay", () => {
     it("retains imported provenance and sign styling at rest", () => {
         render(
             <>
@@ -1510,7 +1498,7 @@ describe("TransactionGridCell", () => {
     );
 
     it.each(["", "not-an-amount"])(
-        "rejects malformed amount draft %j without surrendering editor ownership",
+        "normalises amount draft %j to blank and moves on Alt+Arrow without blocking",
         async (draft) => {
             const { cell, controller, interaction } = gridcellFixture("amount");
             const onSave = vi.fn();
@@ -1571,20 +1559,18 @@ describe("TransactionGridCell", () => {
                 await Promise.resolve();
             });
 
-            expect(onSave).not.toHaveBeenCalled();
-            expect(editor).toHaveAttribute("aria-invalid", "true");
-            expect(editor).toHaveFocus();
-            expect(controller.getInteractionState()).toMatchObject({ kind: "editing" });
-
-            await act(async () => {
-                destination.focus();
-                await Promise.resolve();
+            expect(onSave).toHaveBeenCalledOnce();
+            expect(onSave).toHaveBeenCalledWith(undefined);
+            expect(editor).not.toHaveAttribute("aria-invalid");
+            expect(destination).toHaveFocus();
+            const state = controller.getInteractionState();
+            if (state.kind !== "navigating") {
+                throw new Error(`expected navigating state, received ${state.kind}`);
+            }
+            expect(activeTransactionGridAddress(state.selection)).toEqual({
+                columnId: "actions",
+                transactionId: "transaction-1"
             });
-
-            expect(onSave).not.toHaveBeenCalled();
-            expect(editor).toHaveAttribute("aria-invalid", "true");
-            expect(editor).toHaveFocus();
-            expect(controller.getInteractionState()).toMatchObject({ kind: "editing" });
             destination.remove();
         }
     );
@@ -1992,7 +1978,7 @@ describe("TransactionGridCell", () => {
         }
     );
 
-    it("validates the production allocation editor before pointer ownership moves", async () => {
+    it("commits the production allocation editor's normalised text before pointer ownership moves", async () => {
         const { cell, controller, interaction, table } = gridcellFixture();
         const destinationCell = table
             .getRowsInDisplayOrder()[1]
@@ -2061,26 +2047,7 @@ describe("TransactionGridCell", () => {
         const editor = screen.getByRole("textbox", { name: "Ada allocation percentage" });
         const destination = requiredGridcell(screen.getByTestId("Allocation pointer destination"));
 
-        fireEvent.change(editor, { target: { value: "101" } });
-        const invalidPointerDefaultAllowed = await act(async () => {
-            const allowed = fireEvent.pointerDown(destination, { button: 0 });
-            await Promise.resolve();
-            return allowed;
-        });
-
-        expect(invalidPointerDefaultAllowed).toBe(false);
-        expect(onCommit).not.toHaveBeenCalled();
-        expect(editor).toHaveAttribute("aria-invalid", "true");
-        expect(editor).toHaveFocus();
-        const invalidInteractionState = controller.getInteractionState();
-        if (invalidInteractionState.kind !== "editing") {
-            throw new Error(`expected editing state, received ${invalidInteractionState.kind}`);
-        }
-        expect(activeTransactionGridAddress(invalidInteractionState.selection)).toEqual(
-            sourceAddress
-        );
-
-        fireEvent.change(editor, { target: { value: "25" } });
+        fireEvent.change(editor, { target: { value: "x25%" } });
         const validPointerDefaultAllowed = await act(async () => {
             const allowed = fireEvent.pointerDown(destination, { button: 0 });
             await Promise.resolve();
@@ -3007,10 +2974,11 @@ describe("TransactionGridCell", () => {
         expect(controller.cellSelectionAtom.get()).toEqual([]);
     });
 
-    it("owns square selection, focus, validation and presence chrome on the outer cell", () => {
+    it("owns square selection, active-cell, validation and presence chrome on the outer cell", () => {
         const { cell, controller, interaction } = gridcellFixture();
         render(
             <TransactionGridCell
+                active
                 address={{
                     columnId: "description",
                     transactionId: asTransactionId("transaction-1")
@@ -3036,7 +3004,12 @@ describe("TransactionGridCell", () => {
         expect(gridcell).toHaveStyle({ outlineColor: "rgb(12, 34, 56)" });
         expect(gridcell.className).toContain("rounded-none");
         expect(gridcell.className).toContain("border-r");
-        expect(gridcell.className).toContain("focus-within:ring-2");
+        expect(gridcell).toHaveAttribute("data-active-cell", "true");
+        expect(gridcell.className).toContain(
+            "aria-selected:data-[active-cell=true]:bg-transparent"
+        );
+        expect(gridcell.className).not.toContain("focus-within:ring");
+        expect(gridcell.className).not.toContain("focus-visible:ring");
         expect(gridcell.className).toContain("has-[[aria-invalid=true]]:ring-2");
     });
 

@@ -4,8 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
     BASE_TRANSACTION_GRID_SUFFIX,
-    buildAllocationColumnModel,
-    parseAllocationDraft
+    buildAllocationColumnModel
 } from "@/components/features/transactions/allocation-columns";
 import { PersonAllocationCell } from "@/components/features/transactions/cells";
 import { TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS } from "@/components/features/transactions/cells/editor-lifecycle";
@@ -78,27 +77,6 @@ describe("transaction allocation grid", () => {
         expect(model.gridTemplateColumns).toMatch(/112px 120px$/);
     });
 
-    it("parses exact valid percentages and rejects malformed or destructive drafts", () => {
-        expect(parseAllocationDraft("-35.125")).toEqual({ ok: true, value: -35.125 });
-        expect(parseAllocationDraft("0")).toEqual({ ok: true, value: 0 });
-        expect(parseAllocationDraft("1e2")).toEqual({ ok: true, value: 100 });
-
-        for (const invalid of [
-            "",
-            " ",
-            "-101",
-            "101",
-            "NaN",
-            "Infinity",
-            "1e999",
-            "0x10",
-            "12 apples",
-            "-0"
-        ]) {
-            expect(parseAllocationDraft(invalid), invalid).toMatchObject({ ok: false });
-        }
-    });
-
     it("renders explicit, effective and invalid legacy states without inventing a stored value", () => {
         const { rerender } = render(
             <PersonAllocationCell
@@ -143,7 +121,7 @@ describe("transaction allocation grid", () => {
         );
     });
 
-    it("preserves canonical zero and invalid semantics in the display-first row branch", () => {
+    it("shows explicit zero as 0%, blank as a dash, and keeps invalid semantics", () => {
         const model = buildModel();
         const transactionData = {
             id: "tx-resting-allocation",
@@ -158,13 +136,38 @@ describe("transaction allocation grid", () => {
         );
         const zero = screen.getByTestId("allocation-cell-person-a");
 
-        expect(zero.firstChild?.textContent).toBe("—");
+        expect(zero.firstChild?.textContent).toBe("0%");
         expect(zero).not.toHaveAttribute("aria-invalid");
         expect(zero).toHaveAccessibleDescription(
             /Explicit: 0%.*Effective: 100%.*Owner remainder: 100%/i
         );
 
-        for (const invalidValue of [Number.NaN, Number.POSITIVE_INFINITY, 101, -101, -0, "25"]) {
+        rerender(
+            <TransactionRow
+                transaction={{ ...transactionData, allocations: {} }}
+                allocationColumns={model.columns}
+            />
+        );
+        const blank = screen.getByTestId("allocation-cell-person-a");
+        expect(blank.firstChild?.textContent).toBe("—");
+        expect(blank).toHaveAccessibleDescription(/Explicit: not stored.*Effective: 100%/i);
+
+        for (const [value, display] of [
+            [101, "101%"],
+            [-101, "-101%"]
+        ] as const) {
+            rerender(
+                <TransactionRow
+                    transaction={{ ...transactionData, allocations: { "person-a": value } }}
+                    allocationColumns={model.columns}
+                />
+            );
+            expect(screen.getByTestId("allocation-cell-person-a").firstChild?.textContent).toBe(
+                display
+            );
+        }
+
+        for (const invalidValue of [Number.NaN, Number.POSITIVE_INFINITY, -0, "25"]) {
             rerender(
                 <TransactionRow
                     transaction={{
@@ -181,7 +184,7 @@ describe("transaction allocation grid", () => {
         }
     });
 
-    it("edits one person by pointer and keyboard, keeping invalid drafts local", () => {
+    it("edits one person by pointer and keyboard, normalising free text on exit", () => {
         const onCommit = vi.fn(() => TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS);
         render(
             <PersonAllocationCell
@@ -193,6 +196,10 @@ describe("transaction allocation grid", () => {
                 onCommit={onCommit}
             />
         );
+        const editAgain = (): HTMLElement => {
+            fireEvent.click(screen.getByRole("button", { name: /edit Ada allocation/i }));
+            return screen.getByRole("textbox", { name: "Ada allocation percentage" });
+        };
 
         const display = screen.getByRole("button", { name: /edit Ada allocation/i });
         expect(display).toHaveAttribute("data-presence-field", allocationPresenceField("person-a"));
@@ -203,25 +210,32 @@ describe("transaction allocation grid", () => {
         fireEvent.keyDown(input, { key: "Enter" });
         expect(onCommit).toHaveBeenLastCalledWith("person-a", -35.5);
 
-        fireEvent.click(screen.getByRole("button", { name: /edit Ada allocation/i }));
-        const invalidInput = screen.getByRole("textbox", {
-            name: "Ada allocation percentage"
-        });
-        fireEvent.change(invalidInput, { target: { value: "101" } });
-        fireEvent.keyDown(invalidInput, { key: "Enter" });
-        expect(invalidInput).toHaveAttribute("aria-invalid", "true");
-        expect(invalidInput).toHaveFocus();
-        expect(onCommit).toHaveBeenCalledTimes(1);
+        const unclamped = editAgain();
+        fireEvent.change(unclamped, { target: { value: "101" } });
+        fireEvent.keyDown(unclamped, { key: "Enter" });
+        expect(onCommit).toHaveBeenLastCalledWith("person-a", 101);
 
-        fireEvent.change(invalidInput, { target: { value: "0" } });
-        fireEvent.blur(invalidInput);
-        expect(onCommit).toHaveBeenCalledTimes(1);
+        const stray = editAgain();
+        fireEvent.change(stray, { target: { value: "a.1" } });
+        fireEvent.blur(stray);
+        expect(onCommit).toHaveBeenLastCalledWith("person-a", 0.1);
 
-        fireEvent.click(screen.getByRole("button", { name: /edit Ada allocation/i }));
-        const escapeInput = screen.getByRole("textbox", { name: "Ada allocation percentage" });
-        fireEvent.change(escapeInput, { target: { value: "40" } });
-        fireEvent.keyDown(escapeInput, { key: "Escape" });
-        expect(onCommit).toHaveBeenCalledTimes(1);
+        const zero = editAgain();
+        fireEvent.change(zero, { target: { value: "0" } });
+        fireEvent.blur(zero);
+        expect(onCommit).toHaveBeenLastCalledWith("person-a", 0);
+        expect(onCommit).toHaveBeenCalledTimes(4);
+
+        // Nothing is stored for Ada, so text that normalises to blank is no change at all.
+        const blank = editAgain();
+        fireEvent.change(blank, { target: { value: "abc" } });
+        fireEvent.blur(blank);
+        expect(onCommit).toHaveBeenCalledTimes(4);
+
+        const escaped = editAgain();
+        fireEvent.change(escaped, { target: { value: "40" } });
+        fireEvent.keyDown(escaped, { key: "Escape" });
+        expect(onCommit).toHaveBeenCalledTimes(4);
     });
 
     it("uses the allocation model's shared template for a real row", () => {

@@ -4,10 +4,11 @@
  * Tests for date formatting utilities, especially formatTransactionDate.
  */
 
+import fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
-import { formatTransactionDate } from "@/lib/utils/date-format";
+import { formatTransactionDate, stepEditedDate } from "@/lib/utils/date-format";
 
 describe("formatTransactionDate", () => {
     // Reference date for tests: 2026-01-02 (as per user context)
@@ -152,5 +153,61 @@ describe("formatTransactionDate", () => {
             expect(formatTransactionDate("1988-01-27", refDate, "en-CA")).toBe("1988-01-27");
             expect(formatTransactionDate("2026-01-05", refDate, "en-CA")).toBe("01-05");
         });
+    });
+});
+
+describe("stepEditedDate", () => {
+    const REFERENCE = Temporal.PlainDate.from("2026-10-13");
+
+    it.each([
+        ["typed day-first text", "en-GB", "31/12/2026", "", 1, "2027-01-01", "1/1/2027"],
+        ["typed month-first text", "en-US", "12/31/2026", "", 1, "2027-01-01", "1/1/2027"],
+        ["back across a leap day", "en-GB", "1/3/2028", "", -1, "2028-02-29", "29/2/2028"],
+        [
+            "unparseable text falls back to the stored date",
+            "en-GB",
+            "xyz",
+            "2026-10-13",
+            -1,
+            "2026-10-12",
+            "12/10/2026"
+        ],
+        [
+            "empty text falls back to the stored date",
+            "en-GB",
+            "",
+            "2026-10-13",
+            1,
+            "2026-10-14",
+            "14/10/2026"
+        ]
+    ])("%s", (_name, locale, text, stored, days, isoDate, editedText) => {
+        expect(stepEditedDate(text, stored, days, locale, REFERENCE)).toEqual({
+            isoDate,
+            text: editedText
+        });
+    });
+
+    it("returns null when neither the text nor the stored value names a date", () => {
+        expect(stepEditedDate("nonsense", "", 1, "en-GB", REFERENCE)).toBeNull();
+    });
+
+    it("round-trips: a step and its reverse return to the same date and text", () => {
+        fc.assert(
+            fc.property(
+                fc.integer({ min: 0, max: 365 * 200 }),
+                fc.integer({ min: -400, max: 400 }),
+                fc.constantFrom("en-GB", "en-US", "de-DE", "ja-JP"),
+                (offset, days, locale) => {
+                    const stored = Temporal.PlainDate.from("1950-01-01").add({ days: offset });
+                    const forward = stepEditedDate("", stored.toString(), days, locale, REFERENCE);
+                    if (forward == null) throw new Error("a stored date always steps");
+                    expect(Temporal.PlainDate.from(forward.isoDate).since(stored).days).toBe(days);
+                    const back = stepEditedDate(forward.text, "", -days, locale, REFERENCE);
+                    expect(back?.isoDate).toBe(stored.toString());
+                }
+            ),
+            { seed: 0x64617465 }
+        );
     });
 });
