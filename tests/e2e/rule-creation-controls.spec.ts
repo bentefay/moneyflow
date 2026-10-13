@@ -236,7 +236,7 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
             await transactionGridCell(firstRow, "date").click();
             await expect(alexCell).toContainText("40%");
             await expect(proposal).toBeVisible();
-            await proposal.getByTestId("proposal-dismiss").click();
+            await proposal.getByTestId("rule-cancel").click();
             await expect(proposal).toHaveCount(0, { timeout: 3_000 });
         });
 
