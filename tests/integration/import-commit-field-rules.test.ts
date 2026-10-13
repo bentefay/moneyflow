@@ -265,7 +265,7 @@ describe("production import commit applies field rules", () => {
                     descriptionText: DESCRIPTION,
                     tagMode: "set",
                     tagIds: ["coffee"],
-                    allocations: { "person-a": asPercentage(150) }
+                    allocations: { "person-a": asPercentage(Number.NaN) }
                 })
             );
             commitImportBatch(state, {

@@ -574,7 +574,7 @@ describe("MF-002 baseline: which rules a reader exposes as candidates", () => {
             const created = createFieldRule(state, {
                 id: "r-bad-alloc",
                 descriptionText: DESCRIPTION,
-                outputs: { allocation: { allocations: { "person-1": 900 } } },
+                outputs: { allocation: { allocations: { "person-1": Number.NaN } } },
                 createdAtEpochMs: 1000
             });
             expect(created.ok).toBe(false);
@@ -600,8 +600,8 @@ describe("MF-002 baseline: which rules a reader exposes as candidates", () => {
                 aliasId: undefined,
                 tagMode: undefined,
                 tagIds: [],
-                // Out of range, so `decodeFieldRule` refuses this record at read time.
-                allocations: { "person-1": asPercentage(150) },
+                // Not a percentage, so `decodeFieldRule` refuses this record at read time.
+                allocations: { "person-1": asPercentage(Number.NaN) },
                 createdAtEpochMs: 1000,
                 deletedAtEpochMs: undefined,
                 outputFields: []
