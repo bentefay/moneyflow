@@ -25,6 +25,7 @@ export {
     useAccounts,
     useActiveAccounts,
     useActiveDescriptionAliases,
+    useActiveFieldRuleIndex,
     useActiveFieldRules,
     useActiveImports,
     useActivePeople,
@@ -43,6 +44,7 @@ export {
     usePeople,
     usePersistAutomationPreference,
     usePersistDateFormat,
+    useRulePopulation,
     usePersistTransactionInspectorOpen,
     usePerson,
     useStatuses,
@@ -66,12 +68,22 @@ export {
     createFieldRule,
     type DeleteFieldRuleInput,
     deleteFieldRule,
-    type FieldRuleActionInput,
     type FieldRuleMutationError,
+    type FieldRuleMutationOutcome,
     type FieldRuleMutationResult,
+    type FieldRuleOutputChange,
+    type FieldRuleOutputsInput,
+    type MoveFieldRuleOutputInput,
+    moveFieldRuleOutput,
+    type MoveFieldRuleOutputValue,
     persistUserAutomationPreference,
     type PersistUserAutomationPreferenceInput,
     readUserAutomationChoice,
+    type SetFieldRuleOutputInput,
+    setFieldRuleOutput,
+    type SplitFieldRuleOutputInput,
+    splitFieldRuleOutput,
+    type SplitFieldRuleOutputValue,
     type UpdateFieldRuleInput,
     updateFieldRule
 } from "./field-rule-mutations";
@@ -97,6 +109,7 @@ export {
 // Apply active field rules to a single transaction (HS-007 / P17C "apply to this transaction")
 export {
     applyFieldRulesToSingleTransaction,
+    type ApplyFieldRulesToTransactionInput,
     type ApplyFieldRulesToTransactionResult
 } from "./apply-field-rule-to-transaction";
 // Production import commit (P14 batch insert + P17A field-rule application)

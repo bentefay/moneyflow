@@ -28,9 +28,17 @@ export {
     readRowId,
     readRowPresenceEditing
 } from "./presence";
+export {
+    type AutomationField,
+    chooseRuleApply,
+    inspectorRuleCard,
+    inspectorRuleCards
+} from "./automation";
+export { type ImportRowSpec, importTransactionRows } from "./import";
 export { awaitVaultPersistence, reloadPage } from "./persistence";
 export {
     activateTransactionEditor,
+    addTagToRow,
     allocationGridCell,
     expectTransactionCellDisplay,
     expectTransactionDateDisplay,

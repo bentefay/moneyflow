@@ -1,7 +1,11 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
-import { applyFieldRulesToSingleTransaction } from "@/lib/crdt/apply-field-rule-to-transaction";
+import {
+    applyFieldRulesToSingleTransaction,
+    type ApplyFieldRulesToTransactionInput,
+    type ApplyFieldRulesToTransactionResult
+} from "@/lib/crdt/apply-field-rule-to-transaction";
 import { createDescriptionAlias } from "@/lib/crdt/description-aliases";
 import { createVaultMirror } from "@/lib/crdt/mirror";
 import {
@@ -60,6 +64,8 @@ function ruleInput(
         allocations: {},
         createdAtEpochMs: 0,
         deletedAtEpochMs: undefined,
+        // Legacy wire shape: no output list, so the rule has exactly the one output `field` names.
+        outputFields: [],
         ...overrides
     };
 }
@@ -212,5 +218,114 @@ describe("applyFieldRulesToSingleTransaction", () => {
             expect(result.ok).toBe(false);
             if (!result.ok) expect(result.reason).toBe("transaction-not-found");
         });
+    });
+});
+
+describe("applyFieldRulesToSingleTransaction with a known location", () => {
+    const NEXT_DAY = DATE.add({ days: 1 });
+
+    /** A vault with a target row, a neighbour and a nested duplicate, and one rule per field. */
+    function seededVault(): ReturnType<typeof createVaultMirror> {
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            insertTransaction(state.transactions, { transaction: txInput({ id: "t-1" }) });
+            insertTransaction(state.transactions, {
+                transaction: txInput({ id: "t-2", date: NEXT_DAY })
+            });
+            // Nested under t-1's day bucket while carrying its own, later date.
+            insertTransaction(state.transactions, {
+                transaction: txInput({ id: "t-dup", date: NEXT_DAY }),
+                suspectedDuplicateOf: locationOf("t-1")
+            });
+            const created = createDescriptionAlias(state, {
+                aliasId: "alias-coffee",
+                name: "Coffee"
+            });
+            if (!created.ok) throw new Error("alias seed failed");
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-alias",
+                    field: "descriptionAlias",
+                    descriptionText: DESCRIPTION,
+                    aliasId: "alias-coffee"
+                })
+            );
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-tags",
+                    field: "tags",
+                    descriptionText: DESCRIPTION,
+                    tagMode: "add",
+                    tagIds: ["tag-coffee"]
+                })
+            );
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-alloc",
+                    field: "allocation",
+                    descriptionText: DESCRIPTION,
+                    allocations: { "person-a": asPercentage(100) }
+                })
+            );
+        });
+        return vault;
+    }
+
+    /** The result and the resulting transaction store, without per-document container ids. */
+    function applyOnFreshVault(input: ApplyFieldRulesToTransactionInput): {
+        readonly result: ApplyFieldRulesToTransactionResult | null;
+        readonly transactions: string;
+    } {
+        const vault = seededVault();
+        let result: ApplyFieldRulesToTransactionResult | null = null;
+        vault.mirror.setState((state: VaultState) => {
+            result = applyFieldRulesToSingleTransaction(state, input);
+        });
+        const transactions = JSON.stringify(
+            vault.mirror.getState().transactions,
+            (key: string, value: unknown) => (key === "$cid" ? undefined : value)
+        );
+        return { result, transactions };
+    }
+
+    it.each([
+        { name: "the row's own location", id: "t-1", accountId: ACCOUNT, date: DATE },
+        { name: "a stale date, falling back", id: "t-1", accountId: ACCOUNT, date: NEXT_DAY },
+        { name: "a stale account, falling back", id: "t-1", accountId: "account-9", date: DATE },
+        { name: "a duplicate's bucket", id: "t-dup", accountId: ACCOUNT, date: DATE },
+        { name: "a duplicate's own date", id: "t-dup", accountId: ACCOUNT, date: NEXT_DAY },
+        { name: "an unknown id", id: "nope", accountId: ACCOUNT, date: DATE }
+    ])("$name gives exactly the id-only outcome and writes", ({ id, accountId, date }) => {
+        const byId = applyOnFreshVault({ transactionId: id });
+        const located = applyOnFreshVault({ transactionId: id, location: { accountId, date } });
+
+        expect(located).toEqual(byId);
+    });
+
+    it("applies every field on the located row and leaves its neighbours alone", () => {
+        const { result, transactions } = applyOnFreshVault({
+            transactionId: "t-1",
+            location: { accountId: ACCOUNT, date: DATE }
+        });
+        const untouched = applyOnFreshVault({ transactionId: "nope" }).transactions;
+
+        expect(result?.ok && result.outcomes.map((outcome) => outcome.field)).toEqual([
+            "tags",
+            "allocation",
+            "descriptionAlias"
+        ]);
+        expect(transactions).not.toBe(untouched);
+    });
+
+    it("keeps transaction-not-found for a stale id at a real location", () => {
+        const { result } = applyOnFreshVault({
+            transactionId: "nope",
+            location: { accountId: ACCOUNT, date: DATE }
+        });
+
+        expect(result).toEqual({ ok: false, reason: "transaction-not-found" });
     });
 });

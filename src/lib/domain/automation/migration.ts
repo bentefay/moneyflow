@@ -25,7 +25,8 @@ import { validateAllocationSet } from "@/lib/domain/allocation";
 import {
     type FieldRule,
     FieldRuleIdSchema,
-    type RuleAction,
+    type RuleField,
+    type RuleOutputs,
     dedupeRulesByUniqueness
 } from "./rules";
 
@@ -74,7 +75,7 @@ export interface MigrationOptions {
     /** Absolute creation time stamped on every derived rule. */
     readonly now: Temporal.Instant;
     /** Deterministic id factory so migration stays pure and reproducible. */
-    readonly idFor: (automationId: string, field: RuleAction["field"]) => string;
+    readonly idFor: (automationId: string, field: RuleField) => string;
 }
 
 const TagValueSchema = z.array(z.string());
@@ -105,19 +106,31 @@ function extractScope(conditions: readonly LegacyConditionView[]): ScopeExtracti
     return { descriptionText: description.value, accountId };
 }
 
-function buildAction(action: LegacyActionView): RuleAction | MigrationSkipReason {
+interface MigratedOutput {
+    readonly field: RuleField;
+    readonly outputs: RuleOutputs;
+}
+
+/**
+ * One legacy action becomes one single-output rule. Legacy actions that share an automation are
+ * deliberately NOT grouped into one rule: rules are never merged automatically.
+ */
+function buildOutput(action: LegacyActionView): MigratedOutput | MigrationSkipReason {
     switch (action.type) {
         case "setTags": {
             const parsed = TagValueSchema.safeParse(action.value);
             if (!parsed.success) return "invalid-tag-value";
-            return { field: "tags", mode: "set", tagIds: parsed.data };
+            return { field: "tags", outputs: { tags: { mode: "set", tagIds: parsed.data } } };
         }
         case "setAllocation": {
             const record = AllocationRecordSchema.safeParse(action.value);
             if (!record.success) return "invalid-allocation-set";
             const validated = validateAllocationSet(record.data);
             if (!validated.ok) return "invalid-allocation-set";
-            return { field: "allocation", allocations: validated.value };
+            return {
+                field: "allocation",
+                outputs: { allocation: { allocations: validated.value } }
+            };
         }
         case "setStatus":
             return "status-not-supported";
@@ -150,7 +163,7 @@ export function migrateLegacyAutomations(
             continue;
         }
         for (const action of automation.actions) {
-            const built = buildAction(action);
+            const built = buildOutput(action);
             if (typeof built === "string") {
                 skipped.push({ automationId: automation.id, reason: built });
                 continue;
@@ -161,7 +174,7 @@ export function migrateLegacyAutomations(
                     id: FieldRuleIdSchema.parse(options.idFor(automation.id, built.field)),
                     descriptionText: scope.descriptionText,
                     accountId: scope.accountId,
-                    action: built,
+                    outputs: built.outputs,
                     createdAt: options.now
                 }
             });

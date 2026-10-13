@@ -7,11 +7,12 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { ActionData, ConditionData } from "@/components/features/automations";
 import type { Automation, Transaction } from "@/lib/crdt/schema";
 import {
     applyAutomationsToTransactions,
-    applyAutomationsWithTracking
+    applyAutomationsWithTracking,
+    type ActionData,
+    type ConditionData
 } from "@/lib/domain/automation";
 
 // Generate test data

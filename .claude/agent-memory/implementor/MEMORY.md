@@ -58,9 +58,8 @@
   that carried it.
 - [Port discipline is CPU discipline](port-discipline-is-cpu-discipline.md) — hold vitest too while
   another agent campaigns; run your own non-E2E checks BEFORE launching your campaign, never during.
-- [Port override fakes a multi-context break](port-override-fakes-multicontext-break.md) — specs pin
-  `localhost:3000` inside `newContext`; a full suite on `:3100` fails ~15 tests that look like a
-  total product break.
+- [Port override fakes a multi-context break](port-override-fakes-multicontext-break.md) — the port
+  is now one `MONEYFLOW_E2E_PORT` helper; multi-context-only failures mean a spec bypassed it.
 - [repeat-each is per test, not total](repeat-each-is-per-test-not-total.md) — K arms at
   `--repeat-each=N` gives N runs per arm; set it to the per-arm bar and tally the log per arm.
 - [The ledger carries instructions you never received](ledger-carries-instructions-you-never-received.md)
@@ -128,3 +127,12 @@
   — "row 9,999 is reachable" stayed green against the pagination it replaced; assert the BOUND.
 - [Portal tests need a ResizeObserver stub](portal-tests-need-a-resizeobserver-stub.md) — the cmdk
   tags chooser throws while MOUNTING in jsdom, so the portal never opens and the case is untestable.
+- [Radix radiogroup roving focus in jsdom](radix-radiogroup-roving-focus-in-jsdom.md) — the root is
+  the Tab stop and arrow-key focus lands in a timeout; assert the group, and `waitFor` arrow moves.
+- [Vault maintenance test uses the real clock](vault-maintenance-test-uses-real-clock.md) — the undo
+  test fakes frames but not `performance.now`, so heavy load changes maintenance chunking.
+- [Open Radix Select hides the page from role queries](radix-open-select-hides-page-from-role-queries.md)
+  — a role-based `toHaveCount(0)` passed with the gate deleted; wait for the listbox to close.
+- [Perf ceiling must sit below the old cost](perf-ceiling-must-sit-below-the-old-cost.md) — a
+  dispatched ceiling sized from the big bench can pass the reverted code at the test fixture size;
+  revert and check.

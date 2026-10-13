@@ -79,6 +79,8 @@ export function transactionInspectorBindingEquals(
             return second.kind === "action" && first.action === second.action;
         case "automation":
             return second.kind === "automation" && first.field === second.field;
+        case "automation-rule":
+            return second.kind === "automation-rule" && first.ruleId === second.ruleId;
         default:
             return assertNever(first, "transaction inspector binding");
     }

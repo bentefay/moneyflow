@@ -1,3 +1,4 @@
+import { LoroList, LoroMap } from "loro-crdt";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
@@ -24,6 +25,7 @@ import {
     type VaultState
 } from "@/lib/crdt/schema";
 import { exportSnapshot } from "@/lib/crdt/sync";
+import { ruleOutputFields } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 import { asPercentage } from "@/types";
 
@@ -74,6 +76,8 @@ function ruleInput(
         allocations: {},
         createdAtEpochMs: 0,
         deletedAtEpochMs: undefined,
+        // Legacy wire shape: no output list, so the rule has exactly the one output `field` names.
+        outputFields: [],
         ...overrides
     };
 }
@@ -190,7 +194,7 @@ describe("legacy-automation migration at hydration", () => {
         const [rule] = rules;
         expect(rule?.id).toBe(MIGRATED_TAGS_RULE_ID);
         expect(rule?.descriptionText).toBe(DESCRIPTION);
-        expect(rule?.action).toMatchObject({ field: "tags", mode: "set", tagIds: ["coffee"] });
+        expect(rule?.outputs).toEqual({ tags: { mode: "set", tagIds: ["coffee"] } });
 
         // Marker prevents re-running.
         let second: ReturnType<typeof migrateVaultAutomationsToFieldRules> | undefined;
@@ -393,6 +397,60 @@ describe("field-rule application at import and bulk operations", () => {
         expect(applied?.descriptionAliasId).toBe("alias-manual");
     });
 
+    it("keys an imported row on its RAW description even after it is renamed by an alias", () => {
+        // Q-P17D-01's converse: the alias-name projection is for MANUAL rows only. An imported row
+        // whose display text has been changed to an alias still matches on the raw imported text,
+        // because `descriptionTextForMatching` branches on `importId != null` first. Provenance is
+        // preserved: matching never follows the row's own display alias.
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            const display = createDescriptionAlias(state, {
+                aliasId: "alias-display",
+                name: "Nice Coffee Place"
+            });
+            if (!display.ok) throw new Error("display alias seed failed");
+            insertTransaction(state.transactions, {
+                transaction: txInput({
+                    id: "t-renamed",
+                    importId: "import-1",
+                    descriptionAliasId: "alias-display"
+                })
+            });
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-raw",
+                    field: "tags",
+                    descriptionText: DESCRIPTION,
+                    tagMode: "add",
+                    tagIds: ["raw-match"]
+                })
+            );
+            // A rule keyed on the DISPLAYED name must not match an imported row.
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-display",
+                    field: "tags",
+                    accountId: ACCOUNT,
+                    descriptionText: "Nice Coffee Place",
+                    tagMode: "add",
+                    tagIds: ["display-match"]
+                })
+            );
+            applyFieldRulesToImport(state, { importId: "import-1" });
+        });
+
+        const applied = findTransactionInStore(
+            vault.mirror.getState().transactions,
+            locationOf("t-renamed")
+        );
+        expect([...(applied?.tagIds ?? [])]).toEqual(["raw-match"]);
+        // The display alias is untouched, and the raw description is never rewritten.
+        expect(applied?.descriptionAliasId).toBe("alias-display");
+        expect(applied?.description).toBe(DESCRIPTION);
+    });
+
     it("excludes rules with an invalid complete allocation set (rejected at decode, no mutation)", () => {
         const vault = createVaultMirror();
         vault.mirror.setState((state: VaultState) => {
@@ -428,15 +486,19 @@ describe("field-rule application at import and bulk operations", () => {
         expect(explicit).toEqual({ "person-a": 100 });
     });
 
-    it("applies to all transactions and, separately, only to strictly newer ones", () => {
-        const older = DATE;
+    it("applies to all transactions and, separately, only to those on or after a date", () => {
+        const earlier = DATE.subtract({ days: 1 });
+        const sameDay = DATE;
         const newer = DATE.add({ days: 1 });
         const vault = createVaultMirror();
 
         let newerEntries: ReturnType<typeof applyFieldRulesToNewerTransactions> = [];
         vault.mirror.setState((state: VaultState) => {
             insertTransaction(state.transactions, {
-                transaction: txInput({ id: "t-older", date: older, importId: "import-1" })
+                transaction: txInput({ id: "t-earlier", date: earlier, importId: "import-1" })
+            });
+            insertTransaction(state.transactions, {
+                transaction: txInput({ id: "t-same-day", date: sameDay, importId: "import-1" })
             });
             insertTransaction(state.transactions, {
                 transaction: txInput({ id: "t-newer", date: newer, importId: "import-1" })
@@ -451,29 +513,239 @@ describe("field-rule application at import and bulk operations", () => {
                     tagIds: ["seen"]
                 })
             );
-            newerEntries = applyFieldRulesToNewerTransactions(state, { referenceDate: older });
+            newerEntries = applyFieldRulesToNewerTransactions(state, { referenceDate: sameDay });
         });
 
-        // Only the strictly-newer transaction was included.
-        expect(newerEntries).toHaveLength(1);
-        expect([
-            ...(findTransactionInStore(
-                vault.mirror.getState().transactions,
-                locationOf("t-newer", newer)
-            )?.tagIds ?? [])
-        ]).toEqual(["seen"]);
-        expect([
-            ...(findTransactionInStore(vault.mirror.getState().transactions, locationOf("t-older"))
+        const tagsOf = (id: string, date: Temporal.PlainDate): readonly string[] => [
+            ...(findTransactionInStore(vault.mirror.getState().transactions, locationOf(id, date))
                 ?.tagIds ?? [])
-        ]).toEqual([]);
+        ];
 
-        // Apply-to-all now reaches both.
+        // The cutoff is inclusive: the same-day row and the newer row, not the earlier one.
+        expect(newerEntries).toHaveLength(2);
+        expect(tagsOf("t-newer", newer)).toEqual(["seen"]);
+        expect(tagsOf("t-same-day", sameDay)).toEqual(["seen"]);
+        expect(tagsOf("t-earlier", earlier)).toEqual([]);
+
+        // Apply-to-all now reaches the earlier row too.
         vault.mirror.setState((state: VaultState) => {
             applyFieldRulesToAllTransactions(state);
         });
+        expect(tagsOf("t-earlier", earlier)).toEqual(["seen"]);
+    });
+
+    /**
+     * All three bulk entry points filter on `deletedAt == null` before matching. Without this the
+     * exclusion is only implied by the source; a soft-deleted row that still received rule writes
+     * would resurrect financial data the user removed.
+     */
+    it("never applies rules to a soft-deleted transaction through any bulk entry point", () => {
+        const newer = DATE.add({ days: 1 });
+        const vault = createVaultMirror();
+
+        let importEntries: ReturnType<typeof applyFieldRulesToImport> = [];
+        let newerEntries: ReturnType<typeof applyFieldRulesToNewerTransactions> = [];
+        let allEntries: ReturnType<typeof applyFieldRulesToAllTransactions> = [];
+
+        vault.mirror.setState((state: VaultState) => {
+            insertTransaction(state.transactions, {
+                transaction: txInput({ id: "t-live", date: newer, importId: "import-1" })
+            });
+            insertTransaction(state.transactions, {
+                transaction: txInput({
+                    id: "t-deleted",
+                    date: newer,
+                    importId: "import-1",
+                    deletedAt: CREATION
+                })
+            });
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-tags",
+                    field: "tags",
+                    descriptionText: DESCRIPTION,
+                    tagMode: "add",
+                    tagIds: ["seen"]
+                })
+            );
+            importEntries = applyFieldRulesToImport(state, { importId: "import-1" });
+            newerEntries = applyFieldRulesToNewerTransactions(state, { referenceDate: DATE });
+            allEntries = applyFieldRulesToAllTransactions(state);
+        });
+
+        // Each entry point saw exactly the one live row.
+        for (const entries of [importEntries, newerEntries, allEntries]) {
+            expect(entries.map((entry) => entry.location.transactionId)).toEqual(["t-live"]);
+        }
+
+        const store = vault.mirror.getState().transactions;
         expect([
-            ...(findTransactionInStore(vault.mirror.getState().transactions, locationOf("t-older"))
-                ?.tagIds ?? [])
+            ...(findTransactionInStore(store, locationOf("t-live", newer))?.tagIds ?? [])
         ]).toEqual(["seen"]);
+        expect([
+            ...(findTransactionInStore(store, locationOf("t-deleted", newer))?.tagIds ?? [])
+        ]).toEqual([]);
+    });
+});
+
+describe("grouped and legacy wire records", () => {
+    /** Explicit allocation keys of a stored row, without the mirror's container id. */
+    function explicitAllocations(
+        vault: ReturnType<typeof createVaultMirror>,
+        id: string
+    ): Record<string, number> {
+        const stored = findTransactionInStore(vault.mirror.getState().transactions, locationOf(id));
+        const explicit: Record<string, number> = {};
+        for (const [personId, value] of Object.entries(stored?.allocations ?? {})) {
+            if (personId !== "$cid" && typeof value === "number") explicit[personId] = value;
+        }
+        return explicit;
+    }
+
+    it("decodes a stored record with no outputFields key exactly as a single-output rule", () => {
+        // Written straight into the document with the keys an older client wrote, so the record
+        // genuinely lacks the list rather than holding an empty one.
+        const source = createVaultMirror();
+        const record = source.doc.getMap("fieldRules").setContainer("r-legacy", new LoroMap());
+        record.set("id", "r-legacy");
+        record.set("field", "tags");
+        record.set("descriptionText", DESCRIPTION);
+        record.set("tagMode", "set");
+        record.set("aliasId", "stale-alias-column");
+        const tagIds = record.setContainer("tagIds", new LoroList());
+        tagIds.push("coffee");
+        record.setContainer("allocations", new LoroMap());
+        record.set("createdAtEpochMs", 1000);
+        source.doc.commit({ origin: "legacy:field-rule" });
+
+        const hydrated = createVaultMirrorFromSnapshot(exportSnapshot(source.doc));
+        const rules = readActiveFieldRules(hydrated.mirror.getState());
+        expect(rules).toHaveLength(1);
+        expect(rules[0]?.outputs).toEqual({ tags: { mode: "set", tagIds: ["coffee"] } });
+    });
+
+    it("applies every output of one grouped rule to an imported row", () => {
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            insertTransaction(state.transactions, {
+                transaction: txInput({ id: "t-grouped", importId: "import-1" })
+            });
+            const created = createDescriptionAlias(state, {
+                aliasId: "alias-coffee",
+                name: "Coffee"
+            });
+            if (!created.ok) throw new Error("alias seed failed");
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-grouped",
+                    field: "descriptionAlias",
+                    outputFields: ["descriptionAlias", "tags", "allocation"],
+                    descriptionText: DESCRIPTION,
+                    aliasId: "alias-coffee",
+                    tagMode: "add",
+                    tagIds: ["coffee"],
+                    allocations: { "person-a": asPercentage(100) }
+                })
+            );
+            applyFieldRulesToImport(state, { importId: "import-1" });
+        });
+
+        const rules = readActiveFieldRules(vault.mirror.getState());
+        expect(rules.map(ruleOutputFields)).toEqual([["descriptionAlias", "tags", "allocation"]]);
+        const applied = findTransactionInStore(
+            vault.mirror.getState().transactions,
+            locationOf("t-grouped")
+        );
+        expect(applied?.descriptionAliasId).toBe("alias-coffee");
+        expect([...(applied?.tagIds ?? [])]).toEqual(["coffee"]);
+        expect(explicitAllocations(vault, "t-grouped")).toEqual({ "person-a": 100 });
+    });
+
+    it("applies a grouped rule's tags and allocation to a manual row but never its alias", () => {
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            const manualAlias = createDescriptionAlias(state, {
+                aliasId: "alias-manual",
+                name: DESCRIPTION
+            });
+            if (!manualAlias.ok) throw new Error("manual alias seed failed");
+            const other = createDescriptionAlias(state, {
+                aliasId: "alias-coffee",
+                name: "Coffee"
+            });
+            if (!other.ok) throw new Error("alias seed failed");
+            insertTransaction(state.transactions, {
+                transaction: txInput({
+                    id: "t-manual",
+                    description: "",
+                    descriptionAliasId: "alias-manual"
+                })
+            });
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-grouped",
+                    field: "descriptionAlias",
+                    outputFields: ["descriptionAlias", "tags", "allocation"],
+                    descriptionText: DESCRIPTION,
+                    aliasId: "alias-coffee",
+                    tagMode: "add",
+                    tagIds: ["coffee"],
+                    allocations: { "person-a": asPercentage(100) }
+                })
+            );
+            applyFieldRulesToAllTransactions(state);
+        });
+
+        const applied = findTransactionInStore(
+            vault.mirror.getState().transactions,
+            locationOf("t-manual")
+        );
+        expect(applied?.descriptionAliasId).toBe("alias-manual");
+        expect([...(applied?.tagIds ?? [])]).toEqual(["coffee"]);
+        expect(explicitAllocations(vault, "t-manual")).toEqual({ "person-a": 100 });
+    });
+
+    it("lets a narrower single-output rule win one field of a grouped rule's row", () => {
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            insertTransaction(state.transactions, {
+                transaction: txInput({ id: "t-mixed", importId: "import-1" })
+            });
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-grouped",
+                    field: "tags",
+                    outputFields: ["tags", "allocation"],
+                    descriptionText: DESCRIPTION,
+                    tagMode: "set",
+                    tagIds: ["broad"],
+                    allocations: { "person-a": asPercentage(100) }
+                })
+            );
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-narrow-tags",
+                    field: "tags",
+                    descriptionText: DESCRIPTION,
+                    accountId: ACCOUNT,
+                    tagMode: "set",
+                    tagIds: ["narrow"]
+                })
+            );
+            applyFieldRulesToImport(state, { importId: "import-1" });
+        });
+
+        const applied = findTransactionInStore(
+            vault.mirror.getState().transactions,
+            locationOf("t-mixed")
+        );
+        // Precedence stays per field: the account rule wins tags, the grouped rule keeps allocation.
+        expect([...(applied?.tagIds ?? [])]).toEqual(["narrow"]);
+        expect(explicitAllocations(vault, "t-mixed")).toEqual({ "person-a": 100 });
     });
 });

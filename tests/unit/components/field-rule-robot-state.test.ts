@@ -2,12 +2,16 @@ import fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
-import { computeFieldRuleRobotState } from "@/components/features/transactions/field-rule-robot-state";
+import {
+    computeFieldRuleRobotState,
+    computeRuleCardStates,
+    type RobotCurrentValue
+} from "@/components/features/transactions/field-rule-robot-state";
 import { AllocationPercentageSchema } from "@/lib/domain/allocation";
 import {
     type FieldRule,
     FieldRuleIdSchema,
-    type RuleAction,
+    type RuleOutputs,
     type RuleMatchSubject
 } from "@/lib/domain/automation/rules";
 import { asMinorUnits, type MoneyMinorUnits } from "@/lib/domain/currency";
@@ -17,7 +21,7 @@ const DESCRIPTION = "COFFEE SHOP 123";
 
 function rule(overrides: {
     readonly id: string;
-    readonly action: RuleAction;
+    readonly outputs: RuleOutputs;
     readonly descriptionText?: string;
     readonly accountId?: string;
     readonly amount?: MoneyMinorUnits;
@@ -28,7 +32,7 @@ function rule(overrides: {
         descriptionText: overrides.descriptionText ?? DESCRIPTION,
         accountId: overrides.accountId,
         amount: overrides.amount,
-        action: overrides.action,
+        outputs: overrides.outputs,
         createdAt: overrides.createdAt ?? CREATION
     };
 }
@@ -41,17 +45,17 @@ const IMPORTED: RuleMatchSubject = {
 };
 const MANUAL: RuleMatchSubject = { ...IMPORTED, isManual: true };
 
-function allocationAction(record: Record<string, number>): RuleAction {
+function allocationOutputs(record: Record<string, number>): RuleOutputs {
     const allocations: Record<string, ReturnType<typeof AllocationPercentageSchema.parse>> = {};
     for (const [personId, value] of Object.entries(record)) {
         allocations[personId] = AllocationPercentageSchema.parse(value);
     }
-    return { field: "allocation", allocations };
+    return { allocation: { allocations } };
 }
 
 describe("computeFieldRuleRobotState — tags", () => {
     it("is none when no tag rule matches the subject", () => {
-        const rules = [rule({ id: "r1", action: { field: "tags", mode: "add", tagIds: ["a"] } })];
+        const rules = [rule({ id: "r1", outputs: { tags: { mode: "add", tagIds: ["a"] } } })];
         expect(
             computeFieldRuleRobotState(
                 rules,
@@ -65,7 +69,7 @@ describe("computeFieldRuleRobotState — tags", () => {
     });
 
     it("add: match when the rule's tags are already present, drift otherwise", () => {
-        const rules = [rule({ id: "r1", action: { field: "tags", mode: "add", tagIds: ["a"] } })];
+        const rules = [rule({ id: "r1", outputs: { tags: { mode: "add", tagIds: ["a"] } } })];
         expect(
             computeFieldRuleRobotState(rules, IMPORTED, {
                 field: "tags",
@@ -79,9 +83,7 @@ describe("computeFieldRuleRobotState — tags", () => {
     });
 
     it("set: match only when the current set equals the rule's set exactly", () => {
-        const rules = [
-            rule({ id: "r1", action: { field: "tags", mode: "set", tagIds: ["a", "b"] } })
-        ];
+        const rules = [rule({ id: "r1", outputs: { tags: { mode: "set", tagIds: ["a", "b"] } } })];
         expect(
             computeFieldRuleRobotState(rules, IMPORTED, {
                 field: "tags",
@@ -98,7 +100,7 @@ describe("computeFieldRuleRobotState — tags", () => {
     });
 
     it("surfaces a tag robot on manual rows (frozen :294-295)", () => {
-        const rules = [rule({ id: "r1", action: { field: "tags", mode: "add", tagIds: ["a"] } })];
+        const rules = [rule({ id: "r1", outputs: { tags: { mode: "add", tagIds: ["a"] } } })];
         expect(
             computeFieldRuleRobotState(rules, MANUAL, { field: "tags", currentTagIds: [] }).kind
         ).toBe("drift");
@@ -107,7 +109,7 @@ describe("computeFieldRuleRobotState — tags", () => {
 
 describe("computeFieldRuleRobotState — allocation", () => {
     it("match iff the current explicit set equals the rule's whole spanning set", () => {
-        const rules = [rule({ id: "r1", action: allocationAction({ "p-a": 60, "p-b": 40 }) })];
+        const rules = [rule({ id: "r1", outputs: allocationOutputs({ "p-a": 60, "p-b": 40 }) })];
         expect(
             computeFieldRuleRobotState(rules, IMPORTED, {
                 field: "allocation",
@@ -131,7 +133,7 @@ describe("computeFieldRuleRobotState — allocation", () => {
     });
 
     it("surfaces an allocation robot on manual rows (frozen :294-295)", () => {
-        const rules = [rule({ id: "r1", action: allocationAction({ "p-a": 100 }) })];
+        const rules = [rule({ id: "r1", outputs: allocationOutputs({ "p-a": 100 }) })];
         expect(
             computeFieldRuleRobotState(rules, MANUAL, {
                 field: "allocation",
@@ -143,9 +145,7 @@ describe("computeFieldRuleRobotState — allocation", () => {
 
 describe("computeFieldRuleRobotState — description parity and precedence", () => {
     it("hides the description robot on manual rows even when text would match", () => {
-        const rules = [
-            rule({ id: "r1", action: { field: "descriptionAlias", aliasId: "alias-a" } })
-        ];
+        const rules = [rule({ id: "r1", outputs: { descriptionAlias: { aliasId: "alias-a" } } })];
         expect(
             computeFieldRuleRobotState(rules, MANUAL, {
                 field: "descriptionAlias",
@@ -156,8 +156,8 @@ describe("computeFieldRuleRobotState — description parity and precedence", () 
 
     it("evaluates each field against only its own winning rule", () => {
         const rules = [
-            rule({ id: "tag", action: { field: "tags", mode: "add", tagIds: ["a"] } }),
-            rule({ id: "alloc", action: allocationAction({ "p-a": 100 }) })
+            rule({ id: "tag", outputs: { tags: { mode: "add", tagIds: ["a"] } } }),
+            rule({ id: "alloc", outputs: allocationOutputs({ "p-a": 100 }) })
         ];
         // The tag field ignores the allocation rule and vice-versa.
         const tagState = computeFieldRuleRobotState(rules, IMPORTED, {
@@ -170,10 +170,10 @@ describe("computeFieldRuleRobotState — description parity and precedence", () 
 
     it("picks the highest-precedence matching rule for the field", () => {
         const rules = [
-            rule({ id: "broad", action: { field: "tags", mode: "set", tagIds: ["x"] } }),
+            rule({ id: "broad", outputs: { tags: { mode: "set", tagIds: ["x"] } } }),
             rule({
                 id: "specific",
-                action: { field: "tags", mode: "set", tagIds: ["y"] },
+                outputs: { tags: { mode: "set", tagIds: ["y"] } },
                 accountId: IMPORTED.accountId,
                 amount: IMPORTED.amount
             })
@@ -193,7 +193,7 @@ describe("computeFieldRuleRobotState — description parity and precedence", () 
                 fc.uniqueArray(fc.string({ minLength: 1 }), { maxLength: 4 }),
                 (ruleTags, currentTags) => {
                     const rules = [
-                        rule({ id: "r1", action: { field: "tags", mode: "add", tagIds: ruleTags } })
+                        rule({ id: "r1", outputs: { tags: { mode: "add", tagIds: ruleTags } } })
                     ];
                     const state = computeFieldRuleRobotState(rules, IMPORTED, {
                         field: "tags",
@@ -204,5 +204,62 @@ describe("computeFieldRuleRobotState — description parity and precedence", () 
                 }
             )
         );
+    });
+});
+
+describe("computeRuleCardStates", () => {
+    const ALIAS = { descriptionAlias: { aliasId: "alias-coffee" } } as const;
+    const TAGS = { tags: { mode: "add", tagIds: ["coffee"] } } as const;
+    const CURRENTS: readonly RobotCurrentValue[] = [
+        { field: "descriptionAlias", currentAliasId: "alias-coffee" },
+        { field: "tags", currentTagIds: [] },
+        { field: "allocation", currentAllocations: { p1: 100 } }
+    ];
+
+    it("gives one card per winning rule, grouping the fields it wins and drifts on", () => {
+        const grouped = rule({ id: "r-grouped", outputs: { ...ALIAS, ...TAGS } });
+        const allocation = rule({ id: "r-alloc", outputs: allocationOutputs({ p1: 50, p2: 50 }) });
+        expect(computeRuleCardStates([grouped, allocation], IMPORTED, CURRENTS)).toEqual([
+            { rule: allocation, wonFields: ["allocation"], driftFields: ["allocation"] },
+            { rule: grouped, wonFields: ["descriptionAlias", "tags"], driftFields: ["tags"] }
+        ]);
+    });
+
+    it("orders the most specific rule first, then by id, whatever the input order", () => {
+        const unscoped = rule({ id: "r-a", outputs: ALIAS });
+        const accountScoped = rule({ id: "r-z", outputs: TAGS, accountId: "account-1" });
+        const amountScoped = rule({
+            id: "r-m",
+            outputs: allocationOutputs({ p1: 100 }),
+            amount: asMinorUnits(-450)
+        });
+        for (const rules of [
+            [unscoped, accountScoped, amountScoped],
+            [amountScoped, unscoped, accountScoped]
+        ]) {
+            expect(
+                computeRuleCardStates(rules, IMPORTED, CURRENTS).map((state) => state.rule.id)
+            ).toEqual(["r-z", "r-m", "r-a"]);
+        }
+    });
+
+    it("gives no card, and so no drift marker, to a rule that wins nothing on the row", () => {
+        // The broader grouped rule still has a tags output, but the account rule wins tags here.
+        const broad = rule({ id: "r-broad", outputs: { ...ALIAS, ...TAGS } });
+        const narrow = rule({
+            id: "r-narrow",
+            outputs: { tags: { mode: "add", tagIds: ["work"] } },
+            accountId: "account-1"
+        });
+        const states = computeRuleCardStates([broad, narrow], IMPORTED, CURRENTS);
+        expect(states.find((state) => state.rule.id === "r-broad")).toEqual({
+            rule: broad,
+            wonFields: ["descriptionAlias"],
+            driftFields: []
+        });
+    });
+
+    it("is empty when no rule matches", () => {
+        expect(computeRuleCardStates([], IMPORTED, CURRENTS)).toEqual([]);
     });
 });

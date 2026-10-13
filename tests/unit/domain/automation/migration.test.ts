@@ -6,6 +6,7 @@ import {
     type MigrationOptions,
     migrateLegacyAutomations
 } from "@/lib/domain/automation/migration";
+import { ruleOutputFields } from "@/lib/domain/automation/rules";
 
 const NOW = Temporal.Instant.from("2026-02-02T00:00:00Z");
 const options: MigrationOptions = {
@@ -30,12 +31,7 @@ describe("migrateLegacyAutomations", () => {
         const [rule] = result.rules;
         expect(rule?.descriptionText).toBe("COFFEE");
         expect(rule?.createdAt.epochMilliseconds).toBe(NOW.epochMilliseconds);
-        if (rule?.action.field === "tags") {
-            expect(rule.action.mode).toBe("set");
-            expect(rule.action.tagIds).toEqual(["tag-a"]);
-        } else {
-            expect.fail("expected a tags rule");
-        }
+        expect(rule?.outputs).toEqual({ tags: { mode: "set", tagIds: ["tag-a"] } });
     });
 
     it("carries an accountId contains condition into account scope", () => {
@@ -64,7 +60,8 @@ describe("migrateLegacyAutomations", () => {
             options
         );
         expect(result.rules).toHaveLength(1);
-        expect(result.rules[0]?.action.field).toBe("allocation");
+        const [rule] = result.rules;
+        expect(rule == null ? [] : ruleOutputFields(rule)).toEqual(["allocation"]);
     });
 
     it("does not mutate the input automations (no data loss)", () => {
@@ -138,7 +135,7 @@ describe("migrateLegacyAutomations", () => {
         });
     });
 
-    it("emits one rule per supported action of a single automation", () => {
+    it("emits one single-output rule per supported action, never one grouped rule", () => {
         const result = migrateLegacyAutomations(
             [
                 automation({
@@ -151,7 +148,11 @@ describe("migrateLegacyAutomations", () => {
             ],
             options
         );
-        const fields = result.rules.map((rule) => rule.action.field).sort();
-        expect(fields).toEqual(["allocation", "tags"]);
+        // Rules are never merged automatically, so two actions stay two rules with their legacy ids.
+        const byId = result.rules.map((rule) => [rule.id, ruleOutputFields(rule)]).sort();
+        expect(byId).toEqual([
+            ["rule-auto-multi-allocation", ["allocation"]],
+            ["rule-auto-multi-tags", ["tags"]]
+        ]);
     });
 });

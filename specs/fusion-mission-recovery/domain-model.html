@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Automations domain model</title>
+        <!--
+  Standalone reference for the automation (rule) domain model: what ships today, how matching
+  works, and the grouped model the mission proposes. Opens directly from the repository. No
+  production code, no network.
+-->
+        <style>
+            :root {
+                color-scheme: light dark;
+                --bg: oklch(1 0 0);
+                --fg: oklch(0.129 0.042 264.695);
+                --muted: oklch(0.554 0.046 257.417);
+                --muted-bg: oklch(0.968 0.007 247.896);
+                --line: oklch(0.88 0.013 255.508);
+                --accent: oklch(0.5 0.15 264);
+                --accent-bg: oklch(0.95 0.03 264);
+                --ok: oklch(0.55 0.15 150);
+                --ok-bg: oklch(0.96 0.04 150);
+                --warn: oklch(0.6 0.16 60);
+                --warn-bg: oklch(0.97 0.05 80);
+                --legacy: oklch(0.6 0.03 260);
+                --legacy-bg: oklch(0.95 0.005 260);
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: oklch(0.129 0.042 264.695);
+                    --fg: oklch(0.984 0.003 247.858);
+                    --muted: oklch(0.704 0.04 256.788);
+                    --muted-bg: oklch(0.279 0.041 260.031);
+                    --line: oklch(1 0 0 / 15%);
+                    --accent: oklch(0.75 0.12 264);
+                    --accent-bg: oklch(0.3 0.06 264);
+                    --ok: oklch(0.75 0.14 150);
+                    --ok-bg: oklch(0.3 0.06 150);
+                    --warn: oklch(0.8 0.16 70);
+                    --warn-bg: oklch(0.32 0.07 80);
+                    --legacy: oklch(0.7 0.03 260);
+                    --legacy-bg: oklch(0.25 0.01 260);
+                }
+            }
+            * {
+                box-sizing: border-box;
+            }
+            html {
+                background: var(--bg);
+                color: var(--fg);
+                font:
+                    15px/1.5 ui-sans-serif,
+                    system-ui,
+                    -apple-system,
+                    "Segoe UI",
+                    Roboto,
+                    sans-serif;
+            }
+            body {
+                margin: 0;
+                max-width: 72rem;
+                padding: 24px 28px 60px;
+                margin-inline: auto;
+            }
+            h1 {
+                font-size: 1.5rem;
+                margin: 0 0 4px;
+            }
+            h2 {
+                font-size: 1.15rem;
+                margin: 40px 0 8px;
+                border-bottom: 1px solid var(--line);
+                padding-bottom: 4px;
+            }
+            h3 {
+                font-size: 0.95rem;
+                margin: 18px 0 6px;
+            }
+            p {
+                margin: 6px 0;
+            }
+            .muted {
+                color: var(--muted);
+            }
+            .small {
+                font-size: 0.85rem;
+            }
+            code {
+                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                font-size: 0.9em;
+                background: var(--muted-bg);
+                padding: 0 4px;
+                border-radius: 4px;
+            }
+            ul {
+                margin: 6px 0;
+                padding-left: 20px;
+            }
+            li {
+                margin: 3px 0;
+            }
+            figure {
+                margin: 14px 0 0;
+            }
+            figcaption {
+                font-size: 0.82rem;
+                color: var(--muted);
+                margin-top: 6px;
+            }
+            svg {
+                width: 100%;
+                height: auto;
+                display: block;
+                font-family: inherit;
+            }
+            svg text {
+                fill: var(--fg);
+                font-size: 13px;
+            }
+            svg text.mono {
+                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                font-size: 12px;
+            }
+            svg text.muted {
+                fill: var(--muted);
+                font-size: 12px;
+            }
+            svg text.title {
+                font-weight: 600;
+                font-size: 13px;
+            }
+            svg text.eyebrow {
+                fill: var(--muted);
+                font-size: 10.5px;
+                font-weight: 600;
+                letter-spacing: 0.06em;
+            }
+            svg .box {
+                fill: var(--bg);
+                stroke: var(--line);
+                stroke-width: 1.2;
+            }
+            svg .box.accent {
+                stroke: var(--accent);
+            }
+            svg .box.ok {
+                stroke: var(--ok);
+            }
+            svg .box.warn {
+                stroke: var(--warn);
+            }
+            svg .box.legacy {
+                stroke: var(--legacy);
+                stroke-dasharray: 4 3;
+            }
+            svg .fill-accent {
+                fill: var(--accent-bg);
+            }
+            svg .fill-ok {
+                fill: var(--ok-bg);
+            }
+            svg .fill-warn {
+                fill: var(--warn-bg);
+            }
+            svg .fill-muted {
+                fill: var(--muted-bg);
+            }
+            svg .fill-legacy {
+                fill: var(--legacy-bg);
+            }
+            svg .edge {
+                stroke: var(--muted);
+                stroke-width: 1.4;
+                fill: none;
+                marker-end: url(#arrow);
+            }
+            svg .edge.accent {
+                stroke: var(--accent);
+                marker-end: url(#arrow-accent);
+            }
+            svg .edge.no {
+                stroke: var(--warn);
+                stroke-dasharray: 5 4;
+                marker-end: none;
+            }
+            svg .divider {
+                stroke: var(--line);
+                stroke-width: 1;
+            }
+            .two {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
+            }
+            @media (max-width: 800px) {
+                .two {
+                    grid-template-columns: 1fr;
+                }
+            }
+            .callout {
+                border-left: 3px solid var(--accent);
+                background: var(--accent-bg);
+                padding: 8px 12px;
+                border-radius: 0 8px 8px 0;
+                margin: 12px 0;
+            }
+            .callout.warn {
+                border-color: var(--warn);
+                background: var(--warn-bg);
+            }
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                font-size: 0.88rem;
+                margin-top: 8px;
+            }
+            th,
+            td {
+                text-align: left;
+                padding: 6px 10px;
+                border-bottom: 1px solid var(--line);
+                vertical-align: top;
+            }
+            th {
+                color: var(--muted);
+                font-weight: 600;
+                font-size: 0.78rem;
+            }
+        </style>
+    </head>
+    <body>
+        <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+            <defs>
+                <marker
+                    id="arrow"
+                    viewBox="0 0 10 10"
+                    refX="9"
+                    refY="5"
+                    markerWidth="7"
+                    markerHeight="7"
+                    orient="auto-start-reverse"
+                >
+                    <path d="M0,0 L10,5 L0,10 z" style="fill: var(--muted)" />
+                </marker>
+                <marker
+                    id="arrow-accent"
+                    viewBox="0 0 10 10"
+                    refX="9"
+                    refY="5"
+                    markerWidth="7"
+                    markerHeight="7"
+                    orient="auto-start-reverse"
+                >
+                    <path d="M0,0 L10,5 L0,10 z" style="fill: var(--accent)" />
+                </marker>
+            </defs>
+        </svg>
+
+        <h1>Automations domain model</h1>
+        <p class="muted">
+            What an automation is in MoneyFlow, how one is matched to a transaction, and the grouped
+            model the mission "Refine transaction editing and simplify automation rules" proposes.
+            Reference only; nothing here is implemented by this file.
+        </p>
+
+        <h2>1. One concept, three generations</h2>
+        <p>
+            "Automation" is the product name and "rule" is the domain object. They are the same
+            thing. The vault has carried two shapes of it, and the mission proposes a third.
+        </p>
+
+        <figure>
+            <svg viewBox="0 0 1000 280" role="img" aria-label="Timeline of three rule generations">
+                <!-- legacy -->
+                <rect
+                    class="box legacy fill-legacy"
+                    x="10"
+                    y="20"
+                    width="290"
+                    height="220"
+                    rx="10"
+                />
+                <text class="eyebrow" x="26" y="44">LEGACY · NOT USED BY THE UI</text>
+                <text class="title" x="26" y="68">Automation</text>
+                <text class="mono" x="26" y="92">name, order</text>
+                <text class="mono" x="26" y="110">conditions[] contains | regex</text>
+                <text class="mono" x="26" y="128">actions[] setTags | setAllocation</text>
+                <text class="mono" x="26" y="146">| setStatus</text>
+                <text class="mono" x="26" y="164">excludedTransactionIds[]</text>
+                <text class="muted" x="26" y="196">+ an application log linking each</text>
+                <text class="muted" x="26" y="212">transaction to the automation that</text>
+                <text class="muted" x="26" y="228">touched it</text>
+
+                <!-- field rule -->
+                <rect
+                    class="box accent fill-accent"
+                    x="355"
+                    y="20"
+                    width="290"
+                    height="220"
+                    rx="10"
+                />
+                <text class="eyebrow" x="371" y="44">TODAY · SHIPPED</text>
+                <text class="title" x="371" y="68">FieldRule</text>
+                <text class="mono" x="371" y="92">descriptionText exact</text>
+                <text class="mono" x="371" y="110">accountId? amount?</text>
+                <text class="mono" x="371" y="128">action one of</text>
+                <text class="mono" x="371" y="146">alias | tags | allocation</text>
+                <text class="muted" x="371" y="178">One rule sets one field.</text>
+                <text class="muted" x="371" y="196">No link to any transaction.</text>
+                <text class="muted" x="371" y="212">Winner recomputed on every read.</text>
+
+                <!-- grouped -->
+                <rect class="box ok fill-ok" x="700" y="20" width="290" height="220" rx="10" />
+                <text class="eyebrow" x="716" y="44">PROPOSED · THIS MISSION</text>
+                <text class="title" x="716" y="68">Rule</text>
+                <text class="mono" x="716" y="92">match { text, accountId?,</text>
+                <text class="mono" x="716" y="110">amount? }</text>
+                <text class="mono" x="716" y="128">outputs { alias?, tags?,</text>
+                <text class="mono" x="716" y="146">allocation? }</text>
+                <text class="muted" x="716" y="178">One rule sets up to three fields.</text>
+                <text class="muted" x="716" y="196">Same matching, same precedence,</text>
+                <text class="muted" x="716" y="212">still no link to any transaction.</text>
+
+                <path class="edge" d="M300,130 L353,130" />
+                <text class="muted" x="327" y="150" text-anchor="middle" style="font-size: 10px">
+                    migrated
+                </text>
+                <text class="muted" x="327" y="162" text-anchor="middle" style="font-size: 10px">
+                    once
+                </text>
+                <path class="edge accent" d="M645,130 L698,130" />
+                <text class="muted" x="671" y="150" text-anchor="middle" style="font-size: 10px">
+                    1 rule →
+                </text>
+                <text class="muted" x="671" y="162" text-anchor="middle" style="font-size: 10px">
+                    1 output
+                </text>
+                <text class="muted" x="500" y="268" text-anchor="middle">
+                    Every existing field rule becomes a grouped rule with exactly one output.
+                    Nothing merges on migration.
+                </text>
+            </svg>
+            <figcaption>
+                Figure 1. The legacy shape stays in the schema only so old vaults load. The UI reads
+                field rules exclusively.
+            </figcaption>
+        </figure>
+
+        <h2>2. The model that ships today</h2>
+
+        <figure>
+            <svg
+                viewBox="0 0 1000 470"
+                role="img"
+                aria-label="Entity diagram of the current field rule model"
+            >
+                <!-- FieldRule -->
+                <rect class="box accent" x="330" y="20" width="340" height="250" rx="10" />
+                <rect class="fill-accent" x="331" y="21" width="338" height="30" rx="9" />
+                <text class="title" x="346" y="41">FieldRule</text>
+                <text class="mono" x="346" y="72">id FieldRuleId</text>
+                <text class="mono" x="346" y="90">descriptionText string · exact · immutable</text>
+                <text class="mono" x="346" y="108">accountId? narrowing, absent = any</text>
+                <text class="mono" x="346" y="126">amount? minor units, absent = any</text>
+                <text class="mono" x="346" y="144">createdAt epoch ms · tie-breaks</text>
+                <text class="mono" x="346" y="162">deletedAt? soft delete</text>
+                <line class="divider" x1="331" y1="176" x2="669" y2="176" />
+                <text class="eyebrow" x="346" y="194">ACTION · EXACTLY ONE</text>
+                <text class="mono" x="346" y="214">descriptionAlias { aliasId }</text>
+                <text class="mono" x="346" y="232">tags { mode: add|set, tagIds[] }</text>
+                <text class="mono" x="346" y="250">allocation { person → %, whole set }</text>
+
+                <!-- DescriptionAlias -->
+                <rect class="box" x="20" y="60" width="250" height="130" rx="10" />
+                <rect class="fill-muted" x="21" y="61" width="248" height="30" rx="9" />
+                <text class="title" x="36" y="81">DescriptionAlias</text>
+                <text class="mono" x="36" y="110">id, name</text>
+                <text class="mono" x="36" y="128">kind real | symlink</text>
+                <text class="mono" x="36" y="146">targetAliasId? one hop only</text>
+                <text class="muted" x="36" y="174">Renaming fans out; rules keep the id.</text>
+                <path class="edge" d="M330,214 L270,214 L270,160" />
+                <text class="muted" x="280" y="206" style="font-size: 10.5px">aliasId</text>
+
+                <!-- UserAutomationPreference -->
+                <rect class="box" x="730" y="60" width="250" height="150" rx="10" />
+                <rect class="fill-muted" x="731" y="61" width="248" height="30" rx="9" />
+                <text class="title" x="746" y="81">UserAutomationPreference</text>
+                <text class="mono" x="746" y="110">pubkeyHash per user</text>
+                <text class="mono" x="746" y="128">lastRuleField, lastTagMode</text>
+                <text class="mono" x="746" y="146">lastUseAccountScope</text>
+                <text class="mono" x="746" y="164">lastUseAmountScope</text>
+                <text class="mono" x="746" y="182">lastApplyMode</text>
+                <text class="muted" x="746" y="204" style="font-size: 10.5px">
+                    Seeds the editor. Not part of a rule.
+                </text>
+
+                <!-- Transaction -->
+                <rect class="box" x="330" y="330" width="340" height="120" rx="10" />
+                <rect class="fill-muted" x="331" y="331" width="338" height="30" rx="9" />
+                <text class="title" x="346" y="351">Transaction</text>
+                <text class="mono" x="346" y="380">description raw text · empty if manual</text>
+                <text class="mono" x="346" y="398">descriptionAliasId? tagIds[] allocations</text>
+                <text class="mono" x="346" y="416">accountId amount date importId?</text>
+                <text class="muted" x="346" y="440" style="font-size: 10.5px">
+                    Holds values a rule may have set. Holds no rule id.
+                </text>
+
+                <!-- no link -->
+                <path class="edge no" d="M500,270 L500,330" />
+                <rect class="box warn fill-warn" x="520" y="286" width="150" height="28" rx="6" />
+                <text x="595" y="305" text-anchor="middle" style="font-size: 12px">
+                    no stored link
+                </text>
+
+                <!-- aliases from tx -->
+                <path class="edge" d="M330,398 L145,398 L145,190" />
+                <text class="muted" x="160" y="392" style="font-size: 10.5px">
+                    descriptionAliasId
+                </text>
+            </svg>
+            <figcaption>
+                Figure 2. A rule carries exactly one action. The only references are to an alias id.
+                A transaction never points at a rule and a rule never points at a transaction; which
+                rule applies is recomputed whenever something needs to know.
+            </figcaption>
+        </figure>
+
+        <h3>Derived values</h3>
+        <table>
+            <tr>
+                <th>Name</th>
+                <th>Definition</th>
+                <th>Why it exists</th>
+            </tr>
+            <tr>
+                <td><code>scopeRank</code></td>
+                <td>0 unscoped · 1 amount · 2 account · 3 account + amount</td>
+                <td>Encodes the natural precedence from your scratch file. More specific wins.</td>
+            </tr>
+            <tr>
+                <td><code>uniquenessKey</code></td>
+                <td>(field, descriptionText, accountId, amount)</td>
+                <td>At most one rule per slot, so a winner is almost always unambiguous.</td>
+            </tr>
+            <tr>
+                <td><code>MatchSubject</code></td>
+                <td>projected from a transaction: text, accountId, amount, isManual</td>
+                <td>
+                    The engine never sees a transaction, only this projection. Manual rows use the
+                    resolved alias name as their text.
+                </td>
+            </tr>
+        </table>
+
+        <h2>3. How a rule is matched to a transaction</h2>
+
+        <figure>
+            <svg
+                viewBox="0 0 1000 300"
+                role="img"
+                aria-label="Matching pipeline from transaction to robot state"
+            >
+                <rect class="box fill-muted" x="10" y="90" width="120" height="80" rx="10" />
+                <text class="title" x="70" y="120" text-anchor="middle">Transaction</text>
+                <text class="muted" x="70" y="140" text-anchor="middle">one row</text>
+
+                <path class="edge" d="M130,130 L178,130" />
+                <text class="muted" x="154" y="148" text-anchor="middle" style="font-size: 10px">
+                    project
+                </text>
+
+                <rect class="box" x="180" y="80" width="160" height="100" rx="10" />
+                <text class="title" x="260" y="106" text-anchor="middle">MatchSubject</text>
+                <text class="mono" x="260" y="128" text-anchor="middle">text · account</text>
+                <text class="mono" x="260" y="146" text-anchor="middle">amount · isManual</text>
+                <text class="muted" x="260" y="168" text-anchor="middle" style="font-size: 10px">
+                    manual: text = alias name
+                </text>
+
+                <path class="edge" d="M340,130 L388,130" />
+                <text class="muted" x="364" y="148" text-anchor="middle" style="font-size: 10px">
+                    filter
+                </text>
+
+                <rect class="box" x="390" y="40" width="240" height="180" rx="10" />
+                <text class="title" x="510" y="66" text-anchor="middle">Candidates, per field</text>
+                <text x="404" y="92">text is identical</text>
+                <text x="404" y="112">account matches, or rule has none</text>
+                <text x="404" y="132">amount matches, or rule has none</text>
+                <text x="404" y="152">not deleted, decodes cleanly</text>
+                <text x="404" y="172">alias rules skip manual rows</text>
+                <text class="muted" x="404" y="204" style="font-size: 10px">
+                    separately for alias, tags, allocation
+                </text>
+
+                <path class="edge" d="M630,130 L678,130" />
+                <text class="muted" x="654" y="148" text-anchor="middle" style="font-size: 10px">
+                    rank
+                </text>
+
+                <rect class="box accent" x="680" y="60" width="130" height="140" rx="10" />
+                <text class="title" x="745" y="86" text-anchor="middle">Winner</text>
+                <text x="745" y="110" text-anchor="middle">highest rank</text>
+                <text class="muted" x="745" y="130" text-anchor="middle">then newest</text>
+                <text class="muted" x="745" y="150" text-anchor="middle">then greatest id</text>
+                <text class="muted" x="745" y="180" text-anchor="middle" style="font-size: 10px">
+                    ties: sync conflicts only
+                </text>
+
+                <path class="edge" d="M810,130 L858,130" />
+                <text class="muted" x="834" y="148" text-anchor="middle" style="font-size: 10px">
+                    compare
+                </text>
+
+                <rect class="box" x="860" y="40" width="130" height="56" rx="8" />
+                <text x="925" y="62" text-anchor="middle">none</text>
+                <text class="muted" x="925" y="80" text-anchor="middle" style="font-size: 10px">
+                    no winner
+                </text>
+                <rect class="box ok fill-ok" x="860" y="102" width="130" height="56" rx="8" />
+                <text x="925" y="124" text-anchor="middle">match</text>
+                <text class="muted" x="925" y="142" text-anchor="middle" style="font-size: 10px">
+                    row has the value
+                </text>
+                <rect class="box warn fill-warn" x="860" y="164" width="130" height="56" rx="8" />
+                <text x="925" y="186" text-anchor="middle">drift</text>
+                <text class="muted" x="925" y="204" text-anchor="middle" style="font-size: 10px">
+                    value differs · orange
+                </text>
+
+                <text class="muted" x="500" y="270" text-anchor="middle">
+                    Pure functions over the rule list. Nothing in this pipeline writes.
+                </text>
+            </svg>
+            <figcaption>
+                Figure 3. Matching answers "which rule applies"; the final compare answers "does the
+                row agree with it". Those are different questions, which is why a rule can match a
+                row that shows an orange marker.
+            </figcaption>
+        </figure>
+
+        <div class="two">
+            <figure>
+                <svg
+                    viewBox="0 0 480 260"
+                    role="img"
+                    aria-label="Precedence lattice of the four scope ranks"
+                >
+                    <rect class="box fill-muted" x="160" y="200" width="160" height="40" rx="8" />
+                    <text x="240" y="218" text-anchor="middle">text only</text>
+                    <text
+                        class="muted"
+                        x="240"
+                        y="233"
+                        text-anchor="middle"
+                        style="font-size: 10.5px"
+                    >
+                        rank 0
+                    </text>
+
+                    <rect class="box" x="30" y="110" width="160" height="40" rx="8" />
+                    <text x="110" y="128" text-anchor="middle">text + amount</text>
+                    <text
+                        class="muted"
+                        x="110"
+                        y="143"
+                        text-anchor="middle"
+                        style="font-size: 10.5px"
+                    >
+                        rank 1
+                    </text>
+
+                    <rect class="box" x="290" y="110" width="160" height="40" rx="8" />
+                    <text x="370" y="128" text-anchor="middle">text + account</text>
+                    <text
+                        class="muted"
+                        x="370"
+                        y="143"
+                        text-anchor="middle"
+                        style="font-size: 10.5px"
+                    >
+                        rank 2
+                    </text>
+
+                    <rect
+                        class="box accent fill-accent"
+                        x="160"
+                        y="20"
+                        width="160"
+                        height="40"
+                        rx="8"
+                    />
+                    <text x="240" y="38" text-anchor="middle">text + account + amount</text>
+                    <text
+                        class="muted"
+                        x="240"
+                        y="53"
+                        text-anchor="middle"
+                        style="font-size: 10.5px"
+                    >
+                        rank 3 · wins
+                    </text>
+
+                    <path class="edge" d="M200,200 L130,152" />
+                    <path class="edge" d="M280,200 L350,152" />
+                    <path class="edge" d="M130,110 L200,62" />
+                    <path class="edge" d="M350,110 L280,62" />
+                </svg>
+                <figcaption>
+                    Figure 4. Precedence. Account beats amount when both narrow a rule, so rank 2
+                    outranks rank 1. Each field picks its own winner, so a row's alias, tags and
+                    allocation may come from three rules.
+                </figcaption>
+            </figure>
+
+            <figure>
+                <svg viewBox="0 0 480 260" role="img" aria-label="Uniqueness slots per field">
+                    <text class="eyebrow" x="10" y="20">
+                        SLOTS FOR descriptionText = COFFEE SHOP 123
+                    </text>
+                    <text class="muted" x="150" y="52" text-anchor="middle" style="font-size: 11px">
+                        alias
+                    </text>
+                    <text class="muted" x="260" y="52" text-anchor="middle" style="font-size: 11px">
+                        tags
+                    </text>
+                    <text class="muted" x="370" y="52" text-anchor="middle" style="font-size: 11px">
+                        allocation
+                    </text>
+                    <g>
+                        <text class="muted" x="10" y="84" style="font-size: 11px">any · any</text>
+                        <rect
+                            class="box accent fill-accent"
+                            x="105"
+                            y="66"
+                            width="90"
+                            height="28"
+                            rx="6"
+                        />
+                        <text x="150" y="85" text-anchor="middle" class="mono">r1</text>
+                        <rect
+                            class="box accent fill-accent"
+                            x="215"
+                            y="66"
+                            width="90"
+                            height="28"
+                            rx="6"
+                        />
+                        <text x="260" y="85" text-anchor="middle" class="mono">r2</text>
+                        <rect class="box" x="325" y="66" width="90" height="28" rx="6" />
+                    </g>
+                    <g>
+                        <text class="muted" x="10" y="124" style="font-size: 11px">
+                            any · −4.50
+                        </text>
+                        <rect class="box" x="105" y="106" width="90" height="28" rx="6" />
+                        <rect class="box" x="215" y="106" width="90" height="28" rx="6" />
+                        <rect class="box" x="325" y="106" width="90" height="28" rx="6" />
+                    </g>
+                    <g>
+                        <text class="muted" x="10" y="164" style="font-size: 11px">
+                            Everyday · any
+                        </text>
+                        <rect class="box" x="105" y="146" width="90" height="28" rx="6" />
+                        <rect
+                            class="box accent fill-accent"
+                            x="215"
+                            y="146"
+                            width="90"
+                            height="28"
+                            rx="6"
+                        />
+                        <text x="260" y="165" text-anchor="middle" class="mono">r3</text>
+                        <rect class="box" x="325" y="146" width="90" height="28" rx="6" />
+                    </g>
+                    <g>
+                        <text class="muted" x="10" y="204" style="font-size: 11px">
+                            Everyday · −4.50
+                        </text>
+                        <rect class="box" x="105" y="186" width="90" height="28" rx="6" />
+                        <rect class="box" x="215" y="186" width="90" height="28" rx="6" />
+                        <rect class="box" x="325" y="186" width="90" height="28" rx="6" />
+                    </g>
+                    <text class="muted" x="10" y="245" style="font-size: 11px">
+                        Each cell holds at most one rule. An Everyday −4.50 row takes tags from r3,
+                        alias from r1.
+                    </text>
+                </svg>
+                <figcaption>
+                    Figure 5. Uniqueness. The grid is per description text; a cell is a (field,
+                    account, amount) slot. Two devices creating the same slot offline is the only
+                    way to double-fill one, and the recency tie-break then keeps the result
+                    deterministic.
+                </figcaption>
+            </figure>
+        </div>
+
+        <h2>4. The grouped model the mission proposes</h2>
+        <p>
+            The single <code>action</code> becomes a set of <code>outputs</code>. Everything else is
+            unchanged: the match conditions, the precedence lattice, the per-field winner, the alias
+            indirection and the absence of links.
+        </p>
+
+        <figure>
+            <svg viewBox="0 0 1000 300" role="img" aria-label="Grouped rule entity">
+                <rect class="box ok" x="300" y="20" width="400" height="260" rx="10" />
+                <rect class="fill-ok" x="301" y="21" width="398" height="30" rx="9" />
+                <text class="title" x="316" y="41">Rule</text>
+                <text class="mono" x="316" y="72">id, createdAt, deletedAt?</text>
+                <line class="divider" x1="301" y1="86" x2="699" y2="86" />
+                <text class="eyebrow" x="316" y="104">MATCH · THE CONDITIONS</text>
+                <text class="mono" x="316" y="124">descriptionText exact · immutable</text>
+                <text class="mono" x="316" y="142">accountId? amount?</text>
+                <line class="divider" x1="301" y1="156" x2="699" y2="156" />
+                <text class="eyebrow" x="316" y="174">OUTPUTS · ONE TO THREE, EACH OPTIONAL</text>
+                <text class="mono" x="316" y="194">descriptionAlias? { aliasId }</text>
+                <text class="mono" x="316" y="212">tags? { mode: add|set, tagIds[] }</text>
+                <text class="mono" x="316" y="230">allocation? { person → %, whole set }</text>
+                <text class="muted" x="316" y="262" style="font-size: 11px">
+                    Uniqueness stays per output: (field, text, account, amount).
+                </text>
+
+                <rect class="box fill-muted" x="20" y="90" width="240" height="110" rx="10" />
+                <text class="title" x="36" y="114">Why not one rule per slot?</text>
+                <text class="small" x="36" y="138" style="font-size: 12px">
+                    Two rules with identical conditions
+                </text>
+                <text class="small" x="36" y="156" style="font-size: 12px">
+                    but different output fields must still
+                </text>
+                <text class="small" x="36" y="174" style="font-size: 12px">
+                    coexist: migration never merges, and
+                </text>
+                <text class="small" x="36" y="192" style="font-size: 12px">
+                    Split creates exactly that state.
+                </text>
+
+                <rect class="box fill-muted" x="740" y="90" width="240" height="110" rx="10" />
+                <text class="title" x="756" y="114">Not on the rule</text>
+                <text class="small" x="756" y="138" style="font-size: 12px">
+                    Update all / new and Apply on blur
+                </text>
+                <text class="small" x="756" y="156" style="font-size: 12px">
+                    are a user's remembered last choices,
+                </text>
+                <text class="small" x="756" y="174" style="font-size: 12px">
+                    global to that user. A rule stores
+                </text>
+                <text class="small" x="756" y="192" style="font-size: 12px">
+                    nothing about how it was applied.
+                </text>
+            </svg>
+            <figcaption>
+                Figure 6. The wire schema only gains optional columns, so an existing field rule
+                decodes as a grouped rule with one output and the migration is a no-op on data.
+            </figcaption>
+        </figure>
+
+        <h3>Fold and split are the two transformations</h3>
+
+        <figure>
+            <svg viewBox="0 0 1000 330" role="img" aria-label="Fold and split transformations">
+                <!-- FOLD -->
+                <text class="eyebrow" x="10" y="20">FOLD · an edit joins an existing rule</text>
+                <rect class="box" x="10" y="36" width="190" height="90" rx="8" />
+                <text class="mono" x="24" y="58">r1 COFFEE SHOP 123</text>
+                <text class="mono" x="24" y="76">any · any</text>
+                <text class="mono" x="24" y="100">alias → Coffee</text>
+
+                <rect
+                    class="box accent fill-accent"
+                    x="10"
+                    y="140"
+                    width="190"
+                    height="56"
+                    rx="8"
+                />
+                <text class="mono" x="24" y="162">edit on a matching row</text>
+                <text class="mono" x="24" y="180">tags add #coffee</text>
+
+                <path class="edge accent" d="M200,116 L250,116" />
+                <path class="edge accent" d="M200,168 L250,120" />
+
+                <rect class="box ok fill-ok" x="250" y="36" width="200" height="110" rx="8" />
+                <text class="mono" x="264" y="58">r1 COFFEE SHOP 123</text>
+                <text class="mono" x="264" y="76">any · any</text>
+                <text class="mono" x="264" y="100">alias → Coffee</text>
+                <text class="mono" x="264" y="118">tags add #coffee</text>
+                <text class="muted" x="10" y="226" style="font-size: 11px">
+                    Only into a rule whose conditions are identical to the draft's,
+                </text>
+                <text class="muted" x="10" y="242" style="font-size: 11px">
+                    and only if that rule has no output for the edited field.
+                </text>
+                <text class="muted" x="10" y="258" style="font-size: 11px">
+                    Otherwise: update the field's existing owner, or create.
+                </text>
+
+                <line class="divider" x1="500" y1="10" x2="500" y2="270" />
+
+                <!-- SPLIT -->
+                <text class="eyebrow" x="530" y="20">SPLIT · one output leaves</text>
+                <rect class="box ok fill-ok" x="530" y="36" width="200" height="128" rx="8" />
+                <text class="mono" x="544" y="58">r1 COFFEE SHOP 123</text>
+                <text class="mono" x="544" y="76">any · any</text>
+                <text class="mono" x="544" y="100">alias → Coffee</text>
+                <text class="mono" x="544" y="118">tags add #coffee</text>
+                <text class="mono" x="544" y="136">alloc Alex 50 / Sam 50</text>
+
+                <path class="edge accent" d="M730,80 L780,80" />
+                <path class="edge accent" d="M730,118 L780,180" />
+
+                <rect class="box" x="780" y="36" width="210" height="110" rx="8" />
+                <text class="mono" x="794" y="58">r1 COFFEE SHOP 123</text>
+                <text class="mono" x="794" y="76">any · any</text>
+                <text class="mono" x="794" y="100">alias → Coffee</text>
+                <text class="mono" x="794" y="118">alloc Alex 50 / Sam 50</text>
+
+                <rect
+                    class="box accent fill-accent"
+                    x="780"
+                    y="160"
+                    width="210"
+                    height="72"
+                    rx="8"
+                />
+                <text class="mono" x="794" y="182">r1-tags COFFEE SHOP 123</text>
+                <text class="mono" x="794" y="200">any · any</text>
+                <text class="mono" x="794" y="218">tags add #coffee</text>
+
+                <text class="muted" x="530" y="258" style="font-size: 11px">
+                    Every row keeps the same values afterwards. Fold reverses it while
+                </text>
+                <text class="muted" x="530" y="274" style="font-size: 11px">
+                    the two rules still share identical conditions.
+                </text>
+
+                <text class="muted" x="500" y="312" text-anchor="middle">
+                    Both are one vault transaction and one undo step. Neither changes a transaction.
+                </text>
+            </svg>
+            <figcaption>
+                Figure 7. Fold and split are inverses. The ownership contract decides what happens
+                when a fold would displace an existing owner: by default it does not, and moving the
+                output is an explicit, previewed choice.
+            </figcaption>
+        </figure>
+
+        <h2>5. Invariants</h2>
+        <ul>
+            <li>
+                <strong>No links.</strong> A transaction stores no rule id. A rule stores no
+                transaction id. Which rule applies is a pure function of the rule list and the row.
+            </li>
+            <li>
+                <strong>Rules set values; they do not own them.</strong> A row may be edited away
+                from its rule. That row then shows as drifted, in orange, until the rule is applied
+                to it or changed.
+            </li>
+            <li>
+                <strong>Precedence is per field and computed in one place.</strong> Grouping changes
+                which rule an edit extends. It never changes which rule wins a field.
+            </li>
+            <li>
+                <strong>Eligibility is per output type.</strong> Alias outputs never apply to manual
+                rows, because they have no raw text. Tag and allocation outputs do.
+            </li>
+            <li>
+                <strong>Description text is immutable on a rule.</strong> To target different text,
+                create a different rule.
+            </li>
+            <li>
+                <strong>Allocation is a whole set.</strong> There is no "add one person" output; an
+                incomplete set is rejected at the boundary with no write.
+            </li>
+            <li>
+                <strong>Nothing merges silently.</strong> Migration, fold and split each either
+                preserve the rule set or change it in a way the user chose and previewed.
+            </li>
+        </ul>
+
+        <div class="callout">
+            <strong>Resolved.</strong> The saved plan said a split "copies application settings".
+            There are none: a rule holds its match conditions and its outputs, and Update all /
+            Update new and Apply on blur are a user's remembered last choices, independent of any
+            rule. A split copies the match conditions only.
+        </div>
+    </body>
+</html>

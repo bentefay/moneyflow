@@ -66,6 +66,8 @@ function ruleInput(
         allocations: {},
         createdAtEpochMs: 0,
         deletedAtEpochMs: undefined,
+        // Legacy wire shape: no output list, so the rule has exactly the one output `field` names.
+        outputFields: [],
         ...overrides
     };
 }
@@ -204,6 +206,80 @@ describe("production import commit applies field rules", () => {
             "person-a": 60,
             "person-b": 40
         });
+    });
+
+    it("applies every output of a grouped rule through each field's boundary on import", () => {
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            const created = createDescriptionAlias(state, {
+                aliasId: "alias-coffee",
+                name: "Coffee"
+            });
+            if (!created.ok) throw new Error("alias seed failed");
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-grouped",
+                    field: "descriptionAlias",
+                    outputFields: ["descriptionAlias", "tags", "allocation"],
+                    descriptionText: DESCRIPTION,
+                    aliasId: "alias-coffee",
+                    tagMode: "set",
+                    tagIds: ["coffee"],
+                    allocations: { "person-a": asPercentage(60), "person-b": asPercentage(40) }
+                })
+            );
+            commitImportBatch(state, {
+                importId: IMPORT_ID,
+                fileName: "coffee.csv",
+                creationInstant: CREATION,
+                transactions: [importRow({ id: "t-grouped" })]
+            });
+        });
+
+        const state = vault.mirror.getState();
+        const applied = findTransactionInStore(state.transactions, locationOf("t-grouped"));
+        expect(applied?.descriptionAliasId).toBe("alias-coffee");
+        const alias = state.descriptionAliases["alias-coffee"];
+        expect(typeof alias === "object" ? alias?.transactionIds["t-grouped"] : undefined).toBe(
+            true
+        );
+        expect([...(applied?.tagIds ?? [])]).toEqual(["coffee"]);
+        expect(explicitAllocations(applied?.allocations)).toEqual({
+            "person-a": 60,
+            "person-b": 40
+        });
+    });
+
+    it("treats a grouped rule with one invalid output as undecodable as a whole", () => {
+        // Validation is per rule, not per output: one invalid allocation set makes the record
+        // undecodable, so its valid tags output does not apply either.
+        const vault = createVaultMirror();
+        vault.mirror.setState((state: VaultState) => {
+            putFieldRule(
+                state,
+                ruleInput({
+                    id: "r-grouped-invalid",
+                    field: "tags",
+                    outputFields: ["tags", "allocation"],
+                    descriptionText: DESCRIPTION,
+                    tagMode: "set",
+                    tagIds: ["coffee"],
+                    allocations: { "person-a": asPercentage(Number.NaN) }
+                })
+            );
+            commitImportBatch(state, {
+                importId: IMPORT_ID,
+                fileName: "coffee.csv",
+                creationInstant: CREATION,
+                transactions: [importRow({ id: "t-invalid" })]
+            });
+        });
+
+        const state = vault.mirror.getState();
+        expect(readActiveFieldRules(state)).toEqual([]);
+        const applied = findTransactionInStore(state.transactions, locationOf("t-invalid"));
+        expect([...(applied?.tagIds ?? [])]).toEqual([]);
     });
 
     it("rejects an invalid complete allocation set with zero mutation", () => {

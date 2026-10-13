@@ -21,6 +21,8 @@ export interface TransactionTableToolbarProps {
     onInspectorOpenChange: (open: boolean) => void;
     /** Shows a closed-panel badge while an automation proposal is pending. */
     automationPending?: boolean;
+    /** Shows an amber closed-panel dot when a rule's value differs from the active transaction. */
+    automationDrift?: boolean;
     /** Number of selected transactions */
     selectedCount?: number;
     /** Total number of transactions (after filtering) */
@@ -39,12 +41,21 @@ export function TransactionTableToolbar({
     inspectorOpen,
     onInspectorOpenChange,
     automationPending = false,
+    automationDrift = false,
     selectedCount = 0,
     totalCount = 0,
     isFiltered = false,
     className
 }: TransactionTableToolbarProps) {
     const pendingWhileClosed = automationPending && !inspectorOpen;
+    // Pending outranks drift: a pending proposal is the user's own unfinished work. Drift gets no live
+    // announcement because it changes with every row the cursor moves to.
+    const driftWhileClosed = automationDrift && !inspectorOpen && !pendingWhileClosed;
+    const inspectorLabel = pendingWhileClosed
+        ? "Inspector, automation proposal pending"
+        : driftWhileClosed
+          ? "Inspector, a rule differs from this transaction"
+          : "Inspector";
     const previousPendingWhileClosed = useRef(pendingWhileClosed);
     const [pendingAnnouncement, setPendingAnnouncement] = useState("");
     useEffect(() => {
@@ -80,9 +91,7 @@ export function TransactionTableToolbar({
             <Button
                 aria-controls="transaction-inspector"
                 aria-expanded={inspectorOpen}
-                aria-label={
-                    pendingWhileClosed ? "Inspector, automation proposal pending" : "Inspector"
-                }
+                aria-label={inspectorLabel}
                 className="text-muted-foreground hover:text-foreground gap-2"
                 data-testid="transaction-inspector-toggle"
                 onClick={() => onInspectorOpenChange(!inspectorOpen)}
@@ -98,6 +107,14 @@ export function TransactionTableToolbar({
                         className="bg-primary size-2 rounded-full"
                         data-testid="transaction-inspector-automation-badge"
                         title="Automation proposal pending"
+                    />
+                ) : null}
+                {driftWhileClosed ? (
+                    <span
+                        aria-hidden="true"
+                        className="size-2 rounded-full bg-amber-500 dark:bg-amber-400"
+                        data-testid="transaction-inspector-drift-badge"
+                        title="A rule differs from this transaction"
                     />
                 ) : null}
             </Button>

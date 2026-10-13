@@ -80,3 +80,11 @@
 - [Ask what can write before attesting](feedback_ask-what-can-write-before-attesting.md) — a cron
   committed mid-chain and voided four results; capture HEAD/tree/status before AND after every
   command, and scope the re-run by what the delta can reach.
+- [Subagent handback silence](feedback_subagent-handback-silence.md) — verification subagents may
+  never report; run gate commands directly and check `uptime` for cross-checkout load before
+  reporting timeouts.
+- [Manual dev server needs JWT secret](feedback_manual-dev-server-needs-jwt-secret.md) — export
+  SUPABASE_JWT_SECRET from the realtime container; check the assigned port is not held by another
+  checkout.
+- [Probe copy needs real node_modules](feedback_probe-copy-needs-real-node-modules.md) — symlinked
+  node_modules makes pnpm try to purge the real one; cp -a it and call next/playwright directly.

@@ -1,14 +1,13 @@
 /**
- * Unit coverage for the UR-009 rule-PROPOSAL state — the CREATION half of the frozen automations
+ * Unit coverage for the UR-009 rule-PROPOSAL gate — the CREATION half of the frozen automations
  * behaviour (`specs/human-scratch.md:249-256`, extended to tags and allocation by `:289-292`).
  *
- * The distinction these tests exist to pin down is the one the frozen text draws and the shipped
- * code previously collapsed: the ROBOT surfaces a rule that already exists, while the PROPOSAL
- * appears when a field is changed. A row that matches NO rule must still offer to create one — that
- * is precisely the case the robot returns `none` for.
+ * The robot surfaces a rule that already exists; the proposal appears when a field is changed. A
+ * row that matches NO rule must still offer to create one, which is precisely the case the robot
+ * returns `none` for. Which rule the edit then creates or joins is the ownership ladder's job, so the
+ * gate names no rule; its conditions come from {@link proposalPredicate}.
  */
 
-import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -17,18 +16,14 @@ import {
     computeFieldRuleProposal,
     formatAmountForRuleLabel,
     hasProposableValue,
+    proposalPredicate,
     tagSetChanged
 } from "@/components/features/transactions/field-rule-proposal-state";
 import {
     computeFieldRuleRobotState,
     type RobotCurrentValue
 } from "@/components/features/transactions/field-rule-robot-state";
-import {
-    type FieldRule,
-    type FieldRuleId,
-    type RuleAction,
-    type RuleMatchSubject
-} from "@/lib/domain/automation/rules";
+import { type RuleMatchSubject } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 const DESCRIPTION = "COFFEE SHOP 123";
@@ -43,26 +38,6 @@ const IMPORTED: RuleMatchSubject = {
 
 const MANUAL: RuleMatchSubject = { ...IMPORTED, isManual: true };
 
-function rule(overrides: {
-    readonly id: string;
-    readonly action: RuleAction;
-    readonly accountId?: string;
-    readonly amount?: number;
-    readonly createdAtEpochMs?: number;
-}): FieldRule {
-    return {
-        id: overrides.id as FieldRuleId,
-        descriptionText: DESCRIPTION,
-        accountId: overrides.accountId,
-        amount: overrides.amount == null ? undefined : asMinorUnits(overrides.amount),
-        action: overrides.action,
-        createdAt: Temporal.Instant.fromEpochMilliseconds(overrides.createdAtEpochMs ?? 1000)
-    };
-}
-
-const ALIAS_ACTION: RuleAction = { field: "descriptionAlias", aliasId: "alias-coffee" };
-const TAGS_ACTION: RuleAction = { field: "tags", mode: "add", tagIds: ["tag-coffee"] };
-
 const CURRENT_ALIAS: RobotCurrentValue = {
     field: "descriptionAlias",
     currentAliasId: "alias-coffee"
@@ -75,30 +50,26 @@ const CURRENT_ALLOCATION: RobotCurrentValue = {
 
 describe("computeFieldRuleProposal — the reported defect", () => {
     // The principal changed a description and added a tag on an imported transaction that matched
-    // no rule, and NO controls appeared. With no rules at all, every field must still propose.
+    // no rule, and NO controls appeared. Every field must propose.
     it.each([
         { field: "descriptionAlias", current: CURRENT_ALIAS },
         { field: "tags", current: CURRENT_TAGS },
         { field: "allocation", current: CURRENT_ALLOCATION }
-    ])("offers to CREATE a $field rule when no rule matches", ({ field, current }) => {
-        const proposal = computeFieldRuleProposal([], IMPORTED, current);
-        expect(proposal.kind).toBe("create");
-        if (proposal.kind !== "none") {
-            expect(proposal.field).toBe(field);
-            expect(proposal.descriptionText).toBe(DESCRIPTION);
+    ] as const)(
+        "offers a $field rule carrying the exact description text",
+        ({ field, current }) => {
+            expect(computeFieldRuleProposal(IMPORTED, current)).toEqual({
+                kind: "proposal",
+                field,
+                descriptionText: DESCRIPTION
+            });
         }
-    });
-
-    it("carries the exact description text the rule will key on", () => {
-        const proposal = computeFieldRuleProposal([], IMPORTED, CURRENT_TAGS);
-        expect(proposal.kind !== "none" && proposal.descriptionText).toBe(DESCRIPTION);
-    });
+    );
 
     // This is the gap itself, stated as an executable fact rather than a claim: for exactly the
     // inputs above, the ROBOT state — the only rule surface that existed before UR-009 — is `none`
     // for every field. So no amount of robot wiring could have surfaced the principal's controls;
-    // the creation surface had to be added. If a future change makes the robot cover this case,
-    // this test fails and the two surfaces must be reconciled deliberately.
+    // the creation surface had to be added.
     it.each([
         { field: "descriptionAlias", current: CURRENT_ALIAS },
         { field: "tags", current: CURRENT_TAGS },
@@ -107,49 +78,47 @@ describe("computeFieldRuleProposal — the reported defect", () => {
         "the robot alone stays silent for $field, which is why the proposal exists",
         ({ current }) => {
             expect(computeFieldRuleRobotState([], IMPORTED, current).kind).toBe("none");
-            expect(computeFieldRuleProposal([], IMPORTED, current).kind).toBe("create");
+            expect(computeFieldRuleProposal(IMPORTED, current).kind).toBe("proposal");
         }
     );
 });
 
-describe("computeFieldRuleProposal — update rather than create a second rule", () => {
-    // Frozen `:287-289`: when the changed field already has a matching rule, the same controls
-    // update THAT rule instead of creating a duplicate for the same description text.
-    it("proposes an UPDATE of the matching rule", () => {
-        const existing = rule({ id: "rule-1", action: TAGS_ACTION });
-        const proposal = computeFieldRuleProposal([existing], IMPORTED, CURRENT_TAGS);
-        expect(proposal.kind).toBe("update");
-        if (proposal.kind === "update") expect(proposal.rule.id).toBe("rule-1");
-    });
-
-    // Frozen `:271-274`: precedence is description < description+amount < description+account <
-    // description+account+amount. The proposal must update the WINNER, never an arbitrary match.
-    it("updates the highest-precedence matching rule, independent of input order", () => {
-        const unscoped = rule({ id: "rule-unscoped", action: TAGS_ACTION });
-        const amountScoped = rule({ id: "rule-amount", action: TAGS_ACTION, amount: -450 });
-        const accountScoped = rule({ id: "rule-account", action: TAGS_ACTION, accountId: ACCOUNT });
-        const both = rule({
-            id: "rule-both",
-            action: TAGS_ACTION,
-            accountId: ACCOUNT,
-            amount: -450
-        });
-
-        for (const rules of [
-            [unscoped, amountScoped, accountScoped, both],
-            [both, accountScoped, amountScoped, unscoped],
-            [accountScoped, both, unscoped, amountScoped]
-        ]) {
-            const proposal = computeFieldRuleProposal(rules, IMPORTED, CURRENT_TAGS);
-            expect(proposal.kind === "update" && proposal.rule.id).toBe("rule-both");
+describe("proposalPredicate", () => {
+    // In a transaction the restrictions are checkboxes over the row's own account and amount, so
+    // the predicate is read from the subject and never from the draft's parsed text.
+    it.each([
+        { useAccountScope: false, useAmountScope: false, expected: {} },
+        { useAccountScope: true, useAmountScope: false, expected: { accountId: ACCOUNT } },
+        {
+            useAccountScope: false,
+            useAmountScope: true,
+            expected: { amount: asMinorUnits(-450) }
+        },
+        {
+            useAccountScope: true,
+            useAmountScope: true,
+            expected: { accountId: ACCOUNT, amount: asMinorUnits(-450) }
         }
-    });
+    ])(
+        "account $useAccountScope, amount $useAmountScope",
+        ({ useAccountScope, useAmountScope, expected }) => {
+            expect(
+                proposalPredicate(DESCRIPTION, { useAccountScope, useAmountScope }, IMPORTED)
+            ).toEqual({
+                descriptionText: DESCRIPTION,
+                accountId: undefined,
+                amount: undefined,
+                ...expected
+            });
+        }
+    );
 
-    it("ignores a rule of a different field when deciding create vs update", () => {
-        // An alias rule matching the same text must not make a TAG change look like an update.
-        const aliasRule = rule({ id: "rule-alias", action: ALIAS_ACTION });
-        const proposal = computeFieldRuleProposal([aliasRule], IMPORTED, CURRENT_TAGS);
-        expect(proposal.kind).toBe("create");
+    it("keeps a zero amount as a real restriction", () => {
+        const zero: RuleMatchSubject = { ...IMPORTED, amount: asMinorUnits(0) };
+        expect(
+            proposalPredicate(DESCRIPTION, { useAccountScope: false, useAmountScope: true }, zero)
+                .amount
+        ).toBe(0);
     });
 });
 
@@ -157,26 +126,26 @@ describe("computeFieldRuleProposal — manual rows", () => {
     // Frozen `:268-270` + `:294-295`: description-alias rules never apply to manually created
     // transactions, while tag and person-percentage rules do.
     it("never proposes a description-alias rule from a manual row", () => {
-        expect(computeFieldRuleProposal([], MANUAL, CURRENT_ALIAS).kind).toBe("none");
+        expect(computeFieldRuleProposal(MANUAL, CURRENT_ALIAS).kind).toBe("none");
     });
 
     it.each([
         { field: "tags", current: CURRENT_TAGS },
         { field: "allocation", current: CURRENT_ALLOCATION }
     ])("proposes a $field rule from a manual row", ({ current }) => {
-        expect(computeFieldRuleProposal([], MANUAL, current).kind).toBe("create");
+        expect(computeFieldRuleProposal(MANUAL, current).kind).toBe("proposal");
     });
 });
 
 describe("computeFieldRuleProposal — nothing to propose", () => {
     it("proposes nothing when the row exposes no matchable description text", () => {
         const textless: RuleMatchSubject = { ...IMPORTED, descriptionText: null };
-        expect(computeFieldRuleProposal([], textless, CURRENT_TAGS).kind).toBe("none");
+        expect(computeFieldRuleProposal(textless, CURRENT_TAGS).kind).toBe("none");
     });
 
     it("proposes nothing when the description text is empty", () => {
         const empty: RuleMatchSubject = { ...IMPORTED, descriptionText: "" };
-        expect(computeFieldRuleProposal([], empty, CURRENT_TAGS).kind).toBe("none");
+        expect(computeFieldRuleProposal(empty, CURRENT_TAGS).kind).toBe("none");
     });
 
     it.each([
@@ -187,7 +156,7 @@ describe("computeFieldRuleProposal — nothing to propose", () => {
         "proposes nothing when the change left the field empty ($label)",
         ({ current }) => {
             expect(hasProposableValue(current)).toBe(false);
-            expect(computeFieldRuleProposal([], IMPORTED, current).kind).toBe("none");
+            expect(computeFieldRuleProposal(IMPORTED, current).kind).toBe("none");
         }
     );
 });
