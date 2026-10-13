@@ -420,7 +420,7 @@ describe("resolveRuleExtensionTarget", () => {
                 descriptionText: TEXT,
                 accountId: ACCOUNT_A,
                 tagMode: "add",
-                allocations: { "person-1": 999 },
+                allocations: { "person-1": Number.POSITIVE_INFINITY },
                 outputFields: ["tags", "allocation"],
                 createdAtEpochMs: 0
             }

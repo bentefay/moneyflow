@@ -537,7 +537,7 @@ describe("field-rule CRUD mutations", () => {
                     const result = setFieldRuleOutput(state, {
                         id: "rule-1",
                         field: "allocation",
-                        output: { allocations: { "person-1": 150 } }
+                        output: { allocations: { "person-1": Number.NaN } }
                     });
                     expect(result.ok).toBe(false);
                     if (!result.ok) expect(result.error.type).toBe("invalid-allocations");
@@ -754,7 +754,7 @@ describe("field-rule CRUD mutations", () => {
                     const result = moveFieldRuleOutput(state, {
                         sourceId: "rule-allocation",
                         field: "allocation",
-                        output: { allocations: { "person-1": 500 } },
+                        output: { allocations: { "person-1": Number.POSITIVE_INFINITY } },
                         hostId: "rule-alias",
                         deletedAtEpochMs: 7000
                     });

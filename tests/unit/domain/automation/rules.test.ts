@@ -689,7 +689,7 @@ describe("legacy and grouped wire records", () => {
                 field: "tags",
                 outputFields: ["tags", "allocation"],
                 tagMode: "add",
-                allocations: { "person-a": 999 }
+                allocations: { "person-a": Number.POSITIVE_INFINITY }
             },
             type: "invalid-allocations"
         },
@@ -731,7 +731,7 @@ describe("buildFieldRule", () => {
         },
         {
             name: "an invalid allocation set",
-            outputs: { allocation: { allocations: { "person-a": 999 } } },
+            outputs: { allocation: { allocations: { "person-a": Number.NaN } } },
             type: "invalid-allocations"
         }
     ])("rejects $name", ({ outputs, type }) => {
