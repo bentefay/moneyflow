@@ -173,6 +173,18 @@ describe("draftFromProposal", () => {
         );
         expect(draft.amountText).toBe("1234");
     });
+
+    it("leaves the amount blank for a blank row, so an amount restriction cannot be seeded", () => {
+        const draft = draftFromProposal(
+            { ...SEED, amount: undefined, value: { field: "tags", tagIds: ["t"] } },
+            "USD",
+            { ...DEFAULT_REMEMBERED_CHOICE, useAmountScope: true }
+        );
+        expect(draft.amountText).toBe("");
+        const validation = validateRuleDraft(draft, "USD");
+        expect(validation.ok).toBe(false);
+        if (!validation.ok) expect(validation.errors.amount).toBeDefined();
+    });
 });
 
 describe("mutationErrorToFieldErrors", () => {
@@ -220,6 +232,7 @@ describe("display labels", () => {
     it("formats an amount in the currency, falling back to the bare number", () => {
         expect(formatAmountForRuleLabel(asMinorUnits(-450), "USD", "en-US")).toBe("-$4.50");
         expect(formatAmountForRuleLabel(asMinorUnits(1234), "ZZZ", "en-US")).toBe("12.34");
+        expect(formatAmountForRuleLabel(undefined, "USD", "en-US")).toBe("—");
     });
 
     const options = {
