@@ -2,7 +2,11 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { Temporal } from "temporal-polyfill";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { emptyRuleDraft } from "@/components/features/automations/rule-editor-model";
+import { draftFromRule } from "@/components/features/automations/rule-editor-data";
+import {
+    emptyRuleDraft,
+    type RuleEditorDraft
+} from "@/components/features/automations/rule-editor-model";
 import type { RuleEditorProps } from "@/components/features/automations/RuleEditor";
 import {
     createTransactionCellSelectionAtom,
@@ -12,6 +16,7 @@ import { asTransactionId } from "@/components/features/transactions/table-model"
 import { TransactionInspectorAutomation } from "@/components/features/transactions/TransactionInspectorAutomation";
 import type { TransactionInput } from "@/lib/crdt/schema";
 import { buildTransactionIndex, createTransactionCursor } from "@/lib/crdt/transaction-cursor";
+import { AllocationPercentageSchema } from "@/lib/domain/allocation";
 import { DEFAULT_REMEMBERED_CHOICE } from "@/lib/domain/automation/preferences";
 import { type FieldRule, FieldRuleIdSchema } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -24,6 +29,9 @@ const workflowMocks = vi.hoisted(() => ({
     saveRule: vi.fn(() => true),
     existingRuleVisible: { current: false },
     existingRuleDrifted: { current: false },
+    existingRuleHasAllocation: { current: false },
+    // The rule card's draft; `null` stands for the workflow's empty draft.
+    ruleDraft: { current: null as RuleEditorDraft | null },
     removeRule: vi.fn(() => {
         workflowMocks.existingRuleVisible.current = false;
         return true;
@@ -38,7 +46,14 @@ function existingRule(): FieldRule {
             tags: {
                 mode: "add",
                 tagIds: workflowMocks.existingRuleDrifted.current ? ["tag-b"] : ["tag-a"]
-            }
+            },
+            ...(workflowMocks.existingRuleHasAllocation.current
+                ? {
+                      allocation: {
+                          allocations: { "person-1": AllocationPercentageSchema.parse(100) }
+                      }
+                  }
+                : {})
         },
         createdAt: Temporal.Instant.from("2026-08-31T00:00:00Z")
     };
@@ -73,9 +88,10 @@ vi.mock("@/components/features/transactions/use-transaction-rule-workflow", () =
         addOutput: vi.fn(),
         applyThis: workflowMocks.applyThis,
         currencyCode: "USD",
-        draft: emptyRuleDraft(DEFAULT_REMEMBERED_CHOICE),
+        draft: workflowMocks.ruleDraft.current ?? emptyRuleDraft(DEFAULT_REMEMBERED_CHOICE),
         errors: {},
         options: { accounts: [], aliases: [], people: [], tags: [] },
+        remembered: DEFAULT_REMEMBERED_CHOICE,
         populationCount: undefined,
         remove: workflowMocks.removeRule,
         resetDraft: vi.fn(),
@@ -88,7 +104,11 @@ vi.mock("@/components/features/transactions/use-transaction-rule-workflow", () =
 // The editor is pinned by its own tests; here only its action callbacks matter.
 vi.mock("@/components/features/automations/RuleEditor", () => ({
     RuleEditor: (props: RuleEditorProps) => (
-        <div data-testid="field-rule-editor">
+        <div
+            data-can-split={String(props.canSplit)}
+            data-pending-field={props.pendingField ?? ""}
+            data-testid="field-rule-editor"
+        >
             <button data-testid="rule-save" onClick={props.onApply} type="button">
                 Apply
             </button>
@@ -195,6 +215,8 @@ beforeEach(() => {
     workflowMocks.saveRule.mockReturnValue(true);
     workflowMocks.existingRuleVisible.current = false;
     workflowMocks.existingRuleDrifted.current = false;
+    workflowMocks.existingRuleHasAllocation.current = false;
+    workflowMocks.ruleDraft.current = null;
     workflowMocks.removeRule.mockClear();
 });
 
@@ -295,5 +317,77 @@ describe("transaction inspector automation focus continuity", () => {
         // The mocked target is a create, so the existing rule keeps its own card.
         expect(screen.getByTestId("tags-rule-proposal")).toBeInTheDocument();
         expect(screen.getByTestId("rule-inspector-rule-1")).toBeInTheDocument();
+    });
+});
+
+describe("transaction inspector rule card Split gate", () => {
+    function cardEditor(): HTMLElement {
+        return (
+            screen
+                .getByTestId("rule-inspector-rule-1")
+                .querySelector('[data-testid="field-rule-editor"]') ?? fail()
+        );
+    }
+    function fail(): never {
+        throw new Error("rule card editor not rendered");
+    }
+    function rerender(
+        view: ReturnType<typeof renderAutomation>,
+        controller: ReturnType<typeof createController>
+    ) {
+        view.rerender(
+            <TransactionInspectorAutomation
+                context={CONTEXT}
+                controller={controller}
+                transactionId={TRANSACTION_ID}
+            />
+        );
+    }
+
+    it("offers Split only while the draft equals the stored rule", () => {
+        workflowMocks.existingRuleVisible.current = true;
+        workflowMocks.existingRuleHasAllocation.current = true;
+        const stored = draftFromRule(existingRule(), "USD", DEFAULT_REMEMBERED_CHOICE);
+        workflowMocks.ruleDraft.current = stored;
+        const controller = createController();
+        const view = renderAutomation(controller);
+        expect(cardEditor()).toHaveAttribute("data-can-split", "true");
+
+        // An unsaved edit would be discarded by Split, so it is withheld until reverted.
+        workflowMocks.ruleDraft.current = {
+            ...stored,
+            outputs: { ...stored.outputs, tags: { mode: "add", tagIds: ["tag-b"] } }
+        };
+        rerender(view, controller);
+        expect(cardEditor()).toHaveAttribute("data-can-split", "false");
+
+        workflowMocks.ruleDraft.current = stored;
+        rerender(view, controller);
+        expect(cardEditor()).toHaveAttribute("data-can-split", "true");
+    });
+
+    it("marks an output added but not saved as pending and offers no Split", () => {
+        workflowMocks.existingRuleVisible.current = true;
+        workflowMocks.existingRuleHasAllocation.current = true;
+        const stored = draftFromRule(existingRule(), "USD", DEFAULT_REMEMBERED_CHOICE);
+        workflowMocks.ruleDraft.current = {
+            ...stored,
+            outputs: { ...stored.outputs, descriptionAlias: { aliasId: "" } }
+        };
+        renderAutomation(createController());
+        expect(cardEditor()).toHaveAttribute("data-can-split", "false");
+        expect(cardEditor()).toHaveAttribute("data-pending-field", "descriptionAlias");
+    });
+
+    it("offers no Split on a single-output rule", () => {
+        workflowMocks.existingRuleVisible.current = true;
+        workflowMocks.ruleDraft.current = draftFromRule(
+            existingRule(),
+            "USD",
+            DEFAULT_REMEMBERED_CHOICE
+        );
+        renderAutomation(createController());
+        expect(cardEditor()).toHaveAttribute("data-can-split", "false");
+        expect(cardEditor()).toHaveAttribute("data-pending-field", "");
     });
 });

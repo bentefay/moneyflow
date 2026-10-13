@@ -83,3 +83,6 @@
 - [Subagent handback silence](feedback_subagent-handback-silence.md) — verification subagents may
   never report; run gate commands directly and check `uptime` for cross-checkout load before
   reporting timeouts.
+- [Manual dev server needs JWT secret](feedback_manual-dev-server-needs-jwt-secret.md) — export
+  SUPABASE_JWT_SECRET from the realtime container; check the assigned port is not held by another
+  checkout.

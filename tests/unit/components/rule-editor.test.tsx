@@ -414,19 +414,18 @@ describe("RuleEditor: pending field", () => {
         expect(screen.queryByRole("button", { name: /^split/i })).toBeNull();
     });
 
-    it("opens the pending output's editor and locks every other output", () => {
+    const TWO_OUTPUTS = {
+        ...THREE_OUTPUTS,
+        outputs: {
+            descriptionAlias: { aliasId: "alias-coffee" },
+            tags: { mode: "add", tagIds: ["tag-coffee"] }
+        }
+    } as const;
+
+    it("opens the pending output's editor and, when locked, locks every other output", () => {
         render(
             <RuleEditor
-                {...props({
-                    draft: {
-                        ...THREE_OUTPUTS,
-                        outputs: {
-                            descriptionAlias: { aliasId: "alias-coffee" },
-                            tags: { mode: "add", tagIds: ["tag-coffee"] }
-                        }
-                    },
-                    pendingField: "tags"
-                })}
+                {...props({ draft: TWO_OUTPUTS, lockOtherOutputs: true, pendingField: "tags" })}
             />
         );
 
@@ -439,6 +438,39 @@ describe("RuleEditor: pending field", () => {
         expect(screen.getByTestId("rule-tag-tag-coffee")).toHaveAttribute("aria-pressed", "true");
         expect(screen.queryByRole("button", { name: "Edit Description" })).toBeNull();
         expect(screen.queryByRole("combobox", { name: "Add output" })).toBeNull();
+    });
+
+    it("keeps Edit and Add output when not locked, because Apply writes the whole draft", () => {
+        render(<RuleEditor {...props({ draft: TWO_OUTPUTS, pendingField: "tags" })} />);
+
+        expect(within(screen.getByTestId("rule-output-tags")).getByText("pending")).toBeVisible();
+        expect(screen.getByRole("button", { name: "Edit Description" })).toBeVisible();
+        expect(screen.getByRole("combobox", { name: "Add output" })).toBeVisible();
+        expect(screen.queryByRole("button", { name: /^split/i })).toBeNull();
+    });
+
+    it("shows the stored value a pending output overwrites under its badge only", () => {
+        render(
+            <RuleEditor
+                {...props({
+                    draft: TWO_OUTPUTS,
+                    lockOtherOutputs: true,
+                    pendingField: "tags",
+                    pendingStoredSummary: "add #tea"
+                })}
+            />
+        );
+
+        const tags = screen.getByTestId("rule-output-tags");
+        expect(within(tags).getByTestId("rule-output-stored-tags")).toHaveTextContent(
+            "Stored: add #tea"
+        );
+        expect(screen.getAllByText(/^Stored:/)).toHaveLength(1);
+    });
+
+    it("shows no stored line without a stored value", () => {
+        render(<RuleEditor {...props({ draft: TWO_OUTPUTS, pendingField: "tags" })} />);
+        expect(screen.queryByText(/^Stored:/)).toBeNull();
     });
 
     it("names the extended rule in the title", () => {

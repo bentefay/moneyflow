@@ -27,6 +27,7 @@ import { assertNever } from "@/lib/utils/exhaustive";
 
 import {
     currentValueLabel,
+    draftFromRule,
     draftOutputsFromRule,
     formatAmountForRuleLabel,
     outputValueSummary,
@@ -37,7 +38,12 @@ import {
     ruleOutputsLabel,
     ruleOutputsSummary
 } from "../automations/rule-editor-data";
-import { type RuleEditorDraft, validateRuleDraft } from "../automations/rule-editor-model";
+import {
+    draftRuleContentEquals,
+    type RuleEditorDraft,
+    unsavedOutputField,
+    validateRuleDraft
+} from "../automations/rule-editor-model";
 import {
     RuleEditor,
     type RuleEditorDivergence,
@@ -198,8 +204,18 @@ function InspectorRuleCard(props: {
         accountId: context.subject.accountId,
         referenceDate: context.referenceDate
     });
-    const { options, currencyCode } = workflow;
+    const { options, currencyCode, remembered } = workflow;
     const [splitField, setSplitField] = useState<RuleField | null>(null);
+
+    // Split rewrites the stored rule, so it is offered only while the draft still IS that rule; an
+    // output added but not saved is pending instead. Same gate as the Automations page.
+    const storedDraft = useMemo(
+        () => draftFromRule(rule, currencyCode, remembered),
+        [currencyCode, remembered, rule]
+    );
+    const splittable =
+        ruleOutputFields(rule).length > 1 && draftRuleContentEquals(workflow.draft, storedDraft);
+    const pendingField = unsavedOutputField(workflow.draft, storedDraft.outputs);
 
     const divergence = useMemo(() => {
         const stored = draftOutputsFromRule(rule);
@@ -245,7 +261,7 @@ function InspectorRuleCard(props: {
     }, [focusHeading, workflow]);
     const splitPreview = useMemo<RuleEditorSplitPreview | undefined>(
         () =>
-            splitField == null
+            splitField == null || !splittable
                 ? undefined
                 : {
                       field: splitField,
@@ -260,7 +276,7 @@ function InspectorRuleCard(props: {
                           setSplitField(null);
                       }
                   },
-        [focusHeading, splitField, workflow]
+        [focusHeading, splitField, splittable, workflow]
     );
 
     return (
@@ -273,7 +289,7 @@ function InspectorRuleCard(props: {
             <RuleEditor
                 accounts={options.accounts}
                 aliases={options.aliases}
-                canSplit={ruleOutputFields(rule).length > 1}
+                canSplit={splittable}
                 context="transaction"
                 currencyCode={currencyCode}
                 divergence={divergence}
@@ -288,6 +304,7 @@ function InspectorRuleCard(props: {
                 onDelete={remove}
                 onDraftChange={workflow.setDraft}
                 onSplit={setSplitField}
+                pendingField={pendingField}
                 people={options.people}
                 populationCount={workflow.populationCount}
                 referenceDate={context.referenceDate}
@@ -459,6 +476,12 @@ function InspectorProposalCard(props: {
                 : { ...draft, outputs: { ...draftOutputsFromRule(targetRule), ...draft.outputs } },
         [draft, targetRule]
     );
+    // An update overwrites the target's stored value for the field; show it so the user sees what
+    // Apply replaces. An extend adds a field the rule lacks, so there is nothing stored to show.
+    const pendingStoredSummary =
+        targetRule?.outputs[field] == null
+            ? undefined
+            : outputValueSummary(field, draftOutputsFromRule(targetRule), options);
     const setDraft = workflow.setDraft;
     const onDraftChange = useCallback(
         (next: RuleEditorDraft) =>
@@ -536,12 +559,14 @@ function InspectorProposalCard(props: {
                 draft={displayDraft}
                 errors={workflow.errors}
                 idPrefix={idPrefix}
+                lockOtherOutputs
                 mode={target.kind === "create" ? "create" : "edit"}
                 onAddOutput={noop}
                 onApply={props.onConfirm}
                 onCancel={props.onDismiss}
                 onDraftChange={onDraftChange}
                 pendingField={field}
+                pendingStoredSummary={pendingStoredSummary}
                 people={options.people}
                 populationCount={populationCount}
                 referenceDate={context.referenceDate}
