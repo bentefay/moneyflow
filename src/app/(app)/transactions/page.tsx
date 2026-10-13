@@ -62,12 +62,14 @@ import {
 import { restoreDescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
 import type { DescriptionAliasEditOrigin } from "@/components/features/transactions/cells/InlineEditableDescriptionAlias";
 import { transactionRowOrderFromCursor } from "@/components/features/transactions/cursor-row-order";
+import { DeleteTransactionsDialog } from "@/components/features/transactions/DeleteTransactionsDialog";
 import { tagSetChanged } from "@/components/features/transactions/field-rule-proposal-state";
 import type { RobotCurrentValue } from "@/components/features/transactions/field-rule-robot-state";
 import {
     useTransactionGridController,
     useTransactionGridControllerSnapshot
 } from "@/components/features/transactions/hooks";
+import { TRANSACTION_GRID_CLEAR_MAXIMUM_ROWS } from "@/components/features/transactions/hooks/useTransactionGridController";
 import {
     advanceTransactionRowWindowStart,
     TRANSACTION_ROW_WINDOW_ROWS,
@@ -1598,15 +1600,95 @@ function TransactionsPageContent() {
         searchInputRef.current?.select();
     }, []);
 
+    // "Selected" means the checked rows when there are any, otherwise the rows of the latest cell
+    // rectangle, otherwise the row whose own control holds focus. Read when the command runs, never
+    // in render, because enumerating checked rows costs the size of the matching set.
+    const [pendingDeletion, setPendingDeletion] = useState<{
+        readonly transactions: readonly Transaction[];
+        readonly fromRowSelection: boolean;
+    } | null>(null);
+    const hasDeletionTarget = useCallback((): boolean => {
+        const snapshot = gridController.getSnapshot();
+        return (
+            selectedCount > 0 ||
+            snapshot.activeTransactionId != null ||
+            snapshot.focusRetentionTransactionId != null
+        );
+    }, [gridController, selectedCount]);
+    const requestDeleteSelected = useCallback(() => {
+        if (selectedCount > 0) {
+            setPendingDeletion({
+                fromRowSelection: true,
+                transactions: collectSelectedTransactions()
+            });
+            return;
+        }
+        const rectangle = gridController.readLatestSelectionRectangle(
+            TRANSACTION_GRID_CLEAR_MAXIMUM_ROWS
+        );
+        if (rectangle.ok && rectangle.value?.operation === "include") {
+            setPendingDeletion({ fromRowSelection: false, transactions: rectangle.value.rows });
+            return;
+        }
+        const retainedId = gridController.getSnapshot().focusRetentionTransactionId;
+        const retained = retainedId == null ? undefined : findTransaction(retainedId);
+        if (retained != null)
+            setPendingDeletion({ fromRowSelection: false, transactions: [retained] });
+    }, [collectSelectedTransactions, findTransaction, gridController, selectedCount]);
+    const confirmDeleteSelected = useCallback(() => {
+        if (pendingDeletion == null) return;
+        // One synchronous user action, so Undo restores every row at once.
+        for (const tx of pendingDeletion.transactions) {
+            deleteTransaction({
+                location: { accountId: tx.accountId, date: tx.date, transactionId: tx.id }
+            });
+        }
+        if (pendingDeletion.fromRowSelection) clearSelection();
+        setPendingDeletion(null);
+    }, [clearSelection, deleteTransaction, pendingDeletion]);
+
+    // The row the keyboard is on, when it holds suspected duplicates to keep.
+    const duplicateOwnerId = useCallback((): string | null => {
+        const snapshot = gridController.getSnapshot();
+        const transactionId = snapshot.focusRetentionTransactionId ?? snapshot.activeTransactionId;
+        if (transactionId == null) return null;
+        const duplicates = findTransaction(transactionId)?.suspectedDuplicates ?? [];
+        return duplicates.length > 0 ? transactionId : null;
+    }, [findTransaction, gridController]);
+    const keepDuplicate = useCallback(() => {
+        const transactionId = duplicateOwnerId();
+        if (transactionId != null) handleResolveDuplicate(transactionId);
+    }, [duplicateOwnerId, handleResolveDuplicate]);
+
     const pageCommands = useMemo(
         (): readonly AppCommand[] => [
             // Literals rather than a helper call, so the compiler can see nothing runs during render.
             { ...TRANSACTION_COMMANDS.addTransaction, kind: "action", run: handleAddTransaction },
             { ...TRANSACTION_COMMANDS.toggleInspector, kind: "action", run: toggleInspector },
             { ...TRANSACTION_COMMANDS.focusSearch, kind: "action", run: focusSearch },
+            {
+                ...TRANSACTION_COMMANDS.deleteSelected,
+                kind: "action",
+                run: requestDeleteSelected,
+                when: hasDeletionTarget
+            },
+            {
+                ...TRANSACTION_COMMANDS.keepDuplicate,
+                kind: "action",
+                run: keepDuplicate,
+                when: () => duplicateOwnerId() != null
+            },
             ...GRID_REFERENCE_COMMANDS
         ],
-        [focusSearch, handleAddTransaction, toggleInspector]
+        [
+            duplicateOwnerId,
+            focusSearch,
+            handleAddTransaction,
+            hasDeletionTarget,
+            keepDuplicate,
+            requestDeleteSelected,
+            toggleInspector
+        ]
     );
     useCommands(pageCommands);
 
@@ -1785,6 +1867,12 @@ function TransactionsPageContent() {
                     availableAccounts={accountOptionsForFilter}
                 />
             )}
+
+            <DeleteTransactionsDialog
+                count={pendingDeletion?.transactions.length ?? null}
+                onCancel={() => setPendingDeletion(null)}
+                onConfirm={confirmDeleteSelected}
+            />
 
             {/* Description Alias Change Modal */}
             <DescriptionAliasChangeModal

@@ -6,7 +6,9 @@ import {
     detectShortcutPlatform,
     formatBinding,
     isPlainBinding,
-    shortcutAllowed
+    resolveBinding,
+    shortcutAllowed,
+    shortcutBindingsFor
 } from "@/lib/commands";
 
 describe("shortcut formatting", () => {
@@ -94,5 +96,27 @@ describe("where a shortcut may fire", () => {
                 expect(shortcutAllowed(shortcut, "?", { inGrid, inTextEntry: inText })).toBe(false);
             })
         );
+    });
+});
+
+describe("binding resolution", () => {
+    it.each([
+        { binding: "$mod+KeyK", mac: "Meta+KeyK", other: "Control+KeyK" },
+        { binding: "$mod+Shift+KeyZ", mac: "Meta+Shift+KeyZ", other: "Control+Shift+KeyZ" },
+        { binding: "Alt+KeyN", mac: "Alt+KeyN", other: "Alt+KeyN" },
+        { binding: "[Shift]+?", mac: "[Shift]+?", other: "[Shift]+?" },
+        { binding: "g t", mac: "g t", other: "g t" }
+    ])("resolves $binding per platform", ({ binding, mac, other }) => {
+        expect(resolveBinding(binding, "mac")).toBe(mac);
+        expect(resolveBinding(binding, "other")).toBe(other);
+    });
+
+    it("collapses an unlisted equivalent onto the listed binding so it fires once", () => {
+        const undo: CommandShortcut = {
+            alsoKeys: ["Control+KeyZ", "Meta+KeyZ"],
+            keys: ["$mod+KeyZ"]
+        };
+        expect(shortcutBindingsFor(undo, "other")).toEqual(["Control+KeyZ", "Meta+KeyZ"]);
+        expect(shortcutBindingsFor(undo, "mac")).toEqual(["Meta+KeyZ", "Control+KeyZ"]);
     });
 });

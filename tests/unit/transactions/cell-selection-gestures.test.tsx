@@ -2692,34 +2692,17 @@ describe("cell selection gestures", () => {
         expect(selectedCells()).toEqual([]);
     });
 
-    it("targets the row whose non-rangeable checkbox holds focus for delete shortcuts", () => {
-        const onTransactionDelete = vi.fn();
-        renderGrid(onTransactionDelete);
-        const row = screen.getAllByTestId("transaction-row")[2];
-        const checkbox = row.querySelector<HTMLElement>('[data-cell="checkbox"] button');
-        if (checkbox == null) throw new Error("the row checkbox is not mounted");
-
-        act(() => checkbox.focus());
-        expect(document.activeElement).toBe(checkbox);
-        expect(row).toHaveAttribute("aria-selected", "false");
-        expect(selectedCells()).toEqual([]);
-
-        fireEvent.keyDown(checkbox, { key: "d" });
-
-        expect(onTransactionDelete).toHaveBeenCalledTimes(1);
-        expect(onTransactionDelete).toHaveBeenCalledWith("transaction-2");
-    });
-
     it.each([
         { key: "d", selector: '[data-cell="checkbox"] button', surface: "checkbox" },
+        { key: "k", selector: '[data-cell="checkbox"] button', surface: "checkbox" },
         { key: "Delete", selector: '[data-cell="checkbox"] button', surface: "checkbox" },
         { key: "Backspace", selector: '[data-cell="checkbox"] button', surface: "checkbox" },
         { key: "d", selector: '[data-testid="delete-button"]', surface: "actions" },
         { key: "Delete", selector: '[data-testid="delete-button"]', surface: "actions" },
         { key: "Backspace", selector: '[data-testid="delete-button"]', surface: "actions" }
     ])(
-        "targets the focused row B $surface descendant for $key with a retained row A range",
-        ({ key, selector }) => {
+        "never deletes or resolves a row from $key on its focused $surface control",
+        async ({ key, selector }) => {
             const onTransactionDelete = vi.fn();
             const { controller } = renderGrid(onTransactionDelete);
             const rows = screen.getAllByTestId("transaction-row");
@@ -2735,22 +2718,15 @@ describe("cell selection gestures", () => {
             const retained = controller.cellSelectionAtom.get();
 
             act(() => activation.focus());
-
             expect(document.activeElement).toBe(activation);
-            expect(controller.cellSelectionAtom.get()).toEqual(retained);
-            expect(controller.getSnapshot()).toMatchObject({
-                focusRetentionTransactionId: "transaction-2",
-                pins: [
-                    { kind: "focus-retention", transactionId: "transaction-2" },
-                    { kind: "active-origin", transactionId: "transaction-1" }
-                ]
+
+            await act(async () => {
+                fireEvent.keyDown(activation, { key });
+                await Promise.resolve();
             });
 
-            fireEvent.keyDown(activation, { key });
-
-            expect(onTransactionDelete).toHaveBeenCalledTimes(1);
-            expect(onTransactionDelete).toHaveBeenCalledWith("transaction-2");
-            expect(onTransactionDelete).not.toHaveBeenCalledWith("transaction-1");
+            expect(onTransactionDelete).not.toHaveBeenCalled();
+            expect(controller.cellSelectionAtom.get()).toEqual(retained);
         }
     );
 

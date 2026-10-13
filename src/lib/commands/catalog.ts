@@ -36,7 +36,8 @@ export const GLOBAL_COMMANDS = {
         id: "undo",
         keywords: ["history", "revert"],
         scope: "global",
-        shortcut: { keys: ["$mod+KeyZ"] },
+        // Ctrl or Cmd on every platform, as before the registry existed.
+        shortcut: { alsoKeys: ["Control+KeyZ", "Meta+KeyZ"], keys: ["$mod+KeyZ"] },
         title: "Undo"
     },
     redo: {
@@ -44,7 +45,10 @@ export const GLOBAL_COMMANDS = {
         id: "redo",
         keywords: ["history"],
         scope: "global",
-        shortcut: { keys: ["$mod+Shift+KeyZ", "$mod+KeyY"] },
+        shortcut: {
+            alsoKeys: ["Control+Shift+KeyZ", "Meta+Shift+KeyZ", "Control+KeyY", "Meta+KeyY"],
+            keys: ["$mod+Shift+KeyZ", "$mod+KeyY"]
+        },
         title: "Redo"
     }
 } as const satisfies Record<string, ActionCommandDefinition>;

@@ -204,6 +204,11 @@ manual row is blank. Date, account and status are required and are left alone. C
 an ordinary edit, with the same rule proposal typing would raise (interaction contract TGI-ACT-002
 amendment).
 
+**[confirmed]** Requested on 2026-10-13: a key on a row never deletes the transaction. Deleting is
+the "Delete selected transactions" command, on Cmd+Backspace (Ctrl+Backspace elsewhere) or in the
+Cmd+K command palette, and always asks first; keeping a suspected duplicate is in the palette
+(interaction contract TGI-ACT-003 amendment).
+
 **[proposed]** Normalisation rules, implemented and tested in `src/lib/domain/numeric-text.ts`:
 
 - Only digits, `.` and `-` matter. Letters, spaces, currency symbols, `%`, `+`, parentheses and `,`

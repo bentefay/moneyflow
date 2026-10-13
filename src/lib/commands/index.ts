@@ -30,7 +30,9 @@ export {
     formatBinding,
     formatShortcut,
     isPlainBinding,
+    resolveBinding,
     type ShortcutFocus,
     shortcutAllowed,
+    shortcutBindingsFor,
     type ShortcutPlatform
 } from "./shortcut";

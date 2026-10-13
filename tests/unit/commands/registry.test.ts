@@ -13,6 +13,7 @@ import {
     paletteCommands,
     resolveShortcutCommand,
     shortcutBindings,
+    shortcutBindingsFor,
     TRANSACTION_COMMANDS
 } from "@/lib/commands";
 
@@ -60,11 +61,24 @@ describe("command registry", () => {
         expect(sections[1]?.commands).toHaveLength(GRID_REFERENCE_COMMANDS.length);
     });
 
-    it("binds only action commands, once per alternative", () => {
-        const redo = action("redo", { shortcut: { keys: ["$mod+Shift+KeyZ", "$mod+KeyY"] } });
-        const bindings = shortcutBindings([redo, ...GRID_REFERENCE_COMMANDS]);
+    it("binds only action commands, once per platform-resolved alternative", () => {
+        const redo = action("redo", {
+            shortcut: {
+                alsoKeys: ["Control+KeyY", "Meta+KeyY"],
+                keys: ["$mod+Shift+KeyZ", "$mod+KeyY"]
+            }
+        });
 
-        expect([...bindings.keys()]).toEqual(["$mod+Shift+KeyZ", "$mod+KeyY"]);
+        expect([...shortcutBindings([redo, ...GRID_REFERENCE_COMMANDS], "other").keys()]).toEqual([
+            "Control+Shift+KeyZ",
+            "Control+KeyY",
+            "Meta+KeyY"
+        ]);
+        expect([...shortcutBindings([redo], "mac").keys()]).toEqual([
+            "Meta+Shift+KeyZ",
+            "Meta+KeyY",
+            "Control+KeyY"
+        ]);
     });
 
     it("runs the most recently registered command that may fire and can run", () => {
@@ -117,9 +131,11 @@ describe("command catalog", () => {
         expect(new Set(ids).size).toBe(ids.length);
     });
 
-    it("never binds the same keys twice", () => {
+    it.each(["mac", "other"] as const)("never binds the same keys twice on %s", (platform) => {
         const bindings = definitions.flatMap((definition) =>
-            "shortcut" in definition && definition.shortcut != null ? definition.shortcut.keys : []
+            "shortcut" in definition && definition.shortcut != null
+                ? shortcutBindingsFor(definition.shortcut, platform)
+                : []
         );
         expect(new Set(bindings).size).toBe(bindings.length);
     });

@@ -436,6 +436,41 @@ test.describe("Transactions", () => {
             await page.keyboard.press("t");
             await expect(page).toHaveURL(/\/transactions$/);
         });
+
+        await test.step("Delete on a row's own controls never deletes the row", async () => {
+            await expect(page.getByTestId("transaction-row")).toHaveCount(4);
+            const deleteButton = committedRow.getByTestId("delete-button");
+            await deleteButton.focus();
+            for (const key of ["Delete", "Backspace", "d"]) await page.keyboard.press(key);
+            const checkbox = committedRow.getByRole("checkbox", { name: "Select transaction" });
+            await checkbox.focus();
+            for (const key of ["Delete", "Backspace", "d"]) await page.keyboard.press(key);
+            await expect(page.getByTestId("transaction-row")).toHaveCount(4);
+        });
+
+        await test.step("Cmd/Ctrl+Backspace deletes the selected row after confirming, as one undo step", async () => {
+            const dialog = page.getByTestId("delete-transactions-dialog");
+            const descriptionCell = committedRow.locator('[data-cell="description"]');
+            await descriptionCell.click();
+            await expect(descriptionCell).toBeFocused();
+
+            await page.keyboard.press("ControlOrMeta+Backspace");
+            await expect(dialog).toBeVisible();
+            await dialog.getByRole("button", { name: "Cancel" }).click();
+            await expect(dialog).toHaveCount(0);
+            await expect(committedRow).toBeVisible();
+
+            await descriptionCell.click();
+            await page.keyboard.press("ControlOrMeta+Backspace");
+            await dialog.getByRole("button", { name: "Delete" }).click();
+            await expect(committedRow).toHaveCount(0);
+            await expect(page.getByTestId("transaction-row")).toHaveCount(3);
+
+            await page.getByTestId("add-transaction-button").focus();
+            await page.keyboard.press("ControlOrMeta+z");
+            await expect(committedRow).toBeVisible();
+            await expect(page.getByTestId("transaction-row")).toHaveCount(4);
+        });
     });
 
     test("Add focuses the new row's description and preserves a multi-row selection", async ({

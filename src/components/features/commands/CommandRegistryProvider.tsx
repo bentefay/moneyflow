@@ -32,6 +32,7 @@ import {
 
 import { CommandPalette } from "./CommandPalette";
 import { KeyboardShortcutsDialog } from "./KeyboardShortcutsDialog";
+import { useShortcutPlatform } from "./use-shortcut-platform";
 
 interface CommandRegistryContextValue {
     readonly store: CommandRegistryStore;
@@ -77,9 +78,10 @@ export function useRegisteredCommands(): readonly AppCommand[] {
 
 /** Binds every registered shortcut through tinykeys, rebinding when registrations change. */
 function useShortcutKeybindings(commands: readonly AppCommand[]): void {
+    const platform = useShortcutPlatform();
     useEffect(() => {
         const keybindings: KeybindingsMap = {};
-        for (const [binding, candidates] of shortcutBindings(commands)) {
+        for (const [binding, candidates] of shortcutBindings(commands, platform)) {
             keybindings[binding] = (event) => {
                 // The grid and editors claim their keys first; a key they handled is not a shortcut.
                 if (event.defaultPrevented) return;
@@ -96,7 +98,7 @@ function useShortcutKeybindings(commands: readonly AppCommand[]): void {
         return tinykeys(window, keybindings, {
             ignore: (event) => event.isComposing || event.keyCode === 229
         });
-    }, [commands]);
+    }, [commands, platform]);
 }
 
 export function CommandRegistryProvider({ children }: { readonly children: React.ReactNode }) {

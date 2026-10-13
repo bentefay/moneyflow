@@ -32,7 +32,7 @@
 import { useTable } from "@tanstack/react-table";
 import { defaultRangeExtractor, type Range } from "@tanstack/react-virtual";
 import type { OnChangeFn } from "@tanstack/table-core";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { MemberDisplayName } from "@/lib/crdt/person";
 import { cn } from "@/lib/utils";
@@ -648,105 +648,9 @@ export function TransactionTable({
         [controllerPinnedIndexes]
     );
 
-    // Keyboard shortcuts for duplicate resolution and deletion
-    useEffect(() => {
-        /**
-         * The one selected row, when the selection names exactly one, by id and without the grid
-         * having to hold it.
-         *
-         * Under the ordinary `no-rows` baseline the answer is the single exception, which costs a
-         * set read. Under `all-matching` every matching row but one is an exception, so the
-         * survivor has to be found by walking the matching order — reachable only by selecting all
-         * and then deselecting all but one, and paid on that keystroke rather than in render.
-         */
-        const resolveSingleSelectedRowId = (): string | null => {
-            if (table.getSelectedRowCount() !== 1) return null;
-            const selection = table.getRowSelectionBaseline();
-            if (selection.baseline === "no-rows") {
-                for (const transactionId of selection.exceptions) return transactionId;
-                return null;
-            }
-            for (const transactionId of rowOrder.slice(0, matchingRowCount - 1)) {
-                if (!selection.exceptions.has(transactionId)) return transactionId;
-            }
-            return null;
-        };
-
-        const handleRowShortcutKeyDown = (event: KeyboardEvent) => {
-            // Only handle keys pressed while focus is inside the grid — a bare "d" or Backspace
-            // aimed at a button or select elsewhere on the page must never delete a transaction.
-            // Checked before resolving a target, because this rejects almost every keystroke the
-            // page sees and costs a `contains` rather than a walk over the loaded rows.
-            const target = event.target;
-            if (!(target instanceof Node) || !scrollElement?.contains(target)) return;
-            if (target instanceof Element && target.matches('[role="gridcell"]')) return;
-
-            // Don't handle if user is typing in an input
-            if (
-                target instanceof HTMLInputElement ||
-                target instanceof HTMLTextAreaElement ||
-                (target instanceof HTMLElement && target.isContentEditable)
-            ) {
-                return;
-            }
-
-            // Actual DOM focus on legacy row chrome wins, without making that row canonical cell
-            // authority. Otherwise use the canonical active cell, then exactly one selected row
-            // resolved from the matching order rather than only the rows the grid currently holds.
-            const targetId =
-                controllerSnapshot.focusRetentionTransactionId ??
-                controllerSnapshot.activeTransactionId ??
-                resolveSingleSelectedRowId();
-            if (targetId == null) return;
-
-            const transaction = table
-                .getRowModel()
-                .rows.find((row) => row.id === targetId)?.original;
-
-            switch (event.key.toLowerCase()) {
-                case "k":
-                    // K = Keep (resolve duplicate). The only branch that reads the row's data, so
-                    // the only one that needs the row to be one the grid currently holds.
-                    if (transaction?.possibleDuplicateOf && onResolveDuplicate) {
-                        event.preventDefault();
-                        onResolveDuplicate(targetId);
-                    }
-                    break;
-                case "d":
-                    // D = Delete (only if not shift/ctrl/cmd pressed for other shortcuts)
-                    if (
-                        !event.shiftKey &&
-                        !event.ctrlKey &&
-                        !event.metaKey &&
-                        onTransactionDelete
-                    ) {
-                        event.preventDefault();
-                        onTransactionDelete(targetId);
-                    }
-                    break;
-                case "delete":
-                case "backspace":
-                    // Delete/Backspace = Delete transaction
-                    if (onTransactionDelete) {
-                        event.preventDefault();
-                        onTransactionDelete(targetId);
-                    }
-                    break;
-            }
-        };
-
-        document.addEventListener("keydown", handleRowShortcutKeyDown);
-        return () => document.removeEventListener("keydown", handleRowShortcutKeyDown);
-    }, [
-        controllerSnapshot.activeTransactionId,
-        controllerSnapshot.focusRetentionTransactionId,
-        matchingRowCount,
-        onResolveDuplicate,
-        onTransactionDelete,
-        rowOrder,
-        scrollElement,
-        table
-    ]);
+    // Deleting a transaction and keeping a duplicate are page commands with a confirmation step
+    // (Cmd/Ctrl+Backspace and the palette), never a bare key on a row: Delete and Backspace clear
+    // cells, and printable keys type.
 
     // Handle single row click (navigation/focus only - selection is handled by checkbox)
     const handleRowClick = useCallback(

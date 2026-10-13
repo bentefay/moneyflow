@@ -47,6 +47,7 @@ description:
   conditionally.
 - Bindings use tinykeys syntax (`$mod+KeyK`, `Alt+KeyN`, `[Shift]+?`, `g t`). A binding without
   Cmd/Ctrl/Alt never fires in a text field or the grid; a modified one fires in a text field only
-  with `inTextEntry: true`. Do not take Cmd+N/T/W or plain Cmd+F.
+  with `inTextEntry: true`. `$mod` is Cmd on a Mac and Ctrl elsewhere; `alsoKeys` are bound but not
+  listed (Undo keeps Ctrl+Z and Cmd+Z on every platform). Do not take Cmd+N/T/W or plain Cmd+F.
 - Keys the grid handles itself are listed as `GRID_REFERENCE_COMMANDS` so the cheat sheet stays
   complete; update them alongside `table-model/grid-key-intent.ts`.

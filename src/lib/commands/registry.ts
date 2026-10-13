@@ -5,8 +5,8 @@
  * the current page can do and a shortcut can never be bound without also being listed.
  */
 
-import type { CommandShortcut, ShortcutFocus } from "./shortcut";
-import { shortcutAllowed } from "./shortcut";
+import type { CommandShortcut, ShortcutFocus, ShortcutPlatform } from "./shortcut";
+import { shortcutAllowed, shortcutBindingsFor } from "./shortcut";
 
 /** Where a command applies: everywhere, on the current page, or only with the grid focused. */
 export type CommandScope = "global" | "page" | "grid";
@@ -85,14 +85,18 @@ export function cheatSheetSections(commands: readonly AppCommand[]): readonly Ch
     });
 }
 
-/** Binding string → the action commands bound to it, most recently registered last. */
+/**
+ * Platform-resolved binding → the action commands bound to it, most recently registered last.
+ * Grid references are never bound: the grid handles those keys itself.
+ */
 export function shortcutBindings(
-    commands: readonly AppCommand[]
+    commands: readonly AppCommand[],
+    platform: ShortcutPlatform
 ): ReadonlyMap<string, readonly ActionCommand[]> {
     const bindings = new Map<string, ActionCommand[]>();
     for (const command of commands) {
         if (command.kind !== "action" || command.shortcut == null) continue;
-        for (const binding of command.shortcut.keys) {
+        for (const binding of shortcutBindingsFor(command.shortcut, platform)) {
             bindings.set(binding, [...(bindings.get(binding) ?? []), command]);
         }
     }

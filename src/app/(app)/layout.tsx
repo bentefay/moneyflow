@@ -34,7 +34,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { CommandRegistryProvider, GlobalCommands } from "@/components/features/commands";
 import { ImportFileTransferProvider } from "@/components/features/import/ImportFileTransferProvider";
 import { PresenceAvatarGroup } from "@/components/features/presence/PresenceAvatarGroup";
-import { UndoControls, UndoKeyboardShortcuts } from "@/components/features/undo/UndoControls";
+import { UndoCommands, UndoControls } from "@/components/features/undo/UndoControls";
 import { VaultSelector } from "@/components/features/vault/VaultSelector";
 import { ActiveVaultProvider } from "@/components/providers/active-vault-provider";
 import { DateLocaleProvider } from "@/components/providers/date-locale-provider";
@@ -223,7 +223,7 @@ function AppLayoutContent({
 
     return (
         <div className="flex h-screen flex-col md:flex-row">
-            <UndoKeyboardShortcuts />
+            <UndoCommands />
             <GlobalCommands />
             {/* Mobile Top Bar */}
             <header className="bg-card flex h-14 items-center justify-between border-b px-4 md:hidden">

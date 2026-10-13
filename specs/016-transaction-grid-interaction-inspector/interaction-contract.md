@@ -259,7 +259,14 @@ blanked as well; an imported row's raw text is immutable). Date, account, status
 actions are left unchanged. A one-cell clear is an ordinary edit through the same commit handlers as
 typing and publishes its commit for automation exactly as typing does. In every other state the keys
 stay native (editors delete text), and Ctrl/Cmd/Alt+Backspace is never a grid command.
-Delete/Backspace on a gridcell still never deletes a transaction.
+Delete/Backspace on a gridcell, or on any control inside a row, never deletes a transaction.
+
+**TGI-ACT-003 amendment (2026-10-13) — Row shortcuts become commands.** The row-level `d`,
+Delete/Backspace (delete transaction) and `k` (keep duplicate) shortcuts are removed. Deleting is
+the "Delete selected transactions" command (Ctrl/Cmd+Backspace or the command palette), which
+confirms before writing and deletes the checked rows, or else the rows of the latest cell rectangle;
+keeping a duplicate is a palette-only command. Both live in the shared command registry, whose
+shortcuts while the grid has focus always carry Ctrl/Cmd or Alt.
 
 ### 3.1 Tab and continuous edit
 

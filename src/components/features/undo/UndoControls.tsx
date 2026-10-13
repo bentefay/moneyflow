@@ -1,78 +1,51 @@
 "use client";
 
 import { Redo2, Undo2 } from "lucide-react";
-import { useEffect } from "react";
+import { useMemo } from "react";
 
+import { useCommands, useShortcutPlatform } from "@/components/features/commands";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useVaultUndo } from "@/lib/crdt/undo";
+import { type AppCommand, formatShortcut, GLOBAL_COMMANDS } from "@/lib/commands";
+import { useVaultUndo, useVaultUndoCoordinator } from "@/lib/crdt/undo";
 import { cn } from "@/lib/utils";
 
 export interface UndoControlsProps {
     className?: string;
 }
 
-type UndoKeyboardAction = "redo" | "undo";
-
-interface UndoKeyboardEvent {
-    altKey: boolean;
-    ctrlKey: boolean;
-    defaultPrevented: boolean;
-    key: string;
-    metaKey: boolean;
-    shiftKey: boolean;
-    target: EventTarget | null;
-}
-
-export function isEditableUndoTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof Element)) return false;
-    if (target.matches("input, textarea, select")) return true;
-    return (
-        target.closest(
-            '[contenteditable="true"], [contenteditable=""], [contenteditable="plaintext-only"], [role="textbox"]'
-        ) != null
+/** Registers Undo and Redo as commands, so their shortcuts and palette entries share one source. */
+export function UndoCommands() {
+    const coordinator = useVaultUndoCoordinator();
+    // Availability is read from the coordinator when a key is pressed, not from a rendered snapshot,
+    // so an undo pressed straight after an edit is never refused by a stale closure.
+    const commands = useMemo(
+        (): readonly AppCommand[] => [
+            {
+                ...GLOBAL_COMMANDS.undo,
+                kind: "action",
+                run: () => coordinator.undo(),
+                when: () => coordinator.getSnapshot().canUndo
+            },
+            {
+                ...GLOBAL_COMMANDS.redo,
+                kind: "action",
+                run: () => coordinator.redo(),
+                when: () => coordinator.getSnapshot().canRedo
+            }
+        ],
+        [coordinator]
     );
-}
-
-export function getUndoKeyboardAction(event: UndoKeyboardEvent): UndoKeyboardAction | null {
-    if (
-        event.defaultPrevented ||
-        event.altKey ||
-        (!event.ctrlKey && !event.metaKey) ||
-        isEditableUndoTarget(event.target)
-    ) {
-        return null;
-    }
-
-    const key = event.key.toLowerCase();
-    if (key === "z") return event.shiftKey ? "redo" : "undo";
-    if (key === "y") return "redo";
-    return null;
-}
-
-/** Installs one document-level shortcut listener for the authenticated vault shell. */
-export function UndoKeyboardShortcuts() {
-    const { redo, undo } = useVaultUndo();
-
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            const action = getUndoKeyboardAction(event);
-            if (!action) return;
-
-            const changed = action === "undo" ? undo() : redo();
-            if (changed) event.preventDefault();
-        };
-
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [redo, undo]);
-
+    useCommands(commands);
     return null;
 }
 
 /** Visible document undo and redo controls. */
 export function UndoControls({ className }: UndoControlsProps) {
     const { canRedo, canUndo, redo, undo } = useVaultUndo();
+    const platform = useShortcutPlatform();
+    const undoKeys = formatShortcut(GLOBAL_COMMANDS.undo.shortcut, platform).join(" or ");
+    const redoKeys = formatShortcut(GLOBAL_COMMANDS.redo.shortcut, platform).join(" or ");
 
     return (
         <div className={cn("flex items-center gap-1", className)} aria-label="History controls">
@@ -91,7 +64,7 @@ export function UndoControls({ className }: UndoControlsProps) {
                         </Button>
                     </span>
                 </TooltipTrigger>
-                <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+                <TooltipContent>Undo ({undoKeys})</TooltipContent>
             </Tooltip>
             <Tooltip>
                 <TooltipTrigger asChild>
@@ -108,7 +81,7 @@ export function UndoControls({ className }: UndoControlsProps) {
                         </Button>
                     </span>
                 </TooltipTrigger>
-                <TooltipContent>Redo (Ctrl+Shift+Z or Ctrl+Y)</TooltipContent>
+                <TooltipContent>Redo ({redoKeys})</TooltipContent>
             </Tooltip>
         </div>
     );

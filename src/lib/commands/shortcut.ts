@@ -19,6 +19,11 @@ export type ShortcutPlatform = "mac" | "other";
  */
 export interface CommandShortcut {
     readonly keys: readonly [string, ...string[]];
+    /**
+     * Bound but not listed: conventional equivalents kept so existing habits still work, such as
+     * Ctrl+Z on a Mac. The cheat sheet shows only `keys`.
+     */
+    readonly alsoKeys?: readonly string[];
     readonly inTextEntry?: boolean;
 }
 
@@ -31,6 +36,38 @@ export interface ShortcutFocus {
 /** The platform tinykeys resolves `$mod` against, read the same way it reads it. */
 export function detectShortcutPlatform(platform: string | undefined): ShortcutPlatform {
     return platform != null && /Mac|iPod|iPhone|iPad/.test(platform) ? "mac" : "other";
+}
+
+/**
+ * A binding with `$mod` resolved for the platform, so equivalent spellings (`$mod+KeyZ` and
+ * `Control+KeyZ` off a Mac) collapse to one binding and fire once.
+ */
+export function resolveBinding(binding: string, platform: ShortcutPlatform): string {
+    const modifier = platform === "mac" ? "Meta" : "Control";
+    return binding
+        .trim()
+        .split(" ")
+        .map((press) =>
+            press
+                .split(/(?<=\w|\])\+/)
+                .map((part) => (part === "$mod" ? modifier : part))
+                .join("+")
+        )
+        .join(" ");
+}
+
+/** Every binding a shortcut answers to on this platform, listed or not, without repeats. */
+export function shortcutBindingsFor(
+    shortcut: CommandShortcut,
+    platform: ShortcutPlatform
+): readonly string[] {
+    return [
+        ...new Set(
+            [...shortcut.keys, ...(shortcut.alsoKeys ?? [])].map((binding) =>
+                resolveBinding(binding, platform)
+            )
+        )
+    ];
 }
 
 const PRIMARY_MODIFIERS = new Set(["$mod", "Control", "Meta", "Alt"]);
