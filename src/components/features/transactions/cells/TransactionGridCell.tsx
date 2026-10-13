@@ -33,6 +33,7 @@ import {
     type TransactionGridEditorCommitResult,
     type TransactionGridEditorLifecycle
 } from "./editor-lifecycle";
+import { startGridDragSelection } from "./grid-drag-selection";
 
 const INTERACTIVE_DESCENDANT =
     "a[href], button, input, select, textarea, [contenteditable='true'], [role='button'], " +
@@ -885,8 +886,24 @@ export function TransactionGridCell({
                 { kind: "expose-selection" },
                 viewportRowDistance
             );
-            element.focus({ preventScroll: true });
+            // A Shift extension keeps DOM focus on the anchor it extends from (TGI-SEL-004).
+            // Cancelling the press also cancels the browser's own mousedown focus on this cell.
+            if (event.shiftKey && controller.focusActiveAnchor()) {
+                event.preventDefault();
+            } else {
+                element.focus({ preventScroll: true });
+            }
             suppressNextFocus.current = false;
+            // A native selection left elsewhere on the page would otherwise grow under Shift-click.
+            element.ownerDocument.getSelection()?.removeAllRanges();
+            // The gesture outlives this cell: the virtualizer may unmount it while the grid scrolls.
+            startGridDragSelection({
+                extendTo: controller.extendSelectionFromPointer,
+                ownerDocument: element.ownerDocument,
+                pointerId: event.pointerId,
+                scrollElement: element.closest('[role="grid"]')?.parentElement ?? null,
+                start: { x: event.clientX, y: event.clientY }
+            });
         },
         [address, cell, controller, legacyInteractive, viewportRowDistance]
     );
@@ -1347,7 +1364,7 @@ export function TransactionGridCell({
             {editorVisible ? (
                 <div
                     ref={registerEditorContainer}
-                    className="contents"
+                    className="contents select-text"
                     onBeforeInputCapture={handleBeforeInputCapture}
                     onBlurCapture={handleEditorBlurCapture}
                     onKeyDownCapture={handleEditorKeyDownCapture}

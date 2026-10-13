@@ -1321,7 +1321,8 @@ describe("cell selection gestures", () => {
         fireEvent.pointerDown(dateCell, { button: 0 });
         fireEvent.pointerDown(descriptionCell, { button: 0, shiftKey: true });
 
-        expect(document.activeElement).toBe(descriptionCell);
+        // The extension moves only the extent; the anchor keeps DOM focus (TGI-SEL-004).
+        expect(document.activeElement).toBe(dateCell);
         expect(selectedCells()).toEqual(["1:date", "1:description"]);
         expect(controller.cellSelectionAtom.get()).toMatchObject([
             {

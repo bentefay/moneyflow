@@ -231,6 +231,15 @@ rectangle. Browser text highlighting does not appear on non-edit cells. Inside a
 cursor placement, text dragging and copying work as normal. Selection stays correct across
 virtualised rows and when dragging to the edge scrolls the table.
 
+**[confirmed]** Requested on 2026-10-13: moving between cells with the keyboard scrolls the table so
+the selected cell stays fully in view, below the sticky header and horizontally.
+
+**[proposed]** While dragging, holding the pointer within 32px of the table's edge scrolls the
+table, faster the closer it is to the edge, and the selection keeps following the cell under the
+pointer, including beneath floating chrome such as the bulk-edit toolbar. Shift-click and drag move
+only the far corner of the rectangle; the cell the range started from keeps keyboard focus, so the
+next arrow key moves from it.
+
 ### Viewport
 
 **[saved plan]** Opening, expanding or scrolling a long inspector never creates a page-level

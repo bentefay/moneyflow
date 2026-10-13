@@ -996,8 +996,9 @@ export function TransactionTable({
                     ref={handleScrollElementChange}
                     className="flex min-h-0 flex-1 scroll-pt-[37px] flex-col overflow-auto"
                 >
+                    {/* Outside an editor the grid selects cells, not text; editors opt back in. */}
                     <div
-                        className="relative min-w-fit flex-1"
+                        className="relative min-w-fit flex-1 select-none"
                         role="grid"
                         aria-label="Transactions"
                         aria-rowcount={ariaRowCount}
