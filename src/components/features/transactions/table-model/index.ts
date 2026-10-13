@@ -14,6 +14,13 @@ export {
     transactionTableRowId
 } from "./columns";
 export {
+    isClearableTransactionColumn,
+    planTransactionCellClear,
+    planTransactionRangeClear,
+    type TransactionCellClear,
+    type TransactionClearableRow
+} from "./cell-clear";
+export {
     transactionActiveCellFromRowKey,
     transactionCellSelectionRowKey,
     transactionSelectedCellMarkersFromRowKey

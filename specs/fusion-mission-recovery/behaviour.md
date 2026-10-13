@@ -197,6 +197,13 @@ than running on, the first Left after entering an editor only collapses its whol
 and pickers and an open suggestion list keep their arrows (interaction contract TGI-CMD-011
 amendment).
 
+**[confirmed]** Requested on 2026-10-13: Delete and Backspace clear the selected cell without
+opening its editor; typing still starts an edit. Amount and allocations become blank, tags become
+empty, and the description loses its alias, so an imported row shows the bank's text again and a
+manual row is blank. Date, account and status are required and are left alone. Clearing one cell is
+an ordinary edit, with the same rule proposal typing would raise (interaction contract TGI-ACT-002
+amendment).
+
 **[proposed]** Normalisation rules, implemented and tested in `src/lib/domain/numeric-text.ts`:
 
 - Only digits, `.` and `-` matter. Letters, spaces, currency symbols, `%`, `+`, parentheses and `,`

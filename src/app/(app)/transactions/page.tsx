@@ -80,6 +80,8 @@ import {
     isAllocationColumnId,
     isTransactionRowSelected,
     personIdOfAllocationColumn,
+    planTransactionRangeClear,
+    type TransactionCellClear,
     transactionGridPresence,
     type MatchingTransactionRows,
     NO_TRANSACTION_ROWS_SELECTED,
@@ -1512,6 +1514,72 @@ function TransactionsPageContent() {
                 : TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED;
         },
         [findTransaction, setTransactionAllocation]
+    );
+
+    /**
+     * Blanks one cell through the same handler typing commits through, so a cleared cell is an
+     * ordinary edit. A description clear unlinks this transaction's alias only, never a shared one.
+     */
+    const clearTransactionCell = useCallback(
+        (clear: TransactionCellClear): TransactionGridEditorCommitResult => {
+            switch (clear.kind) {
+                case "amount":
+                    handleTransactionUpdate(clear.transactionId, { amount: undefined });
+                    return TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS;
+                case "allocation":
+                    return handleTransactionAllocationUpdate(
+                        clear.transactionId,
+                        clear.personId,
+                        null
+                    );
+                case "tags":
+                    return handleTransactionTagsCommit(clear.transactionId, [], []);
+                case "description": {
+                    const tx = findTransaction(clear.transactionId);
+                    if (tx == null) return TRANSACTION_GRID_EDITOR_COMMIT_FAILURE;
+                    const unlinked =
+                        clear.aliasId == null
+                            ? TRANSACTION_GRID_EDITOR_COMMIT_UNCHANGED
+                            : descriptionAliasCommitResult(
+                                  removeOneDescriptionAlias({
+                                      location: {
+                                          accountId: tx.accountId,
+                                          date: tx.date,
+                                          transactionId: tx.id
+                                      },
+                                      expectedAliasId: clear.aliasId
+                                  })
+                              );
+                    if (unlinked.status === "rejected") return unlinked;
+                    if (!clear.blankDescription) return unlinked;
+                    handleTransactionUpdate(clear.transactionId, { description: "" });
+                    return TRANSACTION_GRID_EDITOR_COMMIT_SUCCESS;
+                }
+            }
+        },
+        [
+            findTransaction,
+            handleTransactionAllocationUpdate,
+            handleTransactionTagsCommit,
+            handleTransactionUpdate,
+            removeOneDescriptionAlias
+        ]
+    );
+
+    // Delete/Backspace on the grid. A one-cell clear publishes its commit like any edit, so automation
+    // proposes a rule exactly as it would for typing; a range clear is cleanup and proposes nothing.
+    // Every write lands in one synchronous user action, which the undo coordinator keeps as one step.
+    useLayoutEffect(
+        () =>
+            gridController.registerCellClearHandler((request) => {
+                for (const clear of planTransactionRangeClear(request.rows, request.columnIds)) {
+                    const result = clearTransactionCell(clear);
+                    if (request.scope === "cell") {
+                        gridController.publishAutomationEditorCommit(clear, result);
+                    }
+                }
+            }),
+        [clearTransactionCell, gridController]
     );
 
     // Tag options for filter/bulk edit (with label for FilterOption)

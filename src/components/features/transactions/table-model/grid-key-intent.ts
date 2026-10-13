@@ -196,7 +196,8 @@ export type TransactionGridKeyIntent =
     | { readonly kind: "commit-and-extend-to"; readonly target: TransactionNavigationTarget }
     | { readonly kind: "traverse-tab"; readonly direction: "forward" | "reverse" }
     | { readonly kind: "copy" }
-    | { readonly kind: "select-all" };
+    | { readonly kind: "select-all" }
+    | { readonly kind: "clear" };
 
 export type TransactionGridCompositionStartIntent =
     | { readonly kind: "ignore-composition" }
@@ -412,6 +413,12 @@ export function transactionGridKeyIntent(
     }
     if (primary && event.key.toLowerCase() === "a") {
         return context.mode === "navigating" ? { kind: "select-all" } : { kind: "native" };
+    }
+    if (event.key === "Delete" || event.key === "Backspace") {
+        // Both keys clear: the key a Mac labels "delete" sends Backspace. Modified presses stay
+        // native so Cmd/Ctrl+Backspace remains free for page commands.
+        if (primary || event.altKey || context.mode !== "navigating") return { kind: "native" };
+        return { kind: "clear" };
     }
     if (event.key === "Enter") return enterIntent(context);
     if (event.key === "Tab") {

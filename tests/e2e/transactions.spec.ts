@@ -1766,6 +1766,41 @@ test.describe("Transactions", () => {
                     "true"
                 );
             });
+
+            await test.step("Delete and Backspace clear one cell without entering edit mode", async () => {
+                const row = await stableTransactionRow(
+                    page.getByRole("row", { name: /Row 1 Store/ })
+                );
+                const description = transactionGridCell(row, "description");
+                const amount = transactionGridCell(row, "amount");
+                const date = transactionGridCell(row, "date");
+                const dateText = await date.innerText();
+
+                await expect(description).toBeFocused();
+                await page.keyboard.press("Delete");
+                await expect(row.getByTestId("description-display")).toHaveText("");
+                await expect(description).toHaveAttribute("data-cell-content", "display");
+                await expect(description).toBeFocused();
+
+                await page.keyboard.press("End");
+                await page.keyboard.press("ArrowLeft");
+                await expect(amount).toBeFocused();
+                await page.keyboard.press("Backspace");
+                await expect(amount).toContainText("—");
+                await expect(amount).toHaveAttribute("data-cell-content", "display");
+
+                // Required fields have no blank state, so a clear leaves them alone.
+                await page.keyboard.press("Home");
+                await page.keyboard.press("ArrowRight");
+                await expect(date).toBeFocused();
+                await page.keyboard.press("Delete");
+                await expect(date).toHaveText(dateText);
+
+                await page.keyboard.press("ControlOrMeta+z");
+                await expect(amount).toContainText("10.00");
+                await page.keyboard.press("ControlOrMeta+z");
+                await expect(row.getByTestId("description-display")).toHaveText("Row 1 Store");
+            });
         });
 
         test("arrow left/right moves focus between cells in same row", async ({ page }) => {

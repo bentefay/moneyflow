@@ -261,6 +261,29 @@ test.describe("Rule-creation controls on a transaction matching no rule", () => 
             await expect(allocationCell).toHaveAttribute("data-cell-content", "display");
             await expect(allocationCell).toContainText("60%");
         });
+
+        await test.step("a second person's percentage leaves a set worth proposing", async () => {
+            const alexCell = await allocationGridCell(firstRow, "Alex");
+            await alexCell.dblclick();
+            const alex = firstRow.getByRole("textbox", { name: "Alex allocation percentage" });
+            await alex.fill("40");
+            await transactionGridCell(firstRow, "date").click();
+            await expect(alexCell).toContainText("40%");
+            await expect(proposal).toBeVisible();
+            await proposal.getByTestId("proposal-dismiss").click();
+            await expect(proposal).toHaveCount(0, { timeout: 3_000 });
+        });
+
+        await test.step("Delete on one percentage is an ordinary edit and proposes like typing", async () => {
+            const meCell = await allocationGridCell(firstRow, DEFAULT_PERSON_NAME);
+            await meCell.click();
+            await expect(meCell).toBeFocused();
+            await page.keyboard.press("Delete");
+
+            await expect(meCell).toHaveAttribute("data-cell-content", "display");
+            await expect(meCell).toContainText("—");
+            await expect(proposal).toBeVisible();
+        });
     });
 
     test("a manual row offers a tag rule but never a description-alias rule", async ({ page }) => {

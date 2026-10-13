@@ -250,6 +250,17 @@ the start of the text, or Right with one at the end, validates, commits and move
 preserving full intent. Every other full-edit Left/Right, a held (repeating) arrow, and any arrow in
 a picker or an open suggestion list stays native.
 
+**TGI-ACT-002 amendment (2026-10-13) — Delete/Backspace clear.** The command table has no
+Delete/Backspace row; this note is it. Both keys clear, because the key a Mac labels "delete" sends
+Backspace. In `navigating`, an unmodified Delete or Backspace clears the active cell without
+entering edit mode: amount becomes an absent `amount`, an allocation an absent key, tags the empty
+set, and description loses this transaction's alias only (a manual row's own description text is
+blanked as well; an imported row's raw text is immutable). Date, account, status, checkbox and
+actions are left unchanged. A one-cell clear is an ordinary edit through the same commit handlers as
+typing and publishes its commit for automation exactly as typing does. In every other state the keys
+stay native (editors delete text), and Ctrl/Cmd/Alt+Backspace is never a grid command.
+Delete/Backspace on a gridcell still never deletes a transaction.
+
 ### 3.1 Tab and continuous edit
 
 **TGI-TAB-001 — Grid boundaries.** Adapter-declared Tab stops are stable. Final forward/reverse
