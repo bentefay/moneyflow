@@ -8,7 +8,7 @@
 import { useMemo } from "react";
 import { type Temporal } from "temporal-polyfill";
 
-import { useActiveFieldRules, useRulePopulation } from "@/lib/crdt";
+import { useActiveFieldRuleIndex, useRulePopulation } from "@/lib/crdt";
 import { type ApplyScope } from "@/lib/domain/automation/apply-mode";
 import { countRulePopulation } from "@/lib/domain/automation/population";
 import { buildFieldRule } from "@/lib/domain/automation/rules";
@@ -36,7 +36,7 @@ export interface RulePopulationCountParams {
 /** The count, or `undefined` when the draft cannot be built into a rule. */
 export function useRulePopulationCount(params: RulePopulationCountParams): number | undefined {
     const { candidate, scope, referenceDate, excludedRuleIds } = params;
-    const rules = useActiveFieldRules();
+    const rules = useActiveFieldRuleIndex();
     const transactions = useRulePopulation();
     return useMemo(() => {
         if (candidate == null) return undefined;
@@ -49,10 +49,10 @@ export function useRulePopulationCount(params: RulePopulationCountParams): numbe
             createdAtEpochMs: 0
         });
         if (!built.ok) return undefined;
-        const excluded = new Set(excludedRuleIds ?? []);
         return countRulePopulation({
             rule: built.value,
-            rules: rules.filter((rule) => !excluded.has(rule.id)),
+            rules,
+            excludedRuleIds: new Set(excludedRuleIds ?? []),
             transactions,
             scope,
             referenceDate

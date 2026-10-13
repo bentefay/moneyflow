@@ -34,12 +34,8 @@ import {
 import { type TransactionStore } from "@/lib/crdt/schema";
 import { type ValidatedAllocationSet } from "@/lib/domain/allocation";
 
-import {
-    type FieldRule,
-    type RuleMatchSubject,
-    resolveTagRuleResult,
-    selectWinningRulesByField
-} from "./rules";
+import { type RuleSource } from "./rule-index";
+import { type RuleMatchSubject, resolveTagRuleResult, selectWinningRulesByField } from "./rules";
 
 /** A transaction to apply rules to: the match facts, its location and its current tag set. */
 export interface RuleApplicationTarget {
@@ -73,7 +69,7 @@ function sameSequence(left: readonly string[], right: readonly string[]): boolea
  * field. The list is the logical unit to group for a single undo step (P09).
  */
 export function planRuleApplications(
-    rules: readonly FieldRule[],
+    rules: RuleSource,
     target: RuleApplicationTarget
 ): readonly FieldRulePlan[] {
     const winners = selectWinningRulesByField(rules, target.subject);
@@ -226,7 +222,7 @@ export interface BulkApplicationEntry {
  */
 export function applyRulesToTargets(
     store: TransactionStore,
-    rules: readonly FieldRule[],
+    rules: RuleSource,
     targets: readonly RuleApplicationTarget[]
 ): readonly BulkApplicationEntry[] {
     return targets.map((target) => ({

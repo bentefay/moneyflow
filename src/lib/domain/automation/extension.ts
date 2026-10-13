@@ -11,6 +11,7 @@
  * ladder cannot decide without such a tiebreak it reports `ambiguous` so the user chooses.
  */
 
+import { type RuleSource, rulesKeyedOnText } from "./rule-index";
 import {
     fieldAppliesToManual,
     type FieldRule,
@@ -23,8 +24,11 @@ import {
 } from "./rules";
 
 export interface RuleExtensionQuery {
-    /** Active, decoded rules. An undecodable record is never passed in, so it is never a host. */
-    readonly rules: readonly FieldRule[];
+    /**
+     * Active, decoded rules, as a list or its index. An undecodable record is never passed in, so it
+     * is never a host.
+     */
+    readonly rules: RuleSource;
     /** The transaction being edited. */
     readonly subject: RuleMatchSubject;
     /** The field the user edited. */
@@ -73,7 +77,8 @@ export type RuleExtensionTarget =
 export function resolveRuleExtensionTarget(query: RuleExtensionQuery): RuleExtensionTarget {
     const { isManual } = query.subject;
     if (isManual && !fieldAppliesToManual(query.field)) return { kind: "ineligible" };
-    const candidates = query.rules
+    // An identical predicate means identical text, so only that text's rules can be candidates.
+    const candidates = rulesKeyedOnText(query.rules, query.predicate.descriptionText)
         .filter(
             (rule) =>
                 rulePredicatesEqual(rule, query.predicate) &&

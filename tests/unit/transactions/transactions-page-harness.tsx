@@ -34,6 +34,7 @@ import {
     DEFAULT_REMEMBERED_CHOICE,
     type RememberedRuleChoice
 } from "@/lib/domain/automation/preferences";
+import { buildRuleIndex } from "@/lib/domain/automation/rule-index";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 import { buildFakeTransactionStore } from "./virtual-grid-harness";
@@ -144,6 +145,7 @@ export function seedVaultDescriptionAliases(aliases: Record<string, unknown>): v
 const noop = () => {};
 const empty = {};
 const noRules: readonly never[] = [];
+const noRuleIndex = buildRuleIndex(noRules);
 const accounts = {
     [ACCOUNT_ID]: {
         id: ACCOUNT_ID,
@@ -372,6 +374,7 @@ export async function createCrdtContextMock() {
         useActivePeople: () => vaultPeople.active,
         usePeople: () => vaultPeople.all,
         useActiveFieldRules: () => noRules,
+        useActiveFieldRuleIndex: () => noRuleIndex,
         // The editor's "would change now" line counts over this; no rules means nothing changes.
         useRulePopulation: () => noRules,
         useTransactionActions: () => ({

@@ -26,6 +26,8 @@ import {
 import { asMinorUnits, type MoneyMinorUnits } from "@/lib/domain/currency";
 import { assertNever } from "@/lib/utils/exhaustive";
 
+import { ruleCandidatesForText, type RuleSource } from "./rule-index";
+
 // ============================================================================
 // Branded identity and enums
 // ============================================================================
@@ -336,15 +338,18 @@ export function ruleMatchesSubject(rule: RulePredicate, subject: RuleMatchSubjec
  * none match. A field a manual row is ineligible for never has a winner on that row.
  * Pure and order-independent: a strictly higher scope rank wins; a rank tie (only possible with a
  * uniqueness violation) breaks on recency then id so the winner is always deterministic.
+ *
+ * `rules` may be a {@link RuleSource} index: it only narrows which rules are visited to those that
+ * share the subject's text, every one of which this loop would have tested anyway.
  */
 export function selectWinningRule(
-    rules: readonly FieldRule[],
+    rules: RuleSource,
     field: RuleField,
     subject: RuleMatchSubject
 ): FieldRule | null {
     if (subject.isManual && !fieldAppliesToManual(field)) return null;
     let winner: FieldRule | null = null;
-    for (const rule of rules) {
+    for (const rule of ruleCandidatesForText(rules, subject.descriptionText)) {
         if (rule.outputs[field] == null) continue;
         if (!ruleMatchesSubject(rule, subject)) continue;
         if (winner == null) {
@@ -359,7 +364,7 @@ export function selectWinningRule(
 
 /** Winning rule per field for a subject. Missing keys mean no rule of that field matched. */
 export function selectWinningRulesByField(
-    rules: readonly FieldRule[],
+    rules: RuleSource,
     subject: RuleMatchSubject
 ): Readonly<Partial<Record<RuleField, FieldRule>>> {
     const result: Partial<Record<RuleField, FieldRule>> = {};

@@ -17,7 +17,7 @@
 import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { type Temporal } from "temporal-polyfill";
 
-import { useActiveFieldRules, useApplyFieldRules, useFieldRuleActions } from "@/lib/crdt";
+import { useActiveFieldRuleIndex, useApplyFieldRules, useFieldRuleActions } from "@/lib/crdt";
 import {
     type FieldRuleMutationError,
     type FieldRuleOutputChange,
@@ -27,6 +27,7 @@ import {
     resolveRuleExtensionTarget,
     type RuleExtensionTarget
 } from "@/lib/domain/automation/extension";
+import { candidateRulesFor, type RuleIndex } from "@/lib/domain/automation/rule-index";
 import {
     type FieldRule,
     type RuleField,
@@ -173,7 +174,7 @@ export function useFieldRuleProposal(params: {
 }): FieldRuleProposalWorkflow {
     const { subject, transactionId, current, referenceDate, persistence } = params;
 
-    const rules = useActiveFieldRules();
+    const rules = useActiveFieldRuleIndex();
     const options = useRuleEditorOptions();
     const currencyCode = useTransactionCurrencyCode(subject.accountId);
     const { remembered, remember } = useRememberedRuleChoice();
@@ -422,12 +423,12 @@ function writeProposal(input: {
 function ruleProposalDraftKey(
     transactionId: TransactionId,
     proposal: FieldRuleProposalState,
-    rules: readonly FieldRule[],
+    rules: RuleIndex,
     current: RobotCurrentValue,
     subject: RuleMatchSubject,
     currencyCode: string
 ): string {
-    const ruleSignature = rules
+    const ruleSignature = candidateRulesFor(rules, subject)
         .filter((rule) => ruleMatchesSubject(rule, subject))
         .map((rule) => [rule.id, ruleOutputFields(rule)] as const)
         .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));

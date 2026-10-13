@@ -20,6 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TransactionTable as TransactionTableComponent } from "@/components/features/transactions";
 import type { TransactionInput, TransactionStore } from "@/lib/crdt/schema";
+import { buildRuleIndex } from "@/lib/domain/automation/rule-index";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 import {
@@ -92,6 +93,7 @@ vi.mock("@/lib/crdt/context", async () => {
         useActivePeople: () => empty,
         usePeople: () => empty,
         useActiveFieldRules: () => noRules,
+        useActiveFieldRuleIndex: () => noRuleIndex,
         useTransactionActions: () => ({
             // The real hierarchical insert, into the same store shape the page's cursor reads, so
             // the created row lands where the product would put it rather than where a test-local
@@ -177,6 +179,7 @@ vi.mock("@/components/features/transactions", async () => {
 const noop = () => {};
 const empty = {};
 const noRules: readonly never[] = [];
+const noRuleIndex = buildRuleIndex(noRules);
 const accounts = {
     [ACCOUNT_ID]: {
         id: ACCOUNT_ID,

@@ -16,6 +16,7 @@ import {
     type FieldRuleProposalPersistence,
     useFieldRuleProposal
 } from "@/components/features/transactions/use-field-rule-proposal";
+import { buildRuleIndex } from "@/lib/domain/automation/rule-index";
 import {
     type FieldRule,
     FieldRuleIdSchema,
@@ -72,6 +73,7 @@ vi.mock("@/lib/crdt", () => ({
     useAccounts: () => workflowMocks.allAccounts,
     useActiveDescriptionAliases: () => ({}),
     useActiveFieldRules: () => workflowMocks.rules,
+    useActiveFieldRuleIndex: () => buildRuleIndex(workflowMocks.rules),
     useActivePeople: () => ({}),
     useActiveTags: () => ({}),
     useApplyFieldRules: () => ({

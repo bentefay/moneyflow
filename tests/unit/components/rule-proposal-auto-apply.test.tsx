@@ -34,6 +34,7 @@ const gate = vi.hoisted(() => {
 
 vi.mock("@/lib/crdt", () => ({
     useActiveFieldRules: () => [],
+    useActiveFieldRuleIndex: () => ({ rules: [], byDescriptionText: new Map() }),
     useRulePopulation: () => []
 }));
 

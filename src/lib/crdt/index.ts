@@ -25,6 +25,7 @@ export {
     useAccounts,
     useActiveAccounts,
     useActiveDescriptionAliases,
+    useActiveFieldRuleIndex,
     useActiveFieldRules,
     useActiveImports,
     useActivePeople,
@@ -108,6 +109,7 @@ export {
 // Apply active field rules to a single transaction (HS-007 / P17C "apply to this transaction")
 export {
     applyFieldRulesToSingleTransaction,
+    type ApplyFieldRulesToTransactionInput,
     type ApplyFieldRulesToTransactionResult
 } from "./apply-field-rule-to-transaction";
 // Production import commit (P14 batch insert + P17A field-rule application)

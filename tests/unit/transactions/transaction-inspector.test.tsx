@@ -19,11 +19,13 @@ vi.mock("@/hooks/use-identity", () => ({ usePubkeyHash: () => "viewer" }));
 vi.mock("@/lib/crdt", () => {
     const none = {};
     const noRules: readonly never[] = [];
+    const noRuleIndex = { rules: noRules, byDescriptionText: new Map<string, never[]>() };
     return {
         useAccounts: () => none,
         useActiveAccounts: () => none,
         useActiveDescriptionAliases: () => none,
         useActiveFieldRules: () => noRules,
+        useActiveFieldRuleIndex: () => noRuleIndex,
         useActivePeople: () => none,
         useActiveTags: () => none,
         useApplyFieldRules: () => ({ applyAll: vi.fn(), applyNewerThan: vi.fn() }),
