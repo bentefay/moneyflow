@@ -129,3 +129,5 @@
   tags chooser throws while MOUNTING in jsdom, so the portal never opens and the case is untestable.
 - [Radix radiogroup roving focus in jsdom](radix-radiogroup-roving-focus-in-jsdom.md) — the root is
   the Tab stop and arrow-key focus lands in a timeout; assert the group, and `waitFor` arrow moves.
+- [Vault maintenance test uses the real clock](vault-maintenance-test-uses-real-clock.md) — the undo
+  test fakes frames but not `performance.now`, so heavy load changes maintenance chunking.

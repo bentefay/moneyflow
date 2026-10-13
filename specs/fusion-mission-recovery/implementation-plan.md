@@ -259,31 +259,22 @@ Work paused at the user's request. State of the branch:
        to the `conflict` resolution variant, branch the copy, test both branches.
 - `83e67a4` — Phase 2b design note (`phase-2-inspector-design.md`).
 
-**Uncommitted work captured in the `wip:` commit that follows this note**
+**Phase 2b complete, 2026-10-13**
 
-Phase 2b (inspector integration) was interrupted mid-way. The tree formats and typechecks cleanly,
-but has not passed the unit or E2E gate. In the tree: the old `FieldRuleEditor`,
-`FieldRuleProposal`, `TransactionRulePopup` and the two `legacy-rule-editor-*` modules are deleted;
-the inspector, toolbar, grid controller binding union, proposal and robot state, `RuleEditor` and
-`FieldRulesManager` are modified. Known not done:
+`5e896fb` carried the interrupted inspector work; the commits after it finish Phase 2b against
+`phase-2-inspector-design.md`. Full unit and E2E gates green at the final commit.
 
-- `tests/unit/contracts/matching-audit.test.ts` fails because `matching-audit.md` lines 250 and 255
-  cite the two deleted components. Decision taken: apply the recovery precedent, add
-  `historical/TransactionRulePopup.tsx.txt` and `historical/FieldRuleEditor.tsx.txt` snapshots from
-  commit `2688af9` and point those two citations at them.
-- Unit tests for the inspector hooks, proposal auto-apply, focus return, controller bindings, split
-  preview and the population helper: partially updated at best; run `pnpm test` to see.
-- E2E specs `rule-creation-controls`, `transaction-rules`, `field-rule-parity` (inspector parts),
-  `description-aliases`, and the page's split-preview step in `automations.spec.ts`: not updated.
-- Phase 2a review findings above: not fixed.
-- `.claude/agent-memory/implementor/*` were unformatted in `68655b1`; formatted in this commit.
+- The two Phase 2a review findings above are fixed. Split on the Automations page is offered only
+  while the draft equals the stored rule, and an output added but not saved is marked pending. The
+  conflict panel's move hint states the owner's real fate from a required `ownerKeepsOutputs`.
+- `matching-audit.md` cites `historical/TransactionRulePopup.tsx.txt` and
+  `historical/FieldRuleEditor.tsx.txt`, verbatim snapshots from `2688af9`.
+- Deviation from the design note: the proposal card keeps its per-field test ids
+  (`tags-rule-proposal` and siblings) and `data-kind`, where `update-owner` reads `update`. Rule
+  cards are `rule-inspector-<ruleId>` with `data-automation-field`. The note's
+  `transaction-rule-proposal` / `transaction-rule-card` renames were not applied.
 
-**How to resume**
-
-1. `nix develop --command sh -c '<cmd>'` for every command; E2E on `MONEYFLOW_E2E_PORT=3108`;
-   `pnpm format` and `git checkout AGENTS.md next-env.d.ts` after any E2E run before committing.
-2. Finish Phase 2b against `phase-2-inspector-design.md`, then the two 2a findings, then the gate.
-3. Phase 3 docs, then the table refinements below.
+**Next:** Phase 3 docs, then the table refinements below.
 
 **Not started: table interaction refinements** (behaviour.md section 7, saved plan milestone 3).
 Nullable allocation and amount editing, numeric cells using the description cell's modes with
