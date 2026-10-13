@@ -236,56 +236,29 @@ function readActiveRule(state: VaultState, id: string): FieldRule | null {
     return decoded.ok ? decoded.value : null;
 }
 
-/** A rule holding a uniqueness slot, and its position among the stored rule ids. */
-interface SlotHolder {
-    readonly rule: FieldRule;
-    readonly order: number;
-}
-
 /**
- * The active rules holding each uniqueness key, built from one decode pass so a collision check is
- * one lookup per candidate key rather than a scan of every rule. A key normally has one holder;
- * more only arise from concurrent creation. `order` follows the draft's id order, which is the order
- * `readActiveFieldRules` visits rules in, so the earliest holder is the one a scan meets first.
+ * The active rules holding each uniqueness key, in `readActiveFieldRules` order, built from one
+ * decode pass so a collision check is one lookup per candidate key rather than a scan of every rule.
+ * A key normally has one holder; more only arise from concurrent creation.
  */
-interface UniquenessSlots {
-    readonly holders: Map<RuleUniquenessKey, SlotHolder[]>;
-    readonly orderOf: Map<string, number>;
-    /** The keys each held rule occupies, so a rewritten rule leaves exactly its old slots. */
-    readonly keysOf: Map<string, readonly RuleUniquenessKey[]>;
-}
+type UniquenessSlots = ReadonlyMap<
+    RuleUniquenessKey,
+    readonly { readonly rule: FieldRule; readonly order: number }[]
+>;
 
 function readUniquenessSlots(state: VaultState): UniquenessSlots {
-    const ids = Object.keys(state.fieldRules).filter((id) => id !== "$cid");
-    const slots: UniquenessSlots = {
-        holders: new Map(),
-        orderOf: new Map(ids.map((id, order) => [id, order])),
-        keysOf: new Map()
-    };
-    for (const rule of readActiveFieldRules(state)) holdSlots(slots, rule);
+    const slots = new Map<
+        RuleUniquenessKey,
+        { readonly rule: FieldRule; readonly order: number }[]
+    >();
+    for (const [order, rule] of readActiveFieldRules(state).entries()) {
+        for (const key of ruleUniquenessKeys(rule)) {
+            const held = slots.get(key);
+            if (held == null) slots.set(key, [{ rule, order }]);
+            else held.push({ rule, order });
+        }
+    }
     return slots;
-}
-
-/** Record `rule` as holding its keys, replacing any earlier entry for the same id. */
-function holdSlots(slots: UniquenessSlots, rule: FieldRule): void {
-    const order = slots.orderOf.get(rule.id) ?? slots.orderOf.size;
-    slots.orderOf.set(rule.id, order);
-    for (const key of slots.keysOf.get(rule.id) ?? []) {
-        const held = slots.holders.get(key) ?? [];
-        slots.holders.set(
-            key,
-            held.filter((holder) => holder.rule.id !== rule.id)
-        );
-    }
-    const keys = ruleUniquenessKeys(rule);
-    slots.keysOf.set(rule.id, keys);
-    for (const key of keys) {
-        const held = slots.holders.get(key) ?? [];
-        slots.holders.set(
-            key,
-            [...held, { rule, order }].sort((left, right) => left.order - right.order)
-        );
-    }
 }
 
 /**
@@ -295,13 +268,14 @@ function holdSlots(slots: UniquenessSlots, rule: FieldRule): void {
  * the earliest in read order is reported, the one a scan over the rules would meet first.
  */
 function findUniquenessCollision(
-    slots: UniquenessSlots,
+    state: VaultState,
     rule: FieldRule,
     ignore: ReadonlySet<string>
 ): FieldRule | null {
-    let collision: SlotHolder | null = null;
+    const slots = readUniquenessSlots(state);
+    let collision: { readonly rule: FieldRule; readonly order: number } | null = null;
     for (const key of ruleUniquenessKeys(rule)) {
-        const holder = slots.holders
+        const holder = slots
             .get(key)
             ?.find((held) => held.rule.id !== rule.id && !ignore.has(held.rule.id));
         if (holder != null && (collision == null || holder.order < collision.order)) {
@@ -311,21 +285,13 @@ function findUniquenessCollision(
     return collision?.rule ?? null;
 }
 
-function slotCollisionError(
-    slots: UniquenessSlots,
-    rule: FieldRule,
-    ignore: ReadonlySet<string> = new Set()
-): FieldRuleMutationError | null {
-    const collision = findUniquenessCollision(slots, rule, ignore);
-    return collision == null ? null : { type: "duplicate-key", existingRuleId: collision.id };
-}
-
 function collisionError(
     state: VaultState,
     rule: FieldRule,
     ignore: ReadonlySet<string> = new Set()
 ): FieldRuleMutationError | null {
-    return slotCollisionError(readUniquenessSlots(state), rule, ignore);
+    const collision = findUniquenessCollision(state, rule, ignore);
+    return collision == null ? null : { type: "duplicate-key", existingRuleId: collision.id };
 }
 
 function writeRule(state: VaultState, rule: FieldRule): void {
@@ -354,30 +320,6 @@ export function createFieldRule(
 
     writeRule(state, built.value);
     return built;
-}
-
-/**
- * Create several field rules in one draft, in place: exactly the results of calling
- * {@link createFieldRule} for each input in order, including a later input colliding with one this
- * call already wrote. The active rules are decoded once for the whole batch instead of once per
- * create, which makes creating N rules linear rather than quadratic in decoding.
- */
-export function createFieldRules(
-    state: VaultState,
-    inputs: readonly CreateFieldRuleInput[]
-): readonly FieldRuleMutationResult[] {
-    const slots = readUniquenessSlots(state);
-    return inputs.map((input) => {
-        const built = buildRule(input);
-        if (!built.ok) return built;
-
-        const collision = slotCollisionError(slots, built.value);
-        if (collision != null) return err(collision);
-
-        writeRule(state, built.value);
-        holdSlots(slots, built.value);
-        return built;
-    });
 }
 
 /**
