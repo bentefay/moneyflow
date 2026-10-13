@@ -118,10 +118,21 @@ export interface RuleEditorProps {
     /** Shown in amber under the conditions when the rule's stored conditions differ from the row. */
     readonly storedConditionsNote?: string;
     /**
-     * The output an unapplied edit is for. Its badge is marked pending and starts expanded; Split, Add
-     * output and Edit on every other output are hidden, because only the pending output is written.
+     * The output an unapplied edit is for. Its badge is marked pending and starts expanded, and Split
+     * is hidden on every badge, because a split acts on the stored rule.
      */
     readonly pendingField?: RuleField;
+    /**
+     * The pending output's stored value, shown muted under its badge so the user sees what Apply
+     * overwrites. Only meaningful with {@link pendingField}.
+     */
+    readonly pendingStoredSummary?: string;
+    /**
+     * Lock every output except {@link pendingField}: Edit on the others and Add output are hidden.
+     * The inspector's proposal card sets it because its Apply writes only the pending output; the
+     * Automations page writes the whole draft and so never locks.
+     */
+    readonly lockOtherOutputs?: boolean;
     /** Outputs whose rule value disagrees with the transaction. Information, so amber, not red. */
     readonly divergence?: Partial<Record<RuleField, RuleEditorDivergence>>;
     /** A required choice of target rule, rendered above the conditions. */
@@ -155,6 +166,11 @@ export interface RuleEditorProps {
 const ANY_ACCOUNT = "__any-account__";
 
 const AMBER_TEXT = "text-amber-700 dark:text-amber-400";
+
+/** The mockup's pending tint: a blue accent distinct from amber divergence and red errors. */
+const PENDING_CHIP =
+    "border-transparent bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300";
+const PENDING_BORDER = "border-blue-500/60 dark:border-blue-400/60";
 
 function isRuleField(value: string): value is RuleField {
     return RULE_FIELDS.some((field) => field === value);
@@ -197,6 +213,8 @@ export function RuleEditor(props: RuleEditorProps): React.JSX.Element {
         transaction,
         storedConditionsNote,
         pendingField,
+        pendingStoredSummary,
+        lockOtherOutputs = false,
         divergence,
         resolution,
         populationCount,
@@ -226,8 +244,8 @@ export function RuleEditor(props: RuleEditorProps): React.JSX.Element {
     const { heading, target } = titleText(title);
     const groupLabel = target == null ? heading : `${heading} · ${target}`;
     const fields = draftOutputFields(draft);
-    const absentFields =
-        pendingField == null ? RULE_FIELDS.filter((field) => !fields.includes(field)) : [];
+    const locked = lockOtherOutputs && pendingField != null;
+    const absentFields = locked ? [] : RULE_FIELDS.filter((field) => !fields.includes(field));
     const splitAvailable = canSplit && pendingField == null && onSplit != null;
     const unresolved = resolution?.kind === "ambiguous" && resolution.choice == null;
     const rowConditions = context === "transaction" ? transaction : undefined;
@@ -326,7 +344,7 @@ export function RuleEditor(props: RuleEditorProps): React.JSX.Element {
                                 aliases={aliases}
                                 divergence={divergence?.[field]}
                                 draft={draft}
-                                editable={pendingField == null || pendingField === field}
+                                editable={!locked || pendingField === field}
                                 errors={errors}
                                 expanded={expanded.includes(field)}
                                 field={field}
@@ -337,6 +355,9 @@ export function RuleEditor(props: RuleEditorProps): React.JSX.Element {
                                 onSplit={splitAvailable ? onSplit : undefined}
                                 onToggleExpanded={toggleExpanded}
                                 pending={pendingField === field}
+                                storedSummary={
+                                    pendingField === field ? pendingStoredSummary : undefined
+                                }
                                 people={people}
                                 registerPortal={registerPortal}
                                 tags={tags}
@@ -556,7 +577,7 @@ function DescriptionCondition({
                     </span>
                     <p
                         aria-labelledby={`${id}-label`}
-                        className="font-mono text-sm break-all"
+                        className="bg-muted border-input rounded-md border px-2 py-1.5 font-mono text-sm break-all"
                         data-testid="rule-description"
                         id={id}
                     >
@@ -741,9 +762,11 @@ interface OutputBadgeProps {
     readonly tags: readonly RuleEditorOption[];
     readonly people: readonly RuleEditorOption[];
     readonly expanded: boolean;
-    /** False while another output is pending: only the pending output is written. */
+    /** False while the editor locks every output but the pending one: only that one is written. */
     readonly editable: boolean;
     readonly pending: boolean;
+    /** The stored value a pending output overwrites, shown muted under the badge. */
+    readonly storedSummary?: string;
     readonly divergence?: RuleEditorDivergence;
     readonly idPrefix: string;
     readonly onChange: (partial: Partial<RuleEditorDraft>) => void;
@@ -783,6 +806,7 @@ function OutputBadge(props: OutputBadgeProps): React.JSX.Element {
         expanded,
         editable,
         pending,
+        storedSummary,
         divergence,
         idPrefix,
         onChange,
@@ -800,17 +824,26 @@ function OutputBadge(props: OutputBadgeProps): React.JSX.Element {
         <div
             className={cn(
                 "space-y-2 rounded-md border p-2",
+                pending && PENDING_BORDER,
                 divergence != null && "border-amber-500/50 bg-amber-500/10",
                 error != null && "border-destructive/60"
             )}
             data-testid={`rule-output-${field}`}
         >
+            {/* One line that wraps as a whole: the value takes the slack and wraps rather than
+                truncating, and the buttons stay together at the end. */}
             <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium">{label}</span>
-                <span className="text-muted-foreground min-w-0 flex-1 truncate text-sm">
+                <span className="text-muted-foreground min-w-[5.5rem] text-xs font-semibold tracking-wide uppercase">
+                    {label}
+                </span>
+                <span className="min-w-0 flex-[1_1_9rem] text-sm font-medium break-words">
                     {summary}
                 </span>
-                {pending ? <Badge variant="secondary">pending</Badge> : null}
+                {pending ? (
+                    <Badge className={PENDING_CHIP} data-testid="rule-pending-chip">
+                        pending
+                    </Badge>
+                ) : null}
                 {divergence == null ? null : (
                     <Badge
                         className={cn("border-amber-500/50 bg-amber-500/10", AMBER_TEXT)}
@@ -820,7 +853,7 @@ function OutputBadge(props: OutputBadgeProps): React.JSX.Element {
                         differs on this transaction
                     </Badge>
                 )}
-                <span className="flex gap-1">
+                <span className="ml-auto flex shrink-0 gap-1 whitespace-nowrap">
                     {editable ? (
                         <Button
                             aria-controls={expanded ? editorId : undefined}
@@ -849,6 +882,14 @@ function OutputBadge(props: OutputBadgeProps): React.JSX.Element {
                     )}
                 </span>
             </div>
+            {storedSummary == null ? null : (
+                <p
+                    className="text-muted-foreground text-xs break-words"
+                    data-testid={`rule-output-stored-${field}`}
+                >
+                    Stored: {storedSummary}
+                </p>
+            )}
             {divergence == null ? null : (
                 <div
                     className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
