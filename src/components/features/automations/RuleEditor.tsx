@@ -76,10 +76,11 @@ export type RuleEditorResolution =
           readonly choice: "keep" | "move";
           readonly onChoose: (choice: "keep" | "move") => void;
           /**
-           * The owner has other outputs, so a move leaves it in place without this one rather than
-           * deleting it. The move hint states whichever fate applies.
+           * Whether the owner keeps other outputs after the move. `moveFieldRuleOutput` deletes the
+           * owner only when the move empties it, so the move hint must state whichever fate applies.
+           * Required: a default would state the wrong fate for one of the two cases.
            */
-          readonly ownerKeepsOtherOutputs?: boolean;
+          readonly ownerKeepsOutputs: boolean;
       }
     | {
           readonly kind: "ambiguous";
@@ -1077,7 +1078,12 @@ function ResolutionPanel({
     switch (resolution.kind) {
         case "conflict":
             return (
-                <div className={panelClass} data-testid="rule-resolution">
+                <div
+                    aria-label={`Which rule should own ${fieldLabel.toLowerCase()}`}
+                    className={panelClass}
+                    data-testid="rule-resolution"
+                    role="group"
+                >
                     <p className="text-sm font-medium" id={`${idPrefix}-resolution-label`}>
                         Another rule already sets {fieldLabel.toLowerCase()} on this transaction.
                     </p>
@@ -1108,8 +1114,8 @@ function ResolutionPanel({
                         </ChoiceRow>
                         <ChoiceRow
                             hint={`${
-                                resolution.ownerKeepsOtherOutputs === true
-                                    ? `The ${resolution.owner.label} keeps its other outputs and stops setting ${fieldLabel.toLowerCase()}.`
+                                resolution.ownerKeepsOutputs
+                                    ? `The ${resolution.owner.label} keeps its other outputs.`
                                     : `The ${resolution.owner.label} is deleted.`
                             } ${fieldLabel} then applies wherever the ${resolution.host.label} applies.`}
                             id={`${idPrefix}-resolution-move`}
