@@ -136,3 +136,6 @@
 - [Perf ceiling must sit below the old cost](perf-ceiling-must-sit-below-the-old-cost.md) — a
   dispatched ceiling sized from the big bench can pass the reverted code at the test fixture size;
   revert and check.
+- [Temporal global type is not runtime](temporal-global-type-is-not-runtime.md) — tsc accepts an
+  unimported `Temporal`; vitest then fails the file with ReferenceError. Grep for the polyfill
+  import.
