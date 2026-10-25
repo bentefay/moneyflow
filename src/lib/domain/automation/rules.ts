@@ -8,6 +8,10 @@
  * amount. Precedence is still evaluated per field: a rule competes only in the lattices of the
  * fields it has an output for.
  *
+ * Since `specs/017-rule-reach` a rule also has a reach (all, from a date, or an explicit set of
+ * transactions) that narrows which matching transactions it governs; reach is the most significant
+ * precedence dimension, above the conditions.
+ *
  * The engine is pure, total and order-independent: for any transaction the winning rule for a
  * field is fully determined by the rule set, never by iteration order.
  *
@@ -18,6 +22,10 @@
 import { Temporal } from "temporal-polyfill";
 import { z } from "zod";
 
+import {
+    asTransactionId,
+    type TransactionId
+} from "@/components/features/transactions/table-model/ids";
 import {
     type AllocationValidationError,
     type ValidatedAllocationSet,
@@ -88,12 +96,35 @@ export type RuleOutputEntry<Outputs extends RuleOutputsInput = RuleOutputSlots> 
     readonly [F in RuleField]: { readonly field: F; readonly output: NonNullable<Outputs[F]> };
 }[RuleField];
 
+/** The three ways a rule can reach transactions. */
+export const RuleReachKindSchema = z.enum(["all", "from", "transactions"]);
+export type RuleReachKind = z.infer<typeof RuleReachKindSchema>;
+export const RULE_REACH_KINDS: readonly RuleReachKind[] = RuleReachKindSchema.options;
+
+/**
+ * Which of the transactions a rule's conditions match it governs (`specs/017-rule-reach` §2).
+ *
+ * - `all`: every matching transaction, past and future.
+ * - `from`: every matching transaction dated on or after `date` (calendar date, inclusive),
+ *   including future imports with such dates.
+ * - `transactions`: an explicit set of transaction ids. It records where the rule was applied; it is
+ *   never a match condition, so an id whose transaction no longer matches governs nothing.
+ */
+export type RuleReach =
+    | { readonly kind: "all" }
+    | { readonly kind: "from"; readonly date: Temporal.PlainDate }
+    | { readonly kind: "transactions"; readonly ids: ReadonlySet<TransactionId> };
+
+/** The reach every rule had before reach existed, and the default for a deliberate rule. */
+export const RULE_REACH_ALL: RuleReach = { kind: "all" };
+
 /**
  * An exact-description rule with one to three outputs.
  *
  * Matching is EXACT on {@link descriptionText}; `accountId` and `amount` are OPTIONAL narrowing
  * constraints. Absence of a constraint means "any". A more specific rule supersedes a broader
- * one via {@link ruleScopeRank}, field by field.
+ * one via {@link ruleScopeRank}, field by field. {@link reach} narrows which matching transactions
+ * the rule governs and outranks the conditions in precedence.
  */
 export interface FieldRule {
     readonly id: FieldRuleId;
@@ -104,7 +135,56 @@ export interface FieldRule {
     /** Optional exact-amount narrowing (minor units). `undefined` = applies to any amount. */
     readonly amount?: MoneyMinorUnits;
     readonly outputs: RuleOutputs;
+    readonly reach: RuleReach;
     readonly createdAt: Temporal.Instant;
+}
+
+/** The transaction facts reach is tested against: identity for an explicit set, date for `from`. */
+export interface RuleReachTarget {
+    readonly id: TransactionId;
+    readonly date: Temporal.PlainDate;
+}
+
+/** Whether `rule`'s reach includes `transaction`. Says nothing about whether its conditions match. */
+export function ruleReaches(rule: Pick<FieldRule, "reach">, transaction: RuleReachTarget): boolean {
+    const { reach } = rule;
+    switch (reach.kind) {
+        case "all":
+            return true;
+        case "from":
+            return isOnOrAfterTransactionDate(transaction.date, reach.date);
+        case "transactions":
+            return reach.ids.has(transaction.id);
+        default:
+            return assertNever(reach, "rule reach");
+    }
+}
+
+/** True iff both reaches govern exactly the same transactions. Explicit sets compare as sets. */
+export function ruleReachesEqual(left: RuleReach, right: RuleReach): boolean {
+    switch (left.kind) {
+        case "all":
+            return right.kind === "all";
+        case "from":
+            return right.kind === "from" && Temporal.PlainDate.compare(left.date, right.date) === 0;
+        case "transactions":
+            return (
+                right.kind === "transactions" &&
+                left.ids.size === right.ids.size &&
+                [...left.ids].every((id) => right.ids.has(id))
+            );
+        default:
+            return assertNever(left, "rule reach");
+    }
+}
+
+/** True iff two explicit sets share an id. Any other reach shares no id with anything. */
+function explicitReachesOverlap(left: RuleReach, right: RuleReach): boolean {
+    if (left.kind !== "transactions" || right.kind !== "transactions") return false;
+    const [smaller, larger] =
+        left.ids.size <= right.ids.size ? [left.ids, right.ids] : [right.ids, left.ids];
+    for (const id of smaller) if (larger.has(id)) return true;
+    return false;
 }
 
 /** Narrow a possibly-empty output set to {@link RuleOutputs}, or `null` when it has no output. */
@@ -176,8 +256,20 @@ export function rulePredicatesEqual(left: RulePredicate, right: RulePredicate): 
 // ============================================================================
 
 /**
+ * Reach rank, the most significant precedence dimension: an explicit set (1) beats a date or all
+ * reach (0) on the rows in its set, so a one-row edit is an exception to a wider rule rather than a
+ * collision with it. Date and all reach share a rank and fall through to the conditions.
+ */
+export type RuleReachRank = 0 | 1;
+
+export function ruleReachRank(rule: Pick<FieldRule, "reach">): RuleReachRank {
+    return rule.reach.kind === "transactions" ? 1 : 0;
+}
+
+/**
  * Scope specificity rank encoding the frozen natural precedence:
  * unscoped (0) < amount-scoped (1) < account-scoped (2) < account+amount-scoped (3).
+ * Compared only between rules of equal {@link ruleReachRank}.
  */
 export type RuleScopeRank = 0 | 1 | 2 | 3;
 
@@ -190,25 +282,28 @@ export function ruleScopeRank(rule: Pick<FieldRule, "accountId" | "amount">): Ru
 }
 
 /**
- * Canonical uniqueness key of one output. Two outputs collide iff they target the same field, exact
- * description text and identical (account, amount) scope. Frozen: at most ONE output per field per
- * description text with no account/amount constraint (the rank-0 slot), and one per each more
- * specific scope. Two rules with identical conditions and disjoint outputs therefore coexist.
+ * Canonical uniqueness key of one output's slot: field, exact description text, (account, amount)
+ * scope and reach kind (`specs/017-rule-reach` §2.2). At most one output per field per conditions
+ * slot per reach kind, so an `all` rule, a `from` rule and explicit-set rules on one slot coexist.
+ * Explicit-set rules sharing a key collide only when their sets intersect: see
+ * {@link rulesShareUniquenessSlot}. Two rules with identical conditions and disjoint outputs
+ * coexist.
  */
 export const RuleUniquenessKeySchema = z.string().brand<"RuleUniquenessKey">();
 export type RuleUniquenessKey = z.infer<typeof RuleUniquenessKeySchema>;
 
-/** The uniqueness key of `predicate`'s slot for `field`. */
-export function ruleUniquenessKeyFor(
-    field: RuleField,
-    predicate: RulePredicate
-): RuleUniquenessKey {
+/** What determines a rule's uniqueness slots: its conditions and its reach. */
+export type RuleSlotOwner = RulePredicate & Pick<FieldRule, "reach">;
+
+/** The uniqueness key of `owner`'s slot for `field`. */
+export function ruleUniquenessKeyFor(field: RuleField, owner: RuleSlotOwner): RuleUniquenessKey {
     // JSON tuple encoding avoids delimiter collisions in free-form text/ids.
     const encoded = JSON.stringify([
         field,
-        predicate.descriptionText,
-        predicate.accountId ?? null,
-        predicate.amount ?? null
+        owner.descriptionText,
+        owner.accountId ?? null,
+        owner.amount ?? null,
+        owner.reach.kind
     ]);
     return RuleUniquenessKeySchema.parse(encoded);
 }
@@ -219,8 +314,33 @@ export function ruleUniquenessKeys(rule: FieldRule): readonly RuleUniquenessKey[
 }
 
 /**
- * Group rules by uniqueness key. A rule appears under each of its keys; a key mapping to >1 rule is
- * a uniqueness violation.
+ * Whether two rules holding the same uniqueness key actually collide: always, unless both are
+ * explicit-set rules with disjoint sets, which govern different rows and so never compete.
+ */
+export function uniquenessHoldersCollide(left: RuleSlotOwner, right: RuleSlotOwner): boolean {
+    if (left.reach.kind === "transactions" && right.reach.kind === "transactions") {
+        return explicitReachesOverlap(left.reach, right.reach);
+    }
+    return true;
+}
+
+/** Whether `left` and `right` would both hold the uniqueness slot of `field`. */
+export function rulesShareUniquenessSlot(
+    left: RuleSlotOwner & Pick<FieldRule, "outputs">,
+    right: RuleSlotOwner & Pick<FieldRule, "outputs">,
+    field: RuleField
+): boolean {
+    if (left.outputs[field] == null || right.outputs[field] == null) return false;
+    return (
+        ruleUniquenessKeyFor(field, left) === ruleUniquenessKeyFor(field, right) &&
+        uniquenessHoldersCollide(left, right)
+    );
+}
+
+/**
+ * Group rules by uniqueness key. A rule appears under each of its keys. A bucket with two rules
+ * whose holders collide ({@link uniquenessHoldersCollide}) is a uniqueness violation; disjoint
+ * explicit-set rules share a bucket legitimately.
  */
 export function groupRulesByUniquenessKey(
     rules: readonly FieldRule[]
@@ -236,9 +356,13 @@ export function groupRulesByUniquenessKey(
     return grouped;
 }
 
-/** True iff no two rules share a uniqueness key. */
+/** True iff no two rules collide on a uniqueness slot. */
 export function hasUniqueRuleKeys(rules: readonly FieldRule[]): boolean {
-    return [...groupRulesByUniquenessKey(rules).values()].every((bucket) => bucket.length === 1);
+    return [...groupRulesByUniquenessKey(rules).values()].every((bucket) =>
+        bucket.every((rule, index) =>
+            bucket.slice(index + 1).every((other) => !uniquenessHoldersCollide(rule, other))
+        )
+    );
 }
 
 /**
@@ -250,12 +374,19 @@ export function hasUniqueRuleKeys(rules: readonly FieldRule[]): boolean {
  */
 export function dedupeRulesByUniqueness(rules: readonly FieldRule[]): readonly FieldRule[] {
     const byRecencyDescending = [...rules].sort((left, right) => compareRuleRecency(right, left));
-    const heldKeys = new Set<RuleUniquenessKey>();
+    const holders = new Map<RuleUniquenessKey, FieldRule[]>();
     const survivors: FieldRule[] = [];
     for (const rule of byRecencyDescending) {
         const keys = ruleUniquenessKeys(rule);
-        if (keys.some((key) => heldKeys.has(key))) continue;
-        for (const key of keys) heldKeys.add(key);
+        const collides = keys.some((key) =>
+            (holders.get(key) ?? []).some((held) => uniquenessHoldersCollide(held, rule))
+        );
+        if (collides) continue;
+        for (const key of keys) {
+            const held = holders.get(key);
+            if (held == null) holders.set(key, [rule]);
+            else held.push(rule);
+        }
         survivors.push(rule);
     }
     return survivors;
@@ -279,8 +410,12 @@ function compareRuleRecency(left: FieldRule, right: FieldRule): number {
  *   matchable description (e.g. a manual row without raw import text), which matches nothing.
  * - `isManual` gates field eligibility: description-alias rules never touch manual rows; tag and
  *   allocation rules do.
+ * - `transactionId` and `date` are what a rule's reach is tested against; they never affect
+ *   whether its conditions match.
  */
 export interface RuleMatchSubject {
+    readonly transactionId: TransactionId;
+    readonly date: Temporal.PlainDate;
     readonly descriptionText: string | null;
     readonly accountId: string;
     /** `undefined` when the amount is blank, which never satisfies an amount-scoped rule. */
@@ -289,6 +424,8 @@ export interface RuleMatchSubject {
 }
 
 export interface RuleMatchTransactionFacts {
+    readonly transactionId: string;
+    readonly date: Temporal.PlainDate;
     readonly accountId: string;
     readonly amount: MoneyMinorUnits | undefined;
     readonly description: string;
@@ -301,6 +438,8 @@ export function projectRuleMatchSubject(facts: RuleMatchTransactionFacts): RuleM
     const isManual = facts.importId == null;
     const candidate = isManual ? facts.resolvedAliasName : facts.description;
     return {
+        transactionId: asTransactionId(facts.transactionId),
+        date: facts.date,
         accountId: facts.accountId,
         amount: facts.amount,
         descriptionText: candidate != null && candidate.length > 0 ? candidate : null,
@@ -334,10 +473,38 @@ export function ruleMatchesSubject(rule: RulePredicate, subject: RuleMatchSubjec
 }
 
 /**
- * The single highest-precedence rule with an output for `field` matching `subject`, or `null` if
- * none match. A field a manual row is ineligible for never has a winner on that row.
- * Pure and order-independent: a strictly higher scope rank wins; a rank tie (only possible with a
- * uniqueness violation) breaks on recency then id so the winner is always deterministic.
+ * Whether `rule` governs the subject's transaction: its conditions match AND its reach includes the
+ * transaction. Reach only narrows what the conditions match; it never widens it.
+ */
+export function ruleGoverns(
+    rule: RulePredicate & Pick<FieldRule, "reach">,
+    subject: RuleMatchSubject
+): boolean {
+    return (
+        ruleMatchesSubject(rule, subject) &&
+        ruleReaches(rule, { id: subject.transactionId, date: subject.date })
+    );
+}
+
+/**
+ * Precedence between two rules competing for one field on one row: reach rank first, then the
+ * conditions' scope rank. Positive when `left` outranks `right`; zero is a tie for recency to break.
+ */
+export function compareRulePrecedence(
+    left: Pick<FieldRule, "reach" | "accountId" | "amount">,
+    right: Pick<FieldRule, "reach" | "accountId" | "amount">
+): number {
+    const byReach = ruleReachRank(left) - ruleReachRank(right);
+    if (byReach !== 0) return byReach;
+    return ruleScopeRank(left) - ruleScopeRank(right);
+}
+
+/**
+ * The single highest-precedence rule with an output for `field` governing `subject`, or `null` if
+ * none does. A field a manual row is ineligible for never has a winner on that row.
+ * Pure and order-independent: a strictly higher precedence ({@link compareRulePrecedence}) wins; a
+ * tie breaks on recency then id so the winner is always deterministic. A tie needs a uniqueness
+ * violation, or an `all` and a `from` rule on one slot, which §2.2 lets coexist.
  *
  * `rules` may be a {@link RuleSource} index: it only narrows which rules are visited to those that
  * share the subject's text, every one of which this loop would have tested anyway.
@@ -351,12 +518,12 @@ export function selectWinningRule(
     let winner: FieldRule | null = null;
     for (const rule of ruleCandidatesForText(rules, subject.descriptionText)) {
         if (rule.outputs[field] == null) continue;
-        if (!ruleMatchesSubject(rule, subject)) continue;
+        if (!ruleGoverns(rule, subject)) continue;
         if (winner == null) {
             winner = rule;
             continue;
         }
-        const byRank = ruleScopeRank(rule) - ruleScopeRank(winner);
+        const byRank = compareRulePrecedence(rule, winner);
         if (byRank > 0 || (byRank === 0 && compareRuleRecency(rule, winner) > 0)) winner = rule;
     }
     return winner;
@@ -462,7 +629,12 @@ const FieldRuleWireBaseSchema = FieldRuleScalarsSchema.extend({
     aliasId: z.string().optional(),
     tagMode: TagRuleModeSchema.optional(),
     tagIds: z.array(z.string()).optional(),
-    allocations: z.record(z.string(), z.unknown()).optional()
+    allocations: z.record(z.string(), z.unknown()).optional(),
+    /** Absent on every record written before reach existed, which therefore reaches `all`. */
+    reachKind: RuleReachKindSchema.optional(),
+    reachFromDate: z.instanceof(Temporal.PlainDate).optional(),
+    /** The explicit set as a Loro map of id -> true, so concurrent additions merge as a union. */
+    reachTransactionIds: z.record(z.string(), z.unknown()).optional()
 });
 
 /**
@@ -550,6 +722,41 @@ function wireOutputsInput(
     return { ok: true, value: input };
 }
 
+type FieldRuleWireReach = Pick<
+    FieldRuleWireBase,
+    "reachKind" | "reachFromDate" | "reachTransactionIds"
+>;
+
+/**
+ * Project the wire reach columns into a {@link RuleReach}. A record without `reachKind` reaches
+ * `all`. The id map's `$cid` bookkeeping key and any entry not set to `true` are not members.
+ */
+function wireReach(
+    base: FieldRuleWireReach
+):
+    | { readonly ok: true; readonly value: RuleReach }
+    | { readonly ok: false; readonly error: FieldRuleDecodeError } {
+    switch (base.reachKind) {
+        case undefined:
+        case "all":
+            return { ok: true, value: RULE_REACH_ALL };
+        case "from":
+            if (base.reachFromDate == null) {
+                return invalidShapeError(["a from-date reach requires reachFromDate"]);
+            }
+            return { ok: true, value: { kind: "from", date: base.reachFromDate } };
+        case "transactions": {
+            const ids = new Set<TransactionId>();
+            for (const [id, member] of Object.entries(base.reachTransactionIds ?? {})) {
+                if (id !== "$cid" && member === true) ids.add(asTransactionId(id));
+            }
+            return { ok: true, value: { kind: "transactions", ids } };
+        }
+        default:
+            return assertNever(base.reachKind, "reach kind");
+    }
+}
+
 /** An unvalidated rule as an editor or a wire record proposes it. */
 export interface FieldRuleCandidate<AllocationValue = unknown> {
     readonly id: string;
@@ -560,6 +767,8 @@ export interface FieldRuleCandidate<AllocationValue = unknown> {
     /** Optional exact-amount narrowing in minor units (absent = any amount). */
     readonly amount?: number;
     readonly outputs: RuleOutputsInput<AllocationValue>;
+    /** Absent means `all`: a rule written deliberately governs every matching transaction. */
+    readonly reach?: RuleReach;
     readonly createdAtEpochMs: number;
 }
 
@@ -581,6 +790,7 @@ export function buildFieldRule(candidate: FieldRuleCandidate): FieldRuleDecodeRe
             accountId,
             amount: amount == null ? undefined : asMinorUnits(amount),
             outputs: outputs.value,
+            reach: candidate.reach ?? RULE_REACH_ALL,
             createdAt: Temporal.Instant.fromEpochMilliseconds(createdAtEpochMs)
         }
     };
@@ -595,7 +805,24 @@ export function decodeFieldRule(wire: unknown): FieldRuleDecodeResult {
     if (!parsed.success) return invalidShapeError(parsed.error.issues.map((i) => i.message));
     const outputs = wireOutputsInput(parsed.data);
     if (!outputs.ok) return outputs;
-    return buildFieldRule({ ...parsed.data, outputs: outputs.value });
+    const reach = wireReach(parsed.data);
+    if (!reach.ok) return reach;
+    return buildFieldRule({ ...parsed.data, outputs: outputs.value, reach: reach.value });
+}
+
+/**
+ * The reach of a serialised rule on its own, for a writer that must preserve it while rewriting a
+ * record whose outputs may not decode. `null` when the reach columns themselves are malformed.
+ */
+export function decodeFieldRuleReach(wire: unknown): RuleReach | null {
+    const parsed = FieldRuleWireBaseSchema.pick({
+        reachKind: true,
+        reachFromDate: true,
+        reachTransactionIds: true
+    }).safeParse(wire);
+    if (!parsed.success) return null;
+    const reach = wireReach(parsed.data);
+    return reach.ok ? reach.value : null;
 }
 
 /**
@@ -614,6 +841,10 @@ export interface FieldRuleWireObject {
     readonly tagMode?: TagRuleMode;
     readonly tagIds: readonly string[];
     readonly allocations: Readonly<Record<string, number>>;
+    readonly reachKind: RuleReachKind;
+    readonly reachFromDate?: Temporal.PlainDate;
+    /** Emitted empty for a reach that is not an explicit set, like an absent output's columns. */
+    readonly reachTransactionIds: Readonly<Record<string, true>>;
     readonly createdAtEpochMs: number;
     readonly deletedAtEpochMs?: number;
 }
@@ -644,6 +875,12 @@ export function encodeFieldRule(rule: FieldRule): FieldRuleWireObject {
         tagMode: tags?.mode,
         tagIds: tags == null ? [] : [...tags.tagIds],
         allocations: allocation == null ? {} : { ...allocation.allocations },
+        reachKind: rule.reach.kind,
+        reachFromDate: rule.reach.kind === "from" ? rule.reach.date : undefined,
+        reachTransactionIds:
+            rule.reach.kind === "transactions"
+                ? Object.fromEntries([...rule.reach.ids].map((id) => [id, true] as const))
+                : {},
         createdAtEpochMs: rule.createdAt.epochMilliseconds
     };
 }

@@ -2,6 +2,7 @@ import * as fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { asTransactionId } from "@/components/features/transactions/table-model/ids";
 import { AllocationPercentageSchema } from "@/lib/domain/allocation";
 import {
     type RuleExtensionTarget,
@@ -14,6 +15,8 @@ import {
     type RuleMatchSubject,
     type RuleOutputs,
     type RulePredicate,
+    type RuleReach,
+    RULE_REACH_ALL,
     decodeFieldRule
 } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -37,6 +40,7 @@ interface RuleSpec {
     readonly accountId?: string;
     readonly amount?: number;
     readonly descriptionText?: string;
+    readonly reach?: RuleReach;
     readonly createdAtOffsetMs?: number;
 }
 
@@ -47,12 +51,15 @@ function rule(spec: RuleSpec): FieldRule {
         accountId: spec.accountId,
         amount: spec.amount == null ? undefined : asMinorUnits(spec.amount),
         outputs: spec.outputs,
+        reach: spec.reach ?? RULE_REACH_ALL,
         createdAt: BASE_INSTANT.add({ milliseconds: spec.createdAtOffsetMs ?? 0 })
     };
 }
 
 function subject(overrides: Partial<RuleMatchSubject> = {}): RuleMatchSubject {
     return {
+        transactionId: asTransactionId("tx-b"),
+        date: Temporal.PlainDate.from("2026-07-25"),
         descriptionText: TEXT,
         accountId: ACCOUNT_A,
         amount: asMinorUnits(-450),

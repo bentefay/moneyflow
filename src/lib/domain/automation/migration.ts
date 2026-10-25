@@ -27,7 +27,8 @@ import {
     FieldRuleIdSchema,
     type RuleField,
     type RuleOutputs,
-    dedupeRulesByUniqueness
+    dedupeRulesByUniqueness,
+    RULE_REACH_ALL
 } from "./rules";
 
 /** Structural view of a legacy automation condition (decoupled from Loro read types). */
@@ -175,6 +176,8 @@ export function migrateLegacyAutomations(
                     descriptionText: scope.descriptionText,
                     accountId: scope.accountId,
                     outputs: built.outputs,
+                    // Legacy automations applied to every matching transaction, past and future.
+                    reach: RULE_REACH_ALL,
                     createdAt: options.now
                 }
             });

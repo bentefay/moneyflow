@@ -46,12 +46,20 @@ import {
     readUserTransactionInspectorOpen
 } from "./display-preferences";
 import {
+    type CreateFieldRuleFromEditInput,
+    type CreateFieldRuleFromEditValue,
     type CreateFieldRuleInput,
     createFieldRule,
+    createFieldRuleFromEdit,
     type DeleteFieldRuleInput,
     deleteFieldRule,
+    type ExtendFieldRuleReachInput,
+    extendFieldRuleReachToTransaction,
+    type FieldRuleApplicationValue,
     type FieldRuleMutationOutcome,
     type FieldRuleMutationResult,
+    foldFieldRuleIntoHost,
+    type FoldFieldRuleIntoHostInput,
     type MoveFieldRuleOutputInput,
     moveFieldRuleOutput,
     type MoveFieldRuleOutputValue,
@@ -60,6 +68,8 @@ import {
     readUserAutomationChoice,
     type SetFieldRuleOutputInput,
     setFieldRuleOutput,
+    type SetFieldRuleReachInput,
+    setFieldRuleReach,
     type SplitFieldRuleOutputInput,
     splitFieldRuleOutput,
     type SplitFieldRuleOutputValue,
@@ -1254,6 +1264,55 @@ export function useFieldRuleActions(): FieldRuleActions {
     return useMemo(
         () => ({ create, update, setOutput, split, moveOutput, remove }),
         [create, update, setOutput, split, moveOutput, remove]
+    );
+}
+
+/** Reach mutation callbacks (`specs/017-rule-reach`), each one grouped undo step. */
+export interface FieldRuleReachActions {
+    /** Records a finished cell edit as a one-row rule, or updates the row's existing one. */
+    readonly createFromEdit: (
+        input: CreateFieldRuleFromEditInput
+    ) => FieldRuleMutationOutcome<CreateFieldRuleFromEditValue>;
+    /** Widens or narrows a rule, applying it to the rows it newly governs where it wins. */
+    readonly setReach: (
+        input: SetFieldRuleReachInput
+    ) => FieldRuleMutationOutcome<FieldRuleApplicationValue>;
+    /** Adds one transaction to an explicit-set rule and applies the rule to it. */
+    readonly extendToTransaction: (
+        input: ExtendFieldRuleReachInput
+    ) => FieldRuleMutationOutcome<FieldRuleApplicationValue>;
+    /** Folds a one-row rule into a wider identical-conditions rule and deletes the one-row rule. */
+    readonly fold: (
+        input: FoldFieldRuleIntoHostInput
+    ) => FieldRuleMutationOutcome<FieldRuleApplicationValue>;
+}
+
+/**
+ * Reach actions. Separate from {@link useFieldRuleActions} because three of them also write
+ * transactions, through the same P17A engine as the apply actions, so they run on the full
+ * VaultState where alias application can reach `descriptionAliases`.
+ */
+export function useFieldRuleReachActions(): FieldRuleReachActions {
+    const createFromEdit = useInternalVaultAction(
+        (state, input: CreateFieldRuleFromEditInput) => createFieldRuleFromEdit(state, input),
+        []
+    );
+    const setReach = useInternalVaultAction(
+        (state, input: SetFieldRuleReachInput) => setFieldRuleReach(state, input),
+        []
+    );
+    const extendToTransaction = useInternalVaultAction(
+        (state, input: ExtendFieldRuleReachInput) =>
+            extendFieldRuleReachToTransaction(state, input),
+        []
+    );
+    const fold = useInternalVaultAction(
+        (state, input: FoldFieldRuleIntoHostInput) => foldFieldRuleIntoHost(state, input),
+        []
+    );
+    return useMemo(
+        () => ({ createFromEdit, setReach, extendToTransaction, fold }),
+        [createFromEdit, setReach, extendToTransaction, fold]
     );
 }
 

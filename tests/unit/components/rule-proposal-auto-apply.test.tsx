@@ -15,7 +15,7 @@ import type { TransactionInput } from "@/lib/crdt/schema";
 import { buildTransactionIndex, createTransactionCursor } from "@/lib/crdt/transaction-cursor";
 import { type RuleExtensionTarget } from "@/lib/domain/automation/extension";
 import { DEFAULT_REMEMBERED_CHOICE } from "@/lib/domain/automation/preferences";
-import { type FieldRule, FieldRuleIdSchema } from "@/lib/domain/automation/rules";
+import { type FieldRule, FieldRuleIdSchema, RULE_REACH_ALL } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 import { populateStore } from "../crdt/transaction-cursor-fixtures";
@@ -447,6 +447,7 @@ function gateRule(id: string): FieldRule {
         id: FieldRuleIdSchema.parse(id),
         descriptionText: "tx-1",
         outputs: { tags: { mode: "add", tagIds: ["tag-1"] } },
+        reach: RULE_REACH_ALL,
         createdAt: Temporal.Instant.from("2026-08-29T00:00:00Z")
     };
 }
@@ -484,6 +485,8 @@ function renderGate(target: RuleExtensionTarget, applyOnBlur: boolean) {
                     accountId: "acc-1",
                     amount: asMinorUnits(-1000),
                     descriptionText: "tx-1",
+                    transactionId: asTransactionId("tx-1"),
+                    date: Temporal.PlainDate.from("2026-07-25"),
                     isManual: false
                 }
             }}

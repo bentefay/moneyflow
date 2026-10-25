@@ -126,6 +126,9 @@ function wireTagsRule(
         tagMode: "set",
         tagIds: [],
         allocations: {},
+        reachKind: undefined,
+        reachFromDate: undefined,
+        reachTransactionIds: undefined,
         deletedAtEpochMs: undefined,
         // Legacy wire shape: no output list, so the rule has exactly the one output `field` names.
         outputFields: [],

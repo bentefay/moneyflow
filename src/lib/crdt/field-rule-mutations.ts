@@ -10,18 +10,28 @@
  * migration:
  * - validation + the wire<->domain round-trip come from `decodeFieldRule` / `encodeFieldRule`,
  * - uniqueness comes from `ruleUniquenessKeys` (one key per output, on the frozen
- *   unscoped/amount/account/account+amount precedence lattice),
+ *   unscoped/amount/account/account+amount precedence lattice, per reach kind) and
+ *   `uniquenessHoldersCollide` (explicit-set rules with disjoint sets coexist),
  * - remembered-choice shaping comes from `nextUserPreference` / `readRememberedChoice`.
  *
  * Every function mutates the loro-mirror draft in place (draft-style). Callers invoke each one inside
  * a single `setState`/vault action so the whole logical operation shares one undo group (P09). Each
  * one validates every precondition before its first write, so a refusal leaves the draft untouched
- * (D-019) and a two-rule change (split, move) lands in one mutation (D-017). No
+ * (D-019) and a two-rule change (split, move, fold) lands in one mutation (D-017). No
  * allocation keys are ever written here: an allocation rule stores an EXPLICIT validated set on the
  * rule (validated via `decodeFieldRule`); applying it to a transaction remains P16C-only, reached
- * exclusively through the P17A engine (`applyFieldRules*`). This module never touches transactions.
+ * exclusively through the P17A engine (`applyFieldRules*`). The CRUD functions never touch
+ * transactions. The reach functions (`setFieldRuleReach`, `extendFieldRuleReachToTransaction`,
+ * `foldFieldRuleIntoHost`, `specs/017-rule-reach`) apply a rule to the rows it newly governs, and
+ * only through that same engine, after every precondition has passed.
  */
 
+import { type Temporal } from "temporal-polyfill";
+
+import {
+    asTransactionId,
+    type TransactionId
+} from "@/components/features/transactions/table-model/ids";
 import { type AllocationValidationError } from "@/lib/domain/allocation";
 import {
     nextUserPreference,
@@ -31,23 +41,42 @@ import {
 import {
     buildFieldRule,
     decodeFieldRule,
+    decodeFieldRuleReach,
     type FieldRule,
     type FieldRuleCandidate,
     type FieldRuleDecodeResult,
     nonEmptyRuleOutputs,
+    RULE_REACH_ALL,
     type RuleField,
+    ruleGoverns,
+    ruleMatchesSubject,
     ruleOutput,
     type RuleOutputEntry,
+    ruleOutputFields,
     type RuleOutputsInput,
     rulePredicatesEqual,
+    type RuleReach,
+    ruleReaches,
+    ruleReachesEqual,
     type RuleUniquenessKey,
     ruleUniquenessKeys,
+    uniquenessHoldersCollide,
     withoutRuleOutput
 } from "@/lib/domain/automation/rules";
 import { assertNever } from "@/lib/utils/exhaustive";
 
-import { readActiveFieldRules, toFieldRuleInput } from "./field-rules";
+import {
+    applyOneFieldRuleToTransactions,
+    type BulkFieldRuleEntry,
+    readActiveFieldRules,
+    readActiveTransactionsWithSubjects,
+    ruleMatchSubjectForTransaction,
+    toFieldRuleInput
+} from "./field-rules";
+import { findTransactionById } from "./queries";
 import { type FieldRuleInput, type UserAutomationPreferenceInput, type VaultState } from "./schema";
+
+export { removeTransactionsFromRuleReach } from "./field-rule-reach-maintenance";
 
 // ============================================================================
 // Inputs
@@ -63,9 +92,10 @@ export type FieldRuleOutputChange = RuleOutputEntry<FieldRuleOutputsInput>;
 export type CreateFieldRuleInput = FieldRuleCandidate<number>;
 
 /**
- * Update preserves the rule's identity, description text and creation time; scope and outputs
- * change. `outputs` REPLACES the rule's outputs wholesale: an output absent here is removed. Use
- * {@link setFieldRuleOutput} to change one output and keep the others.
+ * Update preserves the rule's identity, description text, reach and creation time; scope and
+ * outputs change. `outputs` REPLACES the rule's outputs wholesale: an output absent here is removed.
+ * Use {@link setFieldRuleOutput} to change one output and keep the others, and
+ * {@link setFieldRuleReach} to change the reach.
  */
 export interface UpdateFieldRuleInput {
     readonly id: string;
@@ -112,6 +142,49 @@ export type MoveFieldRuleOutputInput = {
     readonly deletedAtEpochMs: number;
 } & MoveFieldRuleOutputSelection;
 
+/**
+ * A finished edit of one field on one transaction (`specs/017-rule-reach` §3.1). The conditions are
+ * the row's description text plus any restriction the user chose; `id` and `createdAtEpochMs` are
+ * used only when a new rule is created.
+ */
+export type CreateFieldRuleFromEditInput = {
+    readonly id: string;
+    readonly transactionId: string;
+    readonly descriptionText: string;
+    readonly accountId?: string;
+    readonly amount?: number;
+    readonly createdAtEpochMs: number;
+} & FieldRuleOutputChange;
+
+/**
+ * The reach a rule is changed to. Narrowing to an explicit set takes no ids: the set is always the
+ * transactions the rule governs at that moment, so narrowing never changes a row (§3.2).
+ */
+export type RuleReachChange =
+    | { readonly kind: "all" }
+    | { readonly kind: "from"; readonly date: Temporal.PlainDate }
+    | { readonly kind: "transactions" };
+
+export interface SetFieldRuleReachInput {
+    readonly id: string;
+    readonly reach: RuleReachChange;
+}
+
+export interface ExtendFieldRuleReachInput {
+    readonly id: string;
+    readonly transactionId: string;
+}
+
+/**
+ * Fold every output of the explicit-set rule `oneRowRuleId` into `hostId`, then soft-delete the
+ * one-row rule at `deletedAtEpochMs`.
+ */
+export interface FoldFieldRuleIntoHostInput {
+    readonly oneRowRuleId: string;
+    readonly hostId: string;
+    readonly deletedAtEpochMs: number;
+}
+
 // ============================================================================
 // Result
 // ============================================================================
@@ -129,7 +202,21 @@ export type FieldRuleMutationError =
     /** Splitting the only output would leave the source rule with none. */
     | { readonly type: "single-output"; readonly ruleId: string }
     /** A move target whose conditions differ would silently change the output's population. */
-    | { readonly type: "predicate-mismatch"; readonly sourceId: string; readonly hostId: string };
+    | { readonly type: "predicate-mismatch"; readonly sourceId: string; readonly hostId: string }
+    /**
+     * A move or fold target whose reach differs would silently change which rows the output governs
+     * (§3.7). For a fold, the host must reach every row the one-row rule governs.
+     */
+    | { readonly type: "reach-mismatch"; readonly sourceId: string; readonly hostId: string }
+    /** The operation needs a rule whose reach is an explicit set of transactions. */
+    | { readonly type: "not-explicit-reach"; readonly ruleId: string }
+    | { readonly type: "transaction-not-found"; readonly transactionId: string }
+    /** The transaction does not match the rule's conditions, so reaching it would govern nothing. */
+    | {
+          readonly type: "transaction-not-matched";
+          readonly ruleId: string;
+          readonly transactionId: string;
+      };
 
 export type FieldRuleMutationOutcome<T> =
     | { readonly ok: true; readonly value: T }
@@ -148,6 +235,20 @@ export interface MoveFieldRuleOutputValue {
     readonly host: FieldRule;
     /** The source rule with its remaining outputs, or `null` when it was emptied and soft-deleted. */
     readonly source: FieldRule | null;
+}
+
+export interface CreateFieldRuleFromEditValue {
+    /** `updated` when the row already had a one-row rule for the field with these conditions. */
+    readonly kind: "created" | "updated";
+    readonly rule: FieldRule;
+}
+
+/** A rule write that also applied the rule's outputs to the rows it newly governs. */
+export interface FieldRuleApplicationValue {
+    readonly rule: FieldRule;
+    /** Rows the rule was applied to: newly governed rows on which it wins at least one field. */
+    readonly appliedCount: number;
+    readonly entries: readonly BulkFieldRuleEntry[];
 }
 
 function ok<T>(value: T): FieldRuleMutationOutcome<T> {
@@ -179,7 +280,7 @@ function buildRule(candidate: FieldRuleCandidate): FieldRuleMutationResult {
     return toMutationResult(buildFieldRule(candidate));
 }
 
-/** A rebuilt copy of `rule` with new outputs, keeping its id, conditions and creation time. */
+/** A rebuilt copy of `rule` with new outputs, keeping its id, conditions, reach and creation time. */
 function rebuildWithOutputs(rule: FieldRule, outputs: RuleOutputsInput): FieldRuleMutationResult {
     return buildRule({
         id: rule.id,
@@ -187,8 +288,24 @@ function rebuildWithOutputs(rule: FieldRule, outputs: RuleOutputsInput): FieldRu
         accountId: rule.accountId,
         amount: rule.amount,
         outputs,
+        reach: rule.reach,
         createdAtEpochMs: rule.createdAt.epochMilliseconds
     });
+}
+
+/** `rule` with a new reach. Total: a decoded rule's other parts are already valid. */
+function withReach(rule: FieldRule, reach: RuleReach): FieldRule {
+    return { ...rule, reach };
+}
+
+/** `rules` as they stand once `written` replace their namesakes and `removed` are gone. */
+function rulesAfterWrite(
+    rules: readonly FieldRule[],
+    written: readonly FieldRule[],
+    removed: ReadonlySet<string> = new Set()
+): readonly FieldRule[] {
+    const byId = new Map(written.map((rule) => [rule.id, rule]));
+    return rules.filter((rule) => !removed.has(rule.id)).map((rule) => byId.get(rule.id) ?? rule);
 }
 
 function withOutput(
@@ -277,7 +394,12 @@ function findUniquenessCollision(
     for (const key of ruleUniquenessKeys(rule)) {
         const holder = slots
             .get(key)
-            ?.find((held) => held.rule.id !== rule.id && !ignore.has(held.rule.id));
+            ?.find(
+                (held) =>
+                    held.rule.id !== rule.id &&
+                    !ignore.has(held.rule.id) &&
+                    uniquenessHoldersCollide(held.rule, rule)
+            );
         if (holder != null && (collision == null || holder.order < collision.order)) {
             collision = holder;
         }
@@ -337,12 +459,19 @@ export function updateFieldRule(
         return err({ type: "not-found", ruleId: input.id });
     }
 
+    // An update never changes where the rule applies. A record whose reach columns are malformed
+    // governs nothing today, and guessing a reach for it could silently widen it.
+    const reach = decodeFieldRuleReach(existing);
+    if (reach == null) {
+        return err({ type: "invalid-rule", issues: [`rule ${input.id} has a malformed reach`] });
+    }
     const built = buildRule({
         id: input.id,
         descriptionText: existing.descriptionText,
         accountId: input.accountId,
         amount: input.amount,
         outputs: input.outputs,
+        reach,
         createdAtEpochMs: existing.createdAtEpochMs
     });
     if (!built.ok) return built;
@@ -409,6 +538,8 @@ export function splitFieldRuleOutput(
         accountId: source.accountId,
         amount: source.amount,
         outputs: withOutput({}, moved),
+        // Both rules then govern exactly the same rows, so no transaction changes (§3.7).
+        reach: source.reach,
         createdAtEpochMs: input.createdAtEpochMs
     });
     if (!split.ok) return split;
@@ -446,6 +577,9 @@ export function moveFieldRuleOutput(
     if (!rulePredicatesEqual(source, host)) {
         return err({ type: "predicate-mismatch", sourceId: source.id, hostId: host.id });
     }
+    if (!ruleReachesEqual(source.reach, host.reach)) {
+        return err({ type: "reach-mismatch", sourceId: source.id, hostId: host.id });
+    }
     if (host.outputs[input.field] != null) {
         return err({ type: "duplicate-key", existingRuleId: host.id });
     }
@@ -467,6 +601,250 @@ export function moveFieldRuleOutput(
     }
     writeRule(state, nextSource.value);
     return ok({ host: nextHost.value, source: nextSource.value });
+}
+
+// ============================================================================
+// Reach (`specs/017-rule-reach`)
+// ============================================================================
+
+/**
+ * Record a finished edit of one field on one transaction as a rule, in place (§3.1). The row already
+ * holds the value, so no transaction is written.
+ *
+ * If an active explicit-set rule with identical conditions already has an output for the field and
+ * contains the row, its output is updated in place (`updated`). Otherwise a new rule is created with
+ * the edited field as its only output and reach `{ this row }` (`created`); it outranks any wider
+ * rule on this row, so the edit is an exception and no other row changes. Rejects an invalid output,
+ * an id already in use, and an explicit-set slot another rule holds for this row.
+ */
+export function createFieldRuleFromEdit(
+    state: VaultState,
+    input: CreateFieldRuleFromEditInput
+): FieldRuleMutationOutcome<CreateFieldRuleFromEditValue> {
+    const transactionId = asTransactionId(input.transactionId);
+    const created = buildRule({
+        id: input.id,
+        descriptionText: input.descriptionText,
+        accountId: input.accountId,
+        amount: input.amount,
+        outputs: withOutput({}, input),
+        reach: { kind: "transactions", ids: new Set([transactionId]) },
+        createdAtEpochMs: input.createdAtEpochMs
+    });
+    if (!created.ok) return created;
+
+    const own = readActiveFieldRules(state).find(
+        (rule) =>
+            rule.reach.kind === "transactions" &&
+            rule.reach.ids.has(transactionId) &&
+            rule.outputs[input.field] != null &&
+            rulePredicatesEqual(rule, created.value)
+    );
+    if (own != null) {
+        const updated = rebuildWithOutputs(own, withOutput(own.outputs, input));
+        if (!updated.ok) return updated;
+        const collision = collisionError(state, updated.value);
+        if (collision != null) return err(collision);
+        writeRule(state, updated.value);
+        return ok({ kind: "updated", rule: updated.value });
+    }
+
+    if (state.fieldRules[input.id] != null) {
+        return err({ type: "invalid-rule", issues: [`rule id ${input.id} already exists`] });
+    }
+    const collision = collisionError(state, created.value);
+    if (collision != null) return err(collision);
+    writeRule(state, created.value);
+    return ok({ kind: "created", rule: created.value });
+}
+
+/**
+ * Change where a rule applies, in place, and apply its outputs to every row it newly governs (§3.2).
+ *
+ * Widening to a date or `all` writes the outputs to each newly governed row, but only the fields
+ * the rule wins there, so a one-row exception keeps its value. Narrowing to an explicit set records
+ * the rows governed now as the set and changes no row. Rejects a missing rule and a reach whose slot
+ * another rule already holds (`duplicate-key`, naming the holder). Every check precedes the first
+ * write.
+ */
+export function setFieldRuleReach(
+    state: VaultState,
+    input: SetFieldRuleReachInput
+): FieldRuleMutationOutcome<FieldRuleApplicationValue> {
+    const rule = readActiveRule(state, input.id);
+    if (rule == null) return err({ type: "not-found", ruleId: input.id });
+
+    const matching = readActiveTransactionsWithSubjects(state, (subject) =>
+        ruleMatchesSubject(rule, subject)
+    );
+    const reach = nextReach(rule, input.reach, matching);
+    const next = withReach(rule, reach);
+    const collision = collisionError(state, next);
+    if (collision != null) return err(collision);
+
+    const newlyGoverned = matching.filter(
+        ({ subject }) => ruleGoverns(next, subject) && !ruleGoverns(rule, subject)
+    );
+    const rules = rulesAfterWrite(readActiveFieldRules(state), [next]);
+    writeRule(state, next);
+    return ok(applyRuleToRows(state, next, rules, newlyGoverned));
+}
+
+function nextReach(
+    rule: FieldRule,
+    change: RuleReachChange,
+    matching: ReturnType<typeof readActiveTransactionsWithSubjects>
+): RuleReach {
+    switch (change.kind) {
+        case "all":
+            return RULE_REACH_ALL;
+        case "from":
+            return { kind: "from", date: change.date };
+        case "transactions": {
+            if (rule.reach.kind === "transactions") return rule.reach;
+            const governed = new Set<TransactionId>();
+            for (const { subject } of matching) {
+                if (ruleGoverns(rule, subject)) governed.add(subject.transactionId);
+            }
+            return { kind: "transactions", ids: governed };
+        }
+        default:
+            return assertNever(change, "reach change");
+    }
+}
+
+function applyRuleToRows(
+    state: VaultState,
+    rule: FieldRule,
+    rules: readonly FieldRule[],
+    rows: ReturnType<typeof readActiveTransactionsWithSubjects>,
+    fields?: ReadonlySet<RuleField>
+): FieldRuleApplicationValue {
+    const entries = applyOneFieldRuleToTransactions(
+        state,
+        rules,
+        rows.map(({ transaction }) => transaction),
+        { ruleId: rule.id, fields }
+    );
+    return { rule, appliedCount: entries.length, entries };
+}
+
+/**
+ * Add one transaction to an explicit-set rule's reach, in place, and apply the rule to it where it
+ * wins (§3.2 "extend it to this transaction"). Only the new id is written to the set, so an
+ * extension made concurrently on another device merges as a union. Rejects a missing rule, a rule
+ * whose reach is not an explicit set (`not-explicit-reach`: widen it instead), a missing
+ * transaction, one the rule's conditions do not match, and a set that would overlap another
+ * explicit-set rule's for the same slot. Extending to a row already in the set changes nothing.
+ */
+export function extendFieldRuleReachToTransaction(
+    state: VaultState,
+    input: ExtendFieldRuleReachInput
+): FieldRuleMutationOutcome<FieldRuleApplicationValue> {
+    const rule = readActiveRule(state, input.id);
+    if (rule == null) return err({ type: "not-found", ruleId: input.id });
+    if (rule.reach.kind !== "transactions") {
+        return err({ type: "not-explicit-reach", ruleId: rule.id });
+    }
+    const found = findTransactionById(state.transactions, input.transactionId);
+    if (found == null || found.transaction.deletedAt != null) {
+        return err({ type: "transaction-not-found", transactionId: input.transactionId });
+    }
+    const { transaction } = found;
+    const subject = ruleMatchSubjectForTransaction(state, transaction);
+    if (!ruleMatchesSubject(rule, subject)) {
+        return err({
+            type: "transaction-not-matched",
+            ruleId: rule.id,
+            transactionId: input.transactionId
+        });
+    }
+    if (rule.reach.ids.has(subject.transactionId)) {
+        return ok({ rule, appliedCount: 0, entries: [] });
+    }
+
+    const next = withReach(rule, {
+        kind: "transactions",
+        ids: new Set([...rule.reach.ids, subject.transactionId])
+    });
+    const collision = collisionError(state, next);
+    if (collision != null) return err(collision);
+
+    const rules = rulesAfterWrite(readActiveFieldRules(state), [next]);
+    addReachMember(state, next, subject.transactionId);
+    return ok(applyRuleToRows(state, next, rules, [{ transaction, subject }]));
+}
+
+/** Write one id into a stored rule's explicit set, or the whole rule when it has no set yet. */
+function addReachMember(state: VaultState, rule: FieldRule, transactionId: TransactionId): void {
+    const members = state.fieldRules[rule.id]?.reachTransactionIds;
+    if (members == null) {
+        writeRule(state, rule);
+        return;
+    }
+    members[transactionId] = true;
+}
+
+/**
+ * Fold a one-row rule into a wider rule with identical conditions, in one mutation (§3.1). Every
+ * output of the one-row rule is set on the host (added, or replacing the host's), the host is applied
+ * across its reach for those fields wherever it wins, and the one-row rule is soft-deleted.
+ *
+ * The host must reach every row the one-row rule governs, and the one-row rule must govern at least
+ * one; otherwise the fold would move an exception somewhere it never applied (`reach-mismatch`).
+ * Rejects a missing rule, a one-row rule whose reach is not an explicit set, a host whose conditions
+ * differ (`predicate-mismatch`) and a host whose new outputs collide with a third rule.
+ */
+export function foldFieldRuleIntoHost(
+    state: VaultState,
+    input: FoldFieldRuleIntoHostInput
+): FieldRuleMutationOutcome<FieldRuleApplicationValue> {
+    const oneRow = readActiveRule(state, input.oneRowRuleId);
+    if (oneRow == null) return err({ type: "not-found", ruleId: input.oneRowRuleId });
+    const host = readActiveRule(state, input.hostId);
+    if (host == null || host.id === oneRow.id) {
+        return err({ type: "not-found", ruleId: input.hostId });
+    }
+    if (oneRow.reach.kind !== "transactions") {
+        return err({ type: "not-explicit-reach", ruleId: oneRow.id });
+    }
+    if (!rulePredicatesEqual(oneRow, host)) {
+        return err({ type: "predicate-mismatch", sourceId: oneRow.id, hostId: host.id });
+    }
+
+    // Identical conditions, so one walk finds every row either rule could govern.
+    const matching = readActiveTransactionsWithSubjects(state, (subject) =>
+        ruleMatchesSubject(host, subject)
+    );
+    const oneRowRows = matching.filter(({ subject }) => ruleGoverns(oneRow, subject));
+    const hostReachesThem = oneRowRows.every(({ subject }) =>
+        ruleReaches(host, { id: subject.transactionId, date: subject.date })
+    );
+    if (oneRowRows.length === 0 || !hostReachesThem) {
+        return err({ type: "reach-mismatch", sourceId: oneRow.id, hostId: host.id });
+    }
+
+    const folded = ruleOutputFields(oneRow);
+    const outputs = folded.reduce<RuleOutputsInput>((current, field) => {
+        const entry = ruleOutput(oneRow, field);
+        return entry == null ? current : withOutput(current, entry);
+    }, host.outputs);
+    const nextHost = rebuildWithOutputs(host, outputs);
+    if (!nextHost.ok) return nextHost;
+    const collision = collisionError(state, nextHost.value, new Set([oneRow.id]));
+    if (collision != null) return err(collision);
+
+    const rules = rulesAfterWrite(
+        readActiveFieldRules(state),
+        [nextHost.value],
+        new Set([oneRow.id])
+    );
+    writeRule(state, nextHost.value);
+    const stored = state.fieldRules[oneRow.id];
+    if (stored != null) stored.deletedAtEpochMs = input.deletedAtEpochMs;
+
+    const hostRows = matching.filter(({ subject }) => ruleGoverns(nextHost.value, subject));
+    return ok(applyRuleToRows(state, nextHost.value, rules, hostRows, new Set(folded)));
 }
 
 /**

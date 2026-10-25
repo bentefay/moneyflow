@@ -9,6 +9,11 @@
  *
  * Pure and order-independent. It never breaks a tie by recency, id or list order: wherever the
  * ladder cannot decide without such a tiebreak it reports `ambiguous` so the user chooses.
+ *
+ * {@link resolveRuleFoldOffer} is the same ladder retargeted to rule reach (`specs/017-rule-reach`
+ * §3.1): an edit now always creates a one-row rule, and the question becomes which wider rule that
+ * one-row rule could be folded into. {@link resolveRuleExtensionTarget} stays for the proposal flow
+ * the transactions page still uses until that flow is replaced.
  */
 
 import { type RuleSource, rulesKeyedOnText } from "./rule-index";
@@ -17,10 +22,12 @@ import {
     type FieldRule,
     type RuleField,
     type RuleMatchSubject,
+    ruleGoverns,
     type RulePredicate,
     ruleMatchesSubject,
     ruleOutputFields,
-    rulePredicatesEqual
+    rulePredicatesEqual,
+    ruleReachesEqual
 } from "./rules";
 
 export interface RuleExtensionQuery {
@@ -110,6 +117,81 @@ export function resolveRuleExtensionTarget(query: RuleExtensionQuery): RuleExten
     const [only, ...others] = candidates;
     if (only != null && others.length === 0) return { kind: "extend", rule: only };
     return { kind: "ambiguous", candidates };
+}
+
+// ============================================================================
+// Fold offer (`specs/017-rule-reach` §3.1)
+// ============================================================================
+
+export interface RuleFoldQuery {
+    /** Active, decoded rules, as a list or its index. */
+    readonly rules: RuleSource;
+    /** The row the one-row rule was made on, as the inspector shows it. */
+    readonly subject: RuleMatchSubject;
+    /** The explicit-set rule an edit created, whose `field` output could join a wider rule. */
+    readonly oneRowRule: FieldRule;
+    readonly field: RuleField;
+}
+
+export type RuleFoldOffer =
+    /** Nothing to fold into: keep the one-row rule as it is. */
+    | { readonly kind: "none" }
+    /** `owner` already sets the field on this row: fold replaces its output across its reach. */
+    | { readonly kind: "fold-update"; readonly owner: FieldRule }
+    /** `host` governs this row and lacks the field: fold adds the output to it. */
+    | { readonly kind: "fold-extend"; readonly host: FieldRule }
+    /** Several hosts and no rule for choosing among them: the user must pick. Sorted by id. */
+    | { readonly kind: "ambiguous"; readonly candidates: readonly FieldRule[] };
+
+/**
+ * Which rule, if any, a one-row rule's `field` output could be folded into.
+ *
+ * Hosts are the other active rules with IDENTICAL conditions that govern the row and have the same
+ * reach or a wider one: a date or all reach, or an explicit set equal to the one-row rule's (the
+ * mockup's "combine"). A host with different conditions is never offered, because folding would
+ * silently change which transactions the output reaches.
+ *
+ * 0. The one-row rule is not an explicit-set rule, lacks the output, does not govern the row, or the
+ *    field cannot apply to this row (an alias on a manual row): `none`.
+ * 1. Exactly one host owns the field: `fold-update` it. More than one: `ambiguous`.
+ * 2. Else one host carries the description alias: `fold-extend` it. More than one: `ambiguous`.
+ * 3. Else exactly one host: `fold-extend` it. None: `none`. More: `ambiguous`.
+ *
+ * As with {@link resolveRuleExtensionTarget}, no step breaks a tie by recency, id or list order.
+ */
+export function resolveRuleFoldOffer(query: RuleFoldQuery): RuleFoldOffer {
+    const { oneRowRule, subject, field } = query;
+    const { reach } = oneRowRule;
+    if (reach.kind !== "transactions") return { kind: "none" };
+    if (oneRowRule.outputs[field] == null) return { kind: "none" };
+    if (subject.isManual && !fieldAppliesToManual(field)) return { kind: "none" };
+    if (!ruleGoverns(oneRowRule, subject)) return { kind: "none" };
+
+    const hosts = rulesKeyedOnText(query.rules, oneRowRule.descriptionText)
+        .filter(
+            (rule) =>
+                rule.id !== oneRowRule.id &&
+                rulePredicatesEqual(rule, oneRowRule) &&
+                ruleGoverns(rule, subject) &&
+                (rule.reach.kind !== "transactions" || ruleReachesEqual(rule.reach, reach)) &&
+                (!subject.isManual || ruleOutputFields(rule).some(fieldAppliesToManual))
+        )
+        .sort(compareRuleIds);
+
+    const owners = hosts.filter((rule) => rule.outputs[field] != null);
+    if (owners.length > 1) return { kind: "ambiguous", candidates: owners };
+    const [owner] = owners;
+    if (owner != null) return { kind: "fold-update", owner };
+
+    const aliasHosts = hosts.filter((rule) => rule.outputs.descriptionAlias != null);
+    if (aliasHosts.length > 1) return { kind: "ambiguous", candidates: aliasHosts };
+    const [aliasHost] = aliasHosts;
+    if (aliasHost != null) return { kind: "fold-extend", host: aliasHost };
+
+    const [only, ...others] = hosts;
+    if (only == null) return { kind: "none" };
+    if (others.length === 0) return { kind: "fold-extend", host: only };
+    return { kind: "ambiguous", candidates: hosts };
 }
 
 /** Presentation order only, so the result is independent of input order. Never a tiebreak. */

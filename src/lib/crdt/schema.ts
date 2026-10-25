@@ -365,6 +365,21 @@ export const fieldRuleSchema = schema.LoroMap({
     tagIds: schema.LoroList(schema.String(), (id) => id),
     /** allocation output: explicit whole-person allocation set (validated at the boundary). */
     allocations: schema.LoroMapRecord(richSchema.Percentage({})),
+    /**
+     * Reach (`specs/017-rule-reach`): which matching transactions the rule governs. Absent on every
+     * record written before reach existed, which the domain boundary reads as `all`, so adding these
+     * columns needs no migration.
+     */
+    reachKind: richSchema.StringEnum(["all", "from", "transactions"], { required: false }),
+    /** `from` reach: the inclusive calendar date it governs from. */
+    reachFromDate: richSchema.PlainDate({ required: false }),
+    /**
+     * `transactions` reach: the explicit set as id -> true. A Loro map rather than a list so
+     * concurrent additions on two devices merge as a union.
+     */
+    reachTransactionIds: schema.LoroMapRecord(schema.Boolean({ defaultValue: true }), {
+        required: false
+    }),
     /** Absolute creation time (epoch ms) - drives recency tie-breaks. */
     createdAtEpochMs: schema.Number({ required: true }),
     /** Soft-delete time (epoch ms). Deleted rules are excluded from matching. */

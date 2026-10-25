@@ -1,6 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { asTransactionId } from "@/components/features/transactions/table-model/ids";
 import { AllocationPercentageSchema } from "@/lib/domain/allocation";
 import {
     countRulePopulation,
@@ -12,7 +13,9 @@ import {
     type FieldRule,
     FieldRuleIdSchema,
     type RuleMatchSubject,
-    type RuleOutputs
+    type RuleOutputs,
+    type RuleReach,
+    RULE_REACH_ALL
 } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 
@@ -22,7 +25,11 @@ const REFERENCE = Temporal.PlainDate.from("2026-07-25");
 function rule(
     id: string,
     outputs: RuleOutputs,
-    scope: { readonly accountId?: string; readonly amount?: number } = {}
+    scope: {
+        readonly accountId?: string;
+        readonly amount?: number;
+        readonly reach?: RuleReach;
+    } = {}
 ): FieldRule {
     return {
         id: FieldRuleIdSchema.parse(id),
@@ -30,6 +37,7 @@ function rule(
         accountId: scope.accountId,
         amount: scope.amount == null ? undefined : asMinorUnits(scope.amount),
         outputs,
+        reach: scope.reach ?? RULE_REACH_ALL,
         createdAt: Temporal.Instant.from("2026-07-01T00:00:00Z")
     };
 }
@@ -45,6 +53,8 @@ function row(
         tagIds: overrides.tagIds ?? [],
         allocations: overrides.allocations ?? {},
         subject: {
+            transactionId: asTransactionId("tx-1"),
+            date: overrides.date ?? REFERENCE,
             descriptionText: TEXT,
             accountId: "acct-a",
             amount: asMinorUnits(-450),
