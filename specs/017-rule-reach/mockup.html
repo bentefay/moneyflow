@@ -1,0 +1,1615 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Rule reach — interactive mockup</title>
+        <!--
+  Standalone mockup for specs/017-rule-reach/spec.md. Opens directly from the repository. No
+  production code, no network, no persistence; every rule and transaction is synthetic. The rule
+  engine below is a faithful simulation of the spec: matching by conditions, reach, the reach rank,
+  per-field winners, uniqueness with disjoint sets, one-row rules on commit, fold, extend, imports and
+  deletion maintenance.
+-->
+        <style>
+            :root {
+                color-scheme: light dark;
+                --bg: oklch(1 0 0);
+                --fg: oklch(0.129 0.042 264.695);
+                --muted: oklch(0.554 0.046 257.417);
+                --muted-bg: oklch(0.968 0.007 247.896);
+                --line: oklch(0.9 0.013 255.508);
+                --card: oklch(1 0 0);
+                --primary: oklch(0.208 0.042 265.755);
+                --primary-fg: oklch(0.984 0.003 247.858);
+                --accent: oklch(0.5 0.15 264);
+                --accent-bg: oklch(0.95 0.03 264);
+                --ok: oklch(0.55 0.15 150);
+                --ok-bg: oklch(0.96 0.04 150);
+                --warn: oklch(0.6 0.16 60);
+                --warn-bg: oklch(0.97 0.05 80);
+                --danger: oklch(0.577 0.245 27.325);
+                --row-active: oklch(0.95 0.03 264);
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: oklch(0.129 0.042 264.695);
+                    --fg: oklch(0.984 0.003 247.858);
+                    --muted: oklch(0.704 0.04 256.788);
+                    --muted-bg: oklch(0.279 0.041 260.031);
+                    --line: oklch(1 0 0 / 14%);
+                    --card: oklch(0.17 0.04 264);
+                    --primary: oklch(0.929 0.013 255.508);
+                    --primary-fg: oklch(0.208 0.042 265.755);
+                    --accent: oklch(0.75 0.12 264);
+                    --accent-bg: oklch(0.3 0.06 264);
+                    --ok: oklch(0.75 0.14 150);
+                    --ok-bg: oklch(0.3 0.06 150);
+                    --warn: oklch(0.8 0.16 70);
+                    --warn-bg: oklch(0.32 0.07 80);
+                    --danger: oklch(0.704 0.191 22.216);
+                    --row-active: oklch(0.28 0.05 264);
+                }
+            }
+            * {
+                box-sizing: border-box;
+            }
+            html,
+            body {
+                height: 100%;
+                margin: 0;
+            }
+            body {
+                display: flex;
+                flex-direction: column;
+                background: var(--bg);
+                color: var(--fg);
+                font:
+                    14px/1.45 ui-sans-serif,
+                    system-ui,
+                    -apple-system,
+                    "Segoe UI",
+                    Roboto,
+                    sans-serif;
+            }
+            button,
+            input,
+            select {
+                font: inherit;
+                color: inherit;
+            }
+            code,
+            .mono {
+                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                font-size: 0.92em;
+            }
+            h1 {
+                font-size: 1.05rem;
+                margin: 0;
+            }
+            h2 {
+                font-size: 0.95rem;
+                margin: 0;
+                font-weight: 600;
+            }
+            h3 {
+                font-size: 0.85rem;
+                margin: 0;
+                font-weight: 600;
+            }
+            p {
+                margin: 0;
+            }
+            .muted {
+                color: var(--muted);
+            }
+            .small {
+                font-size: 0.8rem;
+            }
+            .eyebrow {
+                font-size: 0.7rem;
+                font-weight: 600;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+                color: var(--muted);
+            }
+            .top {
+                border-bottom: 1px solid var(--line);
+                padding: 10px 20px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px 18px;
+                align-items: center;
+            }
+            .banner {
+                background: var(--warn-bg);
+                border: 1px solid var(--line);
+                padding: 3px 10px;
+                border-radius: 999px;
+                font-size: 0.78rem;
+            }
+            .tabs {
+                display: flex;
+                gap: 6px;
+                padding: 8px 20px;
+                border-bottom: 1px solid var(--line);
+                align-items: center;
+            }
+            .tabs button {
+                border: 1px solid var(--line);
+                background: var(--bg);
+                border-radius: 999px;
+                padding: 4px 12px;
+                cursor: pointer;
+                font-size: 0.82rem;
+            }
+            .tabs button[aria-current="true"] {
+                border-color: var(--accent);
+                color: var(--accent);
+                font-weight: 600;
+            }
+            .tabs .spacer {
+                flex: 1;
+            }
+            main {
+                flex: 1;
+                min-height: 0;
+                display: grid;
+                grid-template-columns: 17rem minmax(0, 1fr) clamp(22rem, 30vw, 30rem);
+                gap: 14px;
+                padding: 12px 20px 16px;
+            }
+            @media (max-width: 1100px) {
+                main {
+                    grid-template-columns: minmax(0, 1fr);
+                }
+                body {
+                    height: auto;
+                }
+            }
+
+            /* Checklist */
+            .checklist {
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                padding: 12px;
+                overflow: auto;
+                min-height: 0;
+                display: grid;
+                gap: 8px;
+                align-content: start;
+                font-size: 0.8rem;
+            }
+            .checklist ol {
+                margin: 0;
+                padding-left: 18px;
+                display: grid;
+                gap: 6px;
+            }
+            .checklist li.done {
+                color: var(--muted);
+                text-decoration: line-through;
+            }
+            .checklist li strong {
+                font-weight: 600;
+            }
+            .checklist .btns {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            /* Table */
+            .table-wrap {
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                overflow: auto;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                font-size: 0.82rem;
+            }
+            th,
+            td {
+                padding: 6px 10px;
+                text-align: left;
+                border-bottom: 1px solid var(--line);
+                white-space: nowrap;
+                vertical-align: middle;
+            }
+            th {
+                position: sticky;
+                top: 0;
+                background: var(--bg);
+                font-weight: 600;
+                font-size: 0.74rem;
+                color: var(--muted);
+            }
+            td.num {
+                text-align: right;
+                font-variant-numeric: tabular-nums;
+            }
+            tr.active td {
+                background: var(--row-active);
+            }
+            td.cell {
+                cursor: text;
+            }
+            td.cell:hover {
+                outline: 1px dashed var(--line);
+                outline-offset: -2px;
+            }
+            td.editing {
+                outline: 2px solid var(--accent);
+                outline-offset: -2px;
+            }
+            .tag {
+                display: inline-block;
+                padding: 0 6px;
+                border-radius: 999px;
+                background: var(--muted-bg);
+                font-size: 0.75rem;
+                margin-right: 3px;
+            }
+            .dot {
+                display: inline-block;
+                width: 8px;
+                height: 8px;
+                border-radius: 999px;
+                margin-left: 6px;
+                vertical-align: 1px;
+                background: var(--muted);
+                opacity: 0.6;
+            }
+            .dot.warn {
+                background: var(--warn);
+                opacity: 1;
+            }
+            .dot.own {
+                background: var(--accent);
+                opacity: 1;
+            }
+            .table-foot {
+                padding: 8px 10px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                align-items: center;
+                border-top: 1px solid var(--line);
+                font-size: 0.8rem;
+            }
+            .inline-edit {
+                display: flex;
+                gap: 6px;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            .inline-edit input[type="number"] {
+                width: 4.5rem;
+            }
+            .changed td {
+                animation: flash 1.2s ease-out;
+            }
+            @keyframes flash {
+                from {
+                    background: var(--ok-bg);
+                }
+                to {
+                    background: transparent;
+                }
+            }
+
+            /* Inspector */
+            aside {
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+                background: var(--bg);
+            }
+            aside .head {
+                display: flex;
+                align-items: flex-start;
+                gap: 10px;
+                padding: 10px 14px;
+                border-bottom: 1px solid var(--line);
+            }
+            aside .body {
+                overflow-y: auto;
+                min-height: 0;
+                padding: 14px;
+                display: grid;
+                gap: 14px;
+                align-content: start;
+            }
+            .card {
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                padding: 12px;
+                display: grid;
+                gap: 12px;
+                background: var(--card);
+            }
+            .card.preview {
+                border-color: var(--accent);
+                background: var(--accent-bg);
+            }
+            .card.offer {
+                border-style: dashed;
+            }
+            .card .title {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px 10px;
+                align-items: baseline;
+            }
+            .card .target {
+                color: var(--muted);
+                font-size: 0.8rem;
+            }
+            .group {
+                display: grid;
+                gap: 8px;
+            }
+            .cond .text {
+                border: 1px solid var(--line);
+                border-radius: 6px;
+                padding: 5px 8px;
+                background: var(--muted-bg);
+                display: inline-block;
+            }
+            .chips {
+                display: flex;
+                gap: 6px;
+                flex-wrap: wrap;
+            }
+            .chip {
+                font-size: 0.7rem;
+                padding: 1px 7px;
+                border-radius: 999px;
+                border: 1px solid transparent;
+                white-space: nowrap;
+            }
+            .chip.own {
+                background: var(--accent-bg);
+                color: var(--accent);
+            }
+            .chip.warn {
+                background: var(--warn-bg);
+                color: var(--warn);
+            }
+            .chip.ok {
+                background: var(--ok-bg);
+                color: var(--ok);
+            }
+            .badge {
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                padding: 8px 10px;
+                display: grid;
+                gap: 6px;
+            }
+            .badge.warn {
+                border-color: var(--warn);
+            }
+            .badge .row1 {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            .badge .field {
+                font-size: 0.72rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: var(--muted);
+                min-width: 5.5rem;
+            }
+            .badge .value {
+                font-weight: 500;
+                flex: 1 1 9rem;
+                min-width: 0;
+            }
+            .badge .btns {
+                display: flex;
+                gap: 6px;
+                margin-left: auto;
+                white-space: nowrap;
+            }
+            .badge .diff {
+                font-size: 0.8rem;
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            .badge .diff .bad {
+                color: var(--warn);
+            }
+            .radio,
+            .check {
+                display: flex;
+                gap: 8px;
+                align-items: flex-start;
+            }
+            .radio input,
+            .check input {
+                margin-top: 3px;
+            }
+            .hint {
+                display: block;
+                color: var(--muted);
+                font-size: 0.78rem;
+            }
+            .btn {
+                border: 1px solid var(--line);
+                background: transparent;
+                border-radius: 6px;
+                padding: 5px 10px;
+                cursor: pointer;
+                font-size: 0.82rem;
+            }
+            .btn.sm {
+                padding: 2px 8px;
+                font-size: 0.76rem;
+            }
+            .btn.primary {
+                background: var(--primary);
+                color: var(--primary-fg);
+                border-color: var(--primary);
+            }
+            .btn.danger {
+                color: var(--danger);
+                border-color: color-mix(in oklch, var(--danger), transparent 50%);
+            }
+            .btn[disabled] {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            .btn:focus-visible {
+                outline: 2px solid var(--accent);
+                outline-offset: 2px;
+            }
+            .actions {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+                padding-top: 6px;
+                border-top: 1px solid var(--line);
+            }
+            .actions .spacer {
+                flex: 1;
+            }
+            .panel {
+                border: 1px solid var(--accent);
+                background: var(--accent-bg);
+                border-radius: 8px;
+                padding: 10px;
+                display: grid;
+                gap: 8px;
+            }
+            input[type="text"],
+            input[type="number"],
+            input[type="date"],
+            select {
+                border: 1px solid var(--line);
+                border-radius: 6px;
+                padding: 4px 6px;
+                background: transparent;
+            }
+
+            /* Automations page */
+            .rules {
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                padding: 12px;
+                display: grid;
+                gap: 10px;
+                align-content: start;
+                overflow: auto;
+                min-height: 0;
+            }
+            .rules details {
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                padding: 6px 8px;
+            }
+            .rules summary {
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 0.85rem;
+            }
+            .rules button.rule {
+                display: block;
+                width: 100%;
+                text-align: left;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                padding: 6px 10px;
+                background: transparent;
+                cursor: pointer;
+                margin-top: 6px;
+            }
+            .rules button.rule[aria-current="true"] {
+                border-color: var(--accent);
+                background: var(--accent-bg);
+            }
+            .rules .sub {
+                display: block;
+                color: var(--muted);
+                font-size: 0.78rem;
+            }
+
+            /* Dialog & toast */
+            dialog {
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                padding: 16px;
+                max-width: 34rem;
+                background: var(--bg);
+                color: var(--fg);
+            }
+            dialog::backdrop {
+                background: rgb(0 0 0 / 35%);
+            }
+            dialog .mini {
+                border: 1px solid var(--line);
+                border-radius: 6px;
+                padding: 8px;
+                display: grid;
+                gap: 4px;
+                font-size: 0.82rem;
+            }
+            .two {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            .toast {
+                position: fixed;
+                left: 50%;
+                bottom: 18px;
+                transform: translateX(-50%);
+                background: var(--primary);
+                color: var(--primary-fg);
+                padding: 8px 14px;
+                border-radius: 8px;
+                font-size: 0.82rem;
+                max-width: 44rem;
+                display: none;
+                box-shadow: 0 6px 20px rgb(0 0 0 / 25%);
+            }
+            .toast.show {
+                display: block;
+            }
+        </style>
+    </head>
+    <body>
+        <header class="top">
+            <h1>Rule reach — interactive mockup</h1>
+            <span class="banner"
+                >Proposed design for specs/017-rule-reach/spec.md. Synthetic data; nothing
+                persists.</span
+            >
+            <span class="muted small"
+                >Click a cell to edit it. Enter commits, Escape cancels. The inspector follows the
+                active row.</span
+            >
+        </header>
+        <nav class="tabs" id="tabs" aria-label="Views">
+            <button type="button" data-view="transactions" aria-current="true">Transactions</button>
+            <button type="button" data-view="automations" aria-current="false">Automations</button>
+            <span class="spacer"></span>
+            <button type="button" class="btn sm" data-act="reset">Reset data</button>
+        </nav>
+        <main id="main"></main>
+        <dialog id="dialog"></dialog>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+        <script>
+            "use strict";
+            // ---------------------------------------------------------------------------------------------
+            // Synthetic data
+            // ---------------------------------------------------------------------------------------------
+            const PEOPLE = ["Alex", "Sam"];
+            const ACCOUNTS = { A: "Everyday", B: "Credit card" };
+            const ALIASES = ["Coffee", "Cafe", "Groceries", "Rent"];
+            const TAGS = ["coffee", "work", "home", "food"];
+            const TEXT = "COFFEE SHOP 123";
+            const money = (m) => (m < 0 ? "−" : "") + "$" + (Math.abs(m) / 100).toFixed(2);
+            const fmtDate = (d) =>
+                new Date(d + "T00:00:00").toLocaleDateString("en-AU", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric"
+                });
+            const FIELDS = ["alias", "tags", "alloc"];
+            const fieldLabel = (f) =>
+                ({ alias: "Description", tags: "Tags", alloc: "Allocation" })[f];
+
+            function tx(id, date, account, amount, extra = {}) {
+                return {
+                    id,
+                    date,
+                    text: TEXT,
+                    account,
+                    amount,
+                    alias: null,
+                    tags: [],
+                    alloc: { Alex: null, Sam: null },
+                    ...extra
+                };
+            }
+            function baseTransactions() {
+                return [
+                    tx("A", "2026-07-02", "A", -450),
+                    tx("B", "2026-07-25", "A", -450),
+                    tx("C", "2026-08-03", "B", -600),
+                    tx("K", "2026-08-02", "A", -180000, { text: "RENT 14 AUGUST", alias: "Rent" }),
+                    tx("L", "2026-08-05", "A", -3200, { text: "BOOKSTORE 99" })
+                ];
+            }
+            let nextRuleId = 1;
+            function mkRule(r) {
+                return {
+                    id: r.id ?? "R" + nextRuleId++,
+                    text: TEXT,
+                    account: null,
+                    amount: null,
+                    outputs: {},
+                    reach: { kind: "ids", ids: new Set() },
+                    ...r
+                };
+            }
+
+            // ---------------------------------------------------------------------------------------------
+            // Engine: the spec, simulated
+            // ---------------------------------------------------------------------------------------------
+            const condRank = (r) => (r.account ? 2 : 0) + (r.amount != null ? 1 : 0);
+            const reachRank = (r) => (r.reach.kind === "ids" ? 4 : 0);
+            const rank = (r) => reachRank(r) + condRank(r);
+            const matches = (r, t) =>
+                r.text === t.text &&
+                (r.account == null || r.account === t.account) &&
+                (r.amount == null || r.amount === t.amount);
+            function reaches(r, t) {
+                if (r.reach.kind === "all") return true;
+                if (r.reach.kind === "from") return t.date >= r.reach.date;
+                return r.reach.ids.has(t.id);
+            }
+            const governs = (r, t) => matches(r, t) && reaches(r, t);
+            const outputFields = (r) => FIELDS.filter((f) => r.outputs[f] != null);
+            function winner(rules, t, field) {
+                return (
+                    rules
+                        .filter((r) => r.outputs[field] != null && governs(r, t))
+                        .sort((a, b) => rank(b) - rank(a) || b.id.localeCompare(a.id))[0] ?? null
+                );
+            }
+            function agrees(r, t, field) {
+                if (field === "alias") return t.alias === r.outputs.alias;
+                if (field === "tags") return r.outputs.tags.tags.every((x) => t.tags.includes(x));
+                return PEOPLE.every((p) => t.alloc[p] === r.outputs.alloc[p]);
+            }
+            function applyOutput(t, field, out) {
+                const n = { ...t, tags: [...t.tags], alloc: { ...t.alloc } };
+                if (field === "alias") n.alias = out;
+                if (field === "tags")
+                    n.tags =
+                        out.mode === "set" ? [...out.tags] : [...new Set([...t.tags, ...out.tags])];
+                if (field === "alloc") n.alloc = { ...out };
+                return n;
+            }
+            function applyRuleTo(r, t) {
+                let n = t;
+                for (const f of outputFields(r)) n = applyOutput(n, f, r.outputs[f]);
+                return n;
+            }
+            // Apply only the fields this rule wins for the row, so a one-row rule keeps its own row.
+            function applyWinning(r, t, rules = S.rules) {
+                let n = t;
+                for (const f of outputFields(r))
+                    if (winner(rules, t, f) === r) n = applyOutput(n, f, r.outputs[f]);
+                return n;
+            }
+            const sameConds = (a, b) =>
+                a.text === b.text && a.account === b.account && a.amount === b.amount;
+            function reachLabel(r, transactions) {
+                if (r.reach.kind === "all") return "all matching transactions";
+                if (r.reach.kind === "from") return "from " + fmtDate(r.reach.date) + " onward";
+                const n = [...r.reach.ids].filter((id) =>
+                    transactions.some((t) => t.id === id)
+                ).length;
+                return n === 0
+                    ? "not applied anywhere"
+                    : n === 1
+                      ? "1 specific transaction"
+                      : n + " specific transactions";
+            }
+            const condLabel = (r) =>
+                [
+                    r.text,
+                    r.account ? ACCOUNTS[r.account] : "any account",
+                    r.amount != null ? money(r.amount) : "any amount"
+                ].join(" · ");
+            function valueLabel(field, v) {
+                if (v == null) return "—";
+                if (field === "alias") return "rename to “" + v + "”";
+                if (field === "tags")
+                    return (
+                        (v.mode === "set" ? "set " : "add ") +
+                        (v.tags.length ? v.tags.map((x) => "#" + x).join(" ") : "nothing")
+                    );
+                return PEOPLE.map((p) => p + " " + (v[p] == null ? "—" : v[p] + "%")).join(" / ");
+            }
+            function rowValue(field, t) {
+                if (field === "alias") return t.alias;
+                if (field === "tags") return { mode: "add", tags: [...t.tags] };
+                return { ...t.alloc };
+            }
+            function rowValueLabel(field, t) {
+                if (field === "alias") return t.alias ? "“" + t.alias + "”" : "no alias";
+                if (field === "tags")
+                    return t.tags.length ? t.tags.map((x) => "#" + x).join(" ") : "no tags";
+                return PEOPLE.map(
+                    (p) => p + " " + (t.alloc[p] == null ? "—" : t.alloc[p] + "%")
+                ).join(" / ");
+            }
+            // Uniqueness: one rule per field per conditions slot per reach kind; ids rules must be disjoint.
+            function collision(rules, candidate, field, excludeId) {
+                for (const r of rules) {
+                    if (r.id === excludeId || r.outputs[field] == null || !sameConds(r, candidate))
+                        continue;
+                    if (r.reach.kind !== candidate.reach.kind) continue;
+                    if (candidate.reach.kind !== "ids") return r;
+                    for (const id of candidate.reach.ids) if (r.reach.ids.has(id)) return r;
+                }
+                return null;
+            }
+            // Population a rule WOULD govern under a reach, that would actually change.
+            function populationUnder(rule, reach, transactions, field) {
+                const probe = { ...rule, reach };
+                return transactions.filter(
+                    (t) => governs(probe, t) && !agrees(rule, t, field ?? outputFields(rule)[0])
+                );
+            }
+            function governedBy(rule, transactions) {
+                return transactions.filter((t) => governs(rule, t));
+            }
+
+            // ---------------------------------------------------------------------------------------------
+            // State
+            // ---------------------------------------------------------------------------------------------
+            let S;
+            function reset() {
+                nextRuleId = 1;
+                S = {
+                    view: "transactions",
+                    transactions: baseTransactions(),
+                    rules: [],
+                    activeRow: "B",
+                    editing: null,
+                    drafts: {},
+                    selectedRule: null,
+                    done: new Set(),
+                    changed: new Set(),
+                    importDate: "2026-06-01"
+                };
+                render();
+            }
+            const activeTx = () => S.transactions.find((t) => t.id === S.activeRow) ?? null;
+            const ruleById = (id) => S.rules.find((r) => r.id === id);
+            const esc = (s) =>
+                String(s).replace(
+                    /[&<>"]/g,
+                    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]
+                );
+            const h = (strings, ...vals) =>
+                strings.reduce((a, s, i) => a + s + (i < vals.length ? vals[i] : ""), "");
+            function toast(msg) {
+                const el = document.getElementById("toast");
+                el.textContent = msg;
+                el.classList.add("show");
+                clearTimeout(toast.t);
+                toast.t = setTimeout(() => el.classList.remove("show"), 3600);
+            }
+
+            // The spec's worked examples, as a checklist the user performs by hand.
+            const CHECKLIST = [
+                [
+                    "E1",
+                    "Tag <strong>B</strong> (25 Jul) with <code>work</code> and press Enter.",
+                    "A one-row rule R1 appears; A and C are untouched and not orange."
+                ],
+                [
+                    "E2",
+                    "Tag <strong>A</strong> (2 Jul) with <code>home</code>.",
+                    "A second one-row rule R2 on the same text; the two coexist."
+                ],
+                [
+                    "E3",
+                    "On B's card, choose <em>From 25 Jul</em> and Save.",
+                    "C receives <code>work</code>. A keeps <code>home</code>."
+                ],
+                [
+                    "E4",
+                    "Import a row dated 1 Jun.",
+                    "Not reached by R1 (before the date) nor R2 (explicit set). No tag."
+                ],
+                [
+                    "E5",
+                    "Import a row dated 10 Aug.",
+                    "Reached by R1 on arrival; receives <code>work</code>."
+                ],
+                [
+                    "E6",
+                    "On B's card, choose <em>All</em> and Save.",
+                    "Allowed. The 1 Jun row gets <code>work</code>. A still shows <code>home</code>: R2 outranks R1 for A, and A is not orange."
+                ],
+                [
+                    "E7",
+                    "Remove <code>work</code> from C by hand.",
+                    "C is governed by R1 and differs: orange, with Apply to this transaction."
+                ],
+                [
+                    "E8",
+                    "Change A's tag from <code>home</code> to <code>food</code>.",
+                    "R2 is updated in place; still only A."
+                ],
+                [
+                    "E9",
+                    "Clear A's tags entirely.",
+                    "R2 is deleted: a one-row rule whose row no longer carries the value has nothing to govern. R1 now governs A, so A shows as divergent until reapplied."
+                ],
+                [
+                    "E10",
+                    "Tag the 1 Jun row with <code>food</code>, then delete that row.",
+                    "Its one-row rule's reach becomes empty; the Automations page lists it as not applied anywhere."
+                ],
+                [
+                    "E11",
+                    "Rename B to <em>Coffee</em>, then select C.",
+                    "C's inspector offers: a rule renames this text, extend to this transaction?"
+                ],
+                [
+                    "E12",
+                    "On a card with two outputs, Split one out.",
+                    "Both rules keep the same reach; no row changes."
+                ],
+                [
+                    "E13",
+                    "On the Automations page, create a rule by hand.",
+                    "Default reach is All; the count of rows that will change shows before Save."
+                ]
+            ];
+
+            // ---------------------------------------------------------------------------------------------
+            // Rendering
+            // ---------------------------------------------------------------------------------------------
+            function render() {
+                document
+                    .querySelectorAll("#tabs [data-view]")
+                    .forEach((b) =>
+                        b.setAttribute("aria-current", String(b.dataset.view === S.view))
+                    );
+                const main = document.getElementById("main");
+                main.className = S.view === "automations" ? "page" : "";
+                main.innerHTML =
+                    renderChecklist() +
+                    (S.view === "automations"
+                        ? renderAutomations()
+                        : renderTable() + renderInspector());
+                S.changed = new Set();
+                const focusEl = document.querySelector("[data-autofocus]");
+                if (focusEl) focusEl.focus();
+            }
+            function renderChecklist() {
+                return h`<section class="checklist" aria-label="Worked examples">
+    <span class="eyebrow">Worked examples from the spec</span>
+    <ol>${CHECKLIST.map(([id, step, expect]) => h`<li class="${S.done.has(id) ? "done" : ""}"><strong>${id}.</strong> ${step}<span class="hint">${expect}</span></li>`).join("")}</ol>
+    <span class="eyebrow">Legend</span>
+    <p class="small"><span class="dot own"></span> a one-row rule sets this value &nbsp; <span class="dot"></span> a wider rule sets it &nbsp; <span class="dot warn"></span> governed but differs</p>
+    <div class="btns"><button type="button" class="btn sm" data-act="mark" data-id="">Tick the step I just did</button></div>
+  </section>`;
+            }
+            function renderTable() {
+                const rows = S.transactions
+                    .map((t) => {
+                        const cls = [
+                            t.id === S.activeRow ? "active" : "",
+                            S.changed.has(t.id) ? "changed" : ""
+                        ].join(" ");
+                        const dot = (f) => {
+                            const w = winner(S.rules, t, f);
+                            if (!w) return "";
+                            const bad = !agrees(w, t, f);
+                            return h`<span class="dot ${bad ? "warn" : w.reach.kind === "ids" ? "own" : ""}" title="${esc((bad ? "Governed by " : "Set by ") + w.id + " · " + condLabel(w) + " · " + reachLabel(w, S.transactions))}"></span>`;
+                        };
+                        const ed = S.editing && S.editing.id === t.id ? S.editing.field : null;
+                        const cell = (f, content) =>
+                            h`<td class="cell ${ed === f ? "editing" : ""}" data-edit="${f}" data-row="${t.id}">${ed === f ? renderInlineEditor(t, f) : content + dot(f)}</td>`;
+                        return h`<tr class="${cls}" data-row="${t.id}">
+      <td>${fmtDate(t.date)}</td><td class="mono">${esc(t.text)}</td>
+      ${cell("alias", esc(t.alias ?? ""))}
+      <td class="num">${money(t.amount)}</td><td>${ACCOUNTS[t.account]}</td>
+      ${cell("tags", t.tags.map((x) => h`<span class="tag">${esc(x)}</span>`).join(""))}
+      ${cell("alloc", PEOPLE.map((p) => (t.alloc[p] == null ? "—" : t.alloc[p] + "%")).join(" / "))}
+      <td><button class="btn sm danger" type="button" data-act="delete-tx" data-id="${t.id}" aria-label="Delete transaction ${t.id}">Delete</button></td>
+    </tr>`;
+                    })
+                    .join("");
+                return h`<div class="table-wrap">
+    <table><thead><tr><th>Date</th><th>Description</th><th>Alias</th><th>Amount</th><th>Account</th><th>Tags</th><th>Alex / Sam</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="table-foot"><span class="muted">Import a COFFEE SHOP 123 row dated</span>
+      <input type="date" id="import-date" value="${S.importDate}" aria-label="Import date">
+      <button class="btn sm" type="button" data-act="import">Import</button>
+      <span class="muted">Rules govern imports only within their reach.</span></div>
+  </div>`;
+            }
+            function renderInlineEditor(t, f) {
+                const d = S.editing.draft;
+                if (f === "alias")
+                    return h`<span class="inline-edit"><select data-ed="alias" data-autofocus aria-label="Alias"><option value="">(none)</option>${ALIASES.map((a) => h`<option ${d === a ? "selected" : ""}>${a}</option>`).join("")}</select><button class="btn sm" type="button" data-act="commit">Enter</button><button class="btn sm" type="button" data-act="cancel-edit">Esc</button></span>`;
+                if (f === "tags")
+                    return h`<span class="inline-edit">${TAGS.map((tag, i) => h`<label class="check"><input type="checkbox" data-ed="tag" value="${tag}" ${d.tags.includes(tag) ? "checked" : ""} ${i === 0 ? "data-autofocus" : ""}><span>#${tag}</span></label>`).join("")}<button class="btn sm" type="button" data-act="commit">Enter</button><button class="btn sm" type="button" data-act="cancel-edit">Esc</button></span>`;
+                return h`<span class="inline-edit">${PEOPLE.map((p, i) => h`<label class="small">${p} <input type="number" data-ed="alloc" data-person="${p}" value="${d[p] ?? ""}" placeholder="—" ${i === 0 ? "data-autofocus" : ""}></label>`).join("")}<button class="btn sm" type="button" data-act="commit">Enter</button><button class="btn sm" type="button" data-act="cancel-edit">Esc</button></span>`;
+            }
+
+            // What committing the current draft would do. Pure.
+            function previewForEdit(t, field, draft) {
+                const own = S.rules.find(
+                    (r) =>
+                        r.outputs[field] != null &&
+                        r.reach.kind === "ids" &&
+                        r.reach.ids.has(t.id) &&
+                        matches(r, t)
+                );
+                const wider =
+                    S.rules
+                        .filter(
+                            (r) =>
+                                r.outputs[field] != null && r.reach.kind !== "ids" && governs(r, t)
+                        )
+                        .sort((a, b) => rank(b) - rank(a))[0] ?? null;
+                if (own)
+                    return {
+                        kind: "update-own",
+                        rule: own,
+                        text: "Updates this transaction's rule " + own.id + "."
+                    };
+                if (wider)
+                    return {
+                        kind: "exception",
+                        rule: wider,
+                        text:
+                            "Creates an exception to " +
+                            wider.id +
+                            " (" +
+                            reachLabel(wider, S.transactions) +
+                            ") for this transaction only. No other row changes."
+                    };
+                return {
+                    kind: "create",
+                    text: "Creates a rule for this transaction. You can widen it later from its card."
+                };
+            }
+            function renderInspector() {
+                const t = activeTx();
+                if (!t)
+                    return h`<aside><div class="head"><h2>Transaction inspector</h2></div><div class="body"><p class="muted small">Select a row.</p></div></aside>`;
+                const parts = [];
+                if (S.editing && S.editing.id === t.id) {
+                    const p = previewForEdit(t, S.editing.field, S.editing.draft);
+                    parts.push(
+                        h`<div class="card preview"><span class="eyebrow">While you edit</span><p><strong>${esc(p.text)}</strong></p><p class="small muted">Press Enter to finish. Nothing is written until then.</p></div>`
+                    );
+                }
+                const governing = S.rules
+                    .filter((r) => outputFields(r).some((f) => winner(S.rules, t, f) === r))
+                    .sort((a, b) => rank(b) - rank(a) || a.id.localeCompare(b.id));
+                for (const r of governing) parts.push(renderRuleCard(r, t));
+                // Offers: same-text rules that do not reach this row, only for fields nothing governs here.
+                const ungoverned = FIELDS.filter((f) => winner(S.rules, t, f) == null);
+                const offers = S.rules.filter(
+                    (r) =>
+                        matches(r, t) &&
+                        !reaches(r, t) &&
+                        outputFields(r).some((f) => ungoverned.includes(f))
+                );
+                if (offers.length) parts.push(renderExtendOffers(offers, t));
+                if (!parts.length)
+                    parts.push(
+                        h`<p class="muted small">No rule governs this transaction. Edit a cell to create one.</p>`
+                    );
+                return h`<aside aria-labelledby="insp-title"><div class="head"><div><h2 id="insp-title">Transaction inspector</h2><p class="muted small">${esc(t.text)} · ${fmtDate(t.date)} · ${money(t.amount)} · ${ACCOUNTS[t.account]}</p></div></div>
+    <div class="body"><div class="group"><h3>Automation</h3>${parts.join("")}</div></div></aside>`;
+            }
+            function draftFor(r) {
+                if (!S.drafts[r.id]) S.drafts[r.id] = { reach: cloneReach(r.reach) };
+                return S.drafts[r.id];
+            }
+            function cloneReach(x) {
+                return x.kind === "ids" ? { kind: "ids", ids: new Set(x.ids) } : { ...x };
+            }
+            function renderReachControl(r, d, t) {
+                const idsCount = governedBy(
+                    {
+                        ...r,
+                        reach: {
+                            kind: "ids",
+                            ids:
+                                r.reach.kind === "ids"
+                                    ? r.reach.ids
+                                    : new Set(governedBy(r, S.transactions).map((x) => x.id))
+                        }
+                    },
+                    S.transactions
+                ).length;
+                const fromDate =
+                    d.reach.kind === "from"
+                        ? d.reach.date
+                        : t
+                          ? t.date
+                          : (governedBy(r, S.transactions)[0]?.date ?? "2026-07-01");
+                const n = (reach) => {
+                    const f = outputFields(r)[0];
+                    return populationUnder(r, reach, S.transactions, f).length;
+                };
+                const nFrom = n({ kind: "from", date: fromDate }),
+                    nAll = n({ kind: "all" });
+                return h`<div class="group" role="radiogroup" aria-label="Where this rule applies"><span class="eyebrow">Applies to</span>
+    <label class="radio"><input type="radio" name="reach-${r.id}" value="ids" data-reach ${d.reach.kind === "ids" ? "checked" : ""}><span>Only the transactions it was applied to<span class="hint">${idsCount} transaction${idsCount === 1 ? "" : "s"}. Nothing else changes.</span></span></label>
+    <label class="radio"><input type="radio" name="reach-${r.id}" value="from" data-reach ${d.reach.kind === "from" ? "checked" : ""}><span>Matching transactions from <input type="date" value="${fromDate}" data-reach-date aria-label="From date"> onward<span class="hint">${nFrom} would change now; future imports with such dates are governed.</span></span></label>
+    <label class="radio"><input type="radio" name="reach-${r.id}" value="all" data-reach ${d.reach.kind === "all" ? "checked" : ""}><span>All matching transactions<span class="hint">${nAll} would change now, past and future.</span></span></label></div>`;
+            }
+            function renderRuleCard(r, t) {
+                const d = draftFor(r);
+                const badges = outputFields(r)
+                    .map((f) => {
+                        const bad = t && winner(S.rules, t, f) === r && !agrees(r, t, f);
+                        return h`<div class="badge ${bad ? "warn" : ""}"><div class="row1"><span class="field">${fieldLabel(f)}</span><span class="value">${esc(valueLabel(f, r.outputs[f]))}</span>
+      <span class="btns">${outputFields(r).length > 1 ? h`<button class="btn sm" type="button" data-act="split" data-rule="${r.id}" data-field="${f}">Split</button>` : ""}</span></div>
+      ${
+          bad
+              ? h`<div class="diff"><span class="chip warn">differs on this transaction</span><span>Rule: ${esc(valueLabel(f, r.outputs[f]))}</span><span class="bad">This transaction: ${esc(rowValueLabel(f, t))}</span>
+        <button class="btn sm" type="button" data-act="apply-this" data-rule="${r.id}">${r.reach.kind === "ids" ? "Reapply" : "Apply to this transaction"}</button></div>
+        ${r.reach.kind === "ids" ? h`<p class="small muted">You set this on ${esc(fmtDate(t.date))} and changed it by hand since. Reapply, or delete the rule to keep the change.</p>` : ""}`
+              : ""
+      }</div>`;
+                    })
+                    .join("");
+                // Fold offer: this is a one-row rule and a wider identical-conditions rule also governs the row.
+                let fold = "";
+                if (t && r.reach.kind === "ids") {
+                    const sameSet = (x) =>
+                        x.reach.kind === "ids" &&
+                        x.reach.ids.size === r.reach.ids.size &&
+                        [...r.reach.ids].every((id) => x.reach.ids.has(id));
+                    const hosts = S.rules.filter(
+                        (x) =>
+                            x.id !== r.id &&
+                            sameConds(x, r) &&
+                            governs(x, t) &&
+                            (x.reach.kind !== "ids" || sameSet(x))
+                    );
+                    const f = outputFields(r)[0];
+                    const owner = hosts.find((x) => x.outputs[f] != null),
+                        host = hosts.find((x) => x.outputs[f] == null);
+                    const target = owner ?? host;
+                    if (target) {
+                        const count = populationUnder(
+                            { ...target, outputs: { ...target.outputs, [f]: r.outputs[f] } },
+                            target.reach,
+                            S.transactions,
+                            f
+                        ).length;
+                        fold = h`<div class="panel"><p><strong>${owner ? (owner.reach.kind === "ids" ? "Rule " + owner.id + " also sets this for the same transactions" : "This is an exception to " + owner.id) : host.reach.kind === "ids" ? "Rule " + host.id + " applies to the same transactions" : "Rule " + host.id + " also governs this transaction"}.</strong></p>
+        <p class="small">${owner ? "Fold this change into " + owner.id + " instead: " + count + " transaction" + (count === 1 ? "" : "s") + " change and this exception is deleted." : "Add " + fieldLabel(f).toLowerCase() + " to " + host.id + ": " + count + " transaction" + (count === 1 ? "" : "s") + " change and this one-row rule is deleted."}</p>
+        <div class="chips"><button class="btn sm primary" type="button" data-act="fold" data-rule="${r.id}" data-host="${target.id}">${owner ? "Fold into " + owner.id : host.reach.kind === "ids" ? "Combine with " + host.id : "Add to " + host.id}</button><span class="chip own">keeping it as is changes nothing</span></div></div>`;
+                    }
+                }
+                return h`<div class="card" data-rule="${r.id}" role="group" aria-label="Rule ${r.id}">
+    <div class="title"><h3>Rule ${r.id}</h3><span class="target">${esc(condLabel(r))}</span><span class="chip ${r.reach.kind === "ids" ? "own" : "ok"}">${esc(reachLabel(r, S.transactions))}</span></div>
+    ${fold}
+    <div class="group"><span class="eyebrow">Outputs</span>${badges}</div>
+    ${renderReachControl(r, d, t)}
+    <div class="actions"><button class="btn primary" type="button" data-act="save" data-rule="${r.id}">Save</button><button class="btn" type="button" data-act="cancel" data-rule="${r.id}">Cancel</button><span class="spacer"></span><button class="btn danger" type="button" data-act="delete-rule" data-rule="${r.id}">Delete rule</button></div>
+  </div>`;
+            }
+            function renderExtendOffers(rules, t) {
+                const items = rules
+                    .map((r) => {
+                        const older = r.reach.kind === "from" && t.date < r.reach.date;
+                        return h`<div class="badge"><div class="row1"><span class="field">Rule ${r.id}</span><span class="value">${esc(
+                            outputFields(r)
+                                .map((f) => valueLabel(f, r.outputs[f]))
+                                .join(", ")
+                        )}</span><span class="chip">${esc(reachLabel(r, S.transactions))}</span></div>
+      <div class="chips"><button class="btn sm primary" type="button" data-act="extend" data-rule="${r.id}">Extend to this transaction</button>${older ? h`<button class="btn sm" type="button" data-act="widen-all" data-rule="${r.id}">Widen to all matching</button>` : ""}</div></div>`;
+                    })
+                    .join("");
+                return h`<div class="card offer"><div class="title"><h3>Other rules for this text</h3><span class="target">${rules.length} rule${rules.length === 1 ? "" : "s"} match this description but do not reach this transaction.</span></div>${items}</div>`;
+            }
+            function renderAutomations() {
+                const groups = [
+                    ["all", "Applied to everything"],
+                    ["from", "Applied from a date"],
+                    ["ids", "Applied to specific transactions"]
+                ];
+                const list = groups
+                    .map(([k, label]) => {
+                        const rs = S.rules.filter((r) => r.reach.kind === k);
+                        return h`<details ${k === "ids" ? "" : "open"}><summary>${label} <span class="muted">(${rs.length})</span></summary>
+      ${rs.map((r) => h`<button class="rule" type="button" data-select-rule="${r.id}" aria-current="${r.id === S.selectedRule}">${esc(r.id + " · " + condLabel(r))}<span class="sub">${outputFields(r).map(fieldLabel).join(" · ")} · ${esc(reachLabel(r, S.transactions))}</span></button>`).join("") || '<p class="small muted" style="margin:6px 0 2px">None.</p>'}</details>`;
+                    })
+                    .join("");
+                const r = ruleById(S.selectedRule);
+                const editor = r ? renderRuleCard(r, null) : renderNewRuleEditor();
+                return h`<section class="rules" aria-label="Automations"><div style="display:flex;gap:8px;align-items:center"><h2 style="flex:1">Automations</h2><button class="btn sm" type="button" data-act="new-rule">New rule</button></div>${list}<p class="small muted">Rules run on import only within their reach.</p></section>
+    <section class="rules" aria-label="Rule editor">${editor}</section>`;
+            }
+            function renderNewRuleEditor() {
+                const d = (S.drafts.__new ??= {
+                    text: "BOOKSTORE 99",
+                    account: null,
+                    tags: ["food"],
+                    reach: { kind: "all" }
+                });
+                const probe = mkRule({
+                    id: "new",
+                    text: d.text,
+                    account: d.account,
+                    outputs: { tags: { mode: "add", tags: d.tags } },
+                    reach: d.reach
+                });
+                const n = populationUnder(probe, d.reach, S.transactions, "tags").length;
+                return h`<div class="card"><div class="title"><h3>New rule</h3></div>
+    <div class="group cond"><span class="eyebrow">Matches</span><input type="text" value="${esc(d.text)}" data-new="text" aria-label="Exact description text"><select data-new="account" aria-label="Account"><option value="">Any account</option>${Object.entries(
+        ACCOUNTS
+    )
+        .map(([k, v]) => h`<option value="${k}" ${d.account === k ? "selected" : ""}>${v}</option>`)
+        .join("")}</select></div>
+    <div class="group"><span class="eyebrow">Outputs</span><div class="badge"><div class="row1"><span class="field">Tags</span><span class="value">${esc(valueLabel("tags", { mode: "add", tags: d.tags }))}</span></div><div class="chips">${TAGS.map((tag) => h`<label class="check"><input type="checkbox" data-new="tag" value="${tag}" ${d.tags.includes(tag) ? "checked" : ""}><span>#${tag}</span></label>`).join("")}</div></div></div>
+    ${renderReachControl(probe, { reach: d.reach }, null)}
+    <p class="small muted">${n} transaction${n === 1 ? "" : "s"} would change on Save.</p>
+    <div class="actions"><button class="btn primary" type="button" data-act="create-rule">Save</button><button class="btn" type="button" data-act="cancel-new">Cancel</button></div></div>`;
+            }
+
+            // ---------------------------------------------------------------------------------------------
+            // Mutations (one "vault action" each)
+            // ---------------------------------------------------------------------------------------------
+            function setRow(id, fn) {
+                S.transactions = S.transactions.map((t) => (t.id === id ? fn(t) : t));
+                S.changed.add(id);
+            }
+            function commitEdit() {
+                const { id, field, draft } = S.editing;
+                const t = S.transactions.find((x) => x.id === id);
+                const value =
+                    field === "alias"
+                        ? draft || null
+                        : field === "tags"
+                          ? { mode: "add", tags: [...draft.tags] }
+                          : { ...draft };
+                const cleared =
+                    field === "alias"
+                        ? value == null
+                        : field === "tags"
+                          ? value.tags.length === 0
+                          : PEOPLE.every((p) => value[p] == null);
+                setRow(id, (x) => {
+                    const n = { ...x, tags: [...x.tags], alloc: { ...x.alloc } };
+                    if (field === "alias") n.alias = value;
+                    if (field === "tags") n.tags = [...value.tags];
+                    if (field === "alloc") n.alloc = { ...value };
+                    return n;
+                });
+                const p = previewForEdit(t, field, draft);
+                if (cleared) {
+                    toast("Value cleared. Clearing never creates a rule.");
+                    if (p.kind === "update-own") {
+                        S.rules = S.rules.filter((r) => r !== p.rule);
+                        toast("Value cleared and this transaction's rule deleted.");
+                    }
+                } else if (p.kind === "update-own") {
+                    p.rule.outputs[field] = value;
+                    toast("Updated " + p.rule.id + ", which applies only to this transaction.");
+                } else {
+                    const r = mkRule({
+                        outputs: { [field]: value },
+                        reach: { kind: "ids", ids: new Set([id]) }
+                    });
+                    S.rules.push(r);
+                    toast(
+                        "Created rule " +
+                            r.id +
+                            " for this transaction only" +
+                            (p.kind === "exception" ? ", as an exception to " + p.rule.id : "") +
+                            "."
+                    );
+                }
+                S.editing = null;
+                render();
+            }
+            function saveReach(r) {
+                const d = draftFor(r);
+                const field = outputFields(r)[0];
+                if (d.reach.kind === "ids" && r.reach.kind !== "ids")
+                    d.reach = {
+                        kind: "ids",
+                        ids: new Set(governedBy(r, S.transactions).map((t) => t.id))
+                    };
+                const probe = { ...r, reach: d.reach };
+                for (const f of outputFields(r)) {
+                    const c = collision(S.rules, probe, f, r.id);
+                    if (c) {
+                        toast(
+                            "Refused: " +
+                                c.id +
+                                " already holds " +
+                                fieldLabel(f).toLowerCase() +
+                                " for " +
+                                condLabel(c) +
+                                " at that reach. Open " +
+                                c.id +
+                                " to change it."
+                        );
+                        return;
+                    }
+                }
+                const newly = S.transactions.filter((t) => governs(probe, t) && !governs(r, t));
+                r.reach = d.reach;
+                delete S.drafts[r.id];
+                for (const t of newly) setRow(t.id, (x) => applyWinning(r, x));
+                toast(
+                    "Saved " +
+                        r.id +
+                        ": now " +
+                        reachLabel(r, S.transactions) +
+                        (newly.length
+                            ? "; applied to " +
+                              newly.length +
+                              " newly governed transaction" +
+                              (newly.length === 1 ? "" : "s") +
+                              "."
+                            : "; no transaction changed.")
+                );
+                render();
+            }
+            function fold(oneRow, host) {
+                const f = outputFields(oneRow)[0];
+                host.outputs[f] = oneRow.outputs[f];
+                S.rules = S.rules.filter((r) => r !== oneRow);
+                const pop = governedBy(host, S.transactions).filter(
+                    (t) => winner(S.rules, t, f) === host
+                );
+                for (const t of pop) setRow(t.id, (x) => applyOutput(x, f, host.outputs[f]));
+                delete S.drafts[oneRow.id];
+                toast(
+                    "Folded into " +
+                        host.id +
+                        ": " +
+                        pop.length +
+                        " transactions updated; " +
+                        oneRow.id +
+                        " deleted."
+                );
+                render();
+            }
+            function extend(r, t) {
+                if (r.reach.kind !== "ids") {
+                    toast("Only an explicit-set rule can be extended one transaction at a time.");
+                    return;
+                }
+                r.reach.ids.add(t.id);
+                setRow(t.id, (x) => applyWinning(r, x));
+                toast("Extended " + r.id + " to this transaction.");
+                render();
+            }
+            function importRow(date) {
+                const id = "I" + (S.transactions.filter((t) => t.id.startsWith("I")).length + 1);
+                let t = tx(id, date, "A", -450);
+                const applied = [];
+                for (const f of FIELDS) {
+                    const w = winner(S.rules, t, f);
+                    if (w) {
+                        t = applyOutput(t, f, w.outputs[f]);
+                        applied.push(w.id);
+                    }
+                }
+                S.transactions = [...S.transactions, t].sort((a, b) =>
+                    a.date.localeCompare(b.date)
+                );
+                S.changed.add(id);
+                S.activeRow = id;
+                toast(
+                    applied.length
+                        ? "Imported " +
+                              id +
+                              "; governed on arrival by " +
+                              [...new Set(applied)].join(", ") +
+                              "."
+                        : "Imported " + id + "; no rule reaches it."
+                );
+                render();
+            }
+            function deleteTx(id) {
+                S.transactions = S.transactions.filter((t) => t.id !== id);
+                const emptied = [];
+                for (const r of S.rules)
+                    if (r.reach.kind === "ids" && r.reach.ids.delete(id) && r.reach.ids.size === 0)
+                        emptied.push(r.id);
+                if (S.activeRow === id) S.activeRow = S.transactions[0]?.id ?? null;
+                toast(
+                    "Deleted " +
+                        id +
+                        "." +
+                        (emptied.length
+                            ? " " +
+                              emptied.join(", ") +
+                              " now applies nowhere; find it on the Automations page."
+                            : "")
+                );
+                render();
+            }
+            function openDialog(html) {
+                const d = document.getElementById("dialog");
+                d.innerHTML = html;
+                d.showModal();
+            }
+            function closeDialog() {
+                document.getElementById("dialog").close();
+            }
+
+            // ---------------------------------------------------------------------------------------------
+            // Events
+            // ---------------------------------------------------------------------------------------------
+            document.addEventListener("click", (e) => {
+                const b = e.target.closest("button");
+                const cell = e.target.closest("td.cell");
+                const row = e.target.closest("tr[data-row]");
+                if (b?.dataset.view) {
+                    S.view = b.dataset.view;
+                    S.editing = null;
+                    return render();
+                }
+                if (b?.dataset.selectRule) {
+                    S.selectedRule = b.dataset.selectRule;
+                    return render();
+                }
+                if (b?.dataset.act) return act(b);
+                if (cell && !cell.classList.contains("editing")) {
+                    const t = S.transactions.find((x) => x.id === cell.dataset.row);
+                    S.activeRow = t.id;
+                    const f = cell.dataset.edit;
+                    S.editing = {
+                        id: t.id,
+                        field: f,
+                        draft:
+                            f === "alias"
+                                ? (t.alias ?? "")
+                                : f === "tags"
+                                  ? { tags: [...t.tags] }
+                                  : { ...t.alloc }
+                    };
+                    return render();
+                }
+                if (row && !e.target.closest("td.cell")) {
+                    if (S.activeRow !== row.dataset.row) {
+                        S.editing = null;
+                        S.activeRow = row.dataset.row;
+                        render();
+                    }
+                }
+            });
+            document.addEventListener("keydown", (e) => {
+                if (!S.editing) return;
+                if (e.key === "Enter" && e.target.closest("td.editing")) {
+                    e.preventDefault();
+                    commitEdit();
+                }
+                if (e.key === "Escape") {
+                    S.editing = null;
+                    render();
+                }
+            });
+            document.addEventListener("change", (e) => {
+                const el = e.target;
+                if (el.dataset.ed === "alias") S.editing.draft = el.value;
+                if (el.dataset.ed === "tag") {
+                    const s = new Set(S.editing.draft.tags);
+                    el.checked ? s.add(el.value) : s.delete(el.value);
+                    S.editing.draft.tags = [...s];
+                }
+                if (el.dataset.ed === "alloc")
+                    S.editing.draft[el.dataset.person] = el.value === "" ? null : Number(el.value);
+                if (el.dataset.ed) {
+                    // live preview: re-render only the inspector
+                    document.querySelector("aside")?.outerHTML &&
+                        (document.querySelector("aside").outerHTML = renderInspector());
+                    return;
+                }
+                const card = el.closest("[data-rule]");
+                const r = card ? ruleById(card.dataset.rule) : null;
+                if (el.dataset.reach != null && r) {
+                    const d = draftFor(r);
+                    const dateEl = card.querySelector("[data-reach-date]");
+                    d.reach =
+                        el.value === "all"
+                            ? { kind: "all" }
+                            : el.value === "from"
+                              ? { kind: "from", date: dateEl.value }
+                              : {
+                                    kind: "ids",
+                                    ids: new Set(
+                                        r.reach.kind === "ids"
+                                            ? r.reach.ids
+                                            : governedBy(r, S.transactions).map((t) => t.id)
+                                    )
+                                };
+                    return render();
+                }
+                if (el.dataset.reachDate != null && r) {
+                    const d = draftFor(r);
+                    if (d.reach.kind === "from") {
+                        d.reach = { kind: "from", date: el.value };
+                        return render();
+                    }
+                }
+                if (el.dataset.reach != null && !r) {
+                    const d = S.drafts.__new;
+                    const dateEl = el.closest(".card").querySelector("[data-reach-date]");
+                    d.reach =
+                        el.value === "all"
+                            ? { kind: "all" }
+                            : el.value === "from"
+                              ? { kind: "from", date: dateEl.value }
+                              : { kind: "ids", ids: new Set() };
+                    return render();
+                }
+                if (el.dataset.new) {
+                    const d = S.drafts.__new;
+                    if (el.dataset.new === "text") d.text = el.value;
+                    if (el.dataset.new === "account") d.account = el.value || null;
+                    if (el.dataset.new === "tag") {
+                        const s = new Set(d.tags);
+                        el.checked ? s.add(el.value) : s.delete(el.value);
+                        d.tags = [...s];
+                    }
+                    return render();
+                }
+                if (el.id === "import-date") S.importDate = el.value;
+            });
+            function act(b) {
+                const a = b.dataset.act;
+                const r = b.dataset.rule ? ruleById(b.dataset.rule) : null;
+                const t = activeTx();
+                if (a === "reset") return reset();
+                if (a === "mark") {
+                    const next = CHECKLIST.find(([id]) => !S.done.has(id));
+                    if (next) S.done.add(next[0]);
+                    return render();
+                }
+                if (a === "commit") return commitEdit();
+                if (a === "cancel-edit") {
+                    S.editing = null;
+                    return render();
+                }
+                if (a === "import") return importRow(S.importDate);
+                if (a === "delete-tx")
+                    return openDialog(
+                        h`<h3>Delete transaction ${b.dataset.id}?</h3><p class="small">Any rule that was applied only to it keeps existing with an empty reach.</p><div class="actions"><button class="btn danger" type="button" data-act="confirm-delete-tx" data-id="${b.dataset.id}">Delete</button><button class="btn" type="button" data-act="close">Cancel</button></div>`
+                    );
+                if (a === "confirm-delete-tx") {
+                    closeDialog();
+                    return deleteTx(b.dataset.id);
+                }
+                if (a === "close") return closeDialog();
+                if (a === "save") return saveReach(r);
+                if (a === "cancel") {
+                    delete S.drafts[r.id];
+                    return render();
+                }
+                if (a === "fold") return fold(r, ruleById(b.dataset.host));
+                if (a === "extend") return extend(r, t);
+                if (a === "widen-all") {
+                    const d = draftFor(r);
+                    d.reach = { kind: "all" };
+                    return saveReach(r);
+                }
+                if (a === "apply-this") {
+                    setRow(t.id, (x) => applyRuleTo(r, x));
+                    toast("Applied " + r.id + " to this transaction.");
+                    return render();
+                }
+                if (a === "delete-rule") {
+                    const n = governedBy(r, S.transactions).length;
+                    return openDialog(
+                        h`<h3>Delete rule ${r.id}?</h3><p class="small">${n} transaction${n === 1 ? "" : "s"} keep their current values. Nothing applies to future imports.</p><div class="actions"><button class="btn danger" type="button" data-act="confirm-delete-rule" data-rule="${r.id}">Delete rule</button><button class="btn" type="button" data-act="close">Cancel</button></div>`
+                    );
+                }
+                if (a === "confirm-delete-rule") {
+                    closeDialog();
+                    S.rules = S.rules.filter((x) => x !== r);
+                    if (S.selectedRule === r.id) S.selectedRule = null;
+                    toast("Deleted " + r.id + ".");
+                    return render();
+                }
+                if (a === "split") {
+                    const f = b.dataset.field;
+                    const rest = outputFields(r).filter((x) => x !== f);
+                    return openDialog(
+                        h`<h3>Split ${fieldLabel(f).toLowerCase()} into its own rule</h3><p class="small">Both rules keep the same conditions and the same reach: ${esc(reachLabel(r, S.transactions))}. No transaction changes.</p><div class="two"><div class="mini"><strong>${r.id}</strong><span class="muted">${esc(condLabel(r))}</span>${rest.map((x) => h`<span>${fieldLabel(x)}: ${esc(valueLabel(x, r.outputs[x]))}</span>`).join("")}</div><div class="mini"><strong>New rule</strong><span class="muted">${esc(condLabel(r))}</span><span>${fieldLabel(f)}: ${esc(valueLabel(f, r.outputs[f]))}</span></div></div><div class="actions"><button class="btn primary" type="button" data-act="confirm-split" data-rule="${r.id}" data-field="${f}">Split</button><button class="btn" type="button" data-act="close">Cancel</button></div>`
+                    );
+                }
+                if (a === "confirm-split") {
+                    closeDialog();
+                    const f = b.dataset.field;
+                    const n = mkRule({
+                        text: r.text,
+                        account: r.account,
+                        amount: r.amount,
+                        outputs: { [f]: r.outputs[f] },
+                        reach: cloneReach(r.reach)
+                    });
+                    delete r.outputs[f];
+                    S.rules.push(n);
+                    toast(
+                        "Split: " +
+                            n.id +
+                            " now carries " +
+                            fieldLabel(f).toLowerCase() +
+                            " with the same reach."
+                    );
+                    return render();
+                }
+                if (a === "new-rule") {
+                    S.selectedRule = null;
+                    delete S.drafts.__new;
+                    return render();
+                }
+                if (a === "cancel-new") {
+                    delete S.drafts.__new;
+                    return render();
+                }
+                if (a === "create-rule") {
+                    const d = S.drafts.__new;
+                    const n = mkRule({
+                        text: d.text,
+                        account: d.account,
+                        outputs: { tags: { mode: "add", tags: d.tags } },
+                        reach: cloneReach(d.reach)
+                    });
+                    const c = collision(S.rules, n, "tags", null);
+                    if (c) {
+                        toast(
+                            "Refused: " +
+                                c.id +
+                                " already holds tags for " +
+                                condLabel(c) +
+                                " at that reach."
+                        );
+                        return;
+                    }
+                    S.rules.push(n);
+                    const pop = governedBy(n, S.transactions).filter((x) =>
+                        outputFields(n).some((f) => winner(S.rules, x, f) === n)
+                    );
+                    for (const x of pop) setRow(x.id, (y) => applyWinning(n, y));
+                    delete S.drafts.__new;
+                    S.selectedRule = n.id;
+                    toast("Saved " + n.id + "; applied to " + pop.length + " transactions.");
+                    return render();
+                }
+            }
+            reset();
+        </script>
+    </body>
+</html>

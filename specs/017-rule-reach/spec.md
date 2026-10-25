@@ -123,9 +123,14 @@ import within reach is governed on arrival, as today.
 
 ### 3.4 Divergence
 
-A governed row whose value differs from the rule's output is divergent, shown in orange with "Apply
-to this transaction", exactly as today. A row the rule does not reach is never orange. This is the
+For each field, the rule that governs a row is the highest-ranked rule that reaches it and carries
+that output: the winner. A row is divergent for a field when its value differs from the winner's
+output. It is shown in orange with "Apply to this transaction", exactly as today. A rule that
+reaches the row but is outranked for that field is not consulted, so a one-row exception never shows
+the wider rule as divergent on its own row. A row no rule reaches is never orange. This is the
 distinction between a deliberate exception and drift that PR #67 could not make.
+
+The inspector shows one card per rule that wins at least one field on the row, one-row rules first.
 
 ### 3.5 Imports
 
@@ -163,22 +168,30 @@ default and showing its count.
 ## 5. Worked examples
 
 Shared facts: three imported rows for `COFFEE SHOP 123` on 2 Jul (A), 25 Jul (B) and 3 Aug (C), and
-one for `BOOKSTORE 99`.
+one for `BOOKSTORE 99`. These are the steps of the interactive mockup `mockup.html`.
 
-| #   | Action                                                              | Result                                                                                                                     |
-| --- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| E1  | Tag B with `work`                                                   | Rule R1: text COFFEE SHOP 123, tags add work, reach {B}. A and C unchanged and not orange.                                 |
-| E2  | Tag A with `home`                                                   | Rule R2: same conditions, tags add home, reach {A}. R1 and R2 coexist; sets are disjoint.                                  |
-| E3  | On R1's card, widen reach to all                                    | Refused: R2 holds the tags slot for A. The refusal names R2 and offers to open it.                                         |
-| E4  | On R1's card, widen reach to from 25 Jul                            | Allowed: governs B and C. C receives `work`. A stays with R2.                                                              |
-| E5  | Import a COFFEE SHOP 123 row dated 1 Jun                            | Not governed by R1 (before the date) nor R2 (explicit set). No tag.                                                        |
-| E6  | Import a COFFEE SHOP 123 row dated 10 Aug                           | Governed by R1 on arrival; receives `work`.                                                                                |
-| E7  | Remove `work` from C by hand                                        | C is governed by R1 and differs: orange, with "Apply to this transaction".                                                 |
-| E8  | Remove `home` from A by hand                                        | Same for R2 on A. A was a one-row rule, so the orange marker says "You set this tag on 2 Jul; reapply or delete the rule?" |
-| E9  | Delete transaction A                                                | R2's set becomes empty. R2 is listed as not applied anywhere.                                                              |
-| E10 | Rename B to "Coffee"                                                | Rule R3: alias Coffee, reach {B}. Later, on C's inspector: "A rule renames this text; extend to this transaction?"         |
-| E11 | Split tags out of a rule with reach from 25 Jul                     | Both rules reach from 25 Jul. No row changes.                                                                              |
-| E12 | On the Automations page, create a rule by hand with no reach chosen | Default reach is all, as it is a deliberate rule. The count of rows that will change is shown before Save.                 |
+| #   | Action                                                      | Result                                                                                                                                                                            |
+| --- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| E1  | Tag B with `work`                                           | Rule R1: text COFFEE SHOP 123, tags add work, reach {B}. A and C unchanged and not orange.                                                                                        |
+| E2  | Tag A with `home`                                           | Rule R2: same conditions, tags add home, reach {A}. R1 and R2 coexist; their sets are disjoint.                                                                                   |
+| E3  | On R1, widen reach to from 25 Jul                           | Governs B and C. C receives `work`. A stays with R2.                                                                                                                              |
+| E4  | Import a COFFEE SHOP 123 row dated 1 Jun                    | Reached by neither rule. No tag.                                                                                                                                                  |
+| E5  | Import a COFFEE SHOP 123 row dated 10 Aug                   | Reached by R1 on arrival; receives `work`.                                                                                                                                        |
+| E6  | On R1, widen reach to all                                   | Allowed: an explicit-set rule and an all rule coexist. The 1 Jun row receives `work`. A keeps `home`, because R2 outranks R1 for A, and A is not orange.                          |
+| E7  | Remove `work` from C by hand                                | C is governed by R1 and differs: orange, with "Apply to this transaction".                                                                                                        |
+| E8  | Change A's tag from `home` to `food`                        | R2's output is updated in place. Still only A.                                                                                                                                    |
+| E9  | Clear A's tags entirely                                     | R2 is deleted. A one-row rule whose only row no longer carries the value has nothing left to govern. R1 now governs A, so A shows as divergent until reapplied or R1 is narrowed. |
+| E10 | Tag the 1 Jun row with `food`, then delete that transaction | Its one-row rule's set becomes empty. The rule is listed on the Automations page as not applied anywhere.                                                                         |
+| E11 | Rename B to "Coffee", then open C                           | Rule R4: alias Coffee, reach {B}. C's inspector offers: "a rule renames this text; extend it to this transaction?"                                                                |
+| E12 | Split tags out of a rule with reach from 25 Jul             | Both rules reach from 25 Jul. No row changes.                                                                                                                                     |
+| E13 | On the Automations page, create a rule by hand              | Default reach is all, as it is a deliberate rule. The count of rows that will change is shown before Save.                                                                        |
+
+Two rules the examples rely on, stated once:
+
+- **Clearing.** Clearing a value never creates a rule. If the row has a one-row rule for that field,
+  clearing deletes it (E9). If a wider rule governs the row, clearing makes the row divergent (E7).
+- **Offers.** A row shows "extend to this transaction" offers only for fields no rule governs on
+  that row, grouped in one card, so one-row rules on a busy description text do not pile up.
 
 ## 6. What changes in the code, at a high level
 
