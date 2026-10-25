@@ -8,18 +8,31 @@ description-text index, the mutation discipline.
 ## Decisions taken for this implementation
 
 1. **Narrowest at commit.** Finishing an edit always creates a one-row rule (or updates the row's
-   existing one-row rule). Widening and folding are explicit actions on a rule card. See spec 3.1.
-2. **Reach rank.** Explicit-set reach outranks date and all reach; date and all share a rank and
-   fall through to conditions. Among explicit-set rules on one slot, sets are disjoint by
-   uniqueness, so no two can govern the same row.
-3. **Wire.** `reach` is an optional map on the rule: `{ kind: "all" }`, `{ kind: "from"; date }`, or
-   `{ kind: "transactions" }` with a sibling `reachTransactionIds` LoroMapRecord of id → true. A
-   rule without `reach` decodes as `all`, so no data migration and every existing rule governs what
-   it governs today.
-4. **Removed.** The pending proposal state, the blur finalizer, the "apply on blur" checkbox and the
-   four-mode remembered apply preference. The preference record keeps its restriction fields; its
-   `lastApplyMode` column stays on the wire, unused.
-5. **The ownership contract document is not edited**; the reach spec supersedes it and says so.
+   existing one-row rule). Nothing else is written on Enter. See spec 3.1.
+2. **What happens next is a pending default on the one-row rule's card**, pre-set from two
+   remembered per-user preferences: last reach (this transaction / from this date / all matching)
+   and "apply automatically when I leave the row". If a wide rule with identical conditions governs
+   the row, the default target is to update that rule rather than widen the new one. "Only this
+   transaction" is always offered. The default runs when the active row changes (entering the
+   inspector is not leaving the row) if the preference is on, otherwise when the user presses Apply
+   on the card. Only rows whose values would change are written. The old four-mode preference maps
+   onto the two remembered values: updatingAll → all + automatic, updatingNew → from + automatic,
+   updateAll → all, updateNew → from.
+3. **Reach rank.** Explicit-set reach outranks date and all reach; date and all share a rank and
+   fall through to conditions.
+4. **Uniqueness.** Reach kinds form two groups, explicit and wide. At most one wide rule per field
+   per conditions slot; explicit-set rules on the slot must have disjoint id sets. Widening an
+   explicit-set rule into an occupied wide slot folds into that wide rule instead of colliding.
+5. **Wire.** `reach` on the rule, additive, decoding to `all` when absent so existing rules govern
+   what they govern today. No data migration.
+6. **Removed.** The pending proposal atom and the blur finalizer in the grid controller, the "apply
+   on blur" checkbox and the per-gesture scope radios. The remembered preference record keeps its
+   restriction fields and gains `lastReach` and `applyOnLeaveRow`; `lastApplyMode` stays on the wire
+   and seeds the two new values once.
+7. **The ownership contract document is not edited**; the reach spec supersedes it and says so.
+8. **Reference semantics.** `mockup.html` is a faithful simulation of the spec, including the
+   pending default, the leave-row trigger, and the uniqueness groups; when the spec is silent, the
+   mockup decides.
 
 ## Phase R1 — domain, engine, CRDT
 
@@ -72,6 +85,12 @@ governing by reach; existing tests updated deliberately where the old "every act
 import" expectation changes.
 
 ## Phase R2 — inspector, Automations page, removals
+
+**Carried from R1 review or added by decisions 2 and 4** (do first in R2 if R1 did not already):
+uniqueness groups (explicit vs wide) with fold-instead-of-collide on widening;
+`createFieldRuleFromEdit` unchanged; a `resolvePendingDefault(state, { ruleId, transactionId })`
+pure helper returning `update { hostId }`, `widen { reach }`, or `none` from the remembered reach;
+preference record gains `lastReach` and `applyOnLeaveRow` with a one-time seed from `lastApplyMode`.
 
 - Grid controller: replace the proposal atom and finalizers with a live editor-draft channel
   (`publishAutomationEditorDraft(address, draftValue)`) the inspector reads for the preview, and a
