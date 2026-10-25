@@ -29,8 +29,13 @@ description-text index, the mutation discipline.
    on blur" checkbox and the per-gesture scope radios. The remembered preference record keeps its
    restriction fields and gains `lastReach` and `applyOnLeaveRow`; `lastApplyMode` stays on the wire
    and seeds the two new values once.
-7. **The ownership contract document is not edited**; the reach spec supersedes it and says so.
-8. **Reference semantics.** `mockup.html` is a faithful simulation of the spec, including the
+7. **Replacing exceptions and orphan handling.** Widening or updating offers a per-apply "Also
+   replace N exceptions on these rows" option, off by default, that soft-deletes the covered one-row
+   rules in the same vault action; narrower-condition rules are never touched. Empty-set rules and
+   redundant exceptions are treated as non-rules on read (`readActiveFieldRules` filters them) and
+   garbage-collected by the maintenance pass; nothing writes a delete for them.
+8. **The ownership contract document is not edited**; the reach spec supersedes it and says so.
+9. **Reference semantics.** `mockup.html` is a faithful simulation of the spec, including the
    pending default, the leave-row trigger, and the uniqueness groups; when the spec is silent, the
    mockup decides.
 
