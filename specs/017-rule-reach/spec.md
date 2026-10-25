@@ -76,20 +76,27 @@ union.
 
 ### 3.1 Editing a cell creates or updates a rule
 
-When the user finishes editing a description alias, tags or allocation on a transaction:
+When the user finishes editing a description alias, tags or allocation on a transaction, a rule is
+created with the row's conditions (description text only, unless the user chose a restriction), the
+edited field as its only output, and reach **these transactions = { this row }**. The row already
+holds the value, so nothing else is written.
 
-- If no rule governs that row for that field, a rule is created with the row's conditions
-  (description text only, unless the user chose a restriction) and reach **these transactions = {
-  this row }**. The row already holds the value, so nothing else is written.
-- If a rule already governs the row for that field, that rule's output is updated, and the change is
-  applied across its reach. The user is told how many rows will change before it happens, as today.
+This is always the narrowest possible result, even when a wider rule already governs the row for
+that field. In that case the new one-row rule outranks the wider rule for this row (section 2.1), so
+the edit is a row-level exception and no other transaction changes. The inspector then shows both
+rules and offers, as an explicit choice, to fold the edit into the wider rule, which updates that
+rule's output across its reach after showing the count and deletes the one-row rule.
 
-This replaces the proposal flow. There is no longer a pending offer: the rule exists as soon as the
-edit is finished, with the narrowest possible reach. The remembered "apply automatically" preference
-disappears with it; see 3.3.
+If the row already has a one-row rule for that field, editing the value again updates that rule's
+output in place.
 
-Edits made while the row is still being edited show a live preview in the inspector of what will
-happen: "Creates a rule for this transaction" or "Updates the Tags rule, 3 transactions change".
+While the cell is being edited, the inspector shows a live preview computed from the draft value:
+"Creates a rule for this transaction", "Updates this transaction's rule", or, when a wider rule
+governs the row, "Creates an exception to the Tags rule for this transaction".
+
+This replaces the proposal flow. There is no pending offer and nothing to apply automatically on
+Enter, cell exit or blur: the rule exists as soon as the edit is finished, and widening is always a
+later, explicit choice on the rule. The remembered four-mode apply preference disappears; see 3.3.
 
 ### 3.2 Widening and narrowing
 
@@ -193,11 +200,17 @@ one for `BOOKSTORE 99`.
 
 ## 7. Open questions
 
-1. Should a one-row rule created by an edit appear on the Automations page at all, or only once it
-   has been widened? Section 4 proposes listing them collapsed; hiding them would make the page
-   simpler but leaves orphan rules invisible.
-2. When a user edits a row governed by a wide rule and the live preview says "3 transactions
-   change", should there be a one-keystroke way to say "just this row" instead? That would mean
-   narrowing the rule by excluding this id, which is a fourth reach shape, or creating a competing
-   one-row rule, which 2.1 already allows. The latter needs no new concept.
-3. Date reach is by calendar date, inclusive, matching the decision in PR #67. Confirm.
+Resolved on 2026-10-25:
+
+1. **One-row rules on the Automations page.** Listed, but in a collapsed group "Applied to specific
+   transactions" with its count, so they are discoverable without drowning deliberate rules. Rules
+   whose reach set has become empty appear in the same group marked "not applied anywhere".
+2. **"Just this row" when a wider rule governs.** No new concept: every edit creates a one-row rule,
+   which outranks the wider rule for that row. Folding into the wider rule is the explicit action,
+   not the default. See 3.1.
+3. **Date reach** is by calendar date, inclusive, matching PR #67.
+
+Decisions this spec supersedes from PR #67 and the ownership contract: scope is now a stored
+property of the rule, and a rule may store transaction ids as its reach set. Matching itself remains
+a pure function of conditions. `specs/automation-rule-ownership.md` is hashed by a contract test and
+is left as the historical record; this document is the current one.
