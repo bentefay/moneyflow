@@ -803,7 +803,8 @@
                     changed: new Set(),
                     importDate: "2026-06-01",
                     prefs: { reach: "from", autoApply: false },
-                    pending: {}
+                    pending: {},
+                    override: false
                 };
                 render();
             }
@@ -838,7 +839,7 @@
                 ],
                 [
                     "E3",
-                    "On B's card, choose <em>Widen to from 25 Jul</em> and Apply now.",
+                    "Select B again; on R1's card choose <em>From 25 Jul</em> and Save.",
                     "C receives <code>work</code>. A keeps <code>home</code>."
                 ],
                 [
@@ -874,7 +875,7 @@
                 [
                     "E10",
                     "Tag the 1 Jun row with <code>food</code> and keep <em>Only this transaction</em>; then delete that row.",
-                    "Its one-row rule's reach becomes empty; the Automations page lists it as not applied anywhere."
+                    "Its one-row rule has no transaction left, so it is garbage collected: not listed anywhere, governs nothing."
                 ],
                 [
                     "E11",
@@ -900,13 +901,64 @@
                     "E15",
                     "With automatic on, change C's tags while R1 governs C, then click another row.",
                     "On Enter a one-row exception appears with the default <em>Update R1</em>. As the row changes R1's output is replaced across its reach where values differ and the exception folds in. Choosing <em>Only this transaction</em> first keeps the exception."
+                ],
+                [
+                    "E16",
+                    "Make exceptions on two coffee rows (tag each with <code>food</code>, keep <em>Only this transaction</em>). Then tag another coffee row with <code>coffee</code>: the default is <em>Update R1</em>. Tick <em>Also replace 2 exceptions</em> and Apply now.",
+                    "R1 is updated across its reach, both exceptions are deleted in the same action and their rows take the new value. A rule restricted to one account would keep its rows and be named in the count line."
                 ]
             ];
 
             // ---------------------------------------------------------------------------------------------
             // Rendering
             // ---------------------------------------------------------------------------------------------
+            // Garbage collection, as the maintenance pass would do it: an explicit-set rule with no surviving
+            // ids, or a one-row exception whose output equals the wide rule that would otherwise govern its
+            // row, has no possible effect and is deleted.
+            function sameOutput(a, b) {
+                return JSON.stringify(a) === JSON.stringify(b);
+            }
+            function gcRules() {
+                const live = new Set(S.transactions.map((t) => t.id));
+                const removed = [];
+                S.rules = S.rules.filter((r) => {
+                    if (r.reach.kind !== "ids") return true;
+                    const ids = [...r.reach.ids].filter((id) => live.has(id));
+                    if (ids.length === 0) {
+                        removed.push(r.id);
+                        return false;
+                    }
+                    const f = outputFields(r)[0];
+                    if (outputFields(r).length === 1 && !S.pending[r.id]) {
+                        const redundant = ids.every((id) => {
+                            const t = S.transactions.find((x) => x.id === id);
+                            const w = S.rules
+                                .filter(
+                                    (x) =>
+                                        x !== r &&
+                                        x.reach.kind !== "ids" &&
+                                        x.outputs[f] != null &&
+                                        governs(x, t)
+                                )
+                                .sort((p, q) => rank(q) - rank(p))[0];
+                            return w != null && sameOutput(w.outputs[f], r.outputs[f]);
+                        });
+                        if (redundant) {
+                            removed.push(r.id);
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+                for (const id of removed) {
+                    delete S.pending[id];
+                    delete S.drafts[id];
+                    if (S.selectedRule === id) S.selectedRule = null;
+                }
+                return removed;
+            }
             function render() {
+                gcRules();
                 document
                     .querySelectorAll("#tabs [data-view]")
                     .forEach((b) =>
@@ -1001,6 +1053,48 @@
                         S.prefs.reach === "all" ? { kind: "all" } : { kind: "from", date: t.date }
                 };
             }
+            function coveredExceptions(rule, reach, f, excludeId) {
+                const probe = { ...rule, reach };
+                const rows = S.transactions.filter((t) => governs(probe, t));
+                const exceptions = S.rules.filter(
+                    (x) =>
+                        x.id !== excludeId &&
+                        x.id !== rule.id &&
+                        x.reach.kind === "ids" &&
+                        x.outputs[f] != null &&
+                        sameConds(x, rule) &&
+                        rows.some((t) => x.reach.ids.has(t.id)) &&
+                        !sameOutput(x.outputs[f], rule.outputs[f])
+                );
+                const narrower = S.rules.filter(
+                    (x) =>
+                        x.id !== rule.id &&
+                        x.reach.kind !== "ids" &&
+                        x.outputs[f] != null &&
+                        x.text === rule.text &&
+                        !sameConds(x, rule) &&
+                        condRank(x) > condRank(rule) &&
+                        rows.some((t) => governs(x, t))
+                );
+                return { exceptions, narrower };
+            }
+            function overrideLine(cov) {
+                const n = cov.exceptions.length,
+                    m = cov.narrower.length;
+                if (!n && !m) return "";
+                return h`${n ? h`<label class="check"><input type="checkbox" data-override ${S.override ? "checked" : ""}><span>Also replace ${n} exception${n === 1 ? "" : "s"} on these rows<span class="hint">Deletes those one-row rules in the same action; undo reverts everything.</span></span></label>` : ""}${m ? h`<p class="small muted">${m} more specific rule${m === 1 ? "" : "s"} keep their rows.</p>` : ""}`;
+            }
+            function dropCoveredExceptions(rule, reach, f, excludeId) {
+                if (!S.override) return 0;
+                const cov = coveredExceptions(rule, reach, f, excludeId);
+                S.rules = S.rules.filter((x) => !cov.exceptions.includes(x));
+                for (const x of cov.exceptions) {
+                    delete S.pending[x.id];
+                    delete S.drafts[x.id];
+                }
+                S.override = false;
+                return cov.exceptions.length;
+            }
             function actionLabel(r, a) {
                 const f = outputFields(r)[0];
                 if (a.kind === "update") {
@@ -1033,13 +1127,24 @@
                 );
             }
             function runAction(r, a) {
-                if (a.kind === "update") return fold(r, a.host, true);
+                const f = outputFields(r)[0];
+                if (a.kind === "update") {
+                    dropCoveredExceptions(
+                        { ...a.host, outputs: { ...a.host.outputs, [f]: r.outputs[f] } },
+                        a.host.reach,
+                        f,
+                        r.id
+                    );
+                    return fold(r, a.host, true);
+                }
+                dropCoveredExceptions(r, a.reach, f, null);
                 const d = draftFor(r);
                 d.reach = cloneReach(a.reach);
                 return saveReach(r, true);
             }
             // Called whenever the active row changes away from `rowId`.
             function leaveRow(rowId) {
+                S.override = false;
                 for (const [ruleId, pend] of Object.entries(S.pending)) {
                     if (pend.rowId !== rowId) continue;
                     const r = ruleById(ruleId);
@@ -1047,7 +1152,11 @@
                         delete S.pending[ruleId];
                         continue;
                     }
-                    if (!S.prefs.autoApply || pend.choice === "only") continue;
+                    if (pend.choice === "only") {
+                        delete S.pending[ruleId];
+                        continue;
+                    }
+                    if (!S.prefs.autoApply) continue;
                     const t = S.transactions.find((x) => x.id === rowId);
                     const a = t ? defaultActionFor(r, t) : null;
                     delete S.pending[ruleId];
@@ -1168,7 +1277,8 @@
                 return h`<div class="group" role="radiogroup" aria-label="Where this rule applies"><span class="eyebrow">Applies to</span>
     <label class="radio"><input type="radio" name="reach-${r.id}" value="ids" data-reach ${d.reach.kind === "ids" ? "checked" : ""}><span>Only the transactions it was applied to<span class="hint">${idsCount} transaction${idsCount === 1 ? "" : "s"}. Nothing else changes.</span></span></label>
     <label class="radio"><input type="radio" name="reach-${r.id}" value="from" data-reach ${d.reach.kind === "from" ? "checked" : ""}><span>Matching transactions from <input type="date" value="${fromDate}" data-reach-date aria-label="From date"> onward<span class="hint">${nFrom} would change now; future imports with such dates are governed.</span></span></label>
-    <label class="radio"><input type="radio" name="reach-${r.id}" value="all" data-reach ${d.reach.kind === "all" ? "checked" : ""}><span>All matching transactions<span class="hint">${nAll} would change now, past and future.</span></span></label></div>`;
+    <label class="radio"><input type="radio" name="reach-${r.id}" value="all" data-reach ${d.reach.kind === "all" ? "checked" : ""}><span>All matching transactions<span class="hint">${nAll} would change now, past and future.</span></span></label>
+    ${d.reach.kind !== "ids" && (r.reach.kind === "ids" || d.reach.kind !== r.reach.kind || (d.reach.kind === "from" && d.reach.date !== r.reach.date)) ? overrideLine(coveredExceptions(r, d.reach, outputFields(r)[0], null)) : ""}</div>`;
             }
             function renderRuleCard(r, t) {
                 const d = draftFor(r);
@@ -1249,6 +1359,23 @@
     ${update ? "" : opt("from", widen("from"), choice === "from")}
     ${update ? "" : opt("all", widen("all"), choice === "all")}
     ${opt("only", "Only this transaction · nothing else changes", choice === "only")}
+    ${(() => {
+        if (choice === "only") return "";
+        const cov = update
+            ? coveredExceptions(
+                  { ...update.host, outputs: { ...update.host.outputs, [f]: r.outputs[f] } },
+                  update.host.reach,
+                  f,
+                  r.id
+              )
+            : coveredExceptions(
+                  r,
+                  choice === "all" ? { kind: "all" } : { kind: "from", date: t.date },
+                  f,
+                  null
+              );
+        return overrideLine(cov);
+    })()}
     <label class="check"><input type="checkbox" data-pref-auto ${S.prefs.autoApply ? "checked" : ""}><span>Apply automatically when I leave the row<span class="hint">Remembered. Entering the inspector does not count as leaving. Only rows whose values would change are written.</span></span></label>
   </div>`;
             }
@@ -1407,6 +1534,7 @@
                         return fold(r, w, quiet);
                     }
                 }
+                dropCoveredExceptions(r, d.reach, field, null);
                 for (const f of outputFields(r)) {
                     const c = collision(S.rules, probe, f, r.id);
                     if (c) {
@@ -1526,7 +1654,7 @@
                         (emptied.length
                             ? " " +
                               emptied.join(", ") +
-                              " now applies nowhere; find it on the Automations page."
+                              " had no other transaction and was garbage collected."
                             : "")
                 );
                 render();
@@ -1663,6 +1791,10 @@
                 if (el.dataset.prefReach != null) {
                     S.prefs.reach = el.value;
                     return render();
+                }
+                if (el.dataset.override != null) {
+                    S.override = el.checked;
+                    return;
                 }
                 if (el.dataset.prefAuto != null) {
                     S.prefs.autoApply = el.checked;
