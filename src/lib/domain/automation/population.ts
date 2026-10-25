@@ -20,6 +20,7 @@ import {
     RULE_FIELDS,
     type RuleField,
     type RuleMatchSubject,
+    type RuleReach,
     selectWinningRule
 } from "./rules";
 
@@ -110,6 +111,11 @@ export interface RulePopulationQuery {
     /** Rules in `rules` that Apply deletes, such as the owner a conflict move empties. */
     readonly excludedRuleIds?: ReadonlySet<string>;
     readonly transactions: readonly RulePopulationTransaction[];
+    /**
+     * The candidate reach to count under, for the "N transactions change" line before a widen or
+     * narrow is saved. Absent means the rule's own reach.
+     */
+    readonly reach?: RuleReach;
     readonly scope: ApplyScope;
     /**
      * The date Update new counts from, inclusive. `null` on the Automations page, where Update new
@@ -119,11 +125,14 @@ export interface RulePopulationQuery {
 }
 
 /**
- * How many transactions Apply would change now: those in scope on which `rule` wins at least one of
- * its output fields and that output differs from the current value.
+ * How many transactions Apply would change now: those in scope on which `rule`, under `reach` when
+ * given, wins at least one of its output fields and that output differs from the current value. A
+ * rule only wins where it governs, so a row outside the reach, or one a one-row rule outranks it on,
+ * never counts.
  */
 export function countRulePopulation(query: RulePopulationQuery): number {
-    const { rule, scope, referenceDate } = query;
+    const { scope, referenceDate } = query;
+    const rule = query.reach == null ? query.rule : { ...query.rule, reach: query.reach };
     if (scope === "new" && referenceDate == null) return 0;
     // Only rules keyed on the same text can match where `rule` does, so no other rule can outrank
     // it anywhere it could win. Narrowing once here keeps every per-row selection small.

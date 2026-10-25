@@ -12,6 +12,7 @@ import { normalizeDescriptionAliasName } from "@/lib/domain/description-aliases"
 
 export { normalizeDescriptionAliasName } from "@/lib/domain/description-aliases";
 
+import { removeTransactionsFromRuleReach } from "./field-rule-reach-maintenance";
 import {
     deleteTransaction,
     deleteTransactionsByImport,
@@ -677,14 +678,21 @@ export function deleteDescriptionAliasedTransaction(
 ): DescriptionAliasMutationResult<undefined> {
     const transactions = findTransactionsInStore(state.transactions, input.location);
     if (!transactions.length) return err("transaction-not-found", "Transaction does not exist");
+    const cascade = input.cascade ?? true;
+    const leaving = new Set<string>();
     for (const transaction of transactions) {
         unlinkTransaction(state, transaction);
+        leaving.add(transaction.id);
         if ("suspectedDuplicates" in transaction) {
-            for (const duplicate of transaction.suspectedDuplicates)
+            for (const duplicate of transaction.suspectedDuplicates) {
                 unlinkTransaction(state, duplicate);
+                // Only a cascade removes the nested duplicates along with their parent.
+                if (cascade) leaving.add(duplicate.id);
+            }
         }
     }
     deleteTransaction(state.transactions, input);
+    removeTransactionsFromRuleReach(state, leaving);
     return ok(undefined);
 }
 
@@ -692,17 +700,22 @@ export function deleteDescriptionAliasedTransactionsByImport(
     state: VaultState,
     importId: string
 ): DescriptionAliasMutationResult<undefined> {
+    const leaving = new Set<string>();
     for (const tree of Object.values(state.transactions)) {
         if (typeof tree !== "object" || tree == null) continue;
         for (const year of tree.years) {
             for (const month of year.months) {
                 for (const day of month.days) {
                     for (const transaction of day.transactions) {
-                        if (transaction.importId === importId)
+                        if (transaction.importId === importId) {
                             unlinkTransaction(state, transaction);
+                            leaving.add(transaction.id);
+                        }
                         for (const duplicate of transaction.suspectedDuplicates) {
-                            if (duplicate.importId === importId)
+                            if (duplicate.importId === importId) {
                                 unlinkTransaction(state, duplicate);
+                                leaving.add(duplicate.id);
+                            }
                         }
                     }
                 }
@@ -710,6 +723,7 @@ export function deleteDescriptionAliasedTransactionsByImport(
         }
     }
     deleteTransactionsByImport(state.transactions, importId);
+    removeTransactionsFromRuleReach(state, leaving);
     const importRecord = state.imports[importId];
     if (typeof importRecord === "object" && importRecord != null) {
         importRecord.deletedAt = Temporal.Now.instant();

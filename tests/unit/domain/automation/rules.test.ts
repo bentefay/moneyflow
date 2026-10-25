@@ -2,6 +2,7 @@ import * as fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { asTransactionId } from "@/components/features/transactions/table-model/ids";
 import { AllocationPercentageSchema } from "@/lib/domain/allocation";
 import {
     type FieldRule,
@@ -9,7 +10,9 @@ import {
     type RuleField,
     type RuleMatchSubject,
     type RuleOutputs,
+    type RuleReach,
     type TagsOutput,
+    RULE_REACH_ALL,
     buildFieldRule,
     decodeFieldRule,
     dedupeRulesByUniqueness,
@@ -45,6 +48,7 @@ interface MakeRuleInput {
     readonly accountId?: string;
     readonly amount?: number;
     readonly outputs?: RuleOutputs;
+    readonly reach?: RuleReach;
     readonly createdAtOffsetMs?: number;
 }
 
@@ -67,12 +71,17 @@ function makeRule(input: MakeRuleInput): FieldRule {
         accountId: input.accountId,
         amount: input.amount == null ? undefined : asMinorUnits(input.amount),
         outputs: input.outputs ?? { tags: tagsOutput("add", ["tag-a"]) },
+        reach: input.reach ?? RULE_REACH_ALL,
         createdAt: BASE_INSTANT.add({ milliseconds: input.createdAtOffsetMs ?? 0 })
     };
 }
 
+const SUBJECT_DATE = Temporal.PlainDate.from("2026-07-25");
+
 function subject(overrides: Partial<RuleMatchSubject> = {}): RuleMatchSubject {
     return {
+        transactionId: asTransactionId("tx-1"),
+        date: SUBJECT_DATE,
         descriptionText: "COFFEE SHOP 123",
         accountId: "acct-checking",
         amount: asMinorUnits(-450),
@@ -207,6 +216,8 @@ describe("uniqueness", () => {
 describe("projectRuleMatchSubject", () => {
     it("uses raw provenance for imported rows and resolved aliases for manual rows", () => {
         const imported = projectRuleMatchSubject({
+            transactionId: "tx-1",
+            date: SUBJECT_DATE,
             accountId: "acct-checking",
             amount: asMinorUnits(-450),
             description: "RAW IMPORT",
@@ -214,6 +225,8 @@ describe("projectRuleMatchSubject", () => {
             resolvedAliasName: "Visible alias"
         });
         const manual = projectRuleMatchSubject({
+            transactionId: "tx-1",
+            date: SUBJECT_DATE,
             accountId: "acct-checking",
             amount: asMinorUnits(-450),
             description: "",
@@ -228,6 +241,8 @@ describe("projectRuleMatchSubject", () => {
     it("projects empty or unresolved matching text to null", () => {
         expect(
             projectRuleMatchSubject({
+                transactionId: "tx-1",
+                date: SUBJECT_DATE,
                 accountId: "acct-checking",
                 amount: asMinorUnits(-450),
                 description: "",
@@ -237,6 +252,8 @@ describe("projectRuleMatchSubject", () => {
         ).toBeNull();
         expect(
             projectRuleMatchSubject({
+                transactionId: "tx-1",
+                date: SUBJECT_DATE,
                 accountId: "acct-checking",
                 amount: asMinorUnits(-450),
                 description: "ignored",

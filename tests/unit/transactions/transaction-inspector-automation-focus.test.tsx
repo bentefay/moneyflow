@@ -20,7 +20,7 @@ import { AllocationPercentageSchema } from "@/lib/domain/allocation";
 import type { RuleExtensionTarget } from "@/lib/domain/automation/extension";
 import { DEFAULT_REMEMBERED_CHOICE } from "@/lib/domain/automation/preferences";
 import { buildRuleIndex } from "@/lib/domain/automation/rule-index";
-import { type FieldRule, FieldRuleIdSchema } from "@/lib/domain/automation/rules";
+import { type FieldRule, FieldRuleIdSchema, RULE_REACH_ALL } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 import { populateStore } from "../crdt/transaction-cursor-fixtures";
@@ -59,6 +59,7 @@ function existingRule(): FieldRule {
                   }
                 : {})
         },
+        reach: RULE_REACH_ALL,
         createdAt: Temporal.Instant.from("2026-08-31T00:00:00Z")
     };
 }
@@ -151,6 +152,8 @@ const CONTEXT = {
         accountId: "account-1",
         amount: asMinorUnits(-450),
         descriptionText: "Coffee shop",
+        transactionId: asTransactionId("tx-1"),
+        date: Temporal.PlainDate.from("2026-07-25"),
         isManual: false
     }
 };

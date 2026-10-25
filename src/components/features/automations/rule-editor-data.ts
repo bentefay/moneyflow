@@ -197,6 +197,14 @@ export function mutationErrorMessage(error: FieldRuleMutationError): string {
             return "A rule with one output cannot be split.";
         case "predicate-mismatch":
             return "The two rules have different conditions, so the output cannot move between them.";
+        case "reach-mismatch":
+            return "The two rules apply to different transactions, so the output cannot move between them.";
+        case "not-explicit-reach":
+            return "Only a rule for specific transactions can be extended one transaction at a time.";
+        case "transaction-not-found":
+            return "This transaction no longer exists.";
+        case "transaction-not-matched":
+            return "This transaction does not match the rule's conditions.";
         default:
             return assertNever(error);
     }
@@ -209,12 +217,16 @@ export function mutationErrorToFieldErrors(error: FieldRuleMutationError): RuleE
         case "duplicate-key":
         case "invalid-rule":
         case "not-found":
+        case "transaction-not-found":
+        case "transaction-not-matched":
             return { descriptionText: message };
         case "invalid-allocations":
             return { allocations: message };
         case "missing-output":
         case "single-output":
         case "predicate-mismatch":
+        case "reach-mismatch":
+        case "not-explicit-reach":
             return { outputs: message };
         default:
             return assertNever(error);

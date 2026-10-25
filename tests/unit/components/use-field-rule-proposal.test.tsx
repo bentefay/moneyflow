@@ -20,7 +20,8 @@ import { buildRuleIndex } from "@/lib/domain/automation/rule-index";
 import {
     type FieldRule,
     FieldRuleIdSchema,
-    type RuleMatchSubject
+    type RuleMatchSubject,
+    RULE_REACH_ALL
 } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 
@@ -100,6 +101,8 @@ const SUBJECT: RuleMatchSubject = {
     accountId: "account-1",
     amount: asMinorUnits(-450),
     descriptionText: DESCRIPTION_TEXT,
+    transactionId: asTransactionId("tx-1"),
+    date: Temporal.PlainDate.from("2026-07-25"),
     isManual: false
 };
 const REFERENCE_DATE = Temporal.PlainDate.from("2026-08-31");
@@ -124,6 +127,7 @@ interface ProposalSemanticTransition {
 function tagRule(id: string): FieldRule {
     return {
         outputs: { tags: { mode: "add", tagIds: ["tag-a"] } },
+        reach: RULE_REACH_ALL,
         createdAt: Temporal.Instant.from("2026-08-31T00:00:00Z"),
         descriptionText: DESCRIPTION_TEXT,
         id: FieldRuleIdSchema.parse(id)
@@ -620,6 +624,7 @@ describe("useFieldRuleProposal draft ownership", () => {
 function aliasRule(id: string, accountId?: string): FieldRule {
     return {
         outputs: { descriptionAlias: { aliasId: "alias-coffee" } },
+        reach: RULE_REACH_ALL,
         createdAt: Temporal.Instant.from("2026-08-31T00:00:00Z"),
         descriptionText: DESCRIPTION_TEXT,
         accountId,

@@ -23,7 +23,7 @@ import {
     DEFAULT_REMEMBERED_CHOICE,
     type RememberedRuleChoice
 } from "@/lib/domain/automation/preferences";
-import { type FieldRule, FieldRuleIdSchema } from "@/lib/domain/automation/rules";
+import { type FieldRule, FieldRuleIdSchema, RULE_REACH_ALL } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 const CREATION = Temporal.Instant.from("2026-07-25T00:00:00Z");
@@ -47,6 +47,7 @@ const GROUPED_RULE: FieldRule = {
             }
         }
     },
+    reach: RULE_REACH_ALL,
     createdAt: CREATION
 };
 
@@ -72,6 +73,7 @@ describe("draftFromRule", () => {
             id: ruleId("r2"),
             descriptionText: "RENT",
             outputs: { tags: { mode: "add", tagIds: ["tag-a"] } },
+            reach: RULE_REACH_ALL,
             createdAt: CREATION
         };
         const draft = draftFromRule(rule, "USD", DEFAULT_REMEMBERED_CHOICE);

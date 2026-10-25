@@ -530,6 +530,8 @@ describe("TransactionInspector", () => {
                             accountId: "acc-1",
                             amount: asMinorUnits(-1000),
                             descriptionText: "Description tx-1",
+                            transactionId: asTransactionId("tx-1"),
+                            date: Temporal.PlainDate.from("2026-07-25"),
                             isManual: false
                         }
                     }

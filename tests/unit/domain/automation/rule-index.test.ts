@@ -2,8 +2,12 @@ import * as fc from "fast-check";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { asTransactionId } from "@/components/features/transactions/table-model/ids";
 import { AllocationPercentageSchema } from "@/lib/domain/allocation";
-import { resolveRuleExtensionTarget } from "@/lib/domain/automation/extension";
+import {
+    resolveRuleExtensionTarget,
+    resolveRuleFoldOffer
+} from "@/lib/domain/automation/extension";
 import {
     countRulePopulation,
     populationFieldValue,
@@ -23,6 +27,8 @@ import {
     RULE_FIELDS,
     type RuleMatchSubject,
     type RuleOutputs,
+    RULE_REACH_ALL,
+    type RuleReach,
     selectWinningRule,
     selectWinningRulesByField
 } from "@/lib/domain/automation/rules";
@@ -56,6 +62,19 @@ const outputsArbitrary: fc.Arbitrary<RuleOutputs> = fc.constantFrom<RuleOutputs>
     { ...ALIAS, ...TAGS_SET, ...ALLOCATION }
 );
 
+// A small transaction id pool, so explicit sets routinely contain the subject's row.
+const TRANSACTION_IDS = ["tx-0", "tx-1", "tx-2"] as const;
+
+const reachArbitrary: fc.Arbitrary<RuleReach> = fc.oneof(
+    fc.constant<RuleReach>(RULE_REACH_ALL),
+    fc
+        .integer({ min: -2, max: 2 })
+        .map((days): RuleReach => ({ kind: "from", date: REFERENCE.add({ days }) })),
+    fc
+        .subarray([...TRANSACTION_IDS])
+        .map((ids): RuleReach => ({ kind: "transactions", ids: new Set(ids.map(asTransactionId)) }))
+);
+
 const ruleArbitrary: fc.Arbitrary<FieldRule> = fc.record({
     // A small id pool also yields duplicate ids, which only concurrent creation can produce.
     id: fc
@@ -65,23 +84,28 @@ const ruleArbitrary: fc.Arbitrary<FieldRule> = fc.record({
     accountId: fc.option(fc.constantFrom(...ACCOUNTS), { nil: undefined }),
     amount: fc.option(fc.constantFrom(...AMOUNTS).map(asMinorUnits), { nil: undefined }),
     outputs: outputsArbitrary,
+    reach: reachArbitrary,
     createdAt: fc.integer({ min: 0, max: 2 }).map((offset) => BASE_INSTANT.add({ seconds: offset }))
 });
 
 const subjectArbitrary: fc.Arbitrary<RuleMatchSubject> = fc.record({
+    transactionId: fc.constantFrom(...TRANSACTION_IDS).map(asTransactionId),
+    date: fc.integer({ min: -2, max: 2 }).map((days) => REFERENCE.add({ days })),
     descriptionText: fc.option(fc.constantFrom(...TEXTS, "UNKNOWN"), { nil: null }),
     accountId: fc.constantFrom(...ACCOUNTS),
     amount: fc.constantFrom(...AMOUNTS, -12).map(asMinorUnits),
     isManual: fc.boolean()
 });
 
-const populationArbitrary: fc.Arbitrary<RulePopulationTransaction> = fc.record({
-    subject: subjectArbitrary,
-    date: fc.integer({ min: -2, max: 2 }).map((days) => REFERENCE.add({ days })),
-    aliasId: fc.constantFrom(null, "alias-1"),
-    tagIds: fc.constantFrom([], ["tag-a"], ["tag-b"]),
-    allocations: fc.constantFrom<Readonly<Record<string, number>>>({}, { "person-1": 100 })
-});
+const populationArbitrary: fc.Arbitrary<RulePopulationTransaction> = fc
+    .record({
+        subject: subjectArbitrary,
+        aliasId: fc.constantFrom(null, "alias-1"),
+        tagIds: fc.constantFrom([], ["tag-a"], ["tag-b"]),
+        allocations: fc.constantFrom<Readonly<Record<string, number>>>({}, { "person-1": 100 })
+    })
+    // A row has one date: the one reach tests and the one the "new" scope tests are the same.
+    .map((transaction) => ({ ...transaction, date: transaction.subject.date }));
 
 const rulesArbitrary = fc.array(ruleArbitrary, { maxLength: 12 });
 
@@ -91,6 +115,7 @@ function rule(id: string, descriptionText: string, accountId?: string): FieldRul
         descriptionText,
         accountId,
         outputs: TAGS_ADD,
+        reach: RULE_REACH_ALL,
         createdAt: BASE_INSTANT
     };
 }
@@ -103,7 +128,8 @@ function rule(id: string, descriptionText: string, accountId?: string): FieldRul
 function referenceCount(
     query: Omit<RulePopulationQuery, "rules"> & { readonly rules: readonly FieldRule[] }
 ): number {
-    const { rule, scope, referenceDate } = query;
+    const { scope, referenceDate } = query;
+    const rule = query.reach == null ? query.rule : { ...query.rule, reach: query.reach };
     if (scope === "new" && referenceDate == null) return 0;
     const rules = [...query.rules.filter((candidate) => candidate.id !== rule.id), rule];
     const fields = RULE_FIELDS.filter((field) => rule.outputs[field] != null);
@@ -137,7 +163,13 @@ describe("buildRuleIndex", () => {
 
     it("offers no candidates for a subject without matchable text or with an unknown one", () => {
         const index = buildRuleIndex([rule("a", "COFFEE")]);
-        const base = { accountId: "acct-a", amount: asMinorUnits(-450), isManual: false };
+        const base = {
+            transactionId: asTransactionId("tx-0"),
+            date: REFERENCE,
+            accountId: "acct-a",
+            amount: asMinorUnits(-450),
+            isManual: false
+        };
 
         expect(candidateRulesFor(index, { ...base, descriptionText: null })).toEqual([]);
         expect(candidateRulesFor(index, { ...base, descriptionText: "coffee" })).toEqual([]);
@@ -183,9 +215,10 @@ describe("index-backed engine equals list-backed engine", () => {
                 fc.constantFrom("all" as const, "new" as const),
                 fc.constantFrom(null, REFERENCE),
                 fc.subarray(["r0", "r1", "r2", "r3", "r4", "r5"]),
-                (rules, candidate, transactions, scope, referenceDate, excluded) => {
+                fc.option(reachArbitrary, { nil: undefined }),
+                (rules, candidate, transactions, scope, referenceDate, excluded, reach) => {
                     const excludedRuleIds = new Set(excluded);
-                    const query = { rule: candidate, transactions, scope, referenceDate };
+                    const query = { rule: candidate, transactions, scope, referenceDate, reach };
                     // The reference applies the exclusion the way callers did before it was a
                     // query field: by filtering the list.
                     const expected = referenceCount({
@@ -226,6 +259,24 @@ describe("index-backed engine equals list-backed engine", () => {
                     expect(
                         resolveRuleExtensionTarget({ ...query, rules: buildRuleIndex(rules) })
                     ).toEqual(resolveRuleExtensionTarget({ ...query, rules }));
+                }
+            ),
+            { seed: SEED, numRuns: PROPERTY_RUNS }
+        );
+    });
+
+    it("resolves the identical fold offer", () => {
+        fc.assert(
+            fc.property(
+                rulesArbitrary,
+                ruleArbitrary,
+                subjectArbitrary,
+                fc.constantFrom(...RULE_FIELDS),
+                (rules, oneRowRule, subject, field) => {
+                    const query = { subject, field, oneRowRule };
+                    expect(
+                        resolveRuleFoldOffer({ ...query, rules: buildRuleIndex(rules) })
+                    ).toEqual(resolveRuleFoldOffer({ ...query, rules }));
                 }
             ),
             { seed: SEED, numRuns: PROPERTY_RUNS }

@@ -2,6 +2,7 @@ import { LoroMap } from "loro-crdt";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { asTransactionId } from "@/components/features/transactions/table-model/ids";
 import { insertManualDescriptionAliasedTransaction } from "@/lib/crdt/description-aliases";
 import {
     persistUserDateFormat,
@@ -33,7 +34,7 @@ import {
     type TransactionLocation
 } from "@/lib/crdt/mutations";
 import { type FieldRuleInput, type TransactionInput, type VaultState } from "@/lib/crdt/schema";
-import { buildFieldRule } from "@/lib/domain/automation/rules";
+import { buildFieldRule, type RuleReach } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 const ACCOUNT = "account-1";
@@ -92,6 +93,7 @@ type Vault = ReturnType<typeof createVaultMirror>;
 interface RuleSeed {
     readonly id: string;
     readonly accountId?: string;
+    readonly reach?: RuleReach;
     readonly outputs: FieldRuleOutputsInput;
 }
 
@@ -891,6 +893,104 @@ describe("field-rule CRUD mutations", () => {
                     expect(result).toEqual({ ok: false, error });
                 });
                 expect(storedRules(vault)).toBe(before);
+            });
+        });
+
+        describe("reach on split and move", () => {
+            const FROM_JULY: RuleReach = { kind: "from", date: DATE };
+
+            it("copies the source's reach to the split rule, so both govern the same rows (E12)", () => {
+                const vault = seed([
+                    {
+                        id: "rule-1",
+                        reach: FROM_JULY,
+                        outputs: { tags: TAGS_OUTPUT, allocation: ALLOCATION_OUTPUT }
+                    }
+                ]);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = splitFieldRuleOutput(state, {
+                        id: "rule-1",
+                        field: "tags",
+                        newRuleId: "rule-2",
+                        createdAtEpochMs: 9000
+                    });
+                    expect(result.ok && result.value.split.reach).toEqual(FROM_JULY);
+                    expect(result.ok && result.value.source.reach).toEqual(FROM_JULY);
+                });
+                const rules = readActiveFieldRules(vault.mirror.getState());
+                expect(rules.map((rule) => rule.reach)).toEqual([FROM_JULY, FROM_JULY]);
+            });
+
+            it("refuses a host with a different reach, naming both, with zero mutation", () => {
+                const vault = seed([
+                    {
+                        id: "rule-alias",
+                        reach: FROM_JULY,
+                        outputs: { descriptionAlias: ALIAS_OUTPUT }
+                    },
+                    { id: "rule-tags", outputs: { tags: TAGS_OUTPUT } }
+                ]);
+                expectNoRuleWrite(vault, (state) => {
+                    const result = moveFieldRuleOutput(state, {
+                        sourceId: "rule-tags",
+                        field: "tags",
+                        hostId: "rule-alias",
+                        deletedAtEpochMs: 7000
+                    });
+                    expect(result).toEqual({
+                        ok: false,
+                        error: {
+                            type: "reach-mismatch",
+                            sourceId: "rule-tags",
+                            hostId: "rule-alias"
+                        }
+                    });
+                });
+            });
+
+            it("moves between explicit-set rules whose sets are equal in another order", () => {
+                const vault = seed([
+                    {
+                        id: "rule-alias",
+                        reach: {
+                            kind: "transactions",
+                            ids: new Set(["t-1", "t-2"].map(asTransactionId))
+                        },
+                        outputs: { descriptionAlias: ALIAS_OUTPUT }
+                    },
+                    {
+                        id: "rule-tags",
+                        reach: {
+                            kind: "transactions",
+                            ids: new Set(["t-2", "t-1"].map(asTransactionId))
+                        },
+                        outputs: { tags: TAGS_OUTPUT }
+                    }
+                ]);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = moveFieldRuleOutput(state, {
+                        sourceId: "rule-tags",
+                        field: "tags",
+                        hostId: "rule-alias",
+                        deletedAtEpochMs: 7000
+                    });
+                    expect(result.ok).toBe(true);
+                });
+                expect(activeById(vault)).toEqual({ "rule-alias": ["descriptionAlias", "tags"] });
+            });
+
+            it("keeps the reach when an update rewrites the outputs", () => {
+                const vault = seed([
+                    { id: "rule-1", reach: FROM_JULY, outputs: { tags: TAGS_OUTPUT } }
+                ]);
+                vault.mirror.setState((state: VaultState) => {
+                    const result = updateFieldRule(state, {
+                        id: "rule-1",
+                        outputs: { descriptionAlias: ALIAS_OUTPUT }
+                    });
+                    expect(result.ok && result.value.reach).toEqual(FROM_JULY);
+                });
+                expect(readActiveFieldRules(vault.mirror.getState())[0]?.reach).toEqual(FROM_JULY);
             });
         });
     });

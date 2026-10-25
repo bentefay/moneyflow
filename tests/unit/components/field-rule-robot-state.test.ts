@@ -7,12 +7,14 @@ import {
     computeRuleCardStates,
     type RobotCurrentValue
 } from "@/components/features/transactions/field-rule-robot-state";
+import { asTransactionId } from "@/components/features/transactions/table-model/ids";
 import { AllocationPercentageSchema } from "@/lib/domain/allocation";
 import {
     type FieldRule,
     FieldRuleIdSchema,
     type RuleOutputs,
-    type RuleMatchSubject
+    type RuleMatchSubject,
+    RULE_REACH_ALL
 } from "@/lib/domain/automation/rules";
 import { asMinorUnits, type MoneyMinorUnits } from "@/lib/domain/currency";
 
@@ -33,6 +35,7 @@ function rule(overrides: {
         accountId: overrides.accountId,
         amount: overrides.amount,
         outputs: overrides.outputs,
+        reach: RULE_REACH_ALL,
         createdAt: overrides.createdAt ?? CREATION
     };
 }
@@ -41,6 +44,8 @@ const IMPORTED: RuleMatchSubject = {
     descriptionText: DESCRIPTION,
     accountId: "account-1",
     amount: asMinorUnits(-450),
+    transactionId: asTransactionId("tx-1"),
+    date: Temporal.PlainDate.from("2026-07-25"),
     isManual: false
 };
 const MANUAL: RuleMatchSubject = { ...IMPORTED, isManual: true };

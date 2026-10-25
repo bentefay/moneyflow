@@ -1,6 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { asTransactionId } from "@/components/features/transactions/table-model/ids";
 import {
     findTransactionInStore,
     insertTransaction,
@@ -82,6 +83,8 @@ function importedTarget(overrides: Partial<RuleApplicationTarget> = {}): RuleApp
             descriptionText: "COFFEE SHOP 123",
             accountId: LOCATION.accountId,
             amount: asMinorUnits(-450),
+            transactionId: asTransactionId("tx-1"),
+            date: Temporal.PlainDate.from("2026-07-25"),
             isManual: false
         },
         location: LOCATION,
@@ -186,6 +189,8 @@ describe("field-rule application to a real transaction store", () => {
                 descriptionText: "COFFEE SHOP 123",
                 accountId: LOCATION.accountId,
                 amount: asMinorUnits(-450),
+                transactionId: asTransactionId("tx-1"),
+                date: Temporal.PlainDate.from("2026-07-25"),
                 isManual: true
             }
         });

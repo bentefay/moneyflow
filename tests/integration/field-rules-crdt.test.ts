@@ -74,6 +74,9 @@ function ruleInput(
         tagMode: undefined,
         tagIds: [],
         allocations: {},
+        reachKind: undefined,
+        reachFromDate: undefined,
+        reachTransactionIds: undefined,
         createdAtEpochMs: 0,
         deletedAtEpochMs: undefined,
         // Legacy wire shape: no output list, so the rule has exactly the one output `field` names.

@@ -793,6 +793,8 @@ function TransactionsPageContent() {
             }
             const account = accounts[transaction.accountId];
             const subject = projectRuleMatchSubject({
+                transactionId: transaction.id,
+                date: transaction.date,
                 accountId: transaction.accountId,
                 amount: transaction.amount,
                 description: transaction.description,

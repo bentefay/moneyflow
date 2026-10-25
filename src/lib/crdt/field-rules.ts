@@ -89,6 +89,8 @@ function subjectForTransaction(
     const aliasId = transaction.descriptionAliasId;
     const resolvedAlias = aliasId == null ? null : resolveAlias(aliasId, aliases);
     return projectRuleMatchSubject({
+        transactionId: transaction.id,
+        date: transaction.date,
         accountId: transaction.accountId,
         amount: transaction.amount,
         description: transaction.description,
@@ -143,6 +145,14 @@ export function readRulePopulation(
         });
 }
 
+/** The match subject of one stored transaction, projected exactly as application projects it. */
+export function ruleMatchSubjectForTransaction(
+    state: VaultState,
+    transaction: Transaction
+): RuleMatchSubject {
+    return subjectForTransaction(transaction, state.descriptionAliases);
+}
+
 // ============================================================================
 // Application (import + bulk)
 // ============================================================================
@@ -181,17 +191,34 @@ export interface BulkFieldRuleEntry {
 }
 
 /**
+ * Narrows an application to one rule's own fields: only the plans `ruleId` wins, and of those only
+ * `fields` when given. Widening, extending or folding one rule must never write a field another rule
+ * wins on the row (`specs/017-rule-reach` mockup `applyWinning`), so a one-row exception keeps its
+ * own value.
+ */
+export interface FieldRuleApplicationFilter {
+    readonly ruleId: string;
+    readonly fields?: ReadonlySet<RuleField>;
+}
+
+/**
  * Apply the winning rules to a single transaction, in place. Tag and allocation plans run through
  * the engine (`applyRulePlans`, allocation via P16C); the description-alias plan runs through the
  * P11 `assignDescriptionAlias` boundary. Idempotent: re-running with the same rules converges.
+ * With `only`, applies just the plans that rule wins.
  */
 export function applyFieldRulesToTransaction(
     state: VaultState,
     rules: RuleSource,
-    transaction: Transaction
+    transaction: Transaction,
+    only?: FieldRuleApplicationFilter
 ): readonly AppliedFieldRuleOutcome[] {
     const target = targetForTransaction(transaction, state.descriptionAliases);
-    const plans = planRuleApplications(rules, target);
+    const plans = planRuleApplications(rules, target).filter(
+        (plan) =>
+            only == null ||
+            (plan.ruleId === only.ruleId && (only.fields == null || only.fields.has(plan.field)))
+    );
 
     const aliasPlans = plans.filter((plan) => plan.field === "descriptionAlias");
     const nonAliasPlans = plans.filter((plan) => plan.field !== "descriptionAlias");
@@ -260,8 +287,56 @@ function applyToTransactions(
 }
 
 /**
+ * Every active transaction `isIncluded` accepts, with its match subject, in one walk of the vault.
+ * The subject is projected exactly as application projects it, so "governed" here and "applied"
+ * there cannot disagree.
+ */
+export function readActiveTransactionsWithSubjects(
+    state: VaultState,
+    isIncluded: (subject: RuleMatchSubject) => boolean
+): readonly { readonly transaction: Transaction; readonly subject: RuleMatchSubject }[] {
+    return getAllTransactions(state.transactions)
+        .filter((transaction) => transaction.deletedAt == null)
+        .map((transaction) => ({
+            transaction,
+            subject: subjectForTransaction(transaction, state.descriptionAliases)
+        }))
+        .filter(({ subject }) => isIncluded(subject));
+}
+
+/**
+ * Apply `filter.ruleId`'s winning fields to each of `transactions`, against `rules` as they stand
+ * after the caller's change. Rows on which that rule wins nothing get no entry, so the result's
+ * length is the number of rows the rule was applied to.
+ */
+export function applyOneFieldRuleToTransactions(
+    state: VaultState,
+    rules: readonly FieldRule[],
+    transactions: readonly Transaction[],
+    filter: FieldRuleApplicationFilter
+): readonly BulkFieldRuleEntry[] {
+    const index = buildRuleIndex(rules);
+    const entries: BulkFieldRuleEntry[] = [];
+    for (const transaction of transactions) {
+        const outcomes = applyFieldRulesToTransaction(state, index, transaction, filter);
+        if (outcomes.length === 0) continue;
+        entries.push({
+            location: {
+                accountId: transaction.accountId,
+                date: transaction.date,
+                transactionId: transaction.id
+            },
+            outcomes
+        });
+    }
+    return entries;
+}
+
+/**
  * Apply active rules to every active transaction of an import batch (the import-commit seam).
- * Bounded and order-independent: each transaction is an independent logical group.
+ * Bounded and order-independent: each transaction is an independent logical group. A rule governs a
+ * new row only if its reach includes it: `all` always, `from` by the row's date, an explicit set
+ * never, since a new row's id cannot already be in a set (`specs/017-rule-reach` §3.5).
  */
 export function applyFieldRulesToImport(
     state: VaultState,
@@ -336,6 +411,9 @@ export function toFieldRuleInput(rule: FieldRule): FieldRuleInput {
         tagMode: wire.tagMode,
         tagIds: [...wire.tagIds],
         allocations,
+        reachKind: wire.reachKind,
+        reachFromDate: wire.reachFromDate,
+        reachTransactionIds: { ...wire.reachTransactionIds },
         createdAtEpochMs: wire.createdAtEpochMs,
         deletedAtEpochMs: wire.deletedAtEpochMs
     };

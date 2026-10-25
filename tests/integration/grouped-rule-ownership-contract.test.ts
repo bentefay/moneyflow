@@ -27,6 +27,7 @@ import {
     proposalPredicate
 } from "@/components/features/transactions/field-rule-proposal-state";
 import { type RobotCurrentValue } from "@/components/features/transactions/field-rule-robot-state";
+import { asTransactionId } from "@/components/features/transactions/table-model/ids";
 import { applyFieldRulesToSingleTransaction } from "@/lib/crdt/apply-field-rule-to-transaction";
 import {
     createDescriptionAlias,
@@ -101,6 +102,8 @@ const IMPORTED_SUBJECT: RuleMatchSubject = {
     descriptionText: DESCRIPTION,
     accountId: ACCOUNT_A,
     amount: asMinorUnits(AMOUNT_450),
+    transactionId: asTransactionId("tx-1"),
+    date: Temporal.PlainDate.from("2026-07-25"),
     isManual: false
 };
 
@@ -602,6 +605,9 @@ describe("MF-002 baseline: which rules a reader exposes as candidates", () => {
                 tagIds: [],
                 // Not a percentage, so `decodeFieldRule` refuses this record at read time.
                 allocations: { "person-1": asPercentage(Number.NaN) },
+                reachKind: undefined,
+                reachFromDate: undefined,
+                reachTransactionIds: undefined,
                 createdAtEpochMs: 1000,
                 deletedAtEpochMs: undefined,
                 outputFields: []
