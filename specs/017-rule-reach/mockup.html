@@ -804,7 +804,8 @@
                     importDate: "2026-06-01",
                     prefs: { reach: "from", autoApply: false },
                     pending: {},
-                    override: false
+                    override: false,
+                    events: new Set()
                 };
                 render();
             }
@@ -829,83 +830,83 @@
             const CHECKLIST = [
                 [
                     "E1",
-                    "Set reach to <em>this transaction only</em>, automatic off. Tag <strong>B</strong> (25 Jul) with <code>work</code> and press Enter.",
-                    "A one-row rule R1 appears; A and C are untouched and not orange."
+                    "Set reach to <em>this transaction only</em> and automatic off. On row <strong>B</strong>, click the Tags cell, tick <code>work</code>, press Enter.",
+                    "A one-row rule R1 appears for B. Rows A and C are untouched and not orange."
                 ],
                 [
                     "E2",
-                    "Tag <strong>A</strong> (2 Jul) with <code>home</code>.",
-                    "A second one-row rule R2 on the same text; the two coexist."
+                    "On row <strong>A</strong>, tick <code>home</code>, press Enter.",
+                    "A second one-row rule R2 on the same text. The two coexist."
                 ],
                 [
                     "E3",
-                    "Select B again; on R1's card choose <em>From 25 Jul</em> and Save.",
-                    "C receives <code>work</code>. A keeps <code>home</code>."
+                    "Click row <strong>B</strong> again. On R1's card choose <em>From 25 Jul</em> and Save.",
+                    "Row C receives <code>work</code>. Row A keeps <code>home</code>."
                 ],
                 [
                     "E4",
                     "Import a row dated 1 Jun.",
-                    "Not reached by R1 (before the date) nor R2 (explicit set). No tag."
+                    "The new row I1 is reached by neither rule. No tag."
                 ],
                 [
                     "E5",
                     "Import a row dated 10 Aug.",
-                    "Reached by R1 on arrival; receives <code>work</code>."
+                    "The new row I2 is reached by R1 on arrival and receives <code>work</code>."
                 ],
                 [
                     "E6",
-                    "Select B; on R1's card choose <em>All</em> and Save.",
-                    "Allowed. The 1 Jun row gets <code>work</code>. A still shows <code>home</code>: R2 outranks R1 for A, and A is not orange."
+                    "Click row <strong>B</strong>. On R1's card choose <em>All</em> and Save.",
+                    "Allowed. I1 gets <code>work</code>. Row A still shows only <code>home</code>: R2 outranks R1 for A, and A is not orange."
                 ],
                 [
                     "E7",
-                    "Remove <code>work</code> from C by hand.",
+                    "On row <strong>C</strong>, untick <code>work</code>, press Enter.",
                     "C is governed by R1 and differs: orange, with Apply to this transaction."
                 ],
                 [
                     "E8",
-                    "Change A's tag from <code>home</code> to <code>food</code>.",
-                    "R2 is updated in place; still only A."
+                    "On row <strong>A</strong>, untick <code>home</code>, tick <code>food</code>, press Enter.",
+                    "R2 is updated in place. Still only A."
                 ],
                 [
                     "E9",
-                    "Clear A's tags entirely.",
+                    "On row <strong>A</strong>, untick everything, press Enter.",
                     "R2 is deleted. R1 now governs A, so A shows as divergent until reapplied."
                 ],
                 [
                     "E10",
-                    "Tag the 1 Jun row with <code>food</code> and keep <em>Only this transaction</em>; then delete that row.",
-                    "Its one-row rule has no transaction left, so it is garbage collected: not listed anywhere, governs nothing."
+                    "On row <strong>I1</strong>, tick <code>food</code>, press Enter, keep <em>Only this transaction</em>, then Delete I1.",
+                    "I1's one-row rule has no transaction left, so it is garbage collected."
                 ],
                 [
                     "E11",
-                    "Rename B to <em>Coffee</em>, then select C.",
+                    "On row <strong>B</strong>, click the Alias cell, pick <em>Coffee</em>, press Enter. Then click row <strong>C</strong>.",
                     "C's inspector offers: a rule renames this text, extend to this transaction?"
                 ],
                 [
                     "E12",
-                    "On a card with two outputs, Split one out.",
+                    "Find a card with two outputs and Split one out.",
                     "Both rules keep the same reach; no row changes."
                 ],
                 [
                     "E13",
-                    "On the Automations page, create a rule by hand.",
+                    "Open Automations, click New rule, Save.",
                     "Default reach is All; the count of rows that will change shows before Save."
                 ],
                 [
                     "E14",
-                    "Set reach to <em>all matching</em> and automatic on. Tag the 1 Jun row with <code>coffee</code>, press Enter, then click another row.",
-                    "A one-row rule is created on Enter; as the row changes it widens to all and every COFFEE SHOP 123 row without <code>coffee</code> gains it. Rows that had it are untouched."
+                    "Set reach to <em>all matching</em> and automatic on. On row <strong>I2</strong>, tick <code>coffee</code>, press Enter, then click another row.",
+                    "A one-row rule appears on Enter. As the row changes it runs the default: every COFFEE SHOP 123 row without <code>coffee</code> gains it; rows that had it are untouched."
                 ],
                 [
                     "E15",
-                    "With automatic on, change C's tags while R1 governs C, then click another row.",
-                    "On Enter a one-row exception appears with the default <em>Update R1</em>. As the row changes R1's output is replaced across its reach where values differ and the exception folds in. Choosing <em>Only this transaction</em> first keeps the exception."
+                    "With automatic on, change row <strong>C</strong>'s tags, press Enter, then click another row.",
+                    "On Enter a one-row exception appears with the default <em>Update R1</em>. As the row changes, R1 is replaced across its reach where values differ and the exception folds in. Choosing <em>Only this transaction</em> first keeps the exception."
                 ],
                 [
                     "E16",
-                    "Make exceptions on two coffee rows (tag each with <code>food</code>, keep <em>Only this transaction</em>). Then tag another coffee row with <code>coffee</code>: the default is <em>Update R1</em>. Tick <em>Also replace 2 exceptions</em> and Apply now.",
-                    "R1 is updated across its reach, both exceptions are deleted in the same action and their rows take the new value. A rule restricted to one account would keep its rows and be named in the count line."
+                    "Make exceptions on rows <strong>A</strong> and <strong>C</strong> (tick <code>food</code>, keep <em>Only this transaction</em>, leave the row). Then on row <strong>B</strong> tick <code>coffee</code>, press Enter, tick <em>Also replace 2 exceptions</em>, Apply now.",
+                    "R1 is updated across its reach, both exceptions are deleted in the same action and their rows take the new value."
                 ]
             ];
 
@@ -957,8 +958,71 @@
                 }
                 return removed;
             }
+            const tagsOf = (id) => S.transactions.find((t) => t.id === id)?.tags ?? null;
+            const idsRuleFor = (id, field = "tags") =>
+                S.rules.find(
+                    (r) => r.reach.kind === "ids" && r.reach.ids.has(id) && r.outputs[field] != null
+                );
+            const importedOn = (date) =>
+                S.transactions.find((t) => t.id.startsWith("I") && t.date === date);
+            const DONE_WHEN = {
+                E1: () => {
+                    const r = idsRuleFor("B");
+                    return r != null && r.outputs.tags.tags.includes("work");
+                },
+                E2: () => {
+                    const r = idsRuleFor("A");
+                    return r != null && r.outputs.tags.tags.includes("home");
+                },
+                E3: () =>
+                    S.rules.some((r) => r.reach.kind === "from" && r.outputs.tags) &&
+                    (tagsOf("C") ?? []).includes("work"),
+                E4: () => {
+                    const t = importedOn("2026-06-01");
+                    return t != null && t.tags.length === 0;
+                },
+                E5: () => {
+                    const t = importedOn("2026-08-10");
+                    return t != null && t.tags.includes("work");
+                },
+                E6: () =>
+                    S.rules.some((r) => r.reach.kind === "all" && r.outputs.tags) &&
+                    (tagsOf("A") ?? []).includes("home") &&
+                    !(tagsOf("A") ?? []).includes("work"),
+                E7: () => {
+                    const t = S.transactions.find((x) => x.id === "C");
+                    const w = t && winner(S.rules, t, "tags");
+                    return w != null && !agrees(w, t, "tags");
+                },
+                E8: () => {
+                    const r = idsRuleFor("A");
+                    return r != null && r.outputs.tags.tags.includes("food");
+                },
+                E9: () =>
+                    S.done.has("E8") && idsRuleFor("A") == null && (tagsOf("A") ?? []).length === 0,
+                E10: () => S.events.has("deletedImport") && importedOn("2026-06-01") == null,
+                E11: () => S.events.has("offerC"),
+                E12: () => S.events.has("split"),
+                E13: () => S.events.has("pageCreate"),
+                E14: () =>
+                    S.events.has("autoWiden") ||
+                    (S.events.has("autoUpdate") && S.prefs.reach === "all"),
+                E15: () => S.events.has("autoUpdate"),
+                E16: () => S.events.has("override")
+            };
+            function checkDone() {
+                for (const [id, test] of Object.entries(DONE_WHEN)) {
+                    try {
+                        if (!S.done.has(id) && test()) S.done.add(id);
+                    } catch (e) {
+                        /* partial state */
+                    }
+                }
+            }
+
             function render() {
                 gcRules();
+                checkDone();
                 document
                     .querySelectorAll("#tabs [data-view]")
                     .forEach((b) =>
@@ -984,7 +1048,7 @@
     <ol>${CHECKLIST.map(([id, step, expect]) => h`<li class="${S.done.has(id) ? "done" : ""}"><strong>${id}.</strong> ${step}<span class="hint">${expect}</span></li>`).join("")}</ol>
     <span class="eyebrow">Legend</span>
     <p class="small"><span class="dot own"></span> a one-row rule sets this value &nbsp; <span class="dot"></span> a wider rule sets it &nbsp; <span class="dot warn"></span> governed but differs</p>
-    <div class="btns"><button type="button" class="btn sm" data-act="mark" data-id="">Tick the step I just did</button></div>
+    <p class="small muted">Steps tick themselves as the state shows them done.</p><div class="btns"><button type="button" class="btn sm" data-act="mark" data-id="">Tick the next step manually</button></div>
   </section>`;
             }
             function renderTable() {
@@ -1004,7 +1068,7 @@
                         const cell = (f, content) =>
                             h`<td class="cell ${ed === f ? "editing" : ""}" data-edit="${f}" data-row="${t.id}">${ed === f ? renderInlineEditor(t, f) : content + dot(f)}</td>`;
                         return h`<tr class="${cls}" data-row="${t.id}">
-      <td>${fmtDate(t.date)}</td><td class="mono">${esc(t.text)}</td>
+      <td class="mono"><strong>${t.id}</strong></td><td>${fmtDate(t.date)}</td><td class="mono">${esc(t.text)}</td>
       ${cell("alias", esc(t.alias ?? ""))}
       <td class="num">${money(t.amount)}</td><td>${ACCOUNTS[t.account]}</td>
       ${cell("tags", t.tags.map((x) => h`<span class="tag">${esc(x)}</span>`).join(""))}
@@ -1014,7 +1078,7 @@
                     })
                     .join("");
                 return h`<div class="table-wrap">
-    <table><thead><tr><th>Date</th><th>Description</th><th>Alias</th><th>Amount</th><th>Account</th><th>Tags</th><th>Alex / Sam</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+    <table><thead><tr><th title="Mock only: the name the steps use">Row</th><th>Date</th><th>Description</th><th>Alias</th><th>Amount</th><th>Account</th><th>Tags</th><th>Alex / Sam</th><th></th></tr></thead><tbody>${rows}</tbody></table>
     <div class="table-foot"><span class="muted">Import a COFFEE SHOP 123 row dated</span>
       <input type="date" id="import-date" value="${S.importDate}" aria-label="Import date">
       <button class="btn sm" type="button" data-act="import">Import</button>
@@ -1086,6 +1150,7 @@
             }
             function dropCoveredExceptions(rule, reach, f, excludeId) {
                 if (!S.override) return 0;
+                S.events.add("override");
                 const cov = coveredExceptions(rule, reach, f, excludeId);
                 S.rules = S.rules.filter((x) => !cov.exceptions.includes(x));
                 for (const x of cov.exceptions) {
@@ -1381,6 +1446,7 @@
             }
 
             function renderExtendOffers(rules, t) {
+                if (t.id === "C" && rules.some((r) => r.outputs.alias)) S.events.add("offerC");
                 const items = rules
                     .map((r) => {
                         const older = r.reach.kind === "from" && t.date < r.reach.date;
@@ -1512,6 +1578,7 @@
                 render();
             }
             function saveReach(r, quiet = false) {
+                if (quiet) S.events.add("autoWiden");
                 const d = draftFor(r);
                 const field = outputFields(r)[0];
                 if (d.reach.kind === "ids" && r.reach.kind !== "ids")
@@ -1577,6 +1644,7 @@
                 if (!quiet) render();
             }
             function fold(oneRow, host, quiet = false) {
+                if (quiet) S.events.add("autoUpdate");
                 const f = outputFields(oneRow)[0];
                 host.outputs[f] = oneRow.outputs[f];
                 S.rules = S.rules.filter((r) => r !== oneRow);
@@ -1638,6 +1706,7 @@
                 render();
             }
             function deleteTx(id) {
+                if (id.startsWith("I")) S.events.add("deletedImport");
                 S.transactions = S.transactions.filter((t) => t.id !== id);
                 const emptied = [];
                 for (const r of S.rules)
@@ -1884,6 +1953,7 @@
                     );
                 }
                 if (a === "confirm-split") {
+                    S.events.add("split");
                     closeDialog();
                     const f = b.dataset.field;
                     const n = mkRule({
@@ -1914,6 +1984,7 @@
                     return render();
                 }
                 if (a === "create-rule") {
+                    S.events.add("pageCreate");
                     const d = S.drafts.__new;
                     const n = mkRule({
                         text: d.text,
