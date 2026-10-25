@@ -28,7 +28,8 @@ import {
     goToImports,
     goToTransactions,
     reloadPage,
-    stableTransactionRow
+    stableTransactionRow,
+    transactionGridCell
 } from "./helpers";
 import { addEmptyTransaction } from "./helpers/settlement";
 
@@ -929,9 +930,15 @@ test.describe("Import Panel", () => {
 
             await reloadPage(page);
             const reloadedRow = page.getByRole("row", { name: /P14 CSV negative/i });
-            const reloadedEditor = await activateTransactionEditor(reloadedRow, "amount");
+            // Enter through the keyboard so provenance is tested on a genuine focus event.
+            // Double-click already focuses the editor and suppresses Radix's focus tooltip;
+            // calling focus() again on that same input does not emit another focus event.
+            const reloadedAmountCell = transactionGridCell(reloadedRow, "amount");
+            await reloadedAmountCell.click();
+            await reloadedAmountCell.press("Enter");
+            const reloadedEditor = reloadedRow.getByTestId("amount-editable");
+            await expect(reloadedEditor).toBeFocused();
             await expect(reloadedEditor).toHaveValue("-30.25");
-            await reloadedEditor.focus();
             await expect(
                 page
                     .getByTestId("original-amount-tooltip")

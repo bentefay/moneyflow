@@ -18,6 +18,7 @@ import { Temporal } from "temporal-polyfill";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TransactionStore } from "@/lib/crdt/schema";
+import { buildRuleIndex } from "@/lib/domain/automation/rule-index";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 import { buildFakeTransactionStore, installVirtualGridLayout } from "./virtual-grid-harness";
@@ -71,6 +72,7 @@ vi.mock("@/lib/crdt/context", async () => {
         useActivePeople: () => empty,
         usePeople: () => empty,
         useActiveFieldRules: () => noRules,
+        useActiveFieldRuleIndex: () => noRuleIndex,
         useTransactionActions: () => transactionActions,
         useDescriptionAliasActions: () => aliasActions,
         useVaultAction: () => noop,
@@ -110,6 +112,7 @@ vi.mock("@/components/features/accounts", () => ({
 const noop = () => {};
 const empty = {};
 const noRules: readonly never[] = [];
+const noRuleIndex = buildRuleIndex(noRules);
 const accounts = {
     [ACCOUNT_ID]: {
         id: ACCOUNT_ID,

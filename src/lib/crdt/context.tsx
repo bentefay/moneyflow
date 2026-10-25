@@ -21,7 +21,9 @@ import { useSyncExternalStore } from "react";
 import type { ComponentProps, DependencyList } from "react";
 import { Temporal } from "temporal-polyfill";
 
+import { type RulePopulationTransaction } from "@/lib/domain/automation/population";
 import { type RememberedRuleChoice } from "@/lib/domain/automation/preferences";
+import { buildRuleIndex, type RuleIndex } from "@/lib/domain/automation/rule-index";
 import { type FieldRule } from "@/lib/domain/automation/rules";
 import { type DateFormatPreference } from "@/lib/domain/date-format-preference";
 import {
@@ -32,6 +34,7 @@ import {
 
 import {
     applyFieldRulesToSingleTransaction,
+    type ApplyFieldRulesToTransactionInput,
     type ApplyFieldRulesToTransactionResult
 } from "./apply-field-rule-to-transaction";
 import {
@@ -43,14 +46,33 @@ import {
     readUserTransactionInspectorOpen
 } from "./display-preferences";
 import {
+    type CreateFieldRuleFromEditInput,
+    type CreateFieldRuleFromEditValue,
     type CreateFieldRuleInput,
     createFieldRule,
+    createFieldRuleFromEdit,
     type DeleteFieldRuleInput,
     deleteFieldRule,
+    type ExtendFieldRuleReachInput,
+    extendFieldRuleReachToTransaction,
+    type FieldRuleApplicationValue,
+    type FieldRuleMutationOutcome,
     type FieldRuleMutationResult,
+    foldFieldRuleIntoHost,
+    type FoldFieldRuleIntoHostInput,
+    type MoveFieldRuleOutputInput,
+    moveFieldRuleOutput,
+    type MoveFieldRuleOutputValue,
     persistUserAutomationPreference,
     type PersistUserAutomationPreferenceInput,
     readUserAutomationChoice,
+    type SetFieldRuleOutputInput,
+    setFieldRuleOutput,
+    type SetFieldRuleReachInput,
+    setFieldRuleReach,
+    type SplitFieldRuleOutputInput,
+    splitFieldRuleOutput,
+    type SplitFieldRuleOutputValue,
     type UpdateFieldRuleInput,
     updateFieldRule
 } from "./field-rule-mutations";
@@ -58,7 +80,8 @@ import {
     applyFieldRulesToAllTransactions,
     applyFieldRulesToNewerTransactions,
     type BulkFieldRuleEntry,
-    readActiveFieldRules
+    readActiveFieldRules,
+    readRulePopulation
 } from "./field-rules";
 import { commitImportBatch, type CommitImportBatchInput } from "./import-commit";
 import { startVaultMaintenanceScheduler } from "./maintenance";
@@ -1171,10 +1194,41 @@ export function useActiveFieldRules(): readonly FieldRule[] {
     return useInternalVaultSelector((state) => readActiveFieldRules(state));
 }
 
-/** Create/update/delete callbacks for field rules, each one grouped undo step. */
+/**
+ * The active field rules indexed by description text, rebuilt only when the decoded rule list
+ * changes. Hand it to the engine wherever winners, targets or counts are computed per render, so
+ * each subject tests only the rules sharing its text.
+ */
+export function useActiveFieldRuleIndex(): RuleIndex {
+    const rules = useActiveFieldRules();
+    return useMemo(() => buildRuleIndex(rules), [rules]);
+}
+
+/**
+ * Every active transaction projected for `countRulePopulation`. Memoised on the transaction and
+ * alias stores, so a draft edit recounts without re-walking the vault.
+ */
+export function useRulePopulation(): readonly RulePopulationTransaction[] {
+    const transactions = useInternalVaultSelector((state) => state.transactions);
+    const aliases = useInternalVaultSelector((state) => state.descriptionAliases);
+    return useMemo(() => readRulePopulation(transactions, aliases), [aliases, transactions]);
+}
+
+/** Field-rule mutation callbacks, each one grouped undo step. */
 export interface FieldRuleActions {
     readonly create: (input: CreateFieldRuleInput) => FieldRuleMutationResult;
+    /** Replaces the rule's scope and outputs wholesale. */
     readonly update: (input: UpdateFieldRuleInput) => FieldRuleMutationResult;
+    /** Adds or replaces one output, keeping the rule's other outputs. */
+    readonly setOutput: (input: SetFieldRuleOutputInput) => FieldRuleMutationResult;
+    /** Splits one output into a new rule with identical conditions. */
+    readonly split: (
+        input: SplitFieldRuleOutputInput
+    ) => FieldRuleMutationOutcome<SplitFieldRuleOutputValue>;
+    /** Moves one output into an identical-condition rule, deleting the source if it empties. */
+    readonly moveOutput: (
+        input: MoveFieldRuleOutputInput
+    ) => FieldRuleMutationOutcome<MoveFieldRuleOutputValue>;
     readonly remove: (input: DeleteFieldRuleInput) => FieldRuleMutationResult;
 }
 
@@ -1191,11 +1245,75 @@ export function useFieldRuleActions(): FieldRuleActions {
         (state, input: UpdateFieldRuleInput) => updateFieldRule(state, input),
         []
     );
+    const setOutput = useInternalVaultAction(
+        (state, input: SetFieldRuleOutputInput) => setFieldRuleOutput(state, input),
+        []
+    );
+    const split = useInternalVaultAction(
+        (state, input: SplitFieldRuleOutputInput) => splitFieldRuleOutput(state, input),
+        []
+    );
+    const moveOutput = useInternalVaultAction(
+        (state, input: MoveFieldRuleOutputInput) => moveFieldRuleOutput(state, input),
+        []
+    );
     const remove = useInternalVaultAction(
         (state, input: DeleteFieldRuleInput) => deleteFieldRule(state, input),
         []
     );
-    return useMemo(() => ({ create, update, remove }), [create, update, remove]);
+    return useMemo(
+        () => ({ create, update, setOutput, split, moveOutput, remove }),
+        [create, update, setOutput, split, moveOutput, remove]
+    );
+}
+
+/** Reach mutation callbacks (`specs/017-rule-reach`), each one grouped undo step. */
+export interface FieldRuleReachActions {
+    /** Records a finished cell edit as a one-row rule, or updates the row's existing one. */
+    readonly createFromEdit: (
+        input: CreateFieldRuleFromEditInput
+    ) => FieldRuleMutationOutcome<CreateFieldRuleFromEditValue>;
+    /** Widens or narrows a rule, applying it to the rows it newly governs where it wins. */
+    readonly setReach: (
+        input: SetFieldRuleReachInput
+    ) => FieldRuleMutationOutcome<FieldRuleApplicationValue>;
+    /** Adds one transaction to an explicit-set rule and applies the rule to it. */
+    readonly extendToTransaction: (
+        input: ExtendFieldRuleReachInput
+    ) => FieldRuleMutationOutcome<FieldRuleApplicationValue>;
+    /** Folds a one-row rule into a wider identical-conditions rule and deletes the one-row rule. */
+    readonly fold: (
+        input: FoldFieldRuleIntoHostInput
+    ) => FieldRuleMutationOutcome<FieldRuleApplicationValue>;
+}
+
+/**
+ * Reach actions. Separate from {@link useFieldRuleActions} because three of them also write
+ * transactions, through the same P17A engine as the apply actions, so they run on the full
+ * VaultState where alias application can reach `descriptionAliases`.
+ */
+export function useFieldRuleReachActions(): FieldRuleReachActions {
+    const createFromEdit = useInternalVaultAction(
+        (state, input: CreateFieldRuleFromEditInput) => createFieldRuleFromEdit(state, input),
+        []
+    );
+    const setReach = useInternalVaultAction(
+        (state, input: SetFieldRuleReachInput) => setFieldRuleReach(state, input),
+        []
+    );
+    const extendToTransaction = useInternalVaultAction(
+        (state, input: ExtendFieldRuleReachInput) =>
+            extendFieldRuleReachToTransaction(state, input),
+        []
+    );
+    const fold = useInternalVaultAction(
+        (state, input: FoldFieldRuleIntoHostInput) => foldFieldRuleIntoHost(state, input),
+        []
+    );
+    return useMemo(
+        () => ({ createFromEdit, setReach, extendToTransaction, fold }),
+        [createFromEdit, setReach, extendToTransaction, fold]
+    );
 }
 
 /**
@@ -1230,11 +1348,11 @@ export function useApplyFieldRules(): ApplyFieldRuleActions {
  * VaultState so alias application can reach `descriptionAliases`.
  */
 export function useApplyFieldRulesToTransaction(): (
-    transactionId: string
+    input: ApplyFieldRulesToTransactionInput
 ) => ApplyFieldRulesToTransactionResult {
     return useInternalVaultAction(
-        (state, transactionId: string) =>
-            applyFieldRulesToSingleTransaction(state, { transactionId }),
+        (state, input: ApplyFieldRulesToTransactionInput) =>
+            applyFieldRulesToSingleTransaction(state, input),
         [],
         "mutation"
     );

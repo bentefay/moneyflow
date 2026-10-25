@@ -2,20 +2,21 @@
  * E2E Test: Tag + allocation field-rule parity and apply-mode persistence (HS-007 / P17D)
  *
  * These journeys exercise tag and allocation parity in the shared rule editor and the stable
- * transaction inspector. Existing-rule controls are keyed to the active transaction and rule field;
- * virtual transaction rows own no rule UI. Tag and allocation rules still apply to manual rows,
- * while description-alias rules remain imported-only. The four apply modes remain remembered.
+ * transaction inspector. The inspector shows one card per rule winning a field on the active
+ * transaction; virtual transaction rows own no rule UI. Tag and allocation rules still apply to manual rows,
+ * while description-alias rules remain imported-only. The scope choice remains remembered.
  */
 
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 import {
     createNewIdentity,
     goToAutomations,
-    goToImportNew,
     goToPeople,
     goToTags,
     goToTransactions,
+    importTransactionRows,
+    inspectorRuleCard,
     openTransactionInspector,
     rowsWithDisplayedDescription,
     stableTransactionRow,
@@ -41,8 +42,8 @@ async function createTag(page: Page, name: string): Promise<void> {
 /** Open the create-rule editor from the automations manager. */
 async function openCreateEditor(page: Page): Promise<void> {
     await goToAutomations(page);
-    await page.locator('[data-testid="new-rule-btn"]').click();
-    await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
+    await page.getByTestId("new-rule-btn").click();
+    await expect(page.getByRole("group", { name: "New rule" })).toBeVisible();
 }
 
 /** Pick an option from a shadcn Select identified by its trigger testid. */
@@ -55,36 +56,27 @@ async function chooseFromSelect(
     await page.getByRole("option", { name: optionName, exact: true }).click();
 }
 
-/** Import one transaction per row via an inline CSV buffer, landing on /transactions. */
+/** Add an output to the open editor through its Add output select. */
+async function addOutput(page: Page, label: "Description" | "Tags" | "Allocation"): Promise<void> {
+    await chooseFromSelect(page, "rule-add-output", label);
+}
+
+/** The Automations page's rule-list entry whose conditions name `description`. */
+function ruleListItem(page: Page, description: string): Locator {
+    return page.getByTestId("rule-list").getByRole("button").filter({ hasText: description });
+}
+
+/** Create a rule from the open editor and wait for it to be listed. */
+async function createRuleFromEditor(page: Page, description: string): Promise<void> {
+    await page.getByTestId("rule-save").click();
+    await expect(ruleListItem(page, description)).toHaveCount(1);
+}
+
 async function importRows(
     page: Page,
     rows: ReadonlyArray<{ readonly date: string; readonly description: string }>
 ): Promise<void> {
-    await goToImportNew(page);
-    await page.locator('input[type="file"]').setInputFiles({
-        name: "field-rule-parity.csv",
-        mimeType: "text/csv",
-        buffer: Buffer.from(
-            [
-                "Date,Description,Amount",
-                ...rows.map(({ date, description }, index) =>
-                    [date, description, `-${index + 1}.00`].join(",")
-                )
-            ].join("\n")
-        )
-    });
-    await page.getByRole("tab", { name: /Columns/i }).click();
-    await page.getByRole("button", { name: /Auto-detect/i }).click();
-    await expect(page.getByText(/All required fields mapped/i)).toBeVisible();
-    await page.getByRole("tab", { name: /Account/i }).click();
-    await page.locator("#account-select").click();
-    await page.getByRole("option", { name: /Default/i }).click();
-    const importButton = page.getByRole("button", {
-        name: new RegExp(`Import ${rows.length} Transactions`, "i")
-    });
-    await expect(importButton).toBeEnabled();
-    await importButton.click();
-    await expect(page).toHaveURL(/\/transactions/);
+    await importTransactionRows(page, rows, "field-rule-parity.csv");
 }
 
 // ============================================================================
@@ -100,6 +92,7 @@ test.describe("Tag field-rule parity", () => {
 
         await test.step("create a SET-mode tag rule for an exact description", async () => {
             await openCreateEditor(page);
+            await addOutput(page, "Tags");
             await expect(page.getByTestId("rule-tag-mode")).toBeVisible();
             await chooseFromSelect(page, "rule-tag-mode", "Set tags (clear existing)");
             await page.getByLabel(/exact description text/i).fill("COFFEE SHOP 123");
@@ -107,27 +100,26 @@ test.describe("Tag field-rule parity", () => {
                 .getByRole("group", { name: /tags to apply/i })
                 .getByRole("button", { name: "Coffee" })
                 .click();
-            await page.locator('[data-testid="rule-save"]').click();
-            await expect(page.getByText(/COFFEE SHOP 123/)).toBeVisible();
+            await createRuleFromEditor(page, "COFFEE SHOP 123");
         });
 
         await importRows(page, [{ date: "2026-07-01", description: "COFFEE SHOP 123" }]);
         const row = await stableTransactionRow(page.getByTestId("transaction-row").first());
         const inspector = await openTransactionInspector(page);
         await transactionGridCell(row, "description").click();
-        const rule = inspector.getByTestId("tags-rule-inspector");
+        const rule = inspectorRuleCard(inspector, "tags");
 
         await test.step("the inspector reuses the shared editor for the active matching row", async () => {
             await expect(rule).toBeVisible();
-            await expect(rule.getByTestId("transaction-rule-popup")).toBeVisible();
             await expect(rule.getByTestId("field-rule-editor")).toBeVisible();
+            await rule.getByRole("button", { name: "Edit Tags" }).click();
             await expect(rule.getByTestId("rule-tag-mode")).toContainText(/set tags/i);
             await expect(
                 rule
                     .getByRole("group", { name: /tags to apply/i })
                     .getByRole("button", { name: "Coffee" })
             ).toHaveAttribute("aria-pressed", "true");
-            await expect(row.getByTestId("transaction-rule-popup")).toHaveCount(0, {
+            await expect(row.getByTestId("field-rule-editor")).toHaveCount(0, {
                 timeout: 3_000
             });
         });
@@ -144,8 +136,8 @@ test.describe("Allocation field-rule parity", () => {
 
         await openCreateEditor(page);
 
-        await test.step("selecting the allocation field reveals a percentage column per person", async () => {
-            await chooseFromSelect(page, "rule-field", "Person percentages");
+        await test.step("adding the allocation output reveals a percentage column per person", async () => {
+            await addOutput(page, "Allocation");
             const grid = page.getByTestId("rule-allocation-grid");
             await expect(grid).toBeVisible();
             // One labelled input per active person (the seeded "Me" plus "Alex").
@@ -158,13 +150,13 @@ test.describe("Allocation field-rule parity", () => {
             await grid.getByLabel(DEFAULT_PERSON_NAME).fill("60");
             await grid.getByLabel("Alex").fill("40");
             await page.getByLabel(/exact description text/i).fill("SPLIT DINNER");
-            await page.locator('[data-testid="rule-save"]').click();
-            await expect(page.getByText(/SPLIT DINNER/)).toBeVisible();
+            await createRuleFromEditor(page, "SPLIT DINNER");
         });
 
         await test.step("reopening the rule shows the persisted per-person columns", async () => {
-            await page.getByText(/SPLIT DINNER/).click();
-            await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
+            await page.getByTestId("rule-cancel").click();
+            await ruleListItem(page, "SPLIT DINNER").click();
+            await page.getByRole("button", { name: "Edit Allocation" }).click();
             const grid = page.getByTestId("rule-allocation-grid");
             await expect(grid.getByLabel(DEFAULT_PERSON_NAME)).toHaveValue("60");
             await expect(grid.getByLabel("Alex")).toHaveValue("40");
@@ -189,24 +181,25 @@ test.describe("Manual-row applicability", () => {
 
         await test.step("create an add-mode tag rule keyed on the alias name", async () => {
             await openCreateEditor(page);
+            await addOutput(page, "Tags");
             await chooseFromSelect(page, "rule-tag-mode", "Add tags");
             await page.getByLabel(/exact description text/i).fill("MANUAL COFFEE");
             await page
                 .getByRole("group", { name: /tags to apply/i })
                 .getByRole("button", { name: "Coffee" })
                 .click();
-            await page.locator('[data-testid="rule-save"]').click();
-            await expect(page.getByText(/MANUAL COFFEE/)).toBeVisible();
+            await createRuleFromEditor(page, "MANUAL COFFEE");
         });
 
-        await test.step("create an allocation rule keyed on the same alias name", async () => {
+        await test.step("create a separate allocation rule keyed on the same alias name", async () => {
             await openCreateEditor(page);
-            await chooseFromSelect(page, "rule-field", "Person percentages");
+            await addOutput(page, "Allocation");
             const grid = page.getByTestId("rule-allocation-grid");
             await grid.getByLabel(DEFAULT_PERSON_NAME).fill("60");
             await grid.getByLabel("Alex").fill("40");
             await page.getByLabel(/exact description text/i).fill("MANUAL COFFEE");
-            await page.locator('[data-testid="rule-save"]').click();
+            await page.getByTestId("rule-save").click();
+            await expect(ruleListItem(page, "MANUAL COFFEE")).toHaveCount(2);
         });
 
         await goToTransactions(page);
@@ -218,22 +211,23 @@ test.describe("Manual-row applicability", () => {
         );
         const inspector = await openTransactionInspector(page);
         await transactionGridCell(row, "description").click();
-        const tagsRule = inspector.getByTestId("tags-rule-inspector");
-        const allocationRule = inspector.getByTestId("allocation-rule-inspector");
+        const tagsRule = inspectorRuleCard(inspector, "tags");
+        const allocationRule = inspectorRuleCard(inspector, "allocation");
 
         await test.step("the manual row exposes drifting tag and allocation rules but no description rule", async () => {
             await expect(tagsRule.getByTestId("transaction-rule-drift")).toBeVisible();
             await expect(allocationRule.getByTestId("transaction-rule-drift")).toBeVisible();
-            await expect(inspector.getByTestId("descriptionAlias-rule-inspector")).toHaveCount(0, {
+            await expect(inspectorRuleCard(inspector, "descriptionAlias")).toHaveCount(0, {
                 timeout: 3_000
             });
-            await expect(row.getByTestId("transaction-rule-popup")).toHaveCount(0, {
+            await expect(row.getByTestId("field-rule-editor")).toHaveCount(0, {
                 timeout: 3_000
             });
         });
 
         await test.step("apply-to-this reconciles every matching rule for the manual row", async () => {
-            await tagsRule.getByTestId("rule-apply-this").click();
+            // Apply-this is whole-row: one click resolves drift on the other rule's card too.
+            await tagsRule.getByTestId("rule-apply-this-tags").click();
             await expect(tagsRule.getByTestId("transaction-rule-drift")).toHaveCount(0, {
                 timeout: 3_000
             });
@@ -254,12 +248,12 @@ test.describe("Manual-row applicability", () => {
         await test.step("create a tag rule for one specific description", async () => {
             await openCreateEditor(page);
             await page.getByLabel(/exact description text/i).fill("MANUAL COFFEE");
+            await addOutput(page, "Tags");
             await page
                 .getByRole("group", { name: /tags to apply/i })
                 .getByRole("button", { name: "Coffee" })
                 .click();
-            await page.locator('[data-testid="rule-save"]').click();
-            await expect(page.getByText(/MANUAL COFFEE/)).toBeVisible();
+            await createRuleFromEditor(page, "MANUAL COFFEE");
         });
 
         await goToTransactions(page);
@@ -271,42 +265,40 @@ test.describe("Manual-row applicability", () => {
         const inspector = await openTransactionInspector(page);
         await transactionGridCell(row, "description").click();
 
-        await expect(inspector.getByTestId("tags-rule-inspector")).toHaveCount(0, {
-            timeout: 3_000
-        });
-        await expect(inspector.getByTestId("allocation-rule-inspector")).toHaveCount(0, {
-            timeout: 3_000
-        });
-        await expect(inspector.getByTestId("descriptionAlias-rule-inspector")).toHaveCount(0, {
-            timeout: 3_000
-        });
-        await expect(inspector.getByTestId("transaction-rule-popup")).toHaveCount(0, {
+        for (const field of ["tags", "allocation", "descriptionAlias"] as const) {
+            await expect(inspectorRuleCard(inspector, field)).toHaveCount(0, { timeout: 3_000 });
+        }
+        await expect(inspector.getByTestId("field-rule-editor")).toHaveCount(0, {
             timeout: 3_000
         });
     });
 });
 
-test.describe("Apply-mode persistence", () => {
-    test("the four-mode apply select is remembered and restored on reopen", async ({ page }) => {
+test.describe("Apply-scope persistence", () => {
+    test("the scope choice is remembered and restored on reopen", async ({ page }) => {
         await createNewIdentity(page);
         await createTag(page, "Coffee");
 
-        await test.step("create a rule after choosing a non-default apply mode", async () => {
+        await test.step("a fresh editor starts on the conservative Update new", async () => {
             await openCreateEditor(page);
-            await chooseFromSelect(page, "rule-apply-mode", "Updating all");
+            await expect(page.getByRole("radio", { name: "Update new" })).toBeChecked();
+        });
+
+        await test.step("create a rule after choosing the non-default scope", async () => {
+            await page.getByRole("radio", { name: "Update all" }).click();
             await page.getByLabel(/exact description text/i).fill("COFFEE SHOP 123");
+            await addOutput(page, "Tags");
             await page
                 .getByRole("group", { name: /tags to apply/i })
                 .getByRole("button", { name: "Coffee" })
                 .click();
-            await page.locator('[data-testid="rule-save"]').click();
-            await expect(page.getByText(/COFFEE SHOP 123/)).toBeVisible();
+            await createRuleFromEditor(page, "COFFEE SHOP 123");
         });
 
-        await test.step("a freshly opened editor restores the remembered apply mode", async () => {
-            await page.locator('[data-testid="new-rule-btn"]').click();
-            await page.locator('[data-testid="field-rule-editor"]').waitFor({ timeout: 15_000 });
-            await expect(page.getByTestId("rule-apply-mode")).toContainText(/updating all/i);
+        await test.step("a freshly opened editor restores the remembered scope", async () => {
+            await openCreateEditor(page);
+            await expect(page.getByRole("radio", { name: "Update all" })).toBeChecked();
+            await expect(page.getByRole("radio", { name: "Update new" })).not.toBeChecked();
         });
     });
 });
@@ -321,12 +313,12 @@ test.describe("Inspector existing rules at scale", () => {
         await test.step("create a tag rule matching a single exact description", async () => {
             await openCreateEditor(page);
             await page.getByLabel(/exact description text/i).fill("COFFEE SHOP 123");
+            await addOutput(page, "Tags");
             await page
                 .getByRole("group", { name: /tags to apply/i })
                 .getByRole("button", { name: "Coffee" })
                 .click();
-            await page.locator('[data-testid="rule-save"]').click();
-            await expect(page.getByText(/COFFEE SHOP 123/)).toBeVisible();
+            await createRuleFromEditor(page, "COFFEE SHOP 123");
         });
 
         // Two matching rows amongst ten unique non-matching ones.
@@ -349,22 +341,22 @@ test.describe("Inspector existing rules at scale", () => {
                 await stableTransactionRow(matchingRows.nth(0)),
                 "description"
             ).click();
-            await expect(inspector.getByTestId("tags-rule-inspector")).toBeVisible();
+            await expect(inspectorRuleCard(inspector, "tags")).toBeVisible();
             await transactionGridCell(
                 await stableTransactionRow(matchingRows.nth(1)),
                 "description"
             ).click();
-            await expect(inspector.getByTestId("tags-rule-inspector")).toBeVisible();
+            await expect(inspectorRuleCard(inspector, "tags")).toBeVisible();
 
             const unrelatedRow = await stableTransactionRow(
                 rowsWithDisplayedDescription(page, "UNRELATED MERCHANT 0").first()
             );
             await transactionGridCell(unrelatedRow, "description").click();
-            await expect(inspector.getByTestId("tags-rule-inspector")).toHaveCount(0, {
+            await expect(inspectorRuleCard(inspector, "tags")).toHaveCount(0, {
                 timeout: 3_000
             });
             await expect(
-                page.getByTestId("transaction-row").getByTestId("transaction-rule-popup")
+                page.getByTestId("transaction-row").getByTestId("field-rule-editor")
             ).toHaveCount(0, { timeout: 3_000 });
         });
     });

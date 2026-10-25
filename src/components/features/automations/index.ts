@@ -1,35 +1,21 @@
 /**
  * Automation Components
  *
- * Components for managing transaction automations.
+ * The shared rule editor and the Automations page manager.
  */
 
+export { FieldRulesManager, type FieldRulesManagerProps } from "./FieldRulesManager";
 export {
-    ACTION_TYPES,
-    type ActionData,
-    ActionEditor,
-    type ActionEditorProps
-} from "./ActionEditor";
+    type RuleEditorOption,
+    type RuleEditorOptions,
+    draftFromProposal,
+    draftFromRule,
+    mutationErrorToFieldErrors,
+    type RuleProposalSeed
+} from "./rule-editor-data";
 export {
-    CONDITION_COLUMNS,
-    CONDITION_OPERATORS,
-    type ConditionData,
-    ConditionEditor,
-    type ConditionEditorProps
-} from "./ConditionEditor";
-// HS-007 / P17B: shared field-rule editor + reworked automations page manager.
-export {
-    FieldRuleEditor,
-    type FieldRuleEditorProps,
-    type RuleEditorOption
-} from "./FieldRuleEditor";
-export { FieldRulesManager } from "./FieldRulesManager";
-export {
-    APPLY_MODES,
-    type ApplyMode,
-    applyModeIsAutomatic,
-    applyModeLabel,
-    applyModeTargetsNewOnly,
+    addDraftOutput,
+    type ApplyScope,
     emptyRuleDraft,
     type ResolvedRuleWrite,
     type RuleEditorDraft,
@@ -37,3 +23,13 @@ export {
     type RuleEditorValidation,
     validateRuleDraft
 } from "./rule-editor-model";
+export {
+    RuleEditor,
+    type RuleEditorDivergence,
+    type RuleEditorProps,
+    type RuleEditorResolution,
+    type RuleEditorSplitPreview,
+    type RuleEditorTitle,
+    type RuleEditorTransaction
+} from "./RuleEditor";
+export { useRuleEditorOptions } from "./use-rule-editor-options";

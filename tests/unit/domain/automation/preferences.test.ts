@@ -4,7 +4,9 @@ import {
     DEFAULT_REMEMBERED_CHOICE,
     type RememberedRuleChoice,
     nextUserPreference,
-    readRememberedChoice
+    readRememberedChoice,
+    rememberedApplyOnBlur,
+    rememberedScope
 } from "@/lib/domain/automation/preferences";
 
 describe("user automation preferences", () => {
@@ -45,5 +47,25 @@ describe("user automation preferences", () => {
         expect(record.pubkeyHash).toBe("user-1");
         expect(record.lastApplyMode).toBe("updatingNew");
         expect(readRememberedChoice(record)).toEqual(choice);
+    });
+
+    it.each([
+        { applyMode: "updatingAll", scope: "all", applyOnBlur: true },
+        { applyMode: "updateAll", scope: "all", applyOnBlur: false },
+        { applyMode: "updatingNew", scope: "new", applyOnBlur: true },
+        { applyMode: "updateNew", scope: "new", applyOnBlur: false }
+    ] as const)(
+        "reads $applyMode as scope $scope and apply-on-blur $applyOnBlur",
+        ({ applyMode, scope, applyOnBlur }) => {
+            const choice: RememberedRuleChoice = { ...DEFAULT_REMEMBERED_CHOICE, applyMode };
+            expect(rememberedScope(choice)).toBe(scope);
+            expect(rememberedApplyOnBlur(choice)).toBe(applyOnBlur);
+        }
+    );
+
+    it("defaults to update new without apply on blur when nothing is remembered", () => {
+        const choice = readRememberedChoice(undefined);
+        expect(rememberedScope(choice)).toBe("new");
+        expect(rememberedApplyOnBlur(choice)).toBe(false);
     });
 });

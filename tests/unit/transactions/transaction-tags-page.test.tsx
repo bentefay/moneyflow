@@ -115,6 +115,11 @@ function gridCell(marker: string, transactionId = TRANSACTION_ID): HTMLElement {
 }
 
 describe("transaction page tag commit", () => {
+    // Mounting the whole transactions page costs up to ~4s alone and overruns the 5s default under
+    // a saturated full-suite run. This is a budget ceiling, not a wait: every assertion below still
+    // settles on its own condition rather than on elapsed time.
+    vi.setConfig({ testTimeout: 30_000 });
+
     let mediaQuery: InspectorMediaQuery;
     let restoreLayout: () => void;
 
@@ -166,14 +171,13 @@ describe("transaction page tag commit", () => {
         const proposal = await screen.findByTestId("tags-rule-proposal");
         const inspector = screen.getByTestId("transaction-inspector");
         expect(proposal).toBeVisible();
-        const applyMode = screen.getByTestId("proposal-apply-mode");
-        fireEvent.click(applyMode);
-        fireEvent.click(screen.getByRole("option", { name: "Update all" }));
-        expect(applyMode).toHaveTextContent("Update all");
+        const updateAll = screen.getByTestId("rule-scope-all");
+        fireEvent.click(updateAll);
+        expect(updateAll).toHaveAttribute("aria-checked", "true");
 
         act(() => mediaQuery.setMatches(true));
         expect(screen.getByTestId("tags-rule-proposal")).toBe(proposal);
-        expect(screen.getByTestId("proposal-apply-mode")).toHaveTextContent("Update all");
+        expect(screen.getByTestId("rule-scope-all")).toHaveAttribute("aria-checked", "true");
 
         fireEvent.click(screen.getByTestId("transaction-inspector-toggle"));
         expect(inspector).not.toBeVisible();
@@ -185,7 +189,7 @@ describe("transaction page tag commit", () => {
             screen.queryByTestId("transaction-inspector-automation-badge")
         ).not.toBeInTheDocument();
         expect(screen.getByTestId("tags-rule-proposal")).toBe(proposal);
-        expect(screen.getByTestId("proposal-apply-mode")).toHaveTextContent("Update all");
+        expect(screen.getByTestId("rule-scope-all")).toHaveAttribute("aria-checked", "true");
     }, 15_000);
 
     it("retains exact staged creation authority when the active cell is double-clicked again", async () => {
@@ -578,9 +582,8 @@ describe("transaction page tag commit", () => {
         fireEvent.pointerUp(sourceDescription, { button: 0, pointerId: 73 });
         fireEvent.click(sourceDescription);
         const proposal = await screen.findByTestId("tags-rule-proposal");
-        fireEvent.click(screen.getByTestId("proposal-apply-mode"));
-        fireEvent.click(screen.getByRole("option", { name: "Update all" }));
-        expect(screen.getByTestId("proposal-apply-mode")).toHaveTextContent("Update all");
+        fireEvent.click(screen.getByTestId("rule-scope-all"));
+        expect(screen.getByTestId("rule-scope-all")).toHaveAttribute("aria-checked", "true");
 
         scrollGridTo(HARNESS_ROW_HEIGHT * 70);
         await waitFor(() => expect(renderedRowIds()).toContain(destinationId));
@@ -599,7 +602,7 @@ describe("transaction page tag commit", () => {
         fireEvent.click(restoredSourceDescription);
 
         expect(await screen.findByTestId("tags-rule-proposal")).not.toBe(proposal);
-        expect(screen.getByTestId("proposal-apply-mode")).toHaveTextContent("Update all");
+        expect(screen.getByTestId("rule-scope-all")).toHaveAttribute("aria-checked", "true");
         expect(screen.getByTestId("transaction-inspector")).toHaveAttribute(
             "data-transaction-owner",
             sourceId
@@ -690,7 +693,7 @@ describe("transaction page tag commit", () => {
         fireEvent.click(source);
 
         expect(await screen.findByTestId("tags-rule-proposal")).toBeVisible();
-        expect(screen.getByTestId("proposal-description-error")).toBeVisible();
+        expect(screen.getByTestId("rule-description-error")).toBeVisible();
         expect(fieldRuleCreateCalls).toHaveLength(rejectionAttempts);
         expect(fieldRuleApplicationCalls).toHaveLength(0);
     });
@@ -739,7 +742,7 @@ describe("transaction page tag commit", () => {
         expect(committedTagIds).toHaveLength(1);
         expect(storedTransactionTagIds(destinationId)).toEqual(committedTagIds);
         expect(fieldRuleCreateCalls[0]).toMatchObject({
-            action: { field: "tags", mode: "add", tagIds: committedTagIds },
+            outputs: { tags: { mode: "add", tagIds: committedTagIds } },
             descriptionText: description
         });
         expect(screen.getByTestId("transaction-inspector")).toHaveAttribute(

@@ -18,8 +18,8 @@
  *   surfaced as `deferred-alias-boundary` so the alias write path can consume it. See Q-proposal
  *   Q-P17A-ALIAS-WRITE.
  *
- * Description rules never touch manual transactions; tag and whole-person-allocation rules do. That
- * eligibility is enforced by the matcher (`ruleMatchesSubject`) via `subject.isManual`.
+ * Description-alias outputs never touch manual transactions; tag and whole-person-allocation outputs
+ * do. That eligibility is enforced per field by `selectWinningRule` via `subject.isManual`.
  */
 
 import {
@@ -34,12 +34,8 @@ import {
 import { type TransactionStore } from "@/lib/crdt/schema";
 import { type ValidatedAllocationSet } from "@/lib/domain/allocation";
 
-import {
-    type FieldRule,
-    type RuleMatchSubject,
-    resolveTagRuleResult,
-    selectWinningRulesByField
-} from "./rules";
+import { type RuleSource } from "./rule-index";
+import { type RuleMatchSubject, resolveTagRuleResult, selectWinningRulesByField } from "./rules";
 
 /** A transaction to apply rules to: the match facts, its location and its current tag set. */
 export interface RuleApplicationTarget {
@@ -73,15 +69,16 @@ function sameSequence(left: readonly string[], right: readonly string[]): boolea
  * field. The list is the logical unit to group for a single undo step (P09).
  */
 export function planRuleApplications(
-    rules: readonly FieldRule[],
+    rules: RuleSource,
     target: RuleApplicationTarget
 ): readonly FieldRulePlan[] {
     const winners = selectWinningRulesByField(rules, target.subject);
     const plans: FieldRulePlan[] = [];
 
     const tagsWinner = winners.tags;
-    if (tagsWinner != null && tagsWinner.action.field === "tags") {
-        const nextTagIds = resolveTagRuleResult(target.currentTagIds, tagsWinner.action);
+    const tagsOutput = tagsWinner?.outputs.tags;
+    if (tagsWinner != null && tagsOutput != null) {
+        const nextTagIds = resolveTagRuleResult(target.currentTagIds, tagsOutput);
         plans.push({
             field: "tags",
             ruleId: tagsWinner.id,
@@ -92,20 +89,22 @@ export function planRuleApplications(
     }
 
     const allocationWinner = winners.allocation;
-    if (allocationWinner != null && allocationWinner.action.field === "allocation") {
+    const allocationOutput = allocationWinner?.outputs.allocation;
+    if (allocationWinner != null && allocationOutput != null) {
         plans.push({
             field: "allocation",
             ruleId: allocationWinner.id,
-            allocations: allocationWinner.action.allocations
+            allocations: allocationOutput.allocations
         });
     }
 
     const aliasWinner = winners.descriptionAlias;
-    if (aliasWinner != null && aliasWinner.action.field === "descriptionAlias") {
+    const aliasOutput = aliasWinner?.outputs.descriptionAlias;
+    if (aliasWinner != null && aliasOutput != null) {
         plans.push({
             field: "descriptionAlias",
             ruleId: aliasWinner.id,
-            aliasId: aliasWinner.action.aliasId
+            aliasId: aliasOutput.aliasId
         });
     }
 
@@ -223,7 +222,7 @@ export interface BulkApplicationEntry {
  */
 export function applyRulesToTargets(
     store: TransactionStore,
-    rules: readonly FieldRule[],
+    rules: RuleSource,
     targets: readonly RuleApplicationTarget[]
 ): readonly BulkApplicationEntry[] {
     return targets.map((target) => ({

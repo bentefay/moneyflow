@@ -303,7 +303,7 @@ test.describe("Description Aliases", () => {
             const inspector = await openTransactionInspector(page);
             const proposal = inspector.getByTestId("description-rule-proposal");
             await expect(proposal).toBeVisible();
-            await proposal.getByTestId("proposal-dismiss").click();
+            await proposal.getByTestId("rule-cancel").click();
             await expect(proposal).toHaveCount(0, { timeout: 3_000 });
 
             const unchanged = await activateTransactionEditor(partialRow, "description");

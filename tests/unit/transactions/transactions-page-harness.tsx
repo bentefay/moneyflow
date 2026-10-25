@@ -34,6 +34,7 @@ import {
     DEFAULT_REMEMBERED_CHOICE,
     type RememberedRuleChoice
 } from "@/lib/domain/automation/preferences";
+import { buildRuleIndex } from "@/lib/domain/automation/rule-index";
 import { asMinorUnits } from "@/lib/domain/currency";
 
 import { buildFakeTransactionStore } from "./virtual-grid-harness";
@@ -144,6 +145,7 @@ export function seedVaultDescriptionAliases(aliases: Record<string, unknown>): v
 const noop = () => {};
 const empty = {};
 const noRules: readonly never[] = [];
+const noRuleIndex = buildRuleIndex(noRules);
 const accounts = {
     [ACCOUNT_ID]: {
         id: ACCOUNT_ID,
@@ -264,7 +266,8 @@ export async function createCrdtContextMock() {
         referenceDate?: Temporal.PlainDate
     ): void => {
         const rule = fieldRuleCreateCalls.at(-1);
-        if (rule == null || rule.action.field !== "tags") return;
+        const tagsOutput = rule?.outputs.tags;
+        if (rule == null || tagsOutput == null) return;
         fieldRuleApplicationCalls.push({
             inspectorOwnerAtApply:
                 document
@@ -280,15 +283,16 @@ export async function createCrdtContextMock() {
                 transaction.description !== rule.descriptionText ||
                 (rule.accountId != null && transaction.accountId !== rule.accountId) ||
                 (rule.amount != null && transaction.amount !== rule.amount) ||
+                // "Update new" is inclusive of the reference date, like the real engine.
                 (referenceDate != null &&
-                    Temporal.PlainDate.compare(transaction.date, referenceDate) <= 0)
+                    Temporal.PlainDate.compare(transaction.date, referenceDate) < 0)
             ) {
                 continue;
             }
             const tagIds =
-                rule.action.mode === "set"
-                    ? [...rule.action.tagIds]
-                    : [...new Set([...transaction.tagIds, ...rule.action.tagIds])];
+                tagsOutput.mode === "set"
+                    ? [...tagsOutput.tagIds]
+                    : [...new Set([...transaction.tagIds, ...tagsOutput.tagIds])];
             updateStoredTransaction(store, {
                 location: {
                     accountId: transaction.accountId,
@@ -370,6 +374,9 @@ export async function createCrdtContextMock() {
         useActivePeople: () => vaultPeople.active,
         usePeople: () => vaultPeople.all,
         useActiveFieldRules: () => noRules,
+        useActiveFieldRuleIndex: () => noRuleIndex,
+        // The editor's "would change now" line counts over this; no rules means nothing changes.
+        useRulePopulation: () => noRules,
         useTransactionActions: () => ({
             insertTransaction: noop,
             updateTransaction: useCallback((input: UpdateTransactionInput) => {

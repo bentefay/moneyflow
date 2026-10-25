@@ -653,6 +653,8 @@ function inspectorBindingKey(binding: TransactionInspectorControlBinding): strin
             return `action:${binding.action}`;
         case "automation":
             return `automation:${binding.field}`;
+        case "automation-rule":
+            return `automation-rule:${binding.ruleId}`;
         default:
             return assertNever(binding, "transaction inspector binding key");
     }

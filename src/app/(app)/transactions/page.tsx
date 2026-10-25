@@ -64,7 +64,10 @@ import type { DescriptionAliasEditOrigin } from "@/components/features/transacti
 import { transactionRowOrderFromCursor } from "@/components/features/transactions/cursor-row-order";
 import { DeleteTransactionsDialog } from "@/components/features/transactions/DeleteTransactionsDialog";
 import { tagSetChanged } from "@/components/features/transactions/field-rule-proposal-state";
-import type { RobotCurrentValue } from "@/components/features/transactions/field-rule-robot-state";
+import {
+    computeFieldRuleRobotState,
+    type RobotCurrentValue
+} from "@/components/features/transactions/field-rule-robot-state";
 import {
     useTransactionGridController,
     useTransactionGridControllerSnapshot
@@ -111,6 +114,7 @@ import { type AppCommand, GRID_REFERENCE_COMMANDS, TRANSACTION_COMMANDS } from "
 import { allocationPresenceField } from "@/lib/crdt/allocations";
 import {
     useActiveAccounts,
+    useActiveFieldRuleIndex,
     useActivePeople,
     useActiveTags,
     useDescriptionAliases,
@@ -789,6 +793,8 @@ function TransactionsPageContent() {
             }
             const account = accounts[transaction.accountId];
             const subject = projectRuleMatchSubject({
+                transactionId: transaction.id,
+                date: transaction.date,
                 accountId: transaction.accountId,
                 amount: transaction.amount,
                 description: transaction.description,
@@ -831,6 +837,19 @@ function TransactionsPageContent() {
                   notes: transaction.notes
               };
     }, [automationContextFor, findTransaction, gridSnapshot.activeTransactionId]);
+    const activeFieldRules = useActiveFieldRuleIndex();
+    // The toolbar's amber dot: a rule winning a field on the active row disagrees with its value.
+    const automationDrift = useMemo(() => {
+        const automation = inspectorTransaction?.automation;
+        return (
+            automation != null &&
+            automation.currents.some(
+                (current) =>
+                    computeFieldRuleRobotState(activeFieldRules, automation.subject, current)
+                        .kind === "drift"
+            )
+        );
+    }, [activeFieldRules, inspectorTransaction]);
 
     const activeAllocationPeople = useMemo(
         () =>
@@ -1783,7 +1802,7 @@ function TransactionsPageContent() {
             <div
                 className={`grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 ${
                     gridSnapshot.inspectorPanelOpen
-                        ? "min-h-[15rem] grid-rows-[minmax(8rem,1fr)_minmax(6rem,min(18rem,40%))] overflow-x-hidden overflow-y-auto xl:grid-cols-[minmax(0,1fr)_clamp(18rem,24vw,24rem)] xl:grid-rows-1 xl:overflow-hidden"
+                        ? "min-h-[15rem] grid-rows-[minmax(8rem,1fr)_minmax(6rem,min(18rem,40%))] overflow-x-hidden overflow-y-auto xl:grid-cols-[minmax(0,1fr)_clamp(22rem,30vw,30rem)] xl:grid-rows-1 xl:overflow-hidden"
                         : "min-h-[28rem] grid-rows-[minmax(0,1fr)] overflow-hidden xl:grid-cols-1 xl:grid-rows-1"
                 }`}
                 data-testid="transaction-grid-shell"
@@ -1804,6 +1823,7 @@ function TransactionsPageContent() {
                         inspectorOpen={gridSnapshot.inspectorPanelOpen}
                         onInspectorOpenChange={handleInspectorOpenChange}
                         automationPending={gridSnapshot.automation.proposal?.renderable === true}
+                        automationDrift={automationDrift}
                         selectedCount={selectedCount}
                         totalCount={cursor.count}
                         isFiltered={hasActiveFilters(filters)}
