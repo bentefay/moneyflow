@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Runs the repo-pinned skills CLI so `skills` works without putting node_modules/.bin on PATH.
+REPO=$(git rev-parse --show-toplevel)
+exec "${REPO}/node_modules/.bin/skills" "$@"

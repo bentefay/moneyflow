@@ -13,6 +13,8 @@
     "bracketSpacing": true,
     "singleAttributePerLine": false,
     "ignorePatterns": [
+        ".agents/skills/**",
+        "skills-lock.json",
         "AGENTS.md",
         "specs/014-transaction-grid-v9/evidence/raw/**",
         "specs/human-scratch.md",
