@@ -8,7 +8,6 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
-import type { ActionData, ConditionData } from "@/components/features/automations";
 import type { Automation, Transaction } from "@/lib/crdt/schema";
 import {
     applyActions,
@@ -20,7 +19,9 @@ import {
     evaluateCondition,
     evaluateConditions,
     getUndoChanges,
-    validateRegex
+    validateRegex,
+    type ActionData,
+    type ConditionData
 } from "@/lib/domain/automation";
 import { asMinorUnits } from "@/lib/domain/currency";
 

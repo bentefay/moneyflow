@@ -14,6 +14,36 @@ import { asMinorUnits } from "@/lib/domain/currency";
 
 import { populateStore } from "../crdt/transaction-cursor-fixtures";
 
+// Only the automation section reads the vault; an empty one renders its heading and empty state.
+vi.mock("@/hooks/use-identity", () => ({ usePubkeyHash: () => "viewer" }));
+vi.mock("@/lib/crdt", () => {
+    const none = {};
+    const noRules: readonly never[] = [];
+    const noRuleIndex = { rules: noRules, byDescriptionText: new Map<string, never[]>() };
+    return {
+        useAccounts: () => none,
+        useActiveAccounts: () => none,
+        useActiveDescriptionAliases: () => none,
+        useActiveFieldRules: () => noRules,
+        useActiveFieldRuleIndex: () => noRuleIndex,
+        useActivePeople: () => none,
+        useActiveTags: () => none,
+        useApplyFieldRules: () => ({ applyAll: vi.fn(), applyNewerThan: vi.fn() }),
+        useApplyFieldRulesToTransaction: () => vi.fn(),
+        useFieldRuleActions: () => none,
+        usePersistAutomationPreference: () => vi.fn(),
+        useRulePopulation: () => noRules,
+        useUserAutomationChoice: () => ({
+            applyMode: "updateNew",
+            field: "tags",
+            tagMode: "add",
+            useAccountScope: false,
+            useAmountScope: false
+        }),
+        useVaultPreferences: () => none
+    };
+});
+
 const COLUMNS = ["date", "description", "amount", "actions"] as const;
 
 class InspectorResizeObserver {
@@ -468,6 +498,58 @@ describe("TransactionInspector", () => {
             gridcell.remove();
         }
     );
+
+    it("labels the Automation section by a heading that is a registered focus anchor", () => {
+        const controller = createController(["tx-1"]);
+        controller.setFocusedCell("tx-1", "description");
+        controller.setInspectorPanelOpen(true);
+        const view = render(
+            <TransactionInspector
+                controller={controller}
+                open
+                transaction={transaction("tx-1")}
+                onNotesChange={() => undefined}
+                onRequestClose={() => undefined}
+            />
+        );
+        const unavailable = screen.getByRole("region", { name: "Automation" });
+        expect(unavailable).toHaveTextContent("Automation is unavailable for this transaction.");
+        expect(screen.queryByTestId("transaction-inspector-automation-title")).toBeNull();
+
+        view.rerender(
+            <TransactionInspector
+                controller={controller}
+                open
+                transaction={{
+                    ...transaction("tx-1"),
+                    automation: {
+                        accountLabel: "Cheque",
+                        currents: [{ currentTagIds: [], field: "tags" }],
+                        referenceDate: Temporal.PlainDate.from("2026-08-29"),
+                        subject: {
+                            accountId: "acc-1",
+                            amount: asMinorUnits(-1000),
+                            descriptionText: "Description tx-1",
+                            transactionId: asTransactionId("tx-1"),
+                            date: Temporal.PlainDate.from("2026-07-25"),
+                            isManual: false
+                        }
+                    }
+                }}
+                onNotesChange={() => undefined}
+                onRequestClose={() => undefined}
+            />
+        );
+        const section = screen.getByRole("region", { name: "Automation" });
+        const heading = screen.getByTestId("transaction-inspector-automation-title");
+        expect(section).toContainElement(heading);
+        expect(heading).toHaveAttribute("tabindex", "-1");
+        expect(screen.getByTestId("transaction-automation-empty")).toBeVisible();
+
+        heading.focus();
+        expect(controller.enterInspector(heading)).toBe(true);
+        expect(controller.getInteractionState()).toMatchObject({ kind: "inspecting" });
+    });
 
     it("restores the active gridcell when Escape is pressed from the inspector heading", () => {
         const controller = createController(["tx-1"]);

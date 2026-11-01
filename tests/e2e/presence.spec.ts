@@ -1,3 +1,4 @@
+import { expect, test } from "@playwright/test";
 /**
  * HS-003 Loro ephemeral presence E2E.
  *
@@ -5,8 +6,6 @@
  * P05-authorized presence channel, asserting behaviour (which rows carry an indicator, whether
  * focus is stolen, what reaches the wire) rather than user-facing copy.
  */
-
-import { expect, test } from "@playwright/test";
 
 import { hashToColor } from "@/lib/utils/color";
 

@@ -1,0 +1,1711 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Automation rule editor — interactive mockup</title>
+        <!--
+  Standalone mockup for the mission "Refine transaction editing and simplify automation rules".
+  Covers the three mockup features of the saved plan:
+    - Unified create and edit layout
+    - Grouped outputs and split interactions
+    - Matching, mismatch, and contextual states
+  Opens directly from the repository. No production code, no network, no persistence. Every rule and
+  transaction is synthetic. Nothing you click here is an approval or a write.
+-->
+        <style>
+            :root {
+                color-scheme: light dark;
+                --radius: 0.625rem;
+                --background: oklch(1 0 0);
+                --foreground: oklch(0.129 0.042 264.695);
+                --card: oklch(1 0 0);
+                --primary: oklch(0.208 0.042 265.755);
+                --primary-foreground: oklch(0.984 0.003 247.858);
+                --muted: oklch(0.968 0.007 247.896);
+                --muted-foreground: oklch(0.554 0.046 257.417);
+                --accent: oklch(0.968 0.007 247.896);
+                --destructive: oklch(0.577 0.245 27.325);
+                --border: oklch(0.929 0.013 255.508);
+                --input: oklch(0.929 0.013 255.508);
+                --ring: oklch(0.704 0.04 256.788);
+                --ok: oklch(0.6 0.15 150);
+                --ok-bg: oklch(0.96 0.04 150);
+                --warn: oklch(0.6 0.16 60);
+                --warn-bg: oklch(0.97 0.05 80);
+                --bad: oklch(0.577 0.245 27.325);
+                --bad-bg: oklch(0.97 0.03 27);
+                --pending: oklch(0.5 0.15 264);
+                --pending-bg: oklch(0.95 0.03 264);
+                --row-active: oklch(0.95 0.03 264);
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --background: oklch(0.129 0.042 264.695);
+                    --foreground: oklch(0.984 0.003 247.858);
+                    --card: oklch(0.208 0.042 265.755);
+                    --primary: oklch(0.929 0.013 255.508);
+                    --primary-foreground: oklch(0.208 0.042 265.755);
+                    --muted: oklch(0.279 0.041 260.031);
+                    --muted-foreground: oklch(0.704 0.04 256.788);
+                    --accent: oklch(0.279 0.041 260.031);
+                    --destructive: oklch(0.704 0.191 22.216);
+                    --border: oklch(1 0 0 / 10%);
+                    --input: oklch(1 0 0 / 15%);
+                    --ring: oklch(0.551 0.027 264.364);
+                    --ok-bg: oklch(0.3 0.06 150);
+                    --warn: oklch(0.8 0.16 70);
+                    --warn-bg: oklch(0.32 0.07 80);
+                    --bad-bg: oklch(0.3 0.06 27);
+                    --pending-bg: oklch(0.3 0.06 264);
+                    --row-active: oklch(0.28 0.05 264);
+                }
+            }
+            * {
+                box-sizing: border-box;
+            }
+            html,
+            body {
+                height: 100%;
+            }
+            body {
+                display: flex;
+                flex-direction: column;
+            }
+            html,
+            body {
+                margin: 0;
+                background: var(--background);
+                color: var(--foreground);
+                font:
+                    14px/1.45 ui-sans-serif,
+                    system-ui,
+                    -apple-system,
+                    "Segoe UI",
+                    Roboto,
+                    sans-serif;
+            }
+            button,
+            input,
+            select {
+                font: inherit;
+                color: inherit;
+            }
+            code,
+            .mono {
+                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                font-size: 0.92em;
+            }
+            h1 {
+                font-size: 1.1rem;
+                margin: 0;
+            }
+            h2 {
+                font-size: 0.95rem;
+                margin: 0;
+                font-weight: 600;
+            }
+            h3 {
+                font-size: 0.85rem;
+                margin: 0;
+                font-weight: 600;
+            }
+            p {
+                margin: 0;
+            }
+            .muted {
+                color: var(--muted-foreground);
+            }
+            .small {
+                font-size: 0.8rem;
+            }
+            .eyebrow {
+                font-size: 0.7rem;
+                font-weight: 600;
+                letter-spacing: 0.06em;
+                text-transform: uppercase;
+                color: var(--muted-foreground);
+            }
+
+            /* Page chrome */
+            .top {
+                border-bottom: 1px solid var(--border);
+                padding: 12px 20px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px 20px;
+                align-items: center;
+            }
+            .top .banner {
+                background: var(--warn-bg);
+                color: var(--foreground);
+                border: 1px solid var(--border);
+                padding: 4px 10px;
+                border-radius: 999px;
+                font-size: 0.78rem;
+            }
+            nav.scenarios {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                padding: 10px 20px;
+                border-bottom: 1px solid var(--border);
+            }
+            nav.scenarios button {
+                border: 1px solid var(--border);
+                background: var(--background);
+                border-radius: 999px;
+                padding: 4px 12px;
+                cursor: pointer;
+                font-size: 0.82rem;
+            }
+            nav.scenarios button[aria-current="true"] {
+                border-color: var(--pending);
+                color: var(--pending);
+                font-weight: 600;
+            }
+            .scenario-head {
+                padding: 12px 20px 0;
+                display: grid;
+                gap: 4px;
+            }
+            .notes {
+                padding: 0 20px 12px;
+            }
+            .notes ul {
+                margin: 6px 0 0;
+                padding-left: 18px;
+            }
+            .notes li {
+                margin: 2px 0;
+            }
+
+            /* Workspace: table + inspector, mirrors the app's grid/inspector split */
+            .workspace {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) clamp(22rem, 32vw, 30rem);
+                gap: 16px;
+                padding: 0 20px 20px;
+                flex: 1;
+                min-height: 0;
+            }
+            .workspace.standalone {
+                grid-template-columns: minmax(0, 1fr);
+            }
+            @media (max-width: 900px) {
+                .workspace {
+                    grid-template-columns: minmax(0, 1fr);
+                    flex: none;
+                }
+                body {
+                    height: auto;
+                }
+            }
+            .table-wrap {
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                overflow: auto;
+                min-height: 0;
+            }
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                font-size: 0.82rem;
+            }
+            th,
+            td {
+                padding: 6px 10px;
+                text-align: left;
+                border-bottom: 1px solid var(--border);
+                white-space: nowrap;
+            }
+            th {
+                position: sticky;
+                top: 0;
+                background: var(--background);
+                font-weight: 600;
+                font-size: 0.75rem;
+                color: var(--muted-foreground);
+            }
+            td.num {
+                text-align: right;
+                font-variant-numeric: tabular-nums;
+            }
+            tr.active td {
+                background: var(--row-active);
+            }
+            tr.manual td.desc {
+                color: var(--muted-foreground);
+                font-style: italic;
+            }
+            .cell-edit {
+                outline: 2px solid var(--pending);
+                outline-offset: -2px;
+                border-radius: 4px;
+            }
+            .robot {
+                display: inline-block;
+                width: 14px;
+                height: 14px;
+                vertical-align: -2px;
+                margin-left: 4px;
+                border-radius: 3px;
+                background: var(--muted-foreground);
+                opacity: 0.55;
+            }
+            .robot.bad {
+                background: var(--warn);
+                opacity: 1;
+            }
+            .tag {
+                display: inline-block;
+                padding: 0 6px;
+                border-radius: 999px;
+                background: var(--muted);
+                font-size: 0.75rem;
+                margin-right: 3px;
+            }
+            .changed td {
+                animation: flash 1.2s ease-out;
+            }
+            @keyframes flash {
+                from {
+                    background: var(--ok-bg);
+                }
+                to {
+                    background: transparent;
+                }
+            }
+
+            /* Inspector shell, mirrors TransactionInspector.tsx */
+            aside.inspector {
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                background: var(--background);
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+            }
+            aside.inspector .head {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+                padding: 12px 16px;
+                border-bottom: 1px solid var(--border);
+            }
+            aside.inspector .head .x {
+                margin-left: auto;
+                border: 0;
+                background: transparent;
+                cursor: pointer;
+                color: var(--muted-foreground);
+                font-size: 1rem;
+            }
+            aside.inspector .body {
+                overflow-y: auto;
+                min-height: 0;
+                padding: 16px;
+                display: grid;
+                gap: 20px;
+                align-content: start;
+            }
+            .field label.block {
+                display: block;
+                font-weight: 500;
+                margin-bottom: 6px;
+            }
+            textarea {
+                width: 100%;
+                min-height: 3.5rem;
+                resize: vertical;
+                border: 1px solid var(--input);
+                border-radius: 8px;
+                background: transparent;
+                color: inherit;
+                padding: 8px;
+                font: inherit;
+            }
+            .section {
+                border-top: 1px solid var(--border);
+                padding-top: 14px;
+                display: grid;
+                gap: 12px;
+            }
+
+            /* Standalone page */
+            .page {
+                display: grid;
+                grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+                gap: 16px;
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 16px;
+                min-height: 0;
+            }
+            @media (max-width: 900px) {
+                .page {
+                    grid-template-columns: minmax(0, 1fr);
+                }
+            }
+            .rule-list {
+                display: grid;
+                gap: 6px;
+                align-content: start;
+            }
+            .rule-list button {
+                text-align: left;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 8px 10px;
+                background: transparent;
+                cursor: pointer;
+            }
+            .rule-list button[aria-current="true"] {
+                border-color: var(--pending);
+                background: var(--pending-bg);
+            }
+            .rule-list .sub {
+                display: block;
+                color: var(--muted-foreground);
+                font-size: 0.78rem;
+            }
+
+            /* The rule editor */
+            .editor {
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 12px;
+                display: grid;
+                gap: 14px;
+            }
+            .editor .title {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px 10px;
+                align-items: baseline;
+            }
+            .editor .target {
+                color: var(--muted-foreground);
+                font-size: 0.8rem;
+            }
+            .group {
+                display: grid;
+                gap: 8px;
+            }
+            .cond {
+                display: grid;
+                gap: 6px;
+            }
+            .cond .text {
+                border: 1px solid var(--input);
+                border-radius: 6px;
+                padding: 6px 8px;
+                background: var(--muted);
+            }
+            .check,
+            .radio {
+                display: flex;
+                gap: 8px;
+                align-items: flex-start;
+            }
+            .check input,
+            .radio input {
+                margin-top: 3px;
+            }
+            .check .hint,
+            .radio .hint {
+                display: block;
+                color: var(--muted-foreground);
+                font-size: 0.78rem;
+            }
+            .stored-note {
+                font-size: 0.78rem;
+                color: var(--warn);
+            }
+
+            .outputs {
+                display: grid;
+                gap: 8px;
+            }
+            .badge {
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 8px 10px;
+                display: grid;
+                gap: 6px;
+            }
+            .badge .row1 {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            .badge .btns {
+                display: flex;
+                gap: 6px;
+                margin-left: auto;
+            }
+            .badge .row1 .btn {
+                white-space: nowrap;
+            }
+            .badge .field {
+                font-size: 0.72rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: var(--muted-foreground);
+                min-width: 5.5rem;
+            }
+            .badge .value {
+                font-weight: 500;
+                flex: 1 1 9rem;
+                min-width: 0;
+            }
+            .chip {
+                font-size: 0.7rem;
+                padding: 1px 7px;
+                border-radius: 999px;
+                border: 1px solid transparent;
+                white-space: nowrap;
+            }
+            .chip.pending {
+                background: var(--pending-bg);
+                color: var(--pending);
+            }
+            .chip.applied {
+                background: var(--ok-bg);
+                color: var(--ok);
+            }
+            .chip.divergent {
+                background: var(--warn-bg);
+                color: var(--warn);
+            }
+            .badge.divergent {
+                border-color: var(--warn);
+            }
+            .badge.pending {
+                border-color: var(--pending);
+            }
+            .badge .diff {
+                font-size: 0.8rem;
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            .badge .diff .bad {
+                color: var(--warn);
+            }
+            .badge .edit {
+                display: grid;
+                gap: 6px;
+                padding-top: 6px;
+                border-top: 1px dashed var(--border);
+            }
+            .badge .edit .line {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            .alloc-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
+                gap: 6px;
+            }
+            .alloc-grid label {
+                display: grid;
+                gap: 2px;
+                font-size: 0.78rem;
+                color: var(--muted-foreground);
+            }
+            input[type="text"],
+            input[type="number"],
+            select {
+                border: 1px solid var(--input);
+                border-radius: 6px;
+                padding: 4px 6px;
+                background: transparent;
+            }
+            input[type="number"] {
+                width: 5.5rem;
+            }
+
+            .btn {
+                border: 1px solid var(--border);
+                background: transparent;
+                border-radius: 6px;
+                padding: 5px 10px;
+                cursor: pointer;
+                font-size: 0.82rem;
+            }
+            .btn.sm {
+                padding: 2px 8px;
+                font-size: 0.76rem;
+            }
+            .btn.primary {
+                background: var(--primary);
+                color: var(--primary-foreground);
+                border-color: var(--primary);
+            }
+            .btn.danger {
+                color: var(--destructive);
+                border-color: color-mix(in oklch, var(--destructive), transparent 50%);
+            }
+            .btn:focus-visible {
+                outline: 2px solid var(--ring);
+                outline-offset: 2px;
+            }
+            .btn[disabled] {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            .actions {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                flex-wrap: wrap;
+                padding-top: 4px;
+                border-top: 1px solid var(--border);
+            }
+            .actions .spacer {
+                flex: 1;
+            }
+            .add-output {
+                display: flex;
+                gap: 6px;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+
+            .panel {
+                border: 1px solid var(--pending);
+                background: var(--pending-bg);
+                border-radius: 8px;
+                padding: 10px;
+                display: grid;
+                gap: 10px;
+            }
+            .panel.warn {
+                border-color: var(--warn);
+                background: var(--warn-bg);
+            }
+            .split-preview {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            @media (max-width: 1100px) {
+                .split-preview {
+                    grid-template-columns: 1fr;
+                }
+            }
+            .mini {
+                border: 1px solid var(--border);
+                border-radius: 6px;
+                padding: 8px;
+                background: var(--background);
+                display: grid;
+                gap: 4px;
+                font-size: 0.8rem;
+            }
+            .mini .n {
+                font-weight: 600;
+            }
+
+            .toast {
+                position: fixed;
+                left: 50%;
+                bottom: 20px;
+                transform: translateX(-50%);
+                background: var(--primary);
+                color: var(--primary-foreground);
+                padding: 8px 14px;
+                border-radius: 8px;
+                font-size: 0.82rem;
+                max-width: 40rem;
+                box-shadow: 0 6px 20px rgb(0 0 0 / 25%);
+                display: none;
+            }
+            .toast.show {
+                display: block;
+            }
+            .sr {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                overflow: hidden;
+                clip: rect(0 0 0 0);
+            }
+        </style>
+    </head>
+    <body>
+        <header class="top">
+            <h1>Automation rule editor — interactive mockup</h1>
+            <span class="banner">Proposed design. Not implemented. Clicking records nothing.</span>
+            <span class="muted small"
+                >Light and dark follow the OS. Keyboard: Tab through every control.</span
+            >
+        </header>
+        <nav class="scenarios" id="scenario-nav" aria-label="Scenarios"></nav>
+        <div class="scenario-head">
+            <h2 id="scenario-title"></h2>
+            <p class="muted small" id="scenario-blurb"></p>
+        </div>
+        <div class="notes small" id="scenario-notes"></div>
+        <main id="workspace" class="workspace"></main>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+        <script>
+            "use strict";
+            // ---------------------------------------------------------------------------------------------
+            // Synthetic data. No production import, no network, no persistence.
+            // ---------------------------------------------------------------------------------------------
+            const PEOPLE = ["Alex", "Sam"];
+            const ACCOUNTS = { A: "Everyday", B: "Credit card" };
+            const ALIASES = ["Coffee", "Cafe", "Groceries", "Rent"];
+            const TAGS = ["coffee", "cafe", "food", "work", "weekend"];
+            const TEXT = "COFFEE SHOP 123";
+
+            const money = (minor) =>
+                (minor < 0 ? "−" : "") + "$" + (Math.abs(minor) / 100).toFixed(2);
+            const fmtDate = (d) =>
+                new Date(d + "T00:00:00").toLocaleDateString("en-AU", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric"
+                });
+
+            function tx(id, date, account, amount, extra) {
+                return {
+                    id,
+                    date,
+                    text: TEXT,
+                    account,
+                    amount,
+                    alias: null,
+                    tags: [],
+                    alloc: { Alex: null, Sam: null },
+                    manual: false,
+                    ...extra
+                };
+            }
+            function baseTransactions() {
+                return [
+                    tx("t1", "2026-07-02", "A", -450),
+                    tx("t2", "2026-07-10", "B", -600),
+                    tx("t3", "2026-07-25", "A", -450),
+                    tx("t4", "2026-07-25", "A", -450),
+                    tx("t5", "2026-08-03", "B", -450),
+                    tx("t6", "2026-08-14", "A", -600),
+                    tx("m1", "2026-08-01", "A", -1250, {
+                        text: "",
+                        alias: "Groceries",
+                        manual: true
+                    }),
+                    tx("o1", "2026-08-02", "A", -180000, { text: "RENT 14 AUGUST", alias: "Rent" })
+                ];
+            }
+            function rule(r) {
+                return { account: null, amount: null, outputs: {}, scope: "all", blur: true, ...r };
+            }
+            const ruleName = (r) => {
+                const parts = [
+                    r.text,
+                    r.account ? ACCOUNTS[r.account] : "any account",
+                    r.amount != null ? money(r.amount) : "any amount"
+                ];
+                return parts.join(" · ");
+            };
+            const outputFields = (r) => Object.keys(r.outputs);
+            const ruleLabel = (r) =>
+                (outputFields(r).map(fieldLabel).join(" + ") || "Empty") + " rule · " + ruleName(r);
+
+            // Matching: exact text, optional account and amount, most specific rank wins per field.
+            function rank(r) {
+                return (r.account ? 2 : 0) + (r.amount != null ? 1 : 0);
+            }
+            function matches(r, t) {
+                if (t.manual) return false; // alias rules never apply to manual rows; tag/alloc matched via alias name below
+                return (
+                    r.text === t.text &&
+                    (r.account == null || r.account === t.account) &&
+                    (r.amount == null || r.amount === t.amount)
+                );
+            }
+            function matchesForField(r, t, field) {
+                if (t.manual)
+                    return (
+                        field !== "alias" &&
+                        r.text === t.alias &&
+                        (r.account == null || r.account === t.account) &&
+                        (r.amount == null || r.amount === t.amount)
+                    );
+                return matches(r, t);
+            }
+            function winner(rules, t, field) {
+                return (
+                    rules
+                        .filter((r) => r.outputs[field] != null && matchesForField(r, t, field))
+                        .sort((a, b) => rank(b) - rank(a))[0] ?? null
+                );
+            }
+            function impliedValue(r, field) {
+                if (field === "alias") return r.outputs.alias;
+                if (field === "tags") return r.outputs.tags;
+                return r.outputs.alloc;
+            }
+            function rowAgrees(r, t, field) {
+                if (field === "alias") return t.alias === r.outputs.alias;
+                if (field === "tags") return r.outputs.tags.tags.every((x) => t.tags.includes(x));
+                return PEOPLE.every((p) => t.alloc[p] === r.outputs.alloc[p]);
+            }
+            function applyRuleTo(r, t) {
+                const next = { ...t, tags: [...t.tags], alloc: { ...t.alloc } };
+                if (r.outputs.alias) next.alias = r.outputs.alias;
+                if (r.outputs.tags)
+                    next.tags =
+                        r.outputs.tags.mode === "set"
+                            ? [...r.outputs.tags.tags]
+                            : [...new Set([...t.tags, ...r.outputs.tags.tags])];
+                if (r.outputs.alloc) next.alloc = { ...r.outputs.alloc };
+                return next;
+            }
+            function population(r, transactions, scope, referenceDate) {
+                return transactions.filter((t) => {
+                    if (!outputFields(r).some((f) => matchesForField(r, t, f))) return false;
+                    if (scope === "all" || referenceDate == null) return true;
+                    return t.date >= referenceDate; // inclusive, as the saved plan specifies
+                });
+            }
+
+            // ---------------------------------------------------------------------------------------------
+            // Scenarios. Each describes one state of the editor the spec asks the mockup to demonstrate.
+            // ---------------------------------------------------------------------------------------------
+            const SCENARIOS = [
+                {
+                    id: "create",
+                    title: "1. No matching rule: an edit offers to become a rule",
+                    blurb: "You typed the alias “Coffee” on 25 Jul. Nothing matches COFFEE SHOP 123 yet, so the inspector offers a new rule with that one output.",
+                    context: "transaction",
+                    activeRow: "t3",
+                    rules: [],
+                    pending: { field: "alias", value: "Coffee" },
+                    notes: [
+                        "Create and edit share one layout: conditions, outputs, scope, actions. Only the title and the absence of Delete differ.",
+                        "The conditions start from this transaction and your remembered choices. Both restriction checkboxes default off.",
+                        "Scope wording explains the inclusive date cutoff inline. There is no separate explanation button.",
+                        "Cancel writes nothing: no rule, no application, no remembered preference."
+                    ]
+                },
+                {
+                    id: "edit",
+                    title: "2. A grouped rule applies and the transaction agrees",
+                    blurb: "One rule renames, tags and allocates COFFEE SHOP 123. The indicator is neutral because this row already has every value the rule implies.",
+                    context: "transaction",
+                    activeRow: "t3",
+                    rules: [
+                        rule({
+                            id: "r1",
+                            text: TEXT,
+                            outputs: {
+                                alias: "Coffee",
+                                tags: { mode: "add", tags: ["coffee"] },
+                                alloc: { Alex: 50, Sam: 50 }
+                            }
+                        })
+                    ],
+                    preApplied: ["r1"],
+                    notes: [
+                        "The same editor, now with three output badges. Each badge expands to edit its output and has a Split control.",
+                        "Delete appears because the rule exists. Apply re-applies at the chosen scope; the old Apply all / Apply new buttons are gone.",
+                        "Conditions show the rule's stored values, not values seeded from this row."
+                    ]
+                },
+                {
+                    id: "extend",
+                    title: "3. Adding tags joins the applicable description rule",
+                    blurb: "An alias rule already covers this row. You add the tag “coffee”. The tag output joins that rule instead of creating a second one.",
+                    context: "transaction",
+                    activeRow: "t3",
+                    rules: [rule({ id: "r1", text: TEXT, outputs: { alias: "Coffee" } })],
+                    preApplied: ["r1"],
+                    pending: { field: "tags", value: { mode: "add", tags: ["coffee"] } },
+                    notes: [
+                        "The title names the target rule so you know what you are changing.",
+                        "The badge for the new output is marked pending; the existing alias output is untouched.",
+                        "The stored condition is “any account”. Folding in widens nothing, because the draft and the rule have identical conditions.",
+                        "Tag mode is an explicit control. Set mode clears tags typed by hand, so it is never inferred."
+                    ]
+                },
+                {
+                    id: "conflict",
+                    title: "4. The edited field already belongs to another rule",
+                    blurb: "Tags on this row come from a separate tags rule, while the alias comes from a description rule. Editing tags updates the tags rule by default; moving them is an explicit choice.",
+                    context: "transaction",
+                    activeRow: "t3",
+                    rules: [
+                        rule({ id: "r1", text: TEXT, outputs: { alias: "Coffee" } }),
+                        rule({
+                            id: "r2",
+                            text: TEXT,
+                            outputs: { tags: { mode: "add", tags: ["coffee"] } }
+                        })
+                    ],
+                    preApplied: ["r1", "r2"],
+                    pending: { field: "tags", value: { mode: "add", tags: ["coffee", "work"] } },
+                    conflict: { owner: "r2", host: "r1" },
+                    notes: [
+                        "Nothing merges silently. The default keeps the current owner and changes no population.",
+                        "Consolidating into the description rule is offered as a labelled choice that states the fate of the old rule first.",
+                        "This is the ownership contract's decision D-003 made visible; the full catalogue is in the ownership prototype."
+                    ]
+                },
+                {
+                    id: "split",
+                    title: "5. Split one output into its own rule",
+                    blurb: "Press Split on the tags badge. A preview shows the two resulting rules. Nothing visible changes on any transaction.",
+                    context: "transaction",
+                    activeRow: "t3",
+                    rules: [
+                        rule({
+                            id: "r1",
+                            text: TEXT,
+                            outputs: {
+                                alias: "Coffee",
+                                tags: { mode: "add", tags: ["coffee"] },
+                                alloc: { Alex: 50, Sam: 50 }
+                            }
+                        })
+                    ],
+                    preApplied: ["r1"],
+                    openSplit: "tags",
+                    notes: [
+                        "Split moves exactly one output. The new rule has the same match conditions. Scope and Apply on blur are your remembered choices, not part of either rule.",
+                        "Afterwards, edits to either rule are independent. A single-output rule has no Split control.",
+                        "A split that would collide with an existing rule at the same conditions is refused, and the holder is named."
+                    ]
+                },
+                {
+                    id: "mismatch",
+                    title: "6. A rule matches but the transaction disagrees",
+                    blurb: "The rule implies “Coffee” and the tag coffee, but someone set this row to “Cafe” with no tag. The indicator turns orange and the editor offers to apply the rule to this one row.",
+                    context: "transaction",
+                    activeRow: "t4",
+                    rules: [
+                        rule({
+                            id: "r1",
+                            text: TEXT,
+                            outputs: { alias: "Coffee", tags: { mode: "add", tags: ["coffee"] } }
+                        })
+                    ],
+                    preApplied: ["r1"],
+                    overrides: { t4: { alias: "Cafe", tags: [] } },
+                    notes: [
+                        "Matching and agreement are different things. The badge shows the rule's value beside the row's value.",
+                        "Apply to this transaction changes only this row and creates no link to the rule.",
+                        "Pressing Apply with Update all instead rewrites every matching row, so the drift is stated before you confirm."
+                    ]
+                },
+                {
+                    id: "pending",
+                    title: "7. Pending changes on an existing rule",
+                    blurb: "You changed the allocation on a row whose rule already sets it. The badge shows the stored value and your pending value. Apply on blur is unchecked, so nothing happens until Apply.",
+                    context: "transaction",
+                    activeRow: "t3",
+                    rules: [
+                        rule({
+                            id: "r1",
+                            text: TEXT,
+                            blur: false,
+                            outputs: { alias: "Coffee", alloc: { Alex: 50, Sam: 50 } }
+                        })
+                    ],
+                    preApplied: ["r1"],
+                    pending: { field: "alloc", value: { Alex: 70, Sam: 30 } },
+                    notes: [
+                        "Moving focus between the editor's controls never discards the pending edit or triggers a bulk change.",
+                        "With Apply on blur checked, the write happens only once focus genuinely leaves the transaction row.",
+                        "Allocation is always the whole set of people, never one person's share."
+                    ]
+                },
+                {
+                    id: "standalone",
+                    title: "8. The same editor on the Automations page",
+                    blurb: "No transaction context. Update new means future imports only, there is no Apply on blur, and there is no apply-to-this-transaction.",
+                    context: "standalone",
+                    activeRule: "r1",
+                    rules: [
+                        rule({
+                            id: "r1",
+                            text: TEXT,
+                            outputs: {
+                                alias: "Coffee",
+                                tags: { mode: "add", tags: ["coffee"] },
+                                alloc: { Alex: 50, Sam: 50 }
+                            }
+                        }),
+                        rule({
+                            id: "r3",
+                            text: TEXT,
+                            account: "B",
+                            outputs: { tags: { mode: "set", tags: ["cafe", "weekend"] } }
+                        }),
+                        rule({
+                            id: "r4",
+                            text: "RENT 14 AUGUST",
+                            outputs: { alias: "Rent", alloc: { Alex: 100, Sam: 0 } }
+                        })
+                    ],
+                    notes: [
+                        "Creation from this page starts with an empty description text field and the Add output control.",
+                        "Outputs can be added or split here exactly as in the inspector. Only the scope wording changes."
+                    ]
+                },
+                {
+                    id: "long",
+                    title: "9. Two rules apply and the inspector is long",
+                    blurb: "The alias comes from an unrestricted rule and the tags from an account-restricted one, so two rule cards are shown. The inspector scrolls on its own; the page does not.",
+                    context: "transaction",
+                    activeRow: "t3",
+                    rules: [
+                        rule({
+                            id: "r1",
+                            text: TEXT,
+                            outputs: { alias: "Coffee", alloc: { Alex: 50, Sam: 50 } }
+                        }),
+                        rule({
+                            id: "r3",
+                            text: TEXT,
+                            account: "A",
+                            outputs: { tags: { mode: "add", tags: ["coffee", "work"] } }
+                        })
+                    ],
+                    preApplied: ["r1", "r3"],
+                    notes: [
+                        "Each card is the full editor for one rule. The rule with the more specific condition is listed first.",
+                        "No document scrollbar appears. Resize the window to see the inspector keep its own scroll."
+                    ]
+                }
+            ];
+
+            // ---------------------------------------------------------------------------------------------
+            // State
+            // ---------------------------------------------------------------------------------------------
+            let state = null;
+            function loadScenario(id) {
+                const s = SCENARIOS.find((x) => x.id === id) ?? SCENARIOS[0];
+                let transactions = baseTransactions();
+                const rules = s.rules.map((r) => ({ ...r, outputs: structuredClone(r.outputs) }));
+                for (const rid of s.preApplied ?? []) {
+                    const r = rules.find((x) => x.id === rid);
+                    transactions = transactions.map((t) =>
+                        outputFields(r).some((f) => matchesForField(r, t, f))
+                            ? applyRuleTo(r, t)
+                            : t
+                    );
+                }
+                for (const [tid, o] of Object.entries(s.overrides ?? {}))
+                    transactions = transactions.map((t) => (t.id === tid ? { ...t, ...o } : t));
+                state = {
+                    scenario: s,
+                    transactions,
+                    rules,
+                    activeRow: s.activeRow ?? null,
+                    activeRule: s.activeRule ?? null,
+                    pending: s.pending ? structuredClone(s.pending) : null,
+                    conflict: s.conflict ? { ...s.conflict, choice: "keep" } : null,
+                    openSplit: s.openSplit ?? null,
+                    expanded: null,
+                    drafts: {}, // per rule id: { account, amount, scope, blur, tagMode }
+                    changedRows: new Set()
+                };
+                render();
+            }
+
+            function draftFor(r) {
+                if (!state.drafts[r.id])
+                    state.drafts[r.id] = {
+                        account: r.account,
+                        amount: r.amount,
+                        scope: r.scope,
+                        blur: r.blur
+                    };
+                return state.drafts[r.id];
+            }
+            const activeTx = () => state.transactions.find((t) => t.id === state.activeRow) ?? null;
+
+            // ---------------------------------------------------------------------------------------------
+            // Rendering
+            // ---------------------------------------------------------------------------------------------
+            const esc = (s) =>
+                String(s).replace(
+                    /[&<>"]/g,
+                    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]
+                );
+            const h = (strings, ...vals) =>
+                strings.reduce((acc, str, i) => acc + str + (i < vals.length ? vals[i] : ""), "");
+
+            function render() {
+                const s = state.scenario;
+                document.getElementById("scenario-nav").innerHTML = SCENARIOS.map(
+                    (x, i) =>
+                        h`<button type="button" data-scenario="${x.id}" aria-current="${x.id === s.id}">${i + 1}. ${esc(x.title.replace(/^\d+\. /, ""))}</button>`
+                ).join("");
+                document.getElementById("scenario-title").textContent = s.title;
+                document.getElementById("scenario-blurb").textContent = s.blurb;
+                document.getElementById("scenario-notes").innerHTML =
+                    '<span class="eyebrow">What this shows</span><ul>' +
+                    s.notes.map((n) => h`<li>${esc(n)}</li>`).join("") +
+                    "</ul>";
+                const ws = document.getElementById("workspace");
+                ws.className = "workspace" + (s.context === "standalone" ? " standalone" : "");
+                ws.innerHTML =
+                    s.context === "standalone"
+                        ? renderStandalone()
+                        : renderTable() + renderInspector();
+                state.changedRows = new Set();
+            }
+
+            function renderTable() {
+                const t0 = activeTx();
+                const rows = state.transactions
+                    .map((t) => {
+                        const cls = [
+                            t.id === state.activeRow ? "active" : "",
+                            t.manual ? "manual" : "",
+                            state.changedRows.has(t.id) ? "changed" : ""
+                        ].join(" ");
+                        const robot = (field) => {
+                            const w = winner(state.rules, t, field);
+                            if (!w) return "";
+                            const bad = !rowAgrees(w, t, field);
+                            return h`<span class="robot${bad ? " bad" : ""}" title="${esc(bad ? "Rule " + ruleName(w) + " matches but this value differs" : "Set by rule " + ruleName(w))}"></span>`;
+                        };
+                        const pendingCls = (field) =>
+                            t.id === state.activeRow && state.pending?.field === field
+                                ? " cell-edit"
+                                : "";
+                        const aliasShown =
+                            t.id === state.activeRow && state.pending?.field === "alias"
+                                ? state.pending.value
+                                : t.alias;
+                        const tagsShown =
+                            t.id === state.activeRow && state.pending?.field === "tags"
+                                ? [...new Set([...t.tags, ...state.pending.value.tags])]
+                                : t.tags;
+                        const allocShown =
+                            t.id === state.activeRow && state.pending?.field === "alloc"
+                                ? state.pending.value
+                                : t.alloc;
+                        const pct = (v) => (v == null ? "—" : v + "%");
+                        return h`<tr class="${cls}" data-row="${t.id}">
+      <td>${fmtDate(t.date)}</td>
+      <td class="desc">${t.manual ? "(manual)" : esc(t.text)}</td>
+      <td class="${pendingCls("alias")}">${esc(aliasShown ?? "")}${robot("alias")}</td>
+      <td class="num">${money(t.amount)}</td>
+      <td>${ACCOUNTS[t.account]}</td>
+      <td class="${pendingCls("tags")}">${tagsShown.map((x) => h`<span class="tag">${esc(x)}</span>`).join("")}${robot("tags")}</td>
+      <td class="num${pendingCls("alloc")}">${pct(allocShown.Alex)}</td>
+      <td class="num${pendingCls("alloc")}">${pct(allocShown.Sam)}${robot("alloc")}</td>
+    </tr>`;
+                    })
+                    .join("");
+                return h`<div class="table-wrap" aria-label="Transactions, for context only">
+    <table><thead><tr><th>Date</th><th>Description</th><th>Alias</th><th>Amount</th><th>Account</th><th>Tags</th><th>Alex</th><th>Sam</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <p class="muted small" style="padding:8px 10px">Table is static context. Grey robot: a rule sets this value. Orange robot: a rule matches but the value differs. Outlined cell: the edit that opened the editor.${t0 ? "" : ""}</p>
+  </div>`;
+            }
+
+            function renderInspector() {
+                const t = activeTx();
+                const cards = inspectorCards(t);
+                return h`<aside class="inspector" aria-labelledby="insp-title">
+    <div class="head">
+      <div><h2 id="insp-title">Transaction inspector</h2><p class="muted small">${esc(t.text || t.alias)} · ${fmtDate(t.date)} · ${money(t.amount)} · ${ACCOUNTS[t.account]}</p></div>
+      <button class="x" type="button" aria-label="Close transaction inspector">×</button>
+    </div>
+    <div class="body">
+      <div class="field"><label class="block" for="notes">Notes</label><textarea id="notes" placeholder="Add notes or a memo..."></textarea></div>
+      <div class="section">
+        <h3>Automation</h3>
+        ${cards.length ? cards.join("") : '<p class="muted small">No rule matches this transaction.</p>'}
+      </div>
+    </div>
+  </aside>`;
+            }
+
+            // Which editor cards does the inspector show for this transaction?
+            function inspectorCards(t) {
+                const p = state.pending;
+                const winners = {};
+                for (const f of ["alias", "tags", "alloc"]) winners[f] = winner(state.rules, t, f);
+                const shownRules = [...new Set(Object.values(winners).filter(Boolean))].sort(
+                    (a, b) => rank(b) - rank(a)
+                );
+
+                if (p && state.conflict) {
+                    const owner = state.rules.find((r) => r.id === state.conflict.owner);
+                    const host = state.rules.find((r) => r.id === state.conflict.host);
+                    const target = state.conflict.choice === "keep" ? owner : host;
+                    return [
+                        renderEditor({
+                            rule: target,
+                            t,
+                            mode: "extend",
+                            pending: p,
+                            conflict: { owner, host }
+                        })
+                    ];
+                }
+                if (p) {
+                    // Candidate host: an applicable rule with identical conditions that does not yet own this field.
+                    const draftCond = { account: null, amount: null };
+                    const candidates = state.rules.filter(
+                        (r) =>
+                            matches(r, t) &&
+                            r.account === draftCond.account &&
+                            r.amount === draftCond.amount
+                    );
+                    const existingOwner = winners[p.field];
+                    const target =
+                        existingOwner && candidates.includes(existingOwner)
+                            ? existingOwner
+                            : (candidates.find((r) => r.outputs.alias) ?? candidates[0] ?? null);
+                    if (target)
+                        return [
+                            renderEditor({
+                                rule: target,
+                                t,
+                                mode: existingOwner === target ? "edit" : "extend",
+                                pending: p
+                            })
+                        ];
+                    return [renderEditor({ rule: null, t, mode: "create", pending: p })];
+                }
+                return shownRules.map((r) =>
+                    renderEditor({ rule: r, t, mode: "edit", pending: null })
+                );
+            }
+
+            function renderStandalone() {
+                const r = state.rules.find((x) => x.id === state.activeRule) ?? null;
+                return h`<section class="page" aria-label="Automations page">
+    <div class="rule-list">
+      <div style="display:flex;gap:8px;align-items:center"><h2 style="flex:1">Automations</h2><button class="btn sm" type="button" data-act="new-rule">New rule</button></div>
+      ${state.rules
+          .map(
+              (
+                  x
+              ) => h`<button type="button" data-select-rule="${x.id}" aria-current="${x.id === state.activeRule}">
+        <span>${esc(ruleName(x))}</span><span class="sub">${outputFields(x).map(fieldLabel).join(" · ") || "No outputs"}</span></button>`
+          )
+          .join("")}
+    </div>
+    <div>${r ? renderEditor({ rule: r, t: null, mode: "edit", pending: null }) : renderEditor({ rule: null, t: null, mode: "create", pending: state.pending })}</div>
+  </section>`;
+            }
+
+            const fieldLabel = (f) =>
+                ({ alias: "Description", tags: "Tags", alloc: "Allocation" })[f];
+            function valueLabel(field, v) {
+                if (v == null) return "";
+                if (field === "alias") return "rename to “" + v + "”";
+                if (field === "tags")
+                    return (
+                        (v.mode === "set" ? "set " : "add ") + v.tags.map((x) => "#" + x).join(" ")
+                    );
+                return PEOPLE.map((p) => p + " " + (v[p] == null ? "—" : v[p] + "%")).join(" / ");
+            }
+            function rowValueLabel(field, t) {
+                if (field === "alias") return t.alias ? "“" + t.alias + "”" : "no alias";
+                if (field === "tags")
+                    return t.tags.length ? t.tags.map((x) => "#" + x).join(" ") : "no tags";
+                return PEOPLE.map(
+                    (p) => p + " " + (t.alloc[p] == null ? "—" : t.alloc[p] + "%")
+                ).join(" / ");
+            }
+
+            function renderEditor({ rule: r, t, mode, pending, conflict }) {
+                const standalone = t == null;
+                const d = r
+                    ? draftFor(r)
+                    : (state.drafts.__new ??= {
+                          account: null,
+                          amount: null,
+                          scope: "new",
+                          blur: true,
+                          text: t?.text ?? ""
+                      });
+                const rid = r ? r.id : "new";
+                const title =
+                    mode === "create"
+                        ? "New rule"
+                        : mode === "extend"
+                          ? "Adding " + fieldLabel(pending.field).toLowerCase() + " to rule"
+                          : "Rule";
+                const target = r ? ruleName(r) : null;
+
+                // Outputs: stored outputs of the rule, plus the pending output.
+                const outputs = [];
+                for (const f of ["alias", "tags", "alloc"]) {
+                    const stored = r?.outputs[f] ?? null;
+                    const isPending = pending?.field === f;
+                    if (!stored && !isPending) continue;
+                    const agrees = !standalone && stored && !isPending ? rowAgrees(r, t, f) : true;
+                    outputs.push({
+                        field: f,
+                        stored,
+                        pendingValue: isPending ? pending.value : null,
+                        agrees
+                    });
+                }
+                const canSplit = r != null && outputFields(r).length > 1 && !pending;
+
+                const storedNote = (() => {
+                    if (!r || standalone) return "";
+                    const diff = [];
+                    if (r.account && r.account !== t.account)
+                        diff.push("this transaction is on " + ACCOUNTS[t.account]);
+                    if (r.amount != null && r.amount !== t.amount)
+                        diff.push("this transaction is " + money(t.amount));
+                    return diff.length
+                        ? h`<p class="stored-note">Stored conditions shown; ${esc(diff.join(", "))}.</p>`
+                        : "";
+                })();
+
+                const refDate = standalone ? null : t.date;
+                const newHint = standalone
+                    ? "Only transactions imported from now on."
+                    : "Matching transactions dated " +
+                      fmtDate(refDate) +
+                      " or later, plus future imports.";
+                const allHint = "Every matching transaction, past and future.";
+                const pop =
+                    standalone && d.scope === "new"
+                        ? 0
+                        : r || pending
+                          ? population(
+                                r ?? previewRule(d, pending, t),
+                                state.transactions,
+                                d.scope,
+                                refDate
+                            ).length
+                          : 0;
+
+                const conflictPanel = conflict ? renderConflict(conflict, pending) : "";
+                const splitPanel =
+                    state.openSplit && r && state.openSplit !== true
+                        ? renderSplit(r, state.openSplit, d)
+                        : "";
+
+                return h`<div class="editor" data-rule="${rid}" role="group" aria-label="${esc(title + (target ? " " + target : ""))}">
+    <div class="title"><h3>${title}</h3>${target ? h`<span class="target">${esc(target)}</span>` : ""}</div>
+    ${conflictPanel}
+
+    <div class="group">
+      <span class="eyebrow">Matches</span>
+      <div class="cond">
+        ${
+            standalone && !r
+                ? h`<input type="text" aria-label="Exact description text" placeholder="Exact description text" value="${esc(d.text ?? "")}" data-field="text">`
+                : h`<div class="text mono" aria-label="Exact description text">${esc(r ? r.text : t.text)}</div>`
+        }
+        ${
+            standalone
+                ? h`
+        <label class="check"><span class="small muted" style="min-width:9rem">Only this account</span>
+          <select data-cond-account aria-label="Account restriction"><option value="">Any account</option>${Object.entries(
+              ACCOUNTS
+          )
+              .map(
+                  ([k, v]) =>
+                      h`<option value="${k}" ${d.account === k ? "selected" : ""}>${v}</option>`
+              )
+              .join("")}</select></label>
+        <label class="check"><span class="small muted" style="min-width:9rem">Only if amount is</span>
+          <input type="number" step="0.01" data-cond-amount aria-label="Amount restriction in dollars" placeholder="Any amount" value="${d.amount != null ? (d.amount / 100).toFixed(2) : ""}"></label>
+        `
+                : h`
+        <label class="check"><input type="checkbox" data-cond="account" ${d.account ? "checked" : ""}>
+          <span>Only this account: <strong>${ACCOUNTS[d.account ?? t.account]}</strong>
+          <span class="hint">Unchecked: any account with this description.</span></span></label>
+        <label class="check"><input type="checkbox" data-cond="amount" ${d.amount != null ? "checked" : ""}>
+          <span>Only if amount is <strong>${money(d.amount ?? t.amount)}</strong>
+          <span class="hint">Unchecked: any amount.</span></span></label>
+        `
+        }
+        ${storedNote}
+      </div>
+    </div>
+
+    <div class="group">
+      <span class="eyebrow">Outputs</span>
+      <div class="outputs">
+        ${outputs.map((o) => renderBadge(o, r, t, canSplit, standalone)).join("")}
+        ${outputs.length === 0 ? '<p class="muted small">No outputs yet.</p>' : ""}
+      </div>
+      <div class="add-output">
+        <label class="small muted" for="add-${rid}">Add output</label>
+        <select id="add-${rid}" data-add-output aria-label="Add output">
+          <option value="">Choose…</option>
+          ${["alias", "tags", "alloc"]
+              .filter((f) => !outputs.some((o) => o.field === f))
+              .map((f) => h`<option value="${f}">${fieldLabel(f)}</option>`)
+              .join("")}
+        </select>
+      </div>
+      ${splitPanel}
+    </div>
+
+    <div class="group" role="radiogroup" aria-label="Which transactions to update">
+      <span class="eyebrow">Apply to</span>
+      <label class="radio"><input type="radio" name="scope-${rid}" value="all" data-scope ${d.scope === "all" ? "checked" : ""}><span>Update all<span class="hint">${allHint}</span></span></label>
+      <label class="radio"><input type="radio" name="scope-${rid}" value="new" data-scope ${d.scope === "new" ? "checked" : ""}><span>Update new<span class="hint">${esc(newHint)}</span></span></label>
+      ${standalone ? "" : h`<label class="check"><input type="checkbox" data-blur ${d.blur ? "checked" : ""}><span>Apply on blur<span class="hint">Apply automatically when focus leaves this transaction row. Unchecked: wait for Apply.</span></span></label>`}
+      <p class="muted small">${pop} transaction${pop === 1 ? "" : "s"} would change now${d.scope === "new" && !standalone ? ", counting the same date as included" : ""}.</p>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" type="button" data-act="apply">${mode === "create" ? "Create and apply" : "Apply"}</button>
+      <button class="btn" type="button" data-act="cancel">Cancel</button>
+      <span class="spacer"></span>
+      ${r ? '<button class="btn danger" type="button" data-act="delete">Delete rule</button>' : ""}
+    </div>
+  </div>`;
+            }
+
+            function previewRule(d, pending, t) {
+                const outputs = {};
+                if (pending) outputs[pending.field] = pending.value;
+                return rule({
+                    id: "preview",
+                    text: t?.text ?? d.text ?? "",
+                    account: d.account,
+                    amount: d.amount,
+                    outputs
+                });
+            }
+
+            function renderBadge(o, r, t, canSplit, standalone) {
+                const cls = [
+                    "badge",
+                    o.pendingValue ? "pending" : "",
+                    !o.agrees ? "divergent" : ""
+                ].join(" ");
+                const chip = o.pendingValue ? '<span class="chip pending">pending</span>' : "";
+                const value = o.pendingValue
+                    ? valueLabel(o.field, o.pendingValue)
+                    : valueLabel(o.field, o.stored);
+                const storedLine =
+                    o.pendingValue && o.stored
+                        ? h`<div class="diff muted">Stored: ${esc(valueLabel(o.field, o.stored))}</div>`
+                        : "";
+                const diff = !o.agrees
+                    ? h`<div class="diff"><span class="chip divergent">differs on this transaction</span><span>Rule: ${esc(valueLabel(o.field, o.stored))}</span><span class="bad">This transaction: ${esc(rowValueLabel(o.field, t))}</span>
+      <button class="btn sm" type="button" data-act="apply-this" data-field="${o.field}">Apply to this transaction</button></div>`
+                    : "";
+                const expanded = state.expanded === (r?.id ?? "new") + ":" + o.field;
+                const editor = expanded ? renderOutputEditor(o) : "";
+                return h`<div class="${cls}" data-badge="${o.field}">
+    <div class="row1">
+      <span class="field">${fieldLabel(o.field)}</span>
+      <span class="value">${esc(value)}</span>
+      ${chip}
+      <span class="btns"><button class="btn sm" type="button" data-act="toggle-edit" data-field="${o.field}" aria-expanded="${expanded}">${expanded ? "Done" : "Edit"}</button>${canSplit ? h`<button class="btn sm" type="button" data-act="split" data-field="${o.field}" aria-label="Split ${fieldLabel(o.field)} into its own rule">Split</button>` : ""}</span>
+    </div>
+    ${storedLine}${diff}${editor}
+  </div>`;
+            }
+
+            function renderOutputEditor(o) {
+                const v = o.pendingValue ?? o.stored;
+                if (o.field === "alias") {
+                    return h`<div class="edit"><div class="line"><label class="small muted" for="alias-sel">Description alias to apply</label>
+      <select id="alias-sel" data-out="alias">${ALIASES.map((a) => h`<option ${a === v ? "selected" : ""}>${a}</option>`).join("")}</select></div></div>`;
+                }
+                if (o.field === "tags") {
+                    return h`<div class="edit">
+      <div class="line"><label class="small muted" for="tagmode">Tag mode</label>
+        <select id="tagmode" data-out="tagmode"><option value="add" ${v.mode === "add" ? "selected" : ""}>Add tags</option><option value="set" ${v.mode === "set" ? "selected" : ""}>Set tags (clear existing)</option></select>
+        <span class="hint small muted">${v.mode === "set" ? "Set replaces tags typed by hand." : "Add keeps whatever tags are already there."}</span></div>
+      <div class="line">${TAGS.map((tag) => h`<label class="check"><input type="checkbox" data-out="tag" value="${tag}" ${v.tags.includes(tag) ? "checked" : ""}><span>#${tag}</span></label>`).join("")}</div>
+    </div>`;
+                }
+                return h`<div class="edit"><div class="alloc-grid">${PEOPLE.map((p) => h`<label>${p}<input type="number" step="any" data-out="alloc" data-person="${p}" value="${v[p] ?? ""}" placeholder="—"></label>`).join("")}</div>
+    <span class="small muted">The whole set is saved together. Blank means no answer and counts as 0%; an explicit 0 shows as 0%.</span></div>`;
+            }
+
+            function renderConflict(c, pending) {
+                const keep = state.conflict.choice === "keep";
+                return h`<div class="panel warn" role="group" aria-label="Which rule should own tags">
+    <p><strong>Tags on this transaction already come from another rule.</strong></p>
+    <label class="radio"><input type="radio" name="conflict" value="keep" data-conflict ${keep ? "checked" : ""}><span>Update the <strong>${esc(ruleLabel(c.owner))}</strong> (keeps things as they are)
+      <span class="hint">Only the tags change. Every rule keeps its own transactions.</span></span></label>
+    <label class="radio"><input type="radio" name="conflict" value="move" data-conflict ${keep ? "" : "checked"}><span>Move tags into the <strong>${esc(ruleLabel(c.host))}</strong>
+      <span class="hint">The tags rule is deleted. Tags are then applied wherever the description rule applies, which is the same set of transactions here because both rules have identical conditions.</span></span></label>
+  </div>`;
+            }
+
+            function renderSplit(r, field, d) {
+                const remaining = outputFields(r).filter((f) => f !== field);
+                const cond = ruleName(r).replace(r.text + " · ", "");
+                return h`<div class="panel" role="group" aria-label="Split preview">
+    <p><strong>Split ${fieldLabel(field).toLowerCase()} into its own rule.</strong> Both rules keep the same match conditions. No transaction changes.</p>
+    <div class="split-preview">
+      <div class="mini"><span class="n">${esc(r.text)}</span><span class="muted">${esc(cond)}</span>${remaining.map((f) => h`<span>${fieldLabel(f)}: ${esc(valueLabel(f, r.outputs[f]))}</span>`).join("")}</div>
+      <div class="mini"><span class="n">${esc(r.text)} <span class="chip pending">new</span></span><span class="muted">${esc(cond)}</span><span>${fieldLabel(field)}: ${esc(valueLabel(field, r.outputs[field]))}</span></div>
+    </div>
+    <div class="actions" style="border:0;padding:0"><button class="btn primary" type="button" data-act="confirm-split" data-field="${field}">Confirm split</button><button class="btn" type="button" data-act="cancel-split">Back</button></div>
+  </div>`;
+            }
+
+            // ---------------------------------------------------------------------------------------------
+            // Interaction. All simulated; nothing persists.
+            // ---------------------------------------------------------------------------------------------
+            function toast(msg) {
+                const el = document.getElementById("toast");
+                el.textContent = "Simulated: " + msg;
+                el.classList.add("show");
+                clearTimeout(toast.timer);
+                toast.timer = setTimeout(() => el.classList.remove("show"), 3200);
+            }
+
+            function closestEditorRule(el) {
+                const ed = el.closest(".editor");
+                if (!ed) return null;
+                const id = ed.dataset.rule;
+                return id === "new" ? null : (state.rules.find((r) => r.id === id) ?? null);
+            }
+
+            document.addEventListener("click", (e) => {
+                const btn = e.target.closest("button");
+                if (!btn) return;
+                if (btn.dataset.scenario) return;
+                if (btn.dataset.selectRule) {
+                    state.activeRule = btn.dataset.selectRule;
+                    state.openSplit = null;
+                    state.expanded = null;
+                    return render();
+                }
+                const act = btn.dataset.act;
+                if (!act) return;
+                const r = closestEditorRule(btn);
+                const t = activeTx();
+                if (act === "new-rule") {
+                    state.activeRule = null;
+                    state.expanded = null;
+                    return render();
+                }
+                if (act === "toggle-edit") {
+                    const key = (r?.id ?? "new") + ":" + btn.dataset.field;
+                    state.expanded = state.expanded === key ? null : key;
+                    return render();
+                }
+                if (act === "split") {
+                    state.openSplit = btn.dataset.field;
+                    return render();
+                }
+                if (act === "cancel-split") {
+                    state.openSplit = null;
+                    return render();
+                }
+                if (act === "confirm-split") return confirmSplit(r, btn.dataset.field);
+                if (act === "apply-this") return applyThis(r, t);
+                if (act === "cancel") return cancel();
+                if (act === "delete") return deleteRule(r);
+                if (act === "apply") return apply(r, t, btn);
+            });
+
+            document.addEventListener("change", (e) => {
+                const el = e.target;
+                const r = closestEditorRule(el);
+                const d = r ? draftFor(r) : state.drafts.__new;
+                const t = activeTx();
+                if (el.dataset.cond === "account")
+                    d.account = el.checked ? (t?.account ?? "A") : null;
+                if (el.dataset.cond === "amount")
+                    d.amount = el.checked ? (t?.amount ?? null) : null;
+                if (el.dataset.condAccount != null) d.account = el.value || null;
+                if (el.dataset.condAmount != null)
+                    d.amount = el.value === "" ? null : Math.round(Number(el.value) * 100);
+                if (el.dataset.field === "text") d.text = el.value;
+                if (el.dataset.scope != null) d.scope = el.value;
+                if (el.dataset.blur != null) d.blur = el.checked;
+                if (el.dataset.conflict != null) {
+                    state.conflict.choice = el.value;
+                    return render();
+                }
+                if (el.dataset.out === "alias") setOutput(r, "alias", el.value);
+                if (el.dataset.out === "tagmode")
+                    setOutput(r, "tags", { ...currentOutput(r, "tags"), mode: el.value });
+                if (el.dataset.out === "tag") {
+                    const cur = currentOutput(r, "tags");
+                    const tags = el.checked
+                        ? [...new Set([...cur.tags, el.value])]
+                        : cur.tags.filter((x) => x !== el.value);
+                    setOutput(r, "tags", { ...cur, tags });
+                }
+                if (el.dataset.out === "alloc") {
+                    const cur = { ...currentOutput(r, "alloc") };
+                    cur[el.dataset.person] = el.value === "" ? null : Number(el.value);
+                    setOutput(r, "alloc", cur);
+                }
+                if (el.dataset.addOutput != null && el.value) {
+                    addOutput(r, el.value);
+                    el.value = "";
+                }
+                render();
+            });
+
+            function currentOutput(r, field) {
+                if (state.pending?.field === field) return state.pending.value;
+                return r?.outputs[field];
+            }
+            function setOutput(r, field, value) {
+                if (state.pending?.field === field) {
+                    state.pending.value = value;
+                    return;
+                }
+                if (r) r.outputs[field] = value;
+            }
+            function addOutput(r, field) {
+                const initial =
+                    field === "alias"
+                        ? ALIASES[0]
+                        : field === "tags"
+                          ? { mode: "add", tags: [] }
+                          : Object.fromEntries(PEOPLE.map((p) => [p, null]));
+                if (r) r.outputs[field] = initial;
+                else state.pending = { field, value: initial };
+                state.expanded = (r?.id ?? "new") + ":" + field;
+            }
+
+            function apply(r, t, btn) {
+                const d = r ? draftFor(r) : state.drafts.__new;
+                const refDate = t ? t.date : null;
+                let target = r;
+                let moved = "";
+                if (state.conflict && state.conflict.choice === "move") {
+                    const owner = state.rules.find((x) => x.id === state.conflict.owner);
+                    const host = state.rules.find((x) => x.id === state.conflict.host);
+                    host.outputs.tags = state.pending.value;
+                    state.rules = state.rules.filter((x) => x !== owner);
+                    target = host;
+                    moved =
+                        "moved tags into the " +
+                        ruleLabel(host) +
+                        ", deleted the " +
+                        ruleLabel(owner) +
+                        ", and ";
+                } else if (r) {
+                    if (state.pending) r.outputs[state.pending.field] = state.pending.value;
+                    r.account = d.account;
+                    r.amount = d.amount;
+                    r.scope = d.scope;
+                    r.blur = d.blur;
+                } else {
+                    const nr = rule({
+                        id: "r" + (state.rules.length + 10),
+                        text: t ? t.text : d.text,
+                        account: d.account,
+                        amount: d.amount,
+                        scope: d.scope,
+                        blur: d.blur,
+                        outputs: state.pending ? { [state.pending.field]: state.pending.value } : {}
+                    });
+                    state.rules.push(nr);
+                    target = nr;
+                    state.activeRule = nr.id;
+                }
+                const changed =
+                    t == null && d.scope === "new"
+                        ? []
+                        : population(target, state.transactions, d.scope, refDate);
+                state.transactions = state.transactions.map((x) =>
+                    changed.includes(x) ? applyRuleTo(target, x) : x
+                );
+                state.changedRows = new Set(changed.map((x) => x.id));
+                state.pending = null;
+                state.conflict = null;
+                state.openSplit = null;
+                state.expanded = null;
+                delete state.drafts.__new;
+                toast(
+                    moved +
+                        (d.scope === "all" ? "updated all " : "updated new ") +
+                        changed.length +
+                        " matching transaction" +
+                        (changed.length === 1 ? "" : "s") +
+                        " and remembered your scope choice"
+                );
+                renderKeepingFlash();
+            }
+            function renderKeepingFlash() {
+                const keep = state.changedRows;
+                render();
+                state.changedRows = keep;
+                if (state.scenario.context !== "standalone")
+                    document.getElementById("workspace").innerHTML =
+                        renderTable() + renderInspector();
+            }
+
+            function applyThis(r, t) {
+                state.transactions = state.transactions.map((x) =>
+                    x.id === t.id ? applyRuleTo(r, x) : x
+                );
+                state.changedRows = new Set([t.id]);
+                toast(
+                    "applied the " + ruleLabel(r) + " to this transaction only; no link is stored"
+                );
+                renderKeepingFlash();
+            }
+            function cancel() {
+                state.pending = null;
+                state.conflict = null;
+                state.openSplit = null;
+                state.expanded = null;
+                state.drafts = {};
+                toast("cancelled; nothing written, no preference remembered");
+                render();
+            }
+            function deleteRule(r) {
+                state.rules = state.rules.filter((x) => x !== r);
+                if (state.activeRule === r.id) state.activeRule = state.rules[0]?.id ?? null;
+                toast("deleted the " + ruleLabel(r) + "; transactions keep their current values");
+                render();
+            }
+            function confirmSplit(r, field) {
+                const d = draftFor(r);
+                const nr = rule({
+                    id: r.id + "-" + field,
+                    text: r.text,
+                    account: r.account,
+                    amount: r.amount,
+                    scope: d.scope,
+                    blur: d.blur,
+                    outputs: { [field]: r.outputs[field] }
+                });
+                delete r.outputs[field];
+                state.rules.push(nr);
+                state.openSplit = null;
+                toast(
+                    "split " +
+                        fieldLabel(field).toLowerCase() +
+                        " into its own rule; no transaction changed"
+                );
+                render();
+            }
+
+            loadScenario(location.hash.replace("#", "") || SCENARIOS[0].id);
+            window.addEventListener("hashchange", () =>
+                loadScenario(location.hash.replace("#", ""))
+            );
+            document.getElementById("scenario-nav").addEventListener("click", (e) => {
+                const b = e.target.closest("button");
+                if (b) location.hash = b.dataset.scenario;
+            });
+        </script>
+    </body>
+</html>

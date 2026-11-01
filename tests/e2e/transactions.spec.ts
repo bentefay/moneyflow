@@ -1,3 +1,4 @@
+import { expect, test } from "@playwright/test";
 /**
  * E2E Test: Transactions Page
  *
@@ -8,8 +9,6 @@
  * - Inline cell editing (Phase 3 - US1)
  * - Keyboard navigation (Phase 3 - US1)
  */
-
-import { expect, test } from "@playwright/test";
 
 import {
     createNewIdentity,
@@ -2395,11 +2394,19 @@ test.describe("Transactions", () => {
                 await expect(calendar).toBeVisible();
                 const startMonth = await calendar.getAttribute("aria-label");
 
-                // Six weeks back always leaves the starting month.
-                for (let week = 0; week < 6; week += 1) await page.keyboard.press("ArrowUp");
+                // Walk back one week at a time until the calendar leaves the starting month, so
+                // the step holds on any day of the month. Six weeks always suffices.
+                let weeksBack = 0;
+                while (weeksBack < 6) {
+                    await page.keyboard.press("ArrowUp");
+                    weeksBack += 1;
+                    if ((await calendar.getAttribute("aria-label")) !== startMonth) break;
+                }
                 await expect(calendar).not.toHaveAttribute("aria-label", startMonth ?? "");
                 await expect(calendar.locator("button:focus")).toHaveCount(1);
-                await page.keyboard.press("PageDown");
+                // Walking the same number of weeks forward returns to the starting month.
+                for (let week = 0; week < weeksBack; week += 1)
+                    await page.keyboard.press("ArrowDown");
                 await expect(calendar).toHaveAttribute("aria-label", startMonth ?? "");
                 await expect(calendar.locator("button:focus")).toHaveCount(1);
                 await page.keyboard.press("ArrowLeft");

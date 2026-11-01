@@ -27,13 +27,15 @@ import {
     migrateLegacyAutomations,
     type LegacyAutomationView
 } from "@/lib/domain/automation/migration";
+import { type RulePopulationTransaction } from "@/lib/domain/automation/population";
+import { buildRuleIndex, type RuleSource } from "@/lib/domain/automation/rule-index";
 import {
     decodeFieldRule,
     encodeFieldRule,
     type FieldRule,
-    type FieldRuleWireObject,
-    isNewerTransactionDate,
+    isOnOrAfterTransactionDate,
     projectRuleMatchSubject,
+    type RuleField,
     type RuleMatchSubject
 } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
@@ -87,6 +89,8 @@ function subjectForTransaction(
     const aliasId = transaction.descriptionAliasId;
     const resolvedAlias = aliasId == null ? null : resolveAlias(aliasId, aliases);
     return projectRuleMatchSubject({
+        transactionId: transaction.id,
+        date: transaction.date,
         accountId: transaction.accountId,
         amount: transaction.amount,
         description: transaction.description,
@@ -108,6 +112,45 @@ function targetForTransaction(
         },
         currentTagIds: [...transaction.tagIds]
     };
+}
+
+function explicitAllocations(allocations: unknown): Readonly<Record<string, number>> {
+    const explicit: Record<string, number> = {};
+    if (allocations == null || typeof allocations !== "object") return explicit;
+    for (const [personId, value] of Object.entries(allocations)) {
+        if (personId !== "$cid" && typeof value === "number") explicit[personId] = value;
+    }
+    return explicit;
+}
+
+/**
+ * Every active transaction as the population count sees it, projected exactly as the bulk apply
+ * projects it, so "would change now" and what Apply then changes cannot disagree.
+ */
+export function readRulePopulation(
+    transactions: TransactionStore,
+    aliases: VaultState["descriptionAliases"]
+): readonly RulePopulationTransaction[] {
+    return getAllTransactions(transactions)
+        .filter((transaction) => transaction.deletedAt == null)
+        .map((transaction) => {
+            const aliasId = transaction.descriptionAliasId;
+            return {
+                subject: subjectForTransaction(transaction, aliases),
+                date: transaction.date,
+                aliasId: aliasId == null ? null : (resolveAlias(aliasId, aliases)?.id ?? null),
+                tagIds: [...transaction.tagIds],
+                allocations: explicitAllocations(transaction.allocations)
+            };
+        });
+}
+
+/** The match subject of one stored transaction, projected exactly as application projects it. */
+export function ruleMatchSubjectForTransaction(
+    state: VaultState,
+    transaction: Transaction
+): RuleMatchSubject {
+    return subjectForTransaction(transaction, state.descriptionAliases);
 }
 
 // ============================================================================
@@ -148,17 +191,34 @@ export interface BulkFieldRuleEntry {
 }
 
 /**
+ * Narrows an application to one rule's own fields: only the plans `ruleId` wins, and of those only
+ * `fields` when given. Widening, extending or folding one rule must never write a field another rule
+ * wins on the row (`specs/017-rule-reach` mockup `applyWinning`), so a one-row exception keeps its
+ * own value.
+ */
+export interface FieldRuleApplicationFilter {
+    readonly ruleId: string;
+    readonly fields?: ReadonlySet<RuleField>;
+}
+
+/**
  * Apply the winning rules to a single transaction, in place. Tag and allocation plans run through
  * the engine (`applyRulePlans`, allocation via P16C); the description-alias plan runs through the
  * P11 `assignDescriptionAlias` boundary. Idempotent: re-running with the same rules converges.
+ * With `only`, applies just the plans that rule wins.
  */
 export function applyFieldRulesToTransaction(
     state: VaultState,
-    rules: readonly FieldRule[],
-    transaction: Transaction
+    rules: RuleSource,
+    transaction: Transaction,
+    only?: FieldRuleApplicationFilter
 ): readonly AppliedFieldRuleOutcome[] {
     const target = targetForTransaction(transaction, state.descriptionAliases);
-    const plans = planRuleApplications(rules, target);
+    const plans = planRuleApplications(rules, target).filter(
+        (plan) =>
+            only == null ||
+            (plan.ruleId === only.ruleId && (only.fields == null || only.fields.has(plan.field)))
+    );
 
     const aliasPlans = plans.filter((plan) => plan.field === "descriptionAlias");
     const nonAliasPlans = plans.filter((plan) => plan.field !== "descriptionAlias");
@@ -214,19 +274,69 @@ function applyToTransactions(
 ): readonly BulkFieldRuleEntry[] {
     const rules = readActiveFieldRules(state);
     if (rules.length === 0) return [];
+    // One index per bulk call: each row then tests only the rules sharing its description text.
+    const index = buildRuleIndex(rules);
     return transactions.map((transaction) => ({
         location: {
             accountId: transaction.accountId,
             date: transaction.date,
             transactionId: transaction.id
         },
-        outcomes: applyFieldRulesToTransaction(state, rules, transaction)
+        outcomes: applyFieldRulesToTransaction(state, index, transaction)
     }));
 }
 
 /**
+ * Every active transaction `isIncluded` accepts, with its match subject, in one walk of the vault.
+ * The subject is projected exactly as application projects it, so "governed" here and "applied"
+ * there cannot disagree.
+ */
+export function readActiveTransactionsWithSubjects(
+    state: VaultState,
+    isIncluded: (subject: RuleMatchSubject) => boolean
+): readonly { readonly transaction: Transaction; readonly subject: RuleMatchSubject }[] {
+    return getAllTransactions(state.transactions)
+        .filter((transaction) => transaction.deletedAt == null)
+        .map((transaction) => ({
+            transaction,
+            subject: subjectForTransaction(transaction, state.descriptionAliases)
+        }))
+        .filter(({ subject }) => isIncluded(subject));
+}
+
+/**
+ * Apply `filter.ruleId`'s winning fields to each of `transactions`, against `rules` as they stand
+ * after the caller's change. Rows on which that rule wins nothing get no entry, so the result's
+ * length is the number of rows the rule was applied to.
+ */
+export function applyOneFieldRuleToTransactions(
+    state: VaultState,
+    rules: readonly FieldRule[],
+    transactions: readonly Transaction[],
+    filter: FieldRuleApplicationFilter
+): readonly BulkFieldRuleEntry[] {
+    const index = buildRuleIndex(rules);
+    const entries: BulkFieldRuleEntry[] = [];
+    for (const transaction of transactions) {
+        const outcomes = applyFieldRulesToTransaction(state, index, transaction, filter);
+        if (outcomes.length === 0) continue;
+        entries.push({
+            location: {
+                accountId: transaction.accountId,
+                date: transaction.date,
+                transactionId: transaction.id
+            },
+            outcomes
+        });
+    }
+    return entries;
+}
+
+/**
  * Apply active rules to every active transaction of an import batch (the import-commit seam).
- * Bounded and order-independent: each transaction is an independent logical group.
+ * Bounded and order-independent: each transaction is an independent logical group. A rule governs a
+ * new row only if its reach includes it: `all` always, `from` by the row's date, an explicit set
+ * never, since a new row's id cannot already be in a set (`specs/017-rule-reach` §3.5).
  */
 export function applyFieldRulesToImport(
     state: VaultState,
@@ -247,8 +357,8 @@ export function applyFieldRulesToAllTransactions(state: VaultState): readonly Bu
 }
 
 /**
- * Explicit "apply to new" — apply active rules to every active transaction strictly newer (greater
- * calendar date) than the reference date, matching the frozen "update new" semantics.
+ * Explicit "apply to new" — apply active rules to every active transaction dated on or after the
+ * reference date. Inclusive, so rows sharing the edited row's date are updated too.
  */
 export function applyFieldRulesToNewerTransactions(
     state: VaultState,
@@ -257,7 +367,7 @@ export function applyFieldRulesToNewerTransactions(
     const transactions = getAllTransactions(state.transactions).filter(
         (transaction) =>
             transaction.deletedAt == null &&
-            isNewerTransactionDate(transaction.date, input.referenceDate)
+            isOnOrAfterTransactionDate(transaction.date, input.referenceDate)
     );
     return applyToTransactions(state, transactions);
 }
@@ -275,16 +385,17 @@ export const AUTOMATION_RULES_MIGRATION_VERSION = 1;
  */
 const MIGRATED_RULE_CREATED_AT = Temporal.Instant.fromEpochMilliseconds(0);
 
-function migratedRuleId(automationId: string, field: FieldRule["action"]["field"]): string {
+function migratedRuleId(automationId: string, field: RuleField): string {
     return `fieldrule:migrated:${automationId}:${field}`;
 }
 
 /**
- * Fill every optional wire key (present, possibly undefined) so the object satisfies the loro-mirror
- * input contract without unsafe casts. The engine's {@link encodeFieldRule} keeps a clean optional
- * domain shape; this boundary adapts it to the draft's required-present-with-undefined keys.
+ * Encode a domain rule with the engine's {@link encodeFieldRule} (the only wire writer) and fill
+ * every optional wire key (present, possibly undefined) so the object satisfies the loro-mirror
+ * input contract without unsafe casts. The single adapter between a domain rule and the draft.
  */
-function toFieldRuleInput(wire: FieldRuleWireObject): FieldRuleInput {
+export function toFieldRuleInput(rule: FieldRule): FieldRuleInput {
+    const wire = encodeFieldRule(rule);
     const allocations: Record<string, Percentage> = {};
     for (const [personId, value] of Object.entries(wire.allocations)) {
         allocations[personId] = asPercentage(value);
@@ -292,6 +403,7 @@ function toFieldRuleInput(wire: FieldRuleWireObject): FieldRuleInput {
     return {
         id: wire.id,
         field: wire.field,
+        outputFields: [...wire.outputFields],
         descriptionText: wire.descriptionText,
         accountId: wire.accountId,
         amount: wire.amount == null ? undefined : asMinorUnits(wire.amount),
@@ -299,6 +411,9 @@ function toFieldRuleInput(wire: FieldRuleWireObject): FieldRuleInput {
         tagMode: wire.tagMode,
         tagIds: [...wire.tagIds],
         allocations,
+        reachKind: wire.reachKind,
+        reachFromDate: wire.reachFromDate,
+        reachTransactionIds: { ...wire.reachTransactionIds },
         createdAtEpochMs: wire.createdAtEpochMs,
         deletedAtEpochMs: wire.deletedAtEpochMs
     };
@@ -366,7 +481,7 @@ export function migrateVaultAutomationsToFieldRules(state: VaultState): Automati
     let migrated = 0;
     for (const rule of result.rules) {
         if (fieldRulesDraft[rule.id] != null) continue; // deterministic id already present -> converge
-        fieldRulesDraft[rule.id] = toFieldRuleInput(encodeFieldRule(rule));
+        fieldRulesDraft[rule.id] = toFieldRuleInput(rule);
         migrated += 1;
     }
 

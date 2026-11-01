@@ -17,7 +17,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { FieldRuleEditor, type RuleEditorOption } from "../automations/FieldRuleEditor";
-import { type RuleEditorDraft, type RuleEditorFieldErrors } from "../automations/rule-editor-model";
+import {
+    type RuleEditorDraft,
+    type RuleEditorFieldErrors
+} from "../automations/legacy-rule-editor-model";
 
 export interface TransactionRulePopupProps {
     readonly draft: RuleEditorDraft;

@@ -121,6 +121,11 @@ async function openFirstDescriptionEditor(): Promise<{
 }
 
 describe("page-level shared description alias modal ownership", () => {
+    // Mounting the whole transactions page costs up to ~4s alone and overruns the 5s default under
+    // a saturated full-suite run. This is a budget ceiling, not a wait: every assertion below still
+    // settles on its own condition rather than on elapsed time.
+    vi.setConfig({ testTimeout: 30_000 });
+
     let restoreLayout: () => void;
 
     it("requires controller authority before publishing an alias modal request", async () => {
@@ -215,9 +220,10 @@ describe("page-level shared description alias modal ownership", () => {
         expect(screen.getByTestId("description-rule-proposal")).toBeVisible();
         const registrationsBeforeModeChange = registerFinalizer.mock.calls.length;
 
-        fireEvent.click(screen.getByTestId("proposal-apply-mode"));
-        fireEvent.click(screen.getByRole("option", { name: "Updating all" }));
-        expect(screen.getByTestId("proposal-apply-mode")).toHaveTextContent("Updating all");
+        fireEvent.click(screen.getByTestId("rule-scope-all"));
+        fireEvent.click(screen.getByTestId("rule-apply-on-blur"));
+        expect(screen.getByTestId("rule-scope-all")).toHaveAttribute("aria-checked", "true");
+        expect(screen.getByTestId("rule-apply-on-blur")).toHaveAttribute("aria-checked", "true");
         await waitFor(() =>
             expect(registerFinalizer.mock.calls.length).toBeGreaterThan(
                 registrationsBeforeModeChange

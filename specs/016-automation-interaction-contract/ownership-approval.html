@@ -1,0 +1,1713 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Grouped-rule ownership — approval prototype (MF-007)</title>
+        <!--
+            Isolated approval prototype for `specs/automation-rule-ownership.md`
+            (semantic revision OWN-2026-09-07-r2).
+
+            This file is opened directly from the repository. It imports no production code, has no
+            route in the application, makes no network request, holds no credentials, and persists
+            nothing. Every rule, transaction and preference below is synthetic.
+
+            A click in this prototype is a SIMULATION, never an approval. Approval is recorded only
+            in §7.1 of the contract and in the `approval` block of `ownership-approval.json`, from an
+            authenticated external channel.
+        -->
+        <style>
+            :root {
+                color-scheme: light dark;
+                --bg: #ffffff;
+                --fg: #14161a;
+                --muted: #5b6270;
+                --line: #d8dce4;
+                --panel: #f6f7f9;
+                --accent: #2f5bd0;
+                --warn-bg: #fdf3e3;
+                --warn-fg: #7a4b02;
+                --stop-bg: #fdeceb;
+                --stop-fg: #8c1d18;
+                --ok-bg: #eaf5ec;
+                --ok-fg: #17532a;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #14161a;
+                    --fg: #e8eaee;
+                    --muted: #a3abba;
+                    --line: #333944;
+                    --panel: #1c1f26;
+                    --accent: #90aefb;
+                    --warn-bg: #3a2e17;
+                    --warn-fg: #f0cf94;
+                    --stop-bg: #3d1f1d;
+                    --stop-fg: #f4b3ad;
+                    --ok-bg: #1b3324;
+                    --ok-fg: #a7dcb8;
+                }
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            html,
+            body {
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            body {
+                margin: 0;
+                background: var(--bg);
+                color: var(--fg);
+                font:
+                    15px/1.5 ui-sans-serif,
+                    system-ui,
+                    -apple-system,
+                    "Segoe UI",
+                    sans-serif;
+                overflow-wrap: anywhere;
+            }
+
+            header,
+            main,
+            footer {
+                max-width: 1120px;
+                margin: 0 auto;
+                padding: 16px;
+            }
+
+            h1 {
+                font-size: 1.2rem;
+                margin: 0 0 4px;
+            }
+
+            h2 {
+                font-size: 1.05rem;
+                margin: 0 0 4px;
+            }
+
+            h3 {
+                font-size: 0.85rem;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                color: var(--muted);
+                margin: 16px 0 6px;
+            }
+
+            p {
+                margin: 6px 0;
+            }
+
+            .meta {
+                color: var(--muted);
+                font-size: 0.85rem;
+            }
+
+            .banner {
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                padding: 10px 12px;
+                margin: 12px 0;
+                background: var(--warn-bg);
+                color: var(--warn-fg);
+            }
+
+            .layout {
+                display: grid;
+                gap: 16px;
+                grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+                align-items: start;
+            }
+
+            @media (max-width: 860px) {
+                .layout {
+                    grid-template-columns: minmax(0, 1fr);
+                }
+            }
+
+            .panel {
+                border: 1px solid var(--line);
+                border-radius: 10px;
+                background: var(--panel);
+                padding: 14px;
+                min-width: 0;
+            }
+
+            nav ul {
+                list-style: none;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                margin: 0;
+                padding: 0;
+            }
+
+            nav button {
+                font: inherit;
+                font-size: 0.85rem;
+                padding: 6px 9px;
+                border-radius: 999px;
+                border: 1px solid var(--line);
+                background: var(--bg);
+                color: var(--fg);
+                cursor: pointer;
+            }
+
+            nav button[aria-current="true"] {
+                border-color: var(--accent);
+                color: var(--accent);
+                font-weight: 600;
+            }
+
+            dl {
+                margin: 0;
+                display: grid;
+                grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
+                gap: 4px 12px;
+            }
+
+            @media (max-width: 640px) {
+                dl {
+                    grid-template-columns: minmax(0, 1fr);
+                    gap: 2px;
+                }
+
+                dd {
+                    margin-bottom: 8px;
+                }
+            }
+
+            dt {
+                color: var(--muted);
+                font-size: 0.85rem;
+            }
+
+            dd {
+                margin: 0;
+            }
+
+            fieldset {
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                margin: 12px 0;
+                padding: 10px 12px;
+                min-width: 0;
+            }
+
+            legend {
+                font-size: 0.85rem;
+                color: var(--muted);
+                padding: 0 4px;
+            }
+
+            .host {
+                border-top: 1px solid var(--line);
+                padding: 10px 0;
+            }
+
+            .host:first-of-type {
+                border-top: 0;
+            }
+
+            .host label {
+                display: flex;
+                gap: 8px;
+                align-items: baseline;
+                font-weight: 600;
+                cursor: pointer;
+            }
+
+            .controls {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-top: 14px;
+            }
+
+            button.action {
+                font: inherit;
+                padding: 8px 12px;
+                border-radius: 8px;
+                border: 1px solid var(--line);
+                background: var(--bg);
+                color: var(--fg);
+                cursor: pointer;
+            }
+
+            button.action.primary {
+                border-color: var(--accent);
+                color: var(--accent);
+                font-weight: 600;
+            }
+
+            button.action[disabled] {
+                opacity: 0.55;
+                cursor: not-allowed;
+            }
+
+            :focus-visible {
+                outline: 3px solid var(--accent);
+                outline-offset: 2px;
+            }
+
+            ul.reasons,
+            ul.plain {
+                margin: 6px 0;
+                padding-left: 20px;
+            }
+
+            .stop {
+                background: var(--stop-bg);
+                color: var(--stop-fg);
+            }
+
+            .ok {
+                background: var(--ok-bg);
+                color: var(--ok-fg);
+            }
+
+            code {
+                font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                font-size: 0.9em;
+            }
+
+            .store-rule {
+                border-top: 1px solid var(--line);
+                padding: 8px 0;
+                font-size: 0.9rem;
+            }
+
+            .store-rule:first-of-type {
+                border-top: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>Grouped-rule ownership and conflicts — approval prototype</h1>
+            <p class="meta">
+                MF-007 · contract <code>specs/automation-rule-ownership.md</code> · semantic
+                revision
+                <strong data-testid="semantic-revision">OWN-2026-09-07-r2</strong>
+            </p>
+            <div class="banner" data-testid="approval-status" role="note">
+                <strong>PROPOSED SEMANTICS — NOT APPROVED.</strong> Every scenario below shows a
+                resolution that is concrete and reviewable but
+                <em>not approved and not implemented</em>. Nothing here is production behaviour, and
+                choosing an option in this prototype records nothing: it is a simulation, never an
+                approval.
+            </div>
+        </header>
+
+        <main>
+            <nav aria-label="Scenarios">
+                <h3 id="scenario-list-heading">Scenarios</h3>
+                <ul data-testid="scenario-list" aria-labelledby="scenario-list-heading"></ul>
+            </nav>
+
+            <div class="layout">
+                <section
+                    class="panel"
+                    data-testid="scenario-detail"
+                    aria-live="polite"
+                    aria-labelledby="scenario-title"
+                ></section>
+
+                <aside class="panel" data-testid="store-panel" aria-label="Simulated vault state">
+                    <h2>Simulated vault</h2>
+                    <p class="meta">
+                        Synthetic. Confirming in this prototype changes only this panel; it writes
+                        nothing to disk, network or the application.
+                    </p>
+                    <h3>Rules</h3>
+                    <div data-testid="store-rules"></div>
+                    <h3>Applications</h3>
+                    <div data-testid="store-applications"></div>
+                    <h3>Remembered preferences</h3>
+                    <div data-testid="store-preferences"></div>
+                    <h3>State signature</h3>
+                    <p class="meta">
+                        <code data-testid="store-signature"></code>
+                    </p>
+                </aside>
+            </div>
+        </main>
+
+        <footer>
+            <p class="meta">
+                Checklist coverage M-01..M-14 and example classes EC-01..EC-05 are declared per
+                scenario above and mirrored in
+                <code>specs/016-automation-interaction-contract/ownership-approval.json</code>.
+            </p>
+        </footer>
+
+        <script>
+            "use strict";
+
+            // ---------------------------------------------------------------------------------
+            // Synthetic data. No production import, no network, no persistence.
+            // ---------------------------------------------------------------------------------
+
+            const TEXT = "COFFEE SHOP 123";
+
+            /** @param {object} rule */
+            function rule(rule) {
+                return Object.freeze({ deleted: false, ...rule });
+            }
+
+            const R = {
+                aliasUnscoped: () =>
+                    rule({
+                        id: "r-alias-1",
+                        name: "Alias · COFFEE SHOP 123 · any account",
+                        field: "descriptionAlias",
+                        predicate: "text COFFEE SHOP 123 · any account · any amount",
+                        output: "rename to “Coffee”",
+                        population: "every COFFEE SHOP 123 row, on any account and any amount"
+                    }),
+                aliasAccountA: () =>
+                    rule({
+                        id: "r-alias-A",
+                        name: "Alias · COFFEE SHOP 123 · account A",
+                        field: "descriptionAlias",
+                        predicate: "text COFFEE SHOP 123 · account A · any amount",
+                        output: "rename to “Coffee”",
+                        population: "COFFEE SHOP 123 rows on account A only"
+                    }),
+                tagsUnscoped: () =>
+                    rule({
+                        id: "r-tags-1",
+                        name: "Tags · COFFEE SHOP 123 · any account",
+                        field: "tags",
+                        predicate: "text COFFEE SHOP 123 · any account · any amount",
+                        output: "add [coffee]",
+                        mode: "add",
+                        population: "every COFFEE SHOP 123 row"
+                    }),
+                tagsAccountA: () =>
+                    rule({
+                        id: "r-tags-A",
+                        name: "Tags · COFFEE SHOP 123 · account A",
+                        field: "tags",
+                        predicate: "text COFFEE SHOP 123 · account A · any amount",
+                        output: "add [coffee]",
+                        mode: "add",
+                        population: "COFFEE SHOP 123 rows on account A"
+                    }),
+                tagsAccountASet: () =>
+                    rule({
+                        id: "r-tags-A2",
+                        name: "Tags · COFFEE SHOP 123 · account A (duplicate slot)",
+                        field: "tags",
+                        predicate: "text COFFEE SHOP 123 · account A · any amount",
+                        output: "set [cafe]",
+                        mode: "set",
+                        population: "COFFEE SHOP 123 rows on account A",
+                        duplicateSlot: true
+                    }),
+                tagsAccountB: () =>
+                    rule({
+                        id: "r-tags-B",
+                        name: "Tags · COFFEE SHOP 123 · account B",
+                        field: "tags",
+                        predicate: "text COFFEE SHOP 123 · account B · any amount",
+                        output: "set [coffee]",
+                        mode: "set",
+                        population: "COFFEE SHOP 123 rows on account B"
+                    }),
+                allocationUnscoped: () =>
+                    rule({
+                        id: "r-alloc-1",
+                        name: "Allocation · COFFEE SHOP 123 · any account",
+                        field: "allocation",
+                        predicate: "text COFFEE SHOP 123 · any account · any amount",
+                        output: "split Alex 50% / Sam 50%",
+                        population: "every COFFEE SHOP 123 row"
+                    }),
+                undecodable: () =>
+                    rule({
+                        id: "r-broken",
+                        name: "Unreadable record",
+                        field: "tags",
+                        predicate: "stored shape fails validation",
+                        output: "— (cannot be decoded)",
+                        population: "matches nothing; invisible to the matcher",
+                        undecodable: true
+                    })
+            };
+
+            const PREFERENCES = Object.freeze({
+                useAccountScope: true,
+                useAmountScope: false,
+                tagMode: "add",
+                applyMode: "apply-all"
+            });
+
+            // ---------------------------------------------------------------------------------
+            // Scenarios. `blockers(state)` returns the reasons confirmation is withheld; an empty
+            // list means the user may confirm. Nothing confirms while a blocker stands.
+            // ---------------------------------------------------------------------------------
+
+            /** @type {ReadonlyArray<object>} */
+            const SCENARIOS = [
+                {
+                    id: "P-01",
+                    exampleClass: "EC-01",
+                    title: "No matching rule — the edit proposes a new rule",
+                    decisions: ["D-013", "D-016", "D-019"],
+                    mockups: ["M-01", "M-11"],
+                    edit: "Add tag “coffee” to an imported COFFEE SHOP 123 row on account A, −4.50.",
+                    proposalKind: "create",
+                    baseline: "Measured today: a create proposal (EX-01).",
+                    proposed:
+                        "Unchanged. With no candidate there is no host, so nothing is folded.",
+                    rules: [],
+                    hosts: [],
+                    targetSummary: {
+                        identity: "New rule (no existing rule is a candidate)",
+                        predicate: "text COFFEE SHOP 123 · account A · any amount",
+                        otherOutputs: "none — a new rule carries only the edited field",
+                        population: "COFFEE SHOP 123 rows on account A gain the tag"
+                    },
+                    onConfirm: (store) => ({
+                        rules: [
+                            ...store.rules,
+                            rule({
+                                id: "r-new-1",
+                                name: "Tags · COFFEE SHOP 123 · account A",
+                                field: "tags",
+                                predicate: "text COFFEE SHOP 123 · account A · any amount",
+                                output: "add [coffee]",
+                                mode: "add",
+                                population: "COFFEE SHOP 123 rows on account A"
+                            })
+                        ],
+                        applications: [...store.applications, "r-new-1 → 3 rows"],
+                        preferences: store.preferences
+                    })
+                },
+                {
+                    id: "P-02",
+                    exampleClass: "EC-02",
+                    title: "One constrained rule — the edit updates that rule",
+                    decisions: ["D-004", "D-008"],
+                    mockups: ["M-01", "M-02", "M-06"],
+                    edit: "Add tag “cafe” on an account-A row already covered by one tags rule.",
+                    proposalKind: "update",
+                    baseline: "Measured today: an update of that id (EX-02).",
+                    proposed:
+                        "Unchanged. The surface additionally shows the rule's STORED predicate, because the draft is seeded from the row and the remembered scope, not from the rule (§4.3 / G-01).",
+                    rules: [R.tagsAccountA()],
+                    hosts: [],
+                    targetSummary: {
+                        identity: "Tags · COFFEE SHOP 123 · account A (r-tags-A)",
+                        predicate: "text COFFEE SHOP 123 · account A · any amount (as stored)",
+                        otherOutputs: "none — this rule carries only tags",
+                        population: "unchanged: COFFEE SHOP 123 rows on account A"
+                    },
+                    onConfirm: (store) => ({
+                        rules: store.rules.map((r) =>
+                            r.id === "r-tags-A" ? { ...r, output: "add [coffee, cafe]" } : r
+                        ),
+                        applications: [...store.applications, "r-tags-A → 3 rows"],
+                        preferences: store.preferences
+                    })
+                },
+                {
+                    id: "P-03",
+                    exampleClass: "EC-03",
+                    title: "Multiple applicable rules, no owner of the edited field — ambiguous",
+                    decisions: ["D-005", "D-002"],
+                    mockups: ["M-01", "M-04", "M-11"],
+                    edit: "Add an allocation output on a row covered by two unrelated rules, neither of which owns allocation.",
+                    proposalKind: "ambiguous",
+                    baseline:
+                        "Measured today: no fold exists at all, so this ambiguity is not reachable in production.",
+                    proposed:
+                        "The host set is ambiguous. Every candidate is presented with its stored predicate and outputs and an explicit choice is REQUIRED. There is no tiebreak on recency, id, list order or displayed equality.",
+                    rules: [R.tagsUnscoped(), R.aliasUnscoped()],
+                    hosts: [
+                        {
+                            id: "r-tags-1",
+                            label: "Fold into Tags · COFFEE SHOP 123 (r-tags-1)",
+                            detail: "Adds an allocation slot to the tags rule. Tag output untouched.",
+                            sourceFate: "no source rule exists for allocation — nothing is deleted",
+                            population: "every COFFEE SHOP 123 row gains the allocation"
+                        },
+                        {
+                            id: "r-alias-1",
+                            label: "Fold into Alias · COFFEE SHOP 123 (r-alias-1)",
+                            detail: "Adds an allocation slot to the alias rule. Rename untouched.",
+                            sourceFate: "no source rule exists for allocation — nothing is deleted",
+                            population: "every COFFEE SHOP 123 row gains the allocation"
+                        },
+                        {
+                            id: "create",
+                            label: "Create a separate allocation rule",
+                            detail: "Leaves both candidates exactly as they are.",
+                            sourceFate: "nothing is deleted",
+                            population: "every COFFEE SHOP 123 row gains the allocation"
+                        }
+                    ],
+                    defaultHostId: null,
+                    ambiguityNote:
+                        "D-005: no candidate owns allocation and none is a description-alias host inside the identical-predicate set with a settled preference, so the product must not pick for you.",
+                    onConfirm: (store, state) => ({
+                        rules: store.rules.map((r) =>
+                            r.id === state.hostId
+                                ? { ...r, output: `${r.output} + split Alex 50% / Sam 50%` }
+                                : r
+                        ),
+                        applications: [...store.applications, `${state.hostId} → 4 rows`],
+                        preferences: store.preferences
+                    })
+                },
+                {
+                    id: "P-04",
+                    exampleClass: "EC-04",
+                    title: "Previously split fields — the alias rule is the preferred host",
+                    decisions: ["D-001", "D-004", "D-006"],
+                    mockups: ["M-02", "M-03", "M-06"],
+                    edit: "Add tag “coffee” on a row whose text is already owned by an unscoped alias rule; no rule owns tags.",
+                    proposalKind: "fold",
+                    baseline:
+                        "Measured today: a create — a rule of another field is not a host (EX-03).",
+                    proposed:
+                        "D-001: the description(-alias) rule is the preferred host, but only because its stored predicate is IDENTICAL to the predicate this edit would otherwise create, and only because no rule owns tags.",
+                    rules: [R.aliasUnscoped()],
+                    hosts: [
+                        {
+                            id: "r-alias-1",
+                            label: "Fold into Alias · COFFEE SHOP 123 (r-alias-1)",
+                            detail: "The alias rule gains a tags slot. Its rename output is untouched.",
+                            sourceFate: "no source rule exists for tags — nothing is deleted",
+                            population:
+                                "BROADER than a new account-A rule: every COFFEE SHOP 123 row on any account gains the tag"
+                        },
+                        {
+                            id: "create",
+                            label: "Create a separate tags rule instead",
+                            detail: "Leaves the alias rule exactly as it is.",
+                            sourceFate: "nothing is deleted",
+                            population: "COFFEE SHOP 123 rows on account A only"
+                        }
+                    ],
+                    defaultHostId: "r-alias-1",
+                    onConfirm: (store, state) =>
+                        state.hostId === "create"
+                            ? {
+                                  rules: [
+                                      ...store.rules,
+                                      rule({
+                                          id: "r-new-2",
+                                          name: "Tags · COFFEE SHOP 123 · account A",
+                                          field: "tags",
+                                          predicate: "text COFFEE SHOP 123 · account A",
+                                          output: "add [coffee]",
+                                          mode: "add",
+                                          population: "COFFEE SHOP 123 rows on account A"
+                                      })
+                                  ],
+                                  applications: [...store.applications, "r-new-2 → 3 rows"],
+                                  preferences: store.preferences
+                              }
+                            : {
+                                  rules: store.rules.map((r) =>
+                                      r.id === "r-alias-1"
+                                          ? { ...r, output: `${r.output} + add [coffee]` }
+                                          : r
+                                  ),
+                                  applications: [...store.applications, "r-alias-1 → 6 rows"],
+                                  preferences: store.preferences
+                              }
+                },
+                {
+                    id: "P-05",
+                    exampleClass: "EC-05",
+                    title: "Conflicting field ownership — the existing owner wins by default",
+                    decisions: ["D-003", "D-011", "D-017", "D-001"],
+                    mockups: ["M-01", "M-03", "M-04", "M-06", "M-07", "M-14"],
+                    edit: "Add tag “cafe” where an alias rule is the preferred host but another rule already OWNS tags.",
+                    proposalKind: "conflict",
+                    baseline: "Measured today: an update of the tags rule (EX-02 shape).",
+                    proposed:
+                        "D-003: the existing owner is the DEFAULT target and is updated in place — that changes no population and moves no output. Consolidation into the preferred alias host stays available as a named, previewed choice that states the source rule's fate first (D-011, M-07), and would be performed as ONE vault mutation or not at all (D-017).",
+                    rules: [R.aliasUnscoped(), R.tagsUnscoped()],
+                    hosts: [
+                        {
+                            id: "r-tags-1",
+                            label: "Update the existing owner Tags · COFFEE SHOP 123 (r-tags-1)",
+                            detail: "Default. The tags rule keeps its id, text and creation time.",
+                            sourceFate: "no rule is deleted; r-alias-1 is untouched",
+                            population: "unchanged — the same rows the tags rule already covered"
+                        },
+                        {
+                            id: "r-alias-1",
+                            label: "Consolidate into Alias · COFFEE SHOP 123 (r-alias-1)",
+                            detail: "Named consolidation: the tags output moves to the alias rule, which keeps its rename output.",
+                            sourceFate:
+                                "SOURCE FATE: r-tags-1 loses its only field and is soft-deleted in the same mutation, freeing its uniqueness slot",
+                            population:
+                                "unchanged in this case — both predicates are identical — but the rule a user must edit later becomes r-alias-1",
+                            requiresConsolidationPreview: true
+                        }
+                    ],
+                    defaultHostId: "r-tags-1",
+                    supportsApplyDelete: true,
+                    onConfirm: (store, state) =>
+                        state.hostId === "r-alias-1"
+                            ? {
+                                  rules: store.rules
+                                      .map((r) =>
+                                          r.id === "r-alias-1"
+                                              ? { ...r, output: `${r.output} + add [coffee, cafe]` }
+                                              : r
+                                      )
+                                      .filter((r) => r.id !== "r-tags-1"),
+                                  applications: [...store.applications, "r-alias-1 → 6 rows"],
+                                  preferences: store.preferences
+                              }
+                            : {
+                                  rules: store.rules.map((r) =>
+                                      r.id === "r-tags-1"
+                                          ? { ...r, output: "add [coffee, cafe]" }
+                                          : r
+                                  ),
+                                  applications: [...store.applications, "r-tags-1 → 6 rows"],
+                                  preferences: store.preferences
+                              }
+                },
+                {
+                    id: "P-06",
+                    exampleClass: "EC-05",
+                    title: "Predicate mismatch — the preferred host refuses to take the fold",
+                    decisions: ["D-004", "D-001"],
+                    mockups: ["M-02", "M-06"],
+                    edit: "Add tag “cafe” where the alias rule is scoped to account A but the tags rule is unscoped.",
+                    proposalKind: "conflict",
+                    baseline: "Measured today: an update of the tags rule; no fold exists.",
+                    proposed:
+                        "D-004: folding is REFUSED because the alias rule's stored predicate is not identical to this edit's. Folding would silently narrow the tag from every account to account A. The edited field's own owner is updated instead, and the reason is stated.",
+                    rules: [R.aliasAccountA(), R.tagsUnscoped()],
+                    hosts: [
+                        {
+                            id: "r-tags-1",
+                            label: "Update the existing owner Tags · COFFEE SHOP 123 (r-tags-1)",
+                            detail: "The only permitted target: same predicate, same population.",
+                            sourceFate: "no rule is deleted",
+                            population: "unchanged — every COFFEE SHOP 123 row"
+                        },
+                        {
+                            id: "r-alias-A",
+                            label: "Fold into Alias · COFFEE SHOP 123 · account A (r-alias-A)",
+                            detail: "Refused: the host's stored predicate is account A, this edit's is any account.",
+                            sourceFate: "n/a — the fold is not offered",
+                            population:
+                                "would NARROW the tag from every account to account A without the user asking",
+                            blocked:
+                                "Predicate mismatch (D-004): the host is scoped to account A and this edit is not. A fold here would change the population silently."
+                        }
+                    ],
+                    defaultHostId: "r-tags-1",
+                    onConfirm: (store) => ({
+                        rules: store.rules.map((r) =>
+                            r.id === "r-tags-1" ? { ...r, output: "add [coffee, cafe]" } : r
+                        ),
+                        applications: [...store.applications, "r-tags-1 → 6 rows"],
+                        preferences: store.preferences
+                    })
+                },
+                {
+                    id: "P-07",
+                    exampleClass: "EC-05",
+                    title: "The target changed or was deleted after this surface opened",
+                    decisions: ["D-008", "D-009"],
+                    mockups: ["M-12"],
+                    edit: "Add tag “cafe”, then another device edits or deletes the target before you confirm.",
+                    proposalKind: "update",
+                    baseline:
+                        "Measured today: an update against a soft-deleted target returns not-found and resurrects nothing (EX-14). A target that was EDITED rather than deleted is not fenced at all (G-02).",
+                    proposed:
+                        "D-008/D-009: a confirm must RE-READ the target. A changed target is re-presented rather than overwritten; a deleted target invalidates confirmation, is distinguished from a validation error, and OFFERS a create instead of performing one.",
+                    rules: [R.tagsAccountA()],
+                    hosts: [],
+                    targetSummary: {
+                        identity: "Tags · COFFEE SHOP 123 · account A (r-tags-A)",
+                        predicate: "text COFFEE SHOP 123 · account A · any amount (as stored)",
+                        otherOutputs: "none",
+                        population: "COFFEE SHOP 123 rows on account A"
+                    },
+                    simulations: [
+                        {
+                            id: "remote-edit",
+                            label: "Simulate: another device changes the target's scope",
+                            blocker:
+                                "The target changed since this surface opened (D-008): its stored scope is now “account A · amount −4.50”. Re-read and re-presented; confirming would overwrite a change you never saw.",
+                            note: "This is not a validation error — your input is fine."
+                        },
+                        {
+                            id: "remote-delete",
+                            label: "Simulate: another device deletes the target",
+                            blocker:
+                                "The target no longer exists (D-009): r-tags-A was deleted. Nothing is resurrected. Creating a replacement rule is OFFERED, not performed.",
+                            note: "This is not a validation error — your input is fine."
+                        }
+                    ],
+                    onConfirm: (store) => ({
+                        rules: store.rules.map((r) =>
+                            r.id === "r-tags-A" ? { ...r, output: "add [coffee, cafe]" } : r
+                        ),
+                        applications: [...store.applications, "r-tags-A → 3 rows"],
+                        preferences: store.preferences
+                    })
+                },
+                {
+                    id: "P-08",
+                    exampleClass: "EC-05",
+                    title: "The destination uniqueness slot is already occupied",
+                    decisions: ["D-010", "D-007"],
+                    mockups: ["M-13"],
+                    edit: "Widen this account-A tags rule to “any account”, where another rule already holds that slot.",
+                    proposalKind: "update",
+                    baseline:
+                        "Measured today: the write is refused with duplicate-key naming the holder, and BOTH rules keep their scope and action (EX-13, EX-15). The refusal is not an application (EX-13b).",
+                    proposed:
+                        "D-010: preserve the refusal exactly, name the holder, and OFFER it as an alternative host. Auto-retargeting onto the holder would be the silent merge the acceptance criteria forbid.",
+                    rules: [R.tagsAccountA(), R.tagsUnscoped()],
+                    hosts: [
+                        {
+                            id: "r-tags-A",
+                            label: "Keep this rule scoped to account A (r-tags-A)",
+                            detail: "The widening is abandoned; nothing collides.",
+                            sourceFate: "no rule is deleted",
+                            population: "unchanged — COFFEE SHOP 123 rows on account A"
+                        },
+                        {
+                            id: "r-tags-1",
+                            label: "Offered alternative host: Tags · COFFEE SHOP 123 (r-tags-1) holds the slot",
+                            detail: "Selecting this is an explicit choice to edit the holder instead. It is never selected for you.",
+                            sourceFate: "r-tags-A is retained and keeps winning account-A rows",
+                            population: "every COFFEE SHOP 123 row, via the holder"
+                        }
+                    ],
+                    defaultHostId: "r-tags-A",
+                    collision: {
+                        message:
+                            "duplicate-key: the slot (tags · COFFEE SHOP 123 · any account) is held by r-tags-1. The widening write is refused and nothing is mutated.",
+                        holder: "r-tags-1"
+                    },
+                    onConfirm: (store, state) => ({
+                        rules: store.rules.map((r) =>
+                            r.id === state.hostId ? { ...r, output: `${r.output} + add [cafe]` } : r
+                        ),
+                        applications: [...store.applications, `${state.hostId} → 3 rows`],
+                        preferences: store.preferences
+                    })
+                },
+                {
+                    id: "P-09",
+                    exampleClass: "EC-02",
+                    title: "Drift — the host implies a value this row does not have",
+                    decisions: ["D-006"],
+                    mockups: ["M-05"],
+                    edit: "Add tag “tea” to a row whose winning rule implies “coffee”, which the row does not carry.",
+                    proposalKind: "update",
+                    baseline: "Measured today: the update proceeds with no drift acknowledgement.",
+                    proposed:
+                        "D-006: show what the host currently implies beside what the row actually has, and require acknowledgement before writing. Never auto-reconcile in either direction.",
+                    rules: [R.tagsAccountA()],
+                    hosts: [],
+                    targetSummary: {
+                        identity: "Tags · COFFEE SHOP 123 · account A (r-tags-A)",
+                        predicate: "text COFFEE SHOP 123 · account A · any amount (as stored)",
+                        otherOutputs: "none",
+                        population: "COFFEE SHOP 123 rows on account A"
+                    },
+                    drift: {
+                        implied: "the rule implies tag “coffee”",
+                        actual: "this row currently has no tags",
+                        label: "I understand this rule implies “coffee” and this row does not have it"
+                    },
+                    onConfirm: (store) => ({
+                        rules: store.rules.map((r) =>
+                            r.id === "r-tags-A" ? { ...r, output: "add [coffee, tea]" } : r
+                        ),
+                        applications: [...store.applications, "r-tags-A → 3 rows"],
+                        preferences: store.preferences
+                    })
+                },
+                {
+                    id: "P-10",
+                    exampleClass: "EC-02",
+                    title: "Tag mode is an explicit choice, never inferred",
+                    decisions: ["D-014"],
+                    mockups: ["M-08"],
+                    edit: "Add tag “cafe” where the host stores mode “set” but your remembered preference is “add”.",
+                    proposalKind: "update",
+                    baseline:
+                        "Measured today: add unions onto existing tags, set clears them; equal row outcomes do not mean equal rules (EX-11).",
+                    proposed:
+                        "D-014: carry the host's mode explicitly and require a confirmation when it differs from the remembered mode, because “set” clears tags the user typed by hand.",
+                    rules: [R.tagsAccountB()],
+                    hosts: [],
+                    targetSummary: {
+                        identity: "Tags · COFFEE SHOP 123 · account B (r-tags-B)",
+                        predicate: "text COFFEE SHOP 123 · account B · any amount (as stored)",
+                        otherOutputs: "none",
+                        population: "COFFEE SHOP 123 rows on account B"
+                    },
+                    tagMode: {
+                        hostMode: "set",
+                        rememberedMode: "add",
+                        label: "Tag mode written to the rule"
+                    },
+                    onConfirm: (store, state) => ({
+                        rules: store.rules.map((r) =>
+                            r.id === "r-tags-B"
+                                ? {
+                                      ...r,
+                                      mode: state.tagMode,
+                                      output: `${state.tagMode} [coffee, cafe]`
+                                  }
+                                : r
+                        ),
+                        applications: [...store.applications, "r-tags-B → 2 rows"],
+                        preferences: { ...store.preferences, tagMode: state.tagMode }
+                    })
+                },
+                {
+                    id: "P-11",
+                    exampleClass: "EC-04",
+                    title: "An allocation fold carries the whole validated set",
+                    decisions: ["D-015", "D-019"],
+                    mockups: ["M-09", "M-11"],
+                    edit: "Change one person's share on a row whose allocation is owned by an unscoped rule.",
+                    proposalKind: "update",
+                    baseline:
+                        "Measured today: an invalid allocation set is rejected at the write boundary with zero mutation.",
+                    proposed:
+                        "D-015: there is no partial “add one person” fold. The whole set is presented and written; an incomplete set is refused before the first write.",
+                    rules: [R.allocationUnscoped()],
+                    hosts: [],
+                    targetSummary: {
+                        identity: "Allocation · COFFEE SHOP 123 (r-alloc-1)",
+                        predicate: "text COFFEE SHOP 123 · any account · any amount (as stored)",
+                        otherOutputs: "none",
+                        population: "every COFFEE SHOP 123 row"
+                    },
+                    allocation: {
+                        options: [
+                            {
+                                id: "whole",
+                                label: "Whole set — Alex 40% / Sam 60% (totals 100%)",
+                                valid: true
+                            },
+                            {
+                                id: "partial",
+                                label: "Partial — Alex 40% only (totals 40%)",
+                                valid: false,
+                                blocker:
+                                    "The allocation set is incomplete (D-015): it totals 40%. It is refused at the boundary and nothing is written."
+                            }
+                        ]
+                    },
+                    onConfirm: (store) => ({
+                        rules: store.rules.map((r) =>
+                            r.id === "r-alloc-1" ? { ...r, output: "split Alex 40% / Sam 60%" } : r
+                        ),
+                        applications: [...store.applications, "r-alloc-1 → 6 rows"],
+                        preferences: store.preferences
+                    })
+                },
+                {
+                    id: "P-12",
+                    exampleClass: "EC-03",
+                    title: "A duplicated slot is surfaced; an unreadable record is never a host",
+                    decisions: ["D-007", "D-012"],
+                    mockups: ["M-10"],
+                    edit: "Add tag “cafe” where two active rules occupy the same uniqueness slot and a third record fails to decode.",
+                    proposalKind: "conflict",
+                    baseline:
+                        "Measured today: the matcher picks the deterministic winner and skips the undecodable record entirely.",
+                    proposed:
+                        "D-012: never offer a duplicated slot or an unreadable record as a fold host. The duplicate is surfaced as a repair prompt naming both rules; repair stays an explicit user action and no live rule is auto-deduped.",
+                    rules: [R.tagsAccountA(), R.tagsAccountASet(), R.undecodable()],
+                    hosts: [
+                        {
+                            id: "r-tags-A",
+                            label: "Tags · COFFEE SHOP 123 · account A (r-tags-A)",
+                            detail: "In a duplicated slot with r-tags-A2.",
+                            sourceFate: "n/a — not offered as a host",
+                            population: "COFFEE SHOP 123 rows on account A",
+                            blocked:
+                                "Duplicated uniqueness slot (D-007, D-012): r-tags-A and r-tags-A2 both hold tags · COFFEE SHOP 123 · account A. Repair the duplicate explicitly before folding into either."
+                        },
+                        {
+                            id: "r-tags-A2",
+                            label: "Tags · COFFEE SHOP 123 · account A duplicate (r-tags-A2)",
+                            detail: "In a duplicated slot with r-tags-A.",
+                            sourceFate: "n/a — not offered as a host",
+                            population: "COFFEE SHOP 123 rows on account A",
+                            blocked:
+                                "Duplicated uniqueness slot (D-007, D-012): folding here would silently pick one of two independently authored rules."
+                        },
+                        {
+                            id: "r-broken",
+                            label: "Unreadable record (r-broken)",
+                            detail: "Fails to decode; invisible to the matcher.",
+                            sourceFate: "n/a — not offered as a host",
+                            population: "matches nothing",
+                            blocked:
+                                "Unreadable record (D-012): an undecodable rule is never a fold host. Note EX-17 — deleting it stamps the tombstone and still reports not-found."
+                        },
+                        {
+                            id: "create",
+                            label: "Create a separate tags rule instead",
+                            detail: "Leaves the duplicate and the unreadable record exactly as they are.",
+                            sourceFate: "nothing is deleted",
+                            population: "COFFEE SHOP 123 rows on account A, via a new rule"
+                        }
+                    ],
+                    defaultHostId: null,
+                    ambiguityNote:
+                        "Every existing candidate is blocked, so nothing can be confirmed until you choose an unblocked option explicitly.",
+                    onConfirm: (store) => ({
+                        rules: [
+                            ...store.rules,
+                            rule({
+                                id: "r-new-3",
+                                name: "Tags · COFFEE SHOP 123 · account A",
+                                field: "tags",
+                                predicate: "text COFFEE SHOP 123 · account A",
+                                output: "add [cafe]",
+                                mode: "add",
+                                population: "COFFEE SHOP 123 rows on account A"
+                            })
+                        ],
+                        applications: [...store.applications, "r-new-3 → 3 rows"],
+                        preferences: store.preferences
+                    })
+                },
+                {
+                    id: "P-13",
+                    exampleClass: "EC-05",
+                    title: "Apply and Delete are not an ownership bypass",
+                    decisions: ["D-018", "D-016"],
+                    mockups: ["M-11", "M-14"],
+                    edit: "An ownership conflict is open, and the robot's Apply and Delete buttons are within reach.",
+                    proposalKind: "conflict",
+                    baseline:
+                        "Measured today: apply evaluates every active rule, not only the edited one (EX-16); delete soft-deletes and frees the slot.",
+                    proposed:
+                        "D-018: both remain legitimate actions on an existing rule, and neither resolves the ownership question. Apply is not consent to a fold, and deleting a rule is not the mechanism by which a fold wins a contested field.",
+                    rules: [R.aliasUnscoped(), R.tagsUnscoped()],
+                    hosts: [
+                        {
+                            id: "r-tags-1",
+                            label: "Update the existing owner Tags · COFFEE SHOP 123 (r-tags-1)",
+                            detail: "Default target while the conflict is open.",
+                            sourceFate: "no rule is deleted",
+                            population: "unchanged"
+                        },
+                        {
+                            id: "r-alias-1",
+                            label: "Consolidate into Alias · COFFEE SHOP 123 (r-alias-1)",
+                            detail: "Named consolidation with a preview.",
+                            sourceFate:
+                                "SOURCE FATE: r-tags-1 is soft-deleted in the same mutation once it holds no field",
+                            population: "unchanged; the rule to edit later becomes r-alias-1",
+                            requiresConsolidationPreview: true
+                        }
+                    ],
+                    defaultHostId: null,
+                    ambiguityNote:
+                        "The conflict is open: choose the target explicitly. Apply and Delete below do not close it.",
+                    supportsApplyDelete: true,
+                    onConfirm: (store, state) => ({
+                        rules: store.rules.map((r) =>
+                            r.id === state.hostId ? { ...r, output: `${r.output} + add [cafe]` } : r
+                        ),
+                        applications: [...store.applications, `${state.hostId} → 6 rows`],
+                        preferences: store.preferences
+                    })
+                },
+                {
+                    id: "P-14",
+                    exampleClass: "EC-01",
+                    title: "A cleared value proposes nothing at all",
+                    decisions: ["D-016", "D-019"],
+                    mockups: ["M-11"],
+                    edit: "Clear the tags on a row that a tags rule already matches.",
+                    proposalKind: "none",
+                    baseline:
+                        "Measured today: no proposal on any field when the edit clears the value (EX-07).",
+                    proposed:
+                        "Unchanged, grouped or not. Clearing is never offered as a rule, so there is no host, no fold and no write path.",
+                    rules: [R.tagsAccountA()],
+                    hosts: [],
+                    targetSummary: {
+                        identity: "none — no proposal is offered",
+                        predicate: "n/a",
+                        otherOutputs: "n/a",
+                        population: "no rule changes and no row outside this one is affected"
+                    },
+                    noProposal:
+                        "No rule is proposed (EX-07). The row's own tags are cleared; every rule keeps its id, scope and action."
+                }
+            ];
+
+            const SCENARIO_BY_ID = new Map(SCENARIOS.map((s) => [s.id, s]));
+
+            // ---------------------------------------------------------------------------------
+            // Runtime state. One scenario at a time; selecting a scenario resets its simulation.
+            // ---------------------------------------------------------------------------------
+
+            const detail = document.querySelector('[data-testid="scenario-detail"]');
+            const list = document.querySelector('[data-testid="scenario-list"]');
+
+            /** @type {{scenarioId: string, hostId: string | null, ack: boolean, tagMode: string, allocation: string, consolidationPreviewed: boolean, simulated: string | null, store: object, outcome: object | null}} */
+            let state = freshState(SCENARIOS[0].id);
+
+            function freshState(scenarioId) {
+                const scenario = SCENARIO_BY_ID.get(scenarioId);
+                return {
+                    scenarioId,
+                    hostId: scenario.defaultHostId === undefined ? null : scenario.defaultHostId,
+                    ack: false,
+                    tagMode: scenario.tagMode ? scenario.tagMode.hostMode : "add",
+                    allocation: scenario.allocation ? scenario.allocation.options[0].id : "whole",
+                    consolidationPreviewed: false,
+                    simulated: null,
+                    store: {
+                        rules: scenario.rules.map((r) => ({ ...r })),
+                        applications: [],
+                        preferences: { ...PREFERENCES }
+                    },
+                    outcome: null
+                };
+            }
+
+            function storeSignature(store) {
+                const rules = store.rules
+                    .map((r) => `${r.id}:${r.predicate}:${r.output}:${r.mode ?? "-"}`)
+                    .join(" | ");
+                const preferences = Object.entries(store.preferences)
+                    .map(([key, value]) => `${key}=${value}`)
+                    .join(",");
+                return `rules[${store.rules.length}] ${rules} || applications[${store.applications.length}] ${store.applications.join(" ; ")} || preferences ${preferences}`;
+            }
+
+            /** Reasons confirmation is withheld. Empty means the user may confirm. */
+            function blockers(scenario, current) {
+                const reasons = [];
+                if (scenario.proposalKind === "none") {
+                    reasons.push(scenario.noProposal);
+                    return reasons;
+                }
+                if (scenario.hosts.length > 0 && current.hostId == null) {
+                    reasons.push(
+                        `No target chosen. ${scenario.ambiguityNote ?? "Choose the rule this edit will change."}`
+                    );
+                }
+                const host = scenario.hosts.find((h) => h.id === current.hostId);
+                if (host && host.blocked) reasons.push(host.blocked);
+                if (host && host.requiresConsolidationPreview && !current.consolidationPreviewed) {
+                    reasons.push(
+                        "Consolidation has not been previewed (D-011, M-14). Read the source rule's fate and confirm the preview before the write."
+                    );
+                }
+                if (scenario.drift && !current.ack) {
+                    reasons.push(
+                        `Drift not acknowledged (D-006): ${scenario.drift.implied}, but ${scenario.drift.actual}.`
+                    );
+                }
+                if (
+                    scenario.tagMode &&
+                    current.tagMode !== scenario.tagMode.rememberedMode &&
+                    !current.ack
+                ) {
+                    reasons.push(
+                        `Tag mode differs from your remembered mode “${scenario.tagMode.rememberedMode}” (D-014). “set” clears tags typed by hand, so confirm the mode explicitly.`
+                    );
+                }
+                if (scenario.allocation) {
+                    const option = scenario.allocation.options.find(
+                        (o) => o.id === current.allocation
+                    );
+                    if (option && !option.valid) reasons.push(option.blocker);
+                }
+                if (current.simulated) {
+                    const simulation = scenario.simulations.find((s) => s.id === current.simulated);
+                    if (simulation) reasons.push(simulation.blocker);
+                }
+                if (scenario.collision && current.hostId === "r-tags-A") {
+                    reasons.push(scenario.collision.message);
+                }
+                return reasons;
+            }
+
+            function element(tag, attributes, children) {
+                const node = document.createElement(tag);
+                for (const [key, value] of Object.entries(attributes ?? {})) {
+                    if (value === false || value == null) continue;
+                    if (key === "text") node.textContent = String(value);
+                    else if (key === "html") node.innerHTML = String(value);
+                    else node.setAttribute(key, value === true ? "" : String(value));
+                }
+                for (const child of children ?? []) if (child) node.append(child);
+                return node;
+            }
+
+            function renderList() {
+                list.replaceChildren(
+                    ...SCENARIOS.map((scenario) => {
+                        const button = element("button", {
+                            type: "button",
+                            "data-testid": `scenario-tab-${scenario.id}`,
+                            "data-scenario": scenario.id,
+                            "aria-current": scenario.id === state.scenarioId ? "true" : "false",
+                            text: `${scenario.id} · ${scenario.exampleClass}`
+                        });
+                        button.addEventListener("click", () => {
+                            state = freshState(scenario.id);
+                            render();
+                            const heading = document.getElementById("scenario-title");
+                            if (heading) heading.focus();
+                        });
+                        return element("li", {}, [button]);
+                    })
+                );
+            }
+
+            function definitionList(entries, testid) {
+                return element(
+                    "dl",
+                    { "data-testid": testid },
+                    entries.flatMap(([term, value, valueTestid]) => [
+                        element("dt", { text: term }),
+                        element("dd", { text: value, "data-testid": valueTestid })
+                    ])
+                );
+            }
+
+            function renderHosts(scenario) {
+                if (scenario.hosts.length === 0) return null;
+                const fieldset = element("fieldset", { "data-testid": "host-choice" }, [
+                    element("legend", { text: "Which rule does this edit change?" })
+                ]);
+                for (const host of scenario.hosts) {
+                    const inputId = `host-${scenario.id}-${host.id}`;
+                    const input = element("input", {
+                        type: "radio",
+                        name: `host-${scenario.id}`,
+                        id: inputId,
+                        value: host.id,
+                        "data-testid": `host-option-${host.id}`,
+                        checked: state.hostId === host.id
+                    });
+                    input.addEventListener("change", () => {
+                        state = {
+                            ...state,
+                            hostId: host.id,
+                            consolidationPreviewed: false,
+                            outcome: null
+                        };
+                        render();
+                        const focused = document.getElementById(inputId);
+                        if (focused) focused.focus();
+                    });
+                    const label = element("label", { for: inputId }, [
+                        input,
+                        element("span", { text: host.label })
+                    ]);
+                    const rows = [
+                        element("p", { class: "meta", text: host.detail }),
+                        element("p", {
+                            "data-testid": `host-population-${host.id}`,
+                            text: `Population: ${host.population}`
+                        }),
+                        element("p", {
+                            "data-testid": `host-source-fate-${host.id}`,
+                            text: `Source rule: ${host.sourceFate}`
+                        })
+                    ];
+                    if (host.blocked) {
+                        rows.push(
+                            element("p", {
+                                class: "banner stop",
+                                "data-testid": `host-blocked-${host.id}`,
+                                text: host.blocked
+                            })
+                        );
+                    }
+                    fieldset.append(element("div", { class: "host" }, [label, ...rows]));
+                }
+                return fieldset;
+            }
+
+            function renderExtras(scenario) {
+                const nodes = [];
+
+                if (scenario.drift) {
+                    const id = `ack-${scenario.id}`;
+                    const input = element("input", {
+                        type: "checkbox",
+                        id,
+                        "data-testid": "drift-ack",
+                        checked: state.ack
+                    });
+                    input.addEventListener("change", () => {
+                        state = { ...state, ack: input.checked, outcome: null };
+                        render();
+                        const focused = document.getElementById(id);
+                        if (focused) focused.focus();
+                    });
+                    nodes.push(
+                        element("fieldset", { "data-testid": "drift" }, [
+                            element("legend", { text: "Drift" }),
+                            element("p", {
+                                "data-testid": "drift-implied",
+                                text: `Rule implies: ${scenario.drift.implied}`
+                            }),
+                            element("p", {
+                                "data-testid": "drift-actual",
+                                text: `This row: ${scenario.drift.actual}`
+                            }),
+                            element("label", { for: id }, [
+                                input,
+                                element("span", { text: ` ${scenario.drift.label}` })
+                            ])
+                        ])
+                    );
+                }
+
+                if (scenario.tagMode) {
+                    const selectId = `tag-mode-${scenario.id}`;
+                    const select = element("select", {
+                        id: selectId,
+                        "data-testid": "tag-mode",
+                        "aria-label": scenario.tagMode.label
+                    });
+                    for (const mode of ["add", "set"]) {
+                        select.append(
+                            element("option", {
+                                value: mode,
+                                text:
+                                    mode === "add"
+                                        ? "add — union onto existing tags"
+                                        : "set — replace existing tags",
+                                selected: state.tagMode === mode
+                            })
+                        );
+                    }
+                    select.addEventListener("change", () => {
+                        state = { ...state, tagMode: select.value, ack: false, outcome: null };
+                        render();
+                        const focused = document.getElementById(selectId);
+                        if (focused) focused.focus();
+                    });
+                    const ackId = `mode-ack-${scenario.id}`;
+                    const ack = element("input", {
+                        type: "checkbox",
+                        id: ackId,
+                        "data-testid": "tag-mode-ack",
+                        checked: state.ack
+                    });
+                    ack.addEventListener("change", () => {
+                        state = { ...state, ack: ack.checked, outcome: null };
+                        render();
+                        const focused = document.getElementById(ackId);
+                        if (focused) focused.focus();
+                    });
+                    nodes.push(
+                        element("fieldset", { "data-testid": "tag-mode-choice" }, [
+                            element("legend", { text: "Tag mode" }),
+                            element("p", {
+                                "data-testid": "tag-mode-host",
+                                text: `Host stores mode “${scenario.tagMode.hostMode}”; your remembered mode is “${scenario.tagMode.rememberedMode}”.`
+                            }),
+                            element("label", { for: selectId }, [
+                                element("span", { text: `${scenario.tagMode.label}: ` }),
+                                select
+                            ]),
+                            element("label", { for: ackId }, [
+                                ack,
+                                element("span", {
+                                    text: " I confirm this mode; “set” clears tags typed by hand"
+                                })
+                            ])
+                        ])
+                    );
+                }
+
+                if (scenario.allocation) {
+                    const fieldset = element("fieldset", { "data-testid": "allocation-choice" }, [
+                        element("legend", { text: "Allocation set" })
+                    ]);
+                    for (const option of scenario.allocation.options) {
+                        const id = `alloc-${scenario.id}-${option.id}`;
+                        const input = element("input", {
+                            type: "radio",
+                            name: `alloc-${scenario.id}`,
+                            id,
+                            "data-testid": `allocation-option-${option.id}`,
+                            checked: state.allocation === option.id
+                        });
+                        input.addEventListener("change", () => {
+                            state = { ...state, allocation: option.id, outcome: null };
+                            render();
+                            const focused = document.getElementById(id);
+                            if (focused) focused.focus();
+                        });
+                        fieldset.append(
+                            element("div", { class: "host" }, [
+                                element("label", { for: id }, [
+                                    input,
+                                    element("span", { text: option.label })
+                                ])
+                            ])
+                        );
+                    }
+                    nodes.push(fieldset);
+                }
+
+                if (scenario.simulations) {
+                    const wrapper = element("fieldset", { "data-testid": "simulations" }, [
+                        element("legend", { text: "Simulate a concurrent change" })
+                    ]);
+                    const row = element("div", { class: "controls" });
+                    for (const simulation of scenario.simulations) {
+                        const button = element("button", {
+                            type: "button",
+                            class: "action",
+                            "data-testid": `simulate-${simulation.id}`,
+                            text: simulation.label
+                        });
+                        button.addEventListener("click", () => {
+                            state = { ...state, simulated: simulation.id, outcome: null };
+                            render();
+                        });
+                        row.append(button);
+                    }
+                    wrapper.append(row);
+                    if (state.simulated) {
+                        const simulation = scenario.simulations.find(
+                            (s) => s.id === state.simulated
+                        );
+                        wrapper.append(
+                            element("p", {
+                                class: "meta",
+                                "data-testid": "simulation-note",
+                                text: simulation.note
+                            })
+                        );
+                    }
+                    nodes.push(wrapper);
+                }
+
+                const host = scenario.hosts.find((h) => h.id === state.hostId);
+                if (host && host.requiresConsolidationPreview) {
+                    const button = element("button", {
+                        type: "button",
+                        class: "action",
+                        "data-testid": "consolidation-preview",
+                        text: state.consolidationPreviewed
+                            ? "Consolidation preview acknowledged"
+                            : "Preview this consolidation"
+                    });
+                    button.addEventListener("click", () => {
+                        state = { ...state, consolidationPreviewed: true, outcome: null };
+                        render();
+                    });
+                    nodes.push(
+                        element("fieldset", { "data-testid": "consolidation" }, [
+                            element("legend", { text: "Consolidation (named action)" }),
+                            element("p", {
+                                "data-testid": "consolidation-source-fate",
+                                text: host.sourceFate
+                            }),
+                            element("p", {
+                                "data-testid": "consolidation-population",
+                                text: `Population: ${host.population}`
+                            }),
+                            button
+                        ])
+                    );
+                }
+
+                if (scenario.collision) {
+                    nodes.push(
+                        element("p", {
+                            class: "banner stop",
+                            "data-testid": "collision-notice",
+                            text: `${scenario.collision.message} The holder ${scenario.collision.holder} is offered as an alternative host; it is never selected for you.`
+                        })
+                    );
+                }
+
+                return nodes;
+            }
+
+            function renderControls(scenario, reasons) {
+                const controls = element("div", { class: "controls" });
+
+                const confirm = element("button", {
+                    type: "button",
+                    class: "action primary",
+                    "data-testid": "confirm",
+                    disabled: reasons.length > 0,
+                    "aria-disabled": reasons.length > 0 ? "true" : "false",
+                    text:
+                        scenario.proposalKind === "create"
+                            ? "Create the rule"
+                            : "Confirm this change"
+                });
+                confirm.addEventListener("click", () => {
+                    if (blockers(scenario, state).length > 0) return;
+                    const next = scenario.onConfirm(state.store, state);
+                    state = {
+                        ...state,
+                        store: next,
+                        outcome: {
+                            kind: "confirmed",
+                            text: `Simulated write applied to the vault panel. Target: ${state.hostId ?? scenario.targetSummary.identity}. This is a simulation and is not an approval.`
+                        }
+                    };
+                    render();
+                });
+                controls.append(confirm);
+
+                const cancel = element("button", {
+                    type: "button",
+                    class: "action",
+                    "data-testid": "cancel",
+                    text: "Cancel"
+                });
+                cancel.addEventListener("click", () => {
+                    state = {
+                        ...freshState(scenario.id),
+                        outcome: {
+                            kind: "cancelled",
+                            text: "Cancelled. No rule, no application and no remembered preference was written."
+                        }
+                    };
+                    render();
+                });
+                controls.append(cancel);
+
+                if (scenario.supportsApplyDelete) {
+                    const apply = element("button", {
+                        type: "button",
+                        class: "action",
+                        "data-testid": "apply-rule",
+                        text: "Apply this rule to matching rows"
+                    });
+                    apply.addEventListener("click", () => {
+                        state = {
+                            ...state,
+                            store: {
+                                ...state.store,
+                                applications: [
+                                    ...state.store.applications,
+                                    "explicit apply → every active rule re-evaluated"
+                                ]
+                            },
+                            outcome: {
+                                kind: "bypass-refused",
+                                text: "Apply ran every active rule against the matching rows. The ownership conflict is UNCHANGED: applying is not consent to a fold (D-018)."
+                            }
+                        };
+                        render();
+                    });
+                    controls.append(apply);
+
+                    const remove = element("button", {
+                        type: "button",
+                        class: "action",
+                        "data-testid": "delete-rule",
+                        text: "Delete the contested rule"
+                    });
+                    remove.addEventListener("click", () => {
+                        state = {
+                            ...state,
+                            outcome: {
+                                kind: "bypass-refused",
+                                text: "Deleting a rule is not the mechanism by which a fold wins a contested field (D-018). The conflict is still open and nothing was deleted from this simulation."
+                            }
+                        };
+                        render();
+                    });
+                    controls.append(remove);
+                }
+
+                return controls;
+            }
+
+            function renderStore() {
+                const rules = document.querySelector('[data-testid="store-rules"]');
+                const applications = document.querySelector('[data-testid="store-applications"]');
+                const preferences = document.querySelector('[data-testid="store-preferences"]');
+                const signature = document.querySelector('[data-testid="store-signature"]');
+
+                rules.replaceChildren(
+                    ...(state.store.rules.length === 0
+                        ? [element("p", { class: "meta", text: "No rules." })]
+                        : state.store.rules.map((r) =>
+                              element(
+                                  "div",
+                                  { class: "store-rule", "data-testid": `store-rule-${r.id}` },
+                                  [
+                                      element("strong", { text: r.name }),
+                                      element("p", {
+                                          class: "meta",
+                                          text: `${r.id} · ${r.predicate}`
+                                      }),
+                                      element("p", { text: r.output })
+                                  ]
+                              )
+                          ))
+                );
+
+                applications.replaceChildren(
+                    ...(state.store.applications.length === 0
+                        ? [element("p", { class: "meta", text: "No applications." })]
+                        : state.store.applications.map((a) =>
+                              element("p", { class: "meta", text: a })
+                          ))
+                );
+
+                preferences.replaceChildren(
+                    element("p", {
+                        class: "meta",
+                        text: Object.entries(state.store.preferences)
+                            .map(([key, value]) => `${key}: ${value}`)
+                            .join(" · ")
+                    })
+                );
+
+                signature.textContent = storeSignature(state.store);
+            }
+
+            function render() {
+                const scenario = SCENARIO_BY_ID.get(state.scenarioId);
+                const reasons = blockers(scenario, state);
+
+                renderList();
+
+                const nodes = [
+                    element("h2", {
+                        id: "scenario-title",
+                        tabindex: "-1",
+                        "data-testid": "scenario-title",
+                        text: `${scenario.id} — ${scenario.title}`
+                    }),
+                    element("p", {
+                        class: "meta",
+                        "data-testid": "scenario-meta",
+                        text: `Example class ${scenario.exampleClass} · decisions ${scenario.decisions.join(", ")} · checklist ${scenario.mockups.join(", ")} · PROPOSED, NOT APPROVED`
+                    }),
+                    element("h3", { text: "The edit" }),
+                    element("p", { "data-testid": "scenario-edit", text: scenario.edit }),
+                    element("h3", { text: "Measured behaviour today" }),
+                    element("p", { "data-testid": "scenario-baseline", text: scenario.baseline }),
+                    element("h3", { text: "Proposed resolution" }),
+                    element("p", { "data-testid": "scenario-proposed", text: scenario.proposed }),
+                    element("h3", { text: "Target" }),
+                    definitionList(
+                        [
+                            [
+                                "Rule this edit changes",
+                                scenario.hosts.length > 0
+                                    ? (scenario.hosts.find((h) => h.id === state.hostId)?.label ??
+                                      "none chosen yet")
+                                    : scenario.targetSummary.identity,
+                                "target-identity"
+                            ],
+                            [
+                                "Stored predicate",
+                                scenario.hosts.length > 0
+                                    ? (state.store.rules.find((r) => r.id === state.hostId)
+                                          ?.predicate ?? "shown once a target is chosen")
+                                    : scenario.targetSummary.predicate,
+                                "target-predicate"
+                            ],
+                            [
+                                "Its other outputs",
+                                scenario.hosts.length > 0
+                                    ? (state.store.rules.find((r) => r.id === state.hostId)
+                                          ?.output ?? "shown once a target is chosen")
+                                    : scenario.targetSummary.otherOutputs,
+                                "target-other-outputs"
+                            ],
+                            [
+                                "Population consequence",
+                                scenario.hosts.length > 0
+                                    ? (scenario.hosts.find((h) => h.id === state.hostId)
+                                          ?.population ?? "shown once a target is chosen")
+                                    : scenario.targetSummary.population,
+                                "population-consequence"
+                            ]
+                        ],
+                        "target-summary"
+                    )
+                ];
+
+                const hostNodes = renderHosts(scenario);
+                if (hostNodes) nodes.push(hostNodes);
+                nodes.push(...renderExtras(scenario));
+
+                nodes.push(
+                    reasons.length === 0
+                        ? element("p", {
+                              class: "banner ok",
+                              "data-testid": "blockers",
+                              "data-blocked": "false",
+                              text: "No blocker: this change can be confirmed."
+                          })
+                        : element(
+                              "div",
+                              {
+                                  class: "banner stop",
+                                  "data-testid": "blockers",
+                                  "data-blocked": "true",
+                                  role: "status"
+                              },
+                              [
+                                  element("strong", {
+                                      text: "Confirmation is withheld until these are resolved:"
+                                  }),
+                                  element(
+                                      "ul",
+                                      { class: "reasons" },
+                                      reasons.map((reason) => element("li", { text: reason }))
+                                  )
+                              ]
+                          )
+                );
+
+                nodes.push(renderControls(scenario, reasons));
+
+                if (state.outcome) {
+                    nodes.push(
+                        element("p", {
+                            class: `banner ${state.outcome.kind === "confirmed" ? "ok" : ""}`,
+                            "data-testid": "outcome",
+                            "data-outcome": state.outcome.kind,
+                            text: state.outcome.text
+                        })
+                    );
+                }
+
+                detail.replaceChildren(...nodes);
+                renderStore();
+            }
+
+            render();
+        </script>
+    </body>
+</html>

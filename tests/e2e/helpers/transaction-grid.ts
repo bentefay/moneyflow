@@ -101,3 +101,31 @@ export async function allocationGridCell(row: Locator, personName: string): Prom
     }
     return row.locator(`[role="gridcell"][aria-colindex="${columnIndex}"]`);
 }
+
+/**
+ * Add a tag to a row through the inline cell.
+ *
+ * The dropdown is portaled and its search input is the signal that it is actually open, so this
+ * waits for that input rather than clicking blind into a cell that may still be re-rendering.
+ *
+ * Finishes with the tag committed and the picker CLOSED, which is the state a caller needs before
+ * it can interact with the proposal — the proposal deliberately waits for the cell's edit surface to
+ * close, so a caller left mid-edit would find no controls to click.
+ *
+ * The picker is dismissed by clicking another cell rather than by pressing Escape. Escape does not
+ * work here: the picker's Escape handler is bound to its search input, and selecting an option moves
+ * focus off that input, so the key never reaches the handler. That is a pre-existing defect in
+ * `InlineEditableTags`, outside UR-009's scope, recorded rather than worked around silently.
+ */
+export async function addTagToRow(page: Page, row: Locator, tagName: string): Promise<void> {
+    const tagsEditor = await activateTransactionEditor(row, "tags");
+    const searchInput = page.getByPlaceholder("Search tags...");
+    await expect(searchInput).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("option", { name: tagName, exact: true }).click();
+    // The selection remains local while the editor stays open for another selection.
+    await expect(tagsEditor).toContainText(tagName);
+    // A single click on another resting gridcell validates and commits once before ownership moves.
+    await transactionGridCell(row, "date").click();
+    await expect(searchInput).toHaveCount(0, { timeout: 3_000 });
+    await expectTransactionCellDisplay(row, "tags", tagName);
+}

@@ -4,8 +4,10 @@ import { describe, expect, it } from "vitest";
 import {
     APPLY_MODES,
     type ApplyMode,
+    applyModeFrom,
     applyModeIsAutomatic,
     applyModeTargetsNewOnly,
+    type ApplyScope,
     DEFAULT_APPLY_MODE,
     isApplyMode
 } from "@/lib/domain/automation/apply-mode";
@@ -66,5 +68,27 @@ describe("apply-mode domain", () => {
                 expect(applyModeIsAutomatic(value)).toBe(applyModeIsAutomatic(mode));
             }
         }
+    });
+
+    it.each<{
+        readonly scope: ApplyScope;
+        readonly applyOnBlur: boolean;
+        readonly mode: ApplyMode;
+    }>([
+        { scope: "all", applyOnBlur: true, mode: "updatingAll" },
+        { scope: "all", applyOnBlur: false, mode: "updateAll" },
+        { scope: "new", applyOnBlur: true, mode: "updatingNew" },
+        { scope: "new", applyOnBlur: false, mode: "updateNew" }
+    ])("applyModeFrom($scope, $applyOnBlur) is $mode", ({ scope, applyOnBlur, mode }) => {
+        expect(applyModeFrom(scope, applyOnBlur)).toBe(mode);
+    });
+
+    it("property: applyModeFrom inverts the two axes for every mode", () => {
+        fc.assert(
+            fc.property(fc.constantFrom(...APPLY_MODES), (mode) => {
+                const scope: ApplyScope = applyModeTargetsNewOnly(mode) ? "new" : "all";
+                expect(applyModeFrom(scope, applyModeIsAutomatic(mode))).toBe(mode);
+            })
+        );
     });
 });
