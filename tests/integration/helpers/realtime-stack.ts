@@ -18,7 +18,7 @@ const NO_PREVIOUS_GRANT_ID = "00000000-0000-0000-0000-000000000000";
 
 export interface RealtimeStack {
     readonly supabaseUrl: string;
-    readonly anonKey: string;
+    readonly publishableKey: string;
     /** HS256 key the local Realtime server verifies with. Never log or serialize this. */
     readonly jwtSecret: string;
 }
@@ -67,11 +67,12 @@ export function requireRealtimeStack(): RealtimeStack {
     const environment = readLocalEnvironment();
     const supabaseUrl =
         process.env.NEXT_PUBLIC_SUPABASE_URL ?? environment.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey =
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? environment.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !anonKey) {
+    const publishableKey =
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+        environment.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    if (!supabaseUrl || !publishableKey) {
         throw new Error(
-            "Realtime security tests require NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY. " +
+            "Realtime security tests require NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY. " +
                 "`.env.local` is gitignored, so a fresh worktree does not have one: copy it from the repository " +
                 "root (`cp ../../.env.local .env.local`) or export both variables, then run `run db start`."
         );
@@ -82,7 +83,7 @@ export function requireRealtimeStack(): RealtimeStack {
             `Realtime security tests require the running local Supabase Realtime stack or a server-only SUPABASE_JWT_SECRET, but ${jwtSecret.reason}. Run \`run db start\`.`
         );
     }
-    return { supabaseUrl, anonKey, jwtSecret: jwtSecret.secret };
+    return { supabaseUrl, publishableKey, jwtSecret: jwtSecret.secret };
 }
 
 /**
@@ -279,7 +280,7 @@ export function openVaultOpsSocket(
     token: string,
     options: { readonly authorizationTimeoutMs?: number } = {}
 ): VaultOpsSocket {
-    const socketUrl = `${stack.supabaseUrl.replace(/^http/, "ws")}/realtime/v1/websocket?apikey=${stack.anonKey}&vsn=1.0.0`;
+    const socketUrl = `${stack.supabaseUrl.replace(/^http/, "ws")}/realtime/v1/websocket?apikey=${stack.publishableKey}&vsn=1.0.0`;
     const received: string[] = [];
     const authorization = Promise.withResolvers<boolean>();
     let settled = false;

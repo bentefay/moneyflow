@@ -70,7 +70,7 @@ function restUrl(path: string): string {
 }
 
 function authorizedHeaders(token: string, origin = HOSTILE_ORIGIN): Record<string, string> {
-    return { apikey: stack.anonKey, Authorization: `Bearer ${token}`, Origin: origin };
+    return { apikey: stack.publishableKey, Authorization: `Bearer ${token}`, Origin: origin };
 }
 
 function candidateVaultOpsUrl(ownVaultId: string, deniedVaultId: string): string {
@@ -160,7 +160,7 @@ describe("CORS does not gate the websocket upgrade", () => {
     }, 20_000);
 
     it("still denies an unauthorized socket, proving authorization is the real gate", async () => {
-        const socket = openVaultOpsSocket(stack, vaultId, stack.anonKey, {
+        const socket = openVaultOpsSocket(stack, vaultId, stack.publishableKey, {
             authorizationTimeoutMs: 5_000
         });
 
@@ -186,9 +186,10 @@ describe("the HTTP surface is CORS-permissive, so origin cannot be the boundary"
         expect(preflight.headers.get("access-control-allow-origin")).toBe("*");
     });
 
-    it("rejects the anon key alone despite that permissive CORS response", async () => {
+    it("rejects the publishable key alone despite that permissive CORS response", async () => {
+        // Publishable keys are not JWTs and belong only in the apikey header, never as a bearer.
         const response = await fetch(restUrl("vault_ops?select=id"), {
-            headers: authorizedHeaders(stack.anonKey)
+            headers: { apikey: stack.publishableKey, Origin: HOSTILE_ORIGIN }
         });
 
         expect(response.headers.get("access-control-allow-origin")).toBe("*");
@@ -420,7 +421,7 @@ describe("production transport configuration", () => {
             await expect(socket.authorized).resolves.toBe(true);
             // The token travels in the phx_join payload, never the query string.
             const socketUrl = new URL(
-                `${stack.supabaseUrl.replace(/^http/, "ws")}/realtime/v1/websocket?apikey=${stack.anonKey}&vsn=1.0.0`
+                `${stack.supabaseUrl.replace(/^http/, "ws")}/realtime/v1/websocket?apikey=${stack.publishableKey}&vsn=1.0.0`
             );
 
             expect(socketUrl.searchParams.has("access_token")).toBe(false);

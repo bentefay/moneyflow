@@ -79,7 +79,7 @@ async function withSetup<T>(
 ): Promise<T> {
     const names = [
         "NEXT_PUBLIC_SUPABASE_URL",
-        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
         "SUPABASE_JWT_SECRET"
     ] as const;
     const restored = names.map((name) => [name, process.env[name]] as const);
@@ -118,13 +118,13 @@ function symmetricJwks(secret: string): string {
 }
 
 describe("requireRealtimeStack resolves the local stack", () => {
-    it("reads the URL and anon key from .env.local and the key from the running container", async () => {
+    it("reads the URL and publishable key from .env.local and the key from the running container", async () => {
         const stack = await withSetup(
             {
                 envFile: [
                     "# comment",
                     "NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321",
-                    "NEXT_PUBLIC_SUPABASE_ANON_KEY=file-anon-key",
+                    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=file-publishable-key",
                     ""
                 ].join("\n"),
                 jwks: symmetricJwks(STACK_SECRET)
@@ -133,7 +133,7 @@ describe("requireRealtimeStack resolves the local stack", () => {
         );
 
         expect(stack.supabaseUrl).toBe("http://127.0.0.1:54321");
-        expect(stack.anonKey).toBe("file-anon-key");
+        expect(stack.publishableKey).toBe("file-publishable-key");
         expect(stack.jwtSecret).toBe(STACK_SECRET);
     });
 
@@ -142,7 +142,7 @@ describe("requireRealtimeStack resolves the local stack", () => {
             {
                 envFile: [
                     "NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321",
-                    "NEXT_PUBLIC_SUPABASE_ANON_KEY=file-anon-key"
+                    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=file-publishable-key"
                 ].join("\n"),
                 environment: {
                     NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:64321",
@@ -153,7 +153,7 @@ describe("requireRealtimeStack resolves the local stack", () => {
         );
 
         expect(stack.supabaseUrl).toBe("http://127.0.0.1:64321");
-        expect(stack.anonKey).toBe("file-anon-key");
+        expect(stack.publishableKey).toBe("file-publishable-key");
     });
 
     it("succeeds with no .env.local at all when the environment is complete", async () => {
@@ -161,14 +161,14 @@ describe("requireRealtimeStack resolves the local stack", () => {
             {
                 environment: {
                     NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
-                    NEXT_PUBLIC_SUPABASE_ANON_KEY: "inherited-anon-key",
+                    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "inherited-publishable-key",
                     SUPABASE_JWT_SECRET: INHERITED_SECRET
                 }
             },
             (helpers) => helpers.requireRealtimeStack()
         );
 
-        expect(stack.anonKey).toBe("inherited-anon-key");
+        expect(stack.publishableKey).toBe("inherited-publishable-key");
         expect(stack.jwtSecret).toBe(INHERITED_SECRET);
         // An inherited secret is authoritative, so no container is inspected for one.
         expect(processes.execFileSync).not.toHaveBeenCalled();
@@ -179,7 +179,7 @@ describe("requireRealtimeStack resolves the local stack", () => {
             {
                 environment: {
                     NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
-                    NEXT_PUBLIC_SUPABASE_ANON_KEY: "inherited-anon-key",
+                    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "inherited-publishable-key",
                     SUPABASE_JWT_SECRET: "too-short"
                 },
                 jwks: symmetricJwks(STACK_SECRET)
@@ -203,7 +203,7 @@ describe("requireRealtimeStack refuses an unusable setup with an actionable mess
         });
 
         expect(failure?.message).toContain("NEXT_PUBLIC_SUPABASE_URL");
-        expect(failure?.message).toContain("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+        expect(failure?.message).toContain("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
         expect(failure?.message).toContain(".env.local");
         expect(failure?.message).toContain("run db start");
         // The raw filesystem error is not what a developer needs to read here.
@@ -223,7 +223,7 @@ describe("requireRealtimeStack refuses an unusable setup with an actionable mess
             }
         );
 
-        expect(failure?.message).toContain("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+        expect(failure?.message).toContain("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
     });
 
     it("reports a missing stack key without echoing any secret material", async () => {
@@ -231,7 +231,7 @@ describe("requireRealtimeStack refuses an unusable setup with an actionable mess
             {
                 environment: {
                     NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
-                    NEXT_PUBLIC_SUPABASE_ANON_KEY: "inherited-anon-key"
+                    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "inherited-publishable-key"
                 },
                 jwks: JSON.stringify({ keys: [{ kty: "RSA", n: "not-symmetric" }] })
             },
@@ -257,7 +257,7 @@ describe("requireRealtimeStack refuses an unusable setup with an actionable mess
                 envFile: { code: "EACCES" },
                 environment: {
                     NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
-                    NEXT_PUBLIC_SUPABASE_ANON_KEY: "inherited-anon-key",
+                    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "inherited-publishable-key",
                     SUPABASE_JWT_SECRET: INHERITED_SECRET
                 }
             },

@@ -199,8 +199,8 @@ describe("live socket authorization", () => {
         }
     }, 20_000);
 
-    it("rejects a socket carrying only the public anon key", async () => {
-        await expect(subscriptionIsAuthorized(vaultId, stack.anonKey)).resolves.toBe(false);
+    it("rejects a socket carrying only the public publishable key", async () => {
+        await expect(subscriptionIsAuthorized(vaultId, stack.publishableKey)).resolves.toBe(false);
     }, 20_000);
 
     it("rejects a token whose signature has been tampered with", async () => {

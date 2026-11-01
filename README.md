@@ -52,9 +52,9 @@ cp .env.local.example .env.local
 # Start local Supabase (requires Docker)
 run db start
 
-# The above command outputs local credentials. Update .env.local with:
-# - NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-# - NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-local-anon-key>
+# .env.local.example already holds the local URL and publishable key. Set SUPABASE_SECRET_KEY to
+# the local secret key, printed by:
+#   docker exec supabase_kong_moneyflow grep -oE 'sb_secret_[A-Za-z0-9_-]+' /home/kong/kong.yml
 
 # Start Next.js dev server
 run dev
@@ -76,11 +76,11 @@ run db start
 ```
 
 Exported environment variables take precedence over the file, so CI can supply
-`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_JWT_SECRET` directly and
-skip the file entirely. When `SUPABASE_JWT_SECRET` is absent the helpers read the local Realtime
-container's symmetric key via `docker inspect`, which is why Docker must be running. If any of the
-three is missing the realtime suites fail with a message naming exactly what to supply; they never
-skip themselves silently.
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_JWT_SECRET`
+directly and skip the file entirely. When `SUPABASE_JWT_SECRET` is absent the helpers read the local
+Realtime container's symmetric key via `docker inspect`, which is why Docker must be running. If any
+of the three is missing the realtime suites fail with a message naming exactly what to supply; they
+never skip themselves silently.
 
 ### Running Tests
 

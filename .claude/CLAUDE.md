@@ -73,10 +73,10 @@
 
 `tests/integration/realtime-*.test.ts` run against the running local containers on purpose — they
 assert the deployed RLS and JWT boundary, which a mock cannot prove. They need `run db start` and
-either a `.env.local` or exported `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` /
-`SUPABASE_JWT_SECRET` (exported wins over the file). `.env.local` is gitignored, so **a fresh
-worktree must copy it from the main checkout** before these suites can run. They fail loudly with
-the missing variable named rather than skipping themselves.
+either a `.env.local` or exported `NEXT_PUBLIC_SUPABASE_URL` /
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_JWT_SECRET` (exported wins over the file).
+`.env.local` is gitignored, so **a fresh worktree must copy it from the main checkout** before these
+suites can run. They fail loudly with the missing variable named rather than skipping themselves.
 
 Their fixtures own rows in the shared local database, so:
 

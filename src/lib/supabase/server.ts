@@ -2,7 +2,7 @@
  * Supabase Server Client
  *
  * Creates a Supabase client for server-side operations.
- * Uses service role key for full database access.
+ * Uses a secret key, which bypasses RLS, for full database access.
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -15,7 +15,7 @@ let supabaseServer: SupabaseClient<Database> | null = null;
 /**
  * Get the Supabase server client (singleton).
  *
- * Uses service role key for server-side operations with full access.
+ * Uses a secret key for server-side operations with full access.
  */
 export async function createSupabaseClient(): Promise<SupabaseClient<Database>> {
     if (!supabaseServer) {
@@ -32,17 +32,17 @@ export async function createSupabaseClient(): Promise<SupabaseClient<Database>> 
  */
 export function createSupabaseClientFresh(): SupabaseClient<Database> {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
-    if (!supabaseUrl || !supabaseServiceKey) {
+    if (!supabaseUrl || !supabaseSecretKey) {
         throw new Error(
-            "Missing Supabase environment variables. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+            "Missing Supabase environment variables. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY."
         );
     }
 
     const secureSupabaseUrl = requireSecureSupabaseUrl(supabaseUrl, process.env.NODE_ENV);
 
-    return createClient<Database>(secureSupabaseUrl, supabaseServiceKey, {
+    return createClient<Database>(secureSupabaseUrl, supabaseSecretKey, {
         auth: {
             persistSession: false,
             autoRefreshToken: false

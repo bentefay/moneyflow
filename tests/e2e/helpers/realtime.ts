@@ -338,9 +338,9 @@ function localEnvironment(): Readonly<Record<string, string>> {
 export function createAdminClient() {
     const fallback = localEnvironment();
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? fallback.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? fallback.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !serviceKey) throw new Error("Supabase E2E fixture configuration is unavailable");
-    return createClient(url, serviceKey, {
+    const secretKey = process.env.SUPABASE_SECRET_KEY ?? fallback.SUPABASE_SECRET_KEY;
+    if (!url || !secretKey) throw new Error("Supabase E2E fixture configuration is unavailable");
+    return createClient(url, secretKey, {
         auth: { persistSession: false, autoRefreshToken: false }
     });
 }
