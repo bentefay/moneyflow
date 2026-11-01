@@ -673,7 +673,15 @@
             // Engine: the spec, simulated
             // ---------------------------------------------------------------------------------------------
             const condRank = (r) => (r.account ? 2 : 0) + (r.amount != null ? 1 : 0);
-            const reachRank = (r) => (r.reach.kind === "ids" ? 4 : 0);
+            const dayNumber = (d) => Math.floor(Date.parse(d + "T00:00:00Z") / 86400000);
+            // Reach is the most significant dimension: these transactions, then the latest from-date,
+            // then earlier from-dates, then all. Conditions decide within a tier and date.
+            const reachRank = (r) =>
+                r.reach.kind === "ids"
+                    ? 3e7
+                    : r.reach.kind === "from"
+                      ? 1e7 + dayNumber(r.reach.date) * 10
+                      : 0;
             const rank = (r) => reachRank(r) + condRank(r);
             const matches = (r, t) =>
                 r.text === t.text &&
@@ -694,13 +702,13 @@
                 );
             }
             function agrees(r, t, field) {
-                if (field === "alias") return t.alias === r.outputs.alias;
+                if (field === "alias") return (t.alias ?? "") === r.outputs.alias;
                 if (field === "tags") return r.outputs.tags.tags.every((x) => t.tags.includes(x));
                 return PEOPLE.every((p) => t.alloc[p] === r.outputs.alloc[p]);
             }
             function applyOutput(t, field, out) {
                 const n = { ...t, tags: [...t.tags], alloc: { ...t.alloc } };
-                if (field === "alias") n.alias = out;
+                if (field === "alias") n.alias = out || null;
                 if (field === "tags")
                     n.tags =
                         out.mode === "set" ? [...out.tags] : [...new Set([...t.tags, ...out.tags])];
@@ -741,7 +749,8 @@
                 ].join(" · ");
             function valueLabel(field, v) {
                 if (v == null) return "—";
-                if (field === "alias") return "rename to “" + v + "”";
+                if (field === "alias")
+                    return v === "" ? "clear the alias" : "rename to “" + v + "”";
                 if (field === "tags")
                     return (
                         (v.mode === "set" ? "set " : "add ") +
@@ -763,13 +772,18 @@
                 ).join(" / ");
             }
             // Uniqueness: one rule per field per conditions slot per reach kind; ids rules must be disjoint.
+            // Uniqueness per field and conditions slot: one all rule, one from rule per date, and
+            // explicit-set rules with disjoint sets.
             function collision(rules, candidate, field, excludeId) {
-                const group = (k) => (k === "ids" ? "ids" : "wide");
                 for (const r of rules) {
                     if (r.id === excludeId || r.outputs[field] == null || !sameConds(r, candidate))
                         continue;
-                    if (group(r.reach.kind) !== group(candidate.reach.kind)) continue;
-                    if (candidate.reach.kind !== "ids") return r;
+                    if (r.reach.kind !== candidate.reach.kind) continue;
+                    if (candidate.reach.kind === "all") return r;
+                    if (candidate.reach.kind === "from") {
+                        if (r.reach.date === candidate.reach.date) return r;
+                        continue;
+                    }
                     for (const id of candidate.reach.ids) if (r.reach.ids.has(id)) return r;
                 }
                 return null;
@@ -856,12 +870,12 @@
                 [
                     "E6",
                     "Click row <strong>B</strong>. On R1's card choose <em>All</em> and Save.",
-                    "Allowed. I1 gets <code>work</code>. Row A still shows only <code>home</code>: R2 outranks R1 for A, and A is not orange."
+                    "I1 gets <code>work</code>. Row A still shows only <code>home</code>: R2 outranks R1 for A."
                 ],
                 [
                     "E7",
                     "On row <strong>C</strong>, untick <code>work</code>, press Enter.",
-                    "C is governed by R1 and differs: orange, with Apply to this transaction."
+                    "A one-row rule for C: a copy of R1's tags without <code>work</code>. C is not orange. With reach <em>this transaction only</em> nothing else changes."
                 ],
                 [
                     "E8",
@@ -871,11 +885,11 @@
                 [
                     "E9",
                     "On row <strong>A</strong>, untick everything, press Enter.",
-                    "R2 is deleted. R1 now governs A, so A shows as divergent until reapplied."
+                    "R2 becomes <em>add nothing</em>. A stays empty and is not orange."
                 ],
                 [
                     "E10",
-                    "On row <strong>I1</strong>, tick <code>food</code>, press Enter, keep <em>Only this transaction</em>, then Delete I1.",
+                    "On row <strong>I1</strong>, tick <code>food</code>, press Enter, then Delete I1.",
                     "I1's one-row rule has no transaction left, so it is garbage collected."
                 ],
                 [
@@ -885,8 +899,8 @@
                 ],
                 [
                     "E12",
-                    "Find a card with two outputs and Split one out.",
-                    "Both rules keep the same reach; no row changes."
+                    "Click row <strong>B</strong>. On the Coffee rule's card choose <em>Add to R1</em>, then on R1's card Split <em>Description</em> out.",
+                    "Adding the alias to R1 renames every row R1 covers. Splitting it back out keeps both rules on the same reach and changes no row."
                 ],
                 [
                     "E13",
@@ -896,17 +910,17 @@
                 [
                     "E14",
                     "Set reach to <em>all matching</em> and automatic on. On row <strong>I2</strong>, tick <code>coffee</code>, press Enter, then click another row.",
-                    "A one-row rule appears on Enter. As the row changes it runs the default: every COFFEE SHOP 123 row without <code>coffee</code> gains it; rows that had it are untouched."
+                    "R1 itself gains <code>coffee</code>, and every row it governs gains it. A and C keep their own rules."
                 ],
                 [
                     "E15",
-                    "With automatic on, change row <strong>C</strong>'s tags, press Enter, then click another row.",
-                    "On Enter a one-row exception appears with the default <em>Update R1</em>. As the row changes, R1 is replaced across its reach where values differ and the exception folds in. Choosing <em>Only this transaction</em> first keeps the exception."
+                    "Set reach to <em>from this date</em>, automatic on. On row <strong>I2</strong>, untick <code>work</code>, press Enter, click another row. Then import a row dated 20 Aug.",
+                    "A from-10-Aug version of R1 without <code>work</code> takes over from I2 onward. The 20 Aug import gets <code>coffee</code> but not <code>work</code>; B keeps R1."
                 ],
                 [
                     "E16",
-                    "Make exceptions on rows <strong>A</strong> and <strong>C</strong> (tick <code>food</code>, keep <em>Only this transaction</em>, leave the row). Then on row <strong>B</strong> tick <code>coffee</code>, press Enter, tick <em>Also replace 2 exceptions</em>, Apply now.",
-                    "R1 is updated across its reach, both exceptions are deleted in the same action and their rows take the new value."
+                    "Set reach to <em>all matching</em>, automatic off. On row <strong>B</strong>, tick <code>home</code>, press Enter, tick <em>Also replace N exceptions</em>, Apply now.",
+                    "R1 gains <code>home</code> across its reach; the exceptions on A and C are deleted in the same action and their rows take R1's value."
                 ]
             ];
 
@@ -930,7 +944,10 @@
                         return false;
                     }
                     const f = outputFields(r)[0];
-                    if (outputFields(r).length === 1 && !S.pending[r.id]) {
+                    if (
+                        outputFields(r).length === 1 &&
+                        !Object.values(S.pending).some((p) => p.ruleId === r.id)
+                    ) {
                         const redundant = ids.every((id) => {
                             const t = S.transactions.find((x) => x.id === id);
                             const w = S.rules
@@ -952,7 +969,8 @@
                     return true;
                 });
                 for (const id of removed) {
-                    delete S.pending[id];
+                    for (const [k, v] of Object.entries(S.pending))
+                        if (v.ruleId === id) delete S.pending[k];
                     delete S.drafts[id];
                     if (S.selectedRule === id) S.selectedRule = null;
                 }
@@ -965,6 +983,8 @@
                 );
             const importedOn = (date) =>
                 S.transactions.find((t) => t.id.startsWith("I") && t.date === date);
+            const wideTagsRule = (kind) =>
+                S.rules.find((r) => r.reach.kind === kind && r.outputs.tags);
             const DONE_WHEN = {
                 E1: () => {
                     const r = idsRuleFor("B");
@@ -974,9 +994,7 @@
                     const r = idsRuleFor("A");
                     return r != null && r.outputs.tags.tags.includes("home");
                 },
-                E3: () =>
-                    S.rules.some((r) => r.reach.kind === "from" && r.outputs.tags) &&
-                    (tagsOf("C") ?? []).includes("work"),
+                E3: () => wideTagsRule("from") != null && (tagsOf("C") ?? []).includes("work"),
                 E4: () => {
                     const t = importedOn("2026-06-01");
                     return t != null && t.tags.length === 0;
@@ -986,28 +1004,57 @@
                     return t != null && t.tags.includes("work");
                 },
                 E6: () =>
-                    S.rules.some((r) => r.reach.kind === "all" && r.outputs.tags) &&
+                    wideTagsRule("all") != null &&
                     (tagsOf("A") ?? []).includes("home") &&
                     !(tagsOf("A") ?? []).includes("work"),
                 E7: () => {
+                    const r = idsRuleFor("C");
                     const t = S.transactions.find((x) => x.id === "C");
-                    const w = t && winner(S.rules, t, "tags");
-                    return w != null && !agrees(w, t, "tags");
+                    return (
+                        S.done.has("E6") &&
+                        r != null &&
+                        !r.outputs.tags.tags.includes("work") &&
+                        t &&
+                        !t.tags.includes("work") &&
+                        agrees(r, t, "tags")
+                    );
                 },
                 E8: () => {
                     const r = idsRuleFor("A");
                     return r != null && r.outputs.tags.tags.includes("food");
                 },
-                E9: () =>
-                    S.done.has("E8") && idsRuleFor("A") == null && (tagsOf("A") ?? []).length === 0,
+                E9: () => {
+                    const r = idsRuleFor("A");
+                    return (
+                        S.done.has("E8") &&
+                        r != null &&
+                        r.outputs.tags.tags.length === 0 &&
+                        (tagsOf("A") ?? []).length === 0
+                    );
+                },
                 E10: () => S.events.has("deletedImport") && importedOn("2026-06-01") == null,
                 E11: () => S.events.has("offerC"),
                 E12: () => S.events.has("split"),
                 E13: () => S.events.has("pageCreate"),
-                E14: () =>
-                    S.events.has("autoWiden") ||
-                    (S.events.has("autoUpdate") && S.prefs.reach === "all"),
-                E15: () => S.events.has("autoUpdate"),
+                E14: () => {
+                    const r = wideTagsRule("all");
+                    return (
+                        S.events.has("autoUpdate") &&
+                        r != null &&
+                        r.outputs.tags.tags.includes("coffee") &&
+                        (tagsOf("B") ?? []).includes("coffee")
+                    );
+                },
+                E15: () => {
+                    const t = importedOn("2026-08-20");
+                    return (
+                        S.events.has("autoFrom") &&
+                        t != null &&
+                        t.tags.includes("coffee") &&
+                        !t.tags.includes("work") &&
+                        (tagsOf("B") ?? []).includes("work")
+                    );
+                },
                 E16: () => S.events.has("override")
             };
             function checkDone() {
@@ -1095,27 +1142,39 @@
             }
 
             // The default that will run when the row changes (or Apply is pressed) for a one-row rule.
-            function defaultActionFor(r, t) {
+            // The wide rule (not the one-row rule) that governs this field on the row, if any.
+            function governingWide(r, t) {
                 const f = outputFields(r)[0];
-                const wide = S.rules
-                    .filter(
-                        (x) =>
-                            x.id !== r.id &&
-                            x.reach.kind !== "ids" &&
-                            sameConds(x, r) &&
-                            governs(x, t)
-                    )
-                    .sort((a, b) => rank(b) - rank(a));
-                const owner = wide.find((x) => x.outputs[f] != null),
-                    host = wide.find((x) => x.outputs[f] == null);
-                if (owner || host)
-                    return { kind: "update", host: owner ?? host, adds: owner == null };
-                if (S.prefs.reach === "ids") return null;
-                return {
-                    kind: "widen",
-                    reach:
-                        S.prefs.reach === "all" ? { kind: "all" } : { kind: "from", date: t.date }
-                };
+                return (
+                    S.rules
+                        .filter(
+                            (x) =>
+                                x.id !== r.id &&
+                                x.reach.kind !== "ids" &&
+                                x.outputs[f] != null &&
+                                governs(x, t)
+                        )
+                        .sort((a, b) => rank(b) - rank(a))[0] ?? null
+                );
+            }
+            // The edit applied to a rule's output: tags keep the rule's mode and gain/lose what the user
+            // added/removed; alias and allocation take the new value.
+            function transformOutput(field, base, edit) {
+                if (field !== "tags") return edit.value;
+                if (base == null) return { mode: "add", tags: [...edit.value.tags] };
+                const tags = base.tags.filter((x) => !edit.removed.includes(x));
+                for (const x of edit.added) if (!tags.includes(x)) tags.push(x);
+                return { mode: base.mode, tags };
+            }
+            // What the chosen reach does for a one-row rule created or updated by an edit on row t.
+            function defaultActionFor(r, t, choice = S.pending[r.id]?.choice ?? S.prefs.reach) {
+                if (choice === "ids") return null;
+                const g = governingWide(r, t);
+                if (choice === "all")
+                    return g
+                        ? { kind: "update", host: g }
+                        : { kind: "widen", reach: { kind: "all" } };
+                return { kind: "widen", reach: { kind: "from", date: t.date }, over: g };
             }
             function coveredExceptions(rule, reach, f, excludeId) {
                 const probe = { ...rule, reach };
@@ -1154,7 +1213,8 @@
                 const cov = coveredExceptions(rule, reach, f, excludeId);
                 S.rules = S.rules.filter((x) => !cov.exceptions.includes(x));
                 for (const x of cov.exceptions) {
-                    delete S.pending[x.id];
+                    for (const [k, v] of Object.entries(S.pending))
+                        if (v.ruleId === x.id) delete S.pending[k];
                     delete S.drafts[x.id];
                 }
                 S.override = false;
@@ -1162,87 +1222,203 @@
             }
             function actionLabel(r, a) {
                 const f = outputFields(r)[0];
+                const pend = Object.values(S.pending).find((p) => p.ruleId === r.id);
+                const plural = (n) => n + " transaction" + (n === 1 ? "" : "s") + " change";
                 if (a.kind === "update") {
-                    const n = populationUnder(
-                        { ...a.host, outputs: { ...a.host.outputs, [f]: r.outputs[f] } },
-                        a.host.reach,
-                        S.transactions,
-                        f
-                    ).length;
+                    const out = pend
+                        ? transformOutput(f, a.host.outputs[f], pend.edit)
+                        : r.outputs[f];
                     return (
-                        (a.adds ? "Add " + fieldLabel(f).toLowerCase() + " to " : "Update ") +
+                        "Edit " +
                         a.host.id +
                         " · " +
-                        n +
-                        " transaction" +
-                        (n === 1 ? "" : "s") +
-                        " change"
+                        plural(
+                            rowsChangedBy(
+                                { ...a.host, outputs: { ...a.host.outputs, [f]: out } },
+                                a.host.reach,
+                                f,
+                                pend?.edit,
+                                r.id
+                            ).length
+                        )
                     );
                 }
-                const n = populationUnder(r, a.reach, S.transactions, f).length;
+                const n = rowsChangedBy(r, a.reach, f, pend?.edit, null).length;
                 return (
                     (a.reach.kind === "all"
-                        ? "Widen to all matching"
-                        : "Widen to from " + fmtDate(a.reach.date) + " onward") +
+                        ? "All matching"
+                        : "From " +
+                          fmtDate(a.reach.date) +
+                          " onward" +
+                          (a.over ? " · " + a.over.id + " keeps earlier rows" : "")) +
                     " · " +
-                    n +
-                    " transaction" +
-                    (n === 1 ? "" : "s") +
-                    " change"
+                    plural(n)
                 );
+            }
+            // Rows the rule would govern and win under a reach whose value would actually change,
+            // propagating the edit (removed tags come off as well).
+            function rowsChangedBy(rule, reach, f, edit, dropId) {
+                const probe = { ...rule, reach };
+                const rules = [
+                    ...S.rules.filter((x) => x.id !== rule.id && x.id !== dropId),
+                    probe
+                ];
+                return S.transactions.filter(
+                    (t) =>
+                        winner(rules, t, f) === probe &&
+                        (!agrees(probe, t, f) ||
+                            (f === "tags" && edit && edit.removed.some((x) => t.tags.includes(x))))
+                );
+            }
+            function applyEdit(t, f, out, edit) {
+                let n = applyOutput(t, f, out);
+                if (f === "tags" && edit)
+                    n = {
+                        ...n,
+                        tags: n.tags.filter(
+                            (x) => !edit.removed.includes(x) || out.tags.includes(x)
+                        )
+                    };
+                return n;
             }
             function runAction(r, a) {
                 const f = outputFields(r)[0];
+                const pend = Object.values(S.pending).find((p) => p.ruleId === r.id) ?? {
+                    edit: null
+                };
+                const edit = pend.edit;
+                for (const [k, v] of Object.entries(S.pending))
+                    if (v.ruleId === r.id) delete S.pending[k];
                 if (a.kind === "update") {
+                    const host = a.host;
+                    const out = edit ? transformOutput(f, host.outputs[f], edit) : r.outputs[f];
                     dropCoveredExceptions(
-                        { ...a.host, outputs: { ...a.host.outputs, [f]: r.outputs[f] } },
-                        a.host.reach,
+                        { ...host, outputs: { ...host.outputs, [f]: out } },
+                        host.reach,
                         f,
                         r.id
                     );
-                    return fold(r, a.host, true);
+                    S.rules = S.rules.filter((x) => x !== r);
+                    delete S.drafts[r.id];
+                    const before = { ...host, outputs: { ...host.outputs } };
+                    if (f === "tags" && out.tags.length === 0 && out.mode === "add")
+                        delete host.outputs[f];
+                    else host.outputs[f] = out;
+                    if (outputFields(host).length === 0)
+                        S.rules = S.rules.filter((x) => x !== host);
+                    const changed = rowsChangedBy(
+                        { ...before, outputs: { ...before.outputs, [f]: out } },
+                        host.reach,
+                        f,
+                        edit,
+                        null
+                    );
+                    for (const t of changed) setRow(t.id, (x) => applyEdit(x, f, out, edit));
+                    S.events.add("autoUpdate");
+                    toast(
+                        "Edited " +
+                            host.id +
+                            ": " +
+                            changed.length +
+                            " transaction" +
+                            (changed.length === 1 ? "" : "s") +
+                            " changed; the one-row rule folded in."
+                    );
+                    return;
+                }
+                const holder = collision(S.rules, { ...r, reach: a.reach }, f, r.id);
+                if (holder) {
+                    pend.edit = edit;
+                    return runAction(r, { kind: "update", host: holder });
                 }
                 dropCoveredExceptions(r, a.reach, f, null);
-                const d = draftFor(r);
-                d.reach = cloneReach(a.reach);
-                return saveReach(r, true);
+                const changed = rowsChangedBy(r, a.reach, f, edit, null);
+                r.reach = cloneReach(a.reach);
+                delete S.drafts[r.id];
+                for (const t of changed) setRow(t.id, (x) => applyEdit(x, f, r.outputs[f], edit));
+                S.events.add(a.reach.kind === "from" ? "autoFrom" : "autoWiden");
+                toast(
+                    "Saved " +
+                        r.id +
+                        ": now " +
+                        reachLabel(r, S.transactions) +
+                        "; " +
+                        changed.length +
+                        " transaction" +
+                        (changed.length === 1 ? "" : "s") +
+                        " changed."
+                );
             }
+            // Called whenever the active row changes away from `rowId`.
             // Called whenever the active row changes away from `rowId`.
             function leaveRow(rowId) {
                 S.override = false;
-                for (const [ruleId, pend] of Object.entries(S.pending)) {
+                for (const [key, pend] of Object.entries(S.pending)) {
                     if (pend.rowId !== rowId) continue;
-                    const r = ruleById(ruleId);
-                    if (!r) {
-                        delete S.pending[ruleId];
-                        continue;
-                    }
-                    if (pend.choice === "only") {
-                        delete S.pending[ruleId];
+                    const r = ruleById(pend.ruleId);
+                    if (!r || pend.choice === "ids") {
+                        delete S.pending[key];
                         continue;
                     }
                     if (!S.prefs.autoApply) continue;
                     const t = S.transactions.find((x) => x.id === rowId);
-                    const a = t ? defaultActionFor(r, t) : null;
-                    delete S.pending[ruleId];
+                    const a = t ? defaultActionFor(r, t, pend.choice) : null;
                     if (a) runAction(r, a);
+                    else delete S.pending[key];
                 }
             }
 
             // What committing the current draft would do. Pure.
             function previewForEdit(t, field, draft) {
+                const plan = planEdit(t, field, draft);
+                if (plan.kind === "none")
+                    return { text: "Clears the value. No rule governs it, so no rule is needed." };
+                const probe = plan.own
+                    ? { ...plan.own, outputs: { [field]: plan.output } }
+                    : mkRule({
+                          id: "?",
+                          outputs: { [field]: plan.output },
+                          reach: { kind: "ids", ids: new Set([t.id]) }
+                      });
+                const first =
+                    (plan.own
+                        ? "Updates this transaction's rule " + plan.own.id
+                        : "Creates a rule for this transaction") +
+                    " (" +
+                    valueLabel(field, plan.output) +
+                    ")";
+                const a = defaultActionFor(probe, t, S.prefs.reach);
+                if (!a) return { text: first + ". Nothing else changes." };
+                const label =
+                    a.kind === "update"
+                        ? "edits " + a.host.id
+                        : a.reach.kind === "all"
+                          ? "widens to all matching"
+                          : "takes over from " + fmtDate(t.date) + " onward";
+                return {
+                    text:
+                        first +
+                        "; " +
+                        (S.prefs.autoApply
+                            ? "when you leave the row it "
+                            : "the card offers: it ") +
+                        label +
+                        "."
+                };
+            }
+            // Plan an edit on row t: the one-row rule's new output is the edit applied to the rule that
+            // governed the field, or the plain new value when none did.
+            function planEdit(t, field, draft) {
                 const value =
                     field === "alias"
-                        ? draft || null
+                        ? draft || ""
                         : field === "tags"
                           ? { mode: "add", tags: [...draft.tags] }
                           : { ...draft };
-                const cleared =
-                    field === "alias"
-                        ? value == null
-                        : field === "tags"
-                          ? value.tags.length === 0
-                          : PEOPLE.every((p) => value[p] == null);
+                const added = field === "tags" ? value.tags.filter((x) => !t.tags.includes(x)) : [];
+                const removed =
+                    field === "tags" ? t.tags.filter((x) => !value.tags.includes(x)) : [];
+                const edit = { value, added, removed };
                 const own = S.rules.find(
                     (r) =>
                         r.outputs[field] != null &&
@@ -1250,30 +1426,21 @@
                         r.reach.ids.has(t.id) &&
                         matches(r, t)
                 );
-                if (cleared)
-                    return {
-                        text: own
-                            ? "Clears the value and deletes this transaction's rule " + own.id + "."
-                            : "Clears the value. Clearing never creates a rule."
-                    };
-                const probe = own
-                    ? { ...own, outputs: { ...own.outputs, [field]: value } }
-                    : mkRule({
-                          id: "?",
-                          outputs: { [field]: value },
-                          reach: { kind: "ids", ids: new Set([t.id]) }
-                      });
-                const a = defaultActionFor(probe, t);
-                const then =
-                    a == null
-                        ? ""
-                        : S.prefs.autoApply
-                          ? ", then " +
-                            actionLabel(probe, a).toLowerCase() +
-                            " when you leave the row"
-                          : "; the card will offer: " + actionLabel(probe, a).toLowerCase();
-                if (own) return { text: "Updates this transaction's rule " + own.id + then + "." };
-                return { text: "Creates a rule for this transaction" + then + "." };
+                const base = winner(S.rules, t, field);
+                const cleared =
+                    field === "alias"
+                        ? value === ""
+                        : field === "tags"
+                          ? value.tags.length === 0
+                          : PEOPLE.every((p) => value[p] == null);
+                if (!base && cleared) return { kind: "none", edit };
+                return {
+                    kind: "rule",
+                    own,
+                    base,
+                    edit,
+                    output: transformOutput(field, base?.outputs[field], edit)
+                };
             }
             function renderInspector() {
                 const t = activeTx();
@@ -1362,7 +1529,7 @@
                     })
                     .join("");
                 // Fold offer: this is a one-row rule and a wider identical-conditions rule also governs the row.
-                const pend = S.pending[r.id];
+                const pend = Object.values(S.pending).find((p) => p.ruleId === r.id);
                 let fold = "";
                 if (t && r.reach.kind === "ids" && !pend) {
                     const sameSet = (x) =>
@@ -1397,51 +1564,46 @@
     ${pend ? renderPendingPanel(r, t, pend) : fold}
     <div class="group"><span class="eyebrow">Outputs</span>${badges}</div>
     ${pend ? "" : renderReachControl(r, d, t)}
-    <div class="actions">${pend ? h`<button class="btn primary" type="button" data-act="apply-now" data-rule="${r.id}" ${pend.choice === "only" ? "disabled" : ""}>Apply now</button>` : h`<button class="btn primary" type="button" data-act="save" data-rule="${r.id}">Save</button><button class="btn" type="button" data-act="cancel" data-rule="${r.id}">Cancel</button>`}<span class="spacer"></span><button class="btn danger" type="button" data-act="delete-rule" data-rule="${r.id}">Delete rule</button></div>
+    <div class="actions">${pend ? h`<button class="btn primary" type="button" data-act="apply-now" data-rule="${r.id}" ${pend.choice === "ids" ? "disabled" : ""}>Apply now</button>` : h`<button class="btn primary" type="button" data-act="save" data-rule="${r.id}">Save</button><button class="btn" type="button" data-act="cancel" data-rule="${r.id}">Cancel</button>`}<span class="spacer"></span><button class="btn danger" type="button" data-act="delete-rule" data-rule="${r.id}">Delete rule</button></div>
   </div>`;
             }
             function renderPendingPanel(r, t, pend) {
                 const f = outputFields(r)[0];
-                const a = defaultActionFor(r, t);
-                const widen = (kind) => {
-                    const reach = kind === "all" ? { kind: "all" } : { kind: "from", date: t.date };
-                    const n = populationUnder(r, reach, S.transactions, f).length;
-                    return (
-                        (kind === "all"
-                            ? "Widen to all matching"
-                            : "Widen to from " + fmtDate(t.date) + " onward") +
-                        " · " +
-                        n +
-                        " change"
-                    );
-                };
-                const update = a && a.kind === "update" ? a : null;
-                const opt = (value, label, checked) =>
-                    h`<label class="radio"><input type="radio" name="pend-${r.id}" value="${value}" data-pend-choice ${checked ? "checked" : ""}><span>${label}</span></label>`;
-                const choice = pend.choice === "only" ? "only" : update ? "update" : S.prefs.reach;
+                const g = governingWide(r, t);
+                const opt = (value, label) =>
+                    h`<label class="radio"><input type="radio" name="pend-${r.id}" value="${value}" data-pend-choice ${pend.choice === value ? "checked" : ""}><span>${label}</span></label>`;
+                const fromA = defaultActionFor(r, t, "from"),
+                    allA = defaultActionFor(r, t, "all");
+                const cov =
+                    pend.choice === "ids"
+                        ? null
+                        : pend.choice === "all" && allA.kind === "update"
+                          ? coveredExceptions(
+                                {
+                                    ...g,
+                                    outputs: {
+                                        ...g.outputs,
+                                        [f]: transformOutput(f, g.outputs[f], pend.edit)
+                                    }
+                                },
+                                g.reach,
+                                f,
+                                r.id
+                            )
+                          : coveredExceptions(
+                                r,
+                                pend.choice === "all"
+                                    ? { kind: "all" }
+                                    : { kind: "from", date: t.date },
+                                f,
+                                null
+                            );
                 return h`<div class="panel" role="group" aria-label="When you leave this row"><span class="eyebrow">${S.prefs.autoApply ? "When you leave this row" : "Waiting for Apply"}</span>
-    ${update ? opt("update", actionLabel(r, update), choice === "update") : ""}
-    ${update ? "" : opt("from", widen("from"), choice === "from")}
-    ${update ? "" : opt("all", widen("all"), choice === "all")}
-    ${opt("only", "Only this transaction · nothing else changes", choice === "only")}
-    ${(() => {
-        if (choice === "only") return "";
-        const cov = update
-            ? coveredExceptions(
-                  { ...update.host, outputs: { ...update.host.outputs, [f]: r.outputs[f] } },
-                  update.host.reach,
-                  f,
-                  r.id
-              )
-            : coveredExceptions(
-                  r,
-                  choice === "all" ? { kind: "all" } : { kind: "from", date: t.date },
-                  f,
-                  null
-              );
-        return overrideLine(cov);
-    })()}
-    <label class="check"><input type="checkbox" data-pref-auto ${S.prefs.autoApply ? "checked" : ""}><span>Apply automatically when I leave the row<span class="hint">Remembered. Entering the inspector does not count as leaving. Only rows whose values would change are written.</span></span></label>
+    ${opt("ids", "Only this transaction · nothing else changes")}
+    ${opt("from", actionLabel(r, fromA))}
+    ${opt("all", actionLabel(r, allA))}
+    ${cov ? overrideLine(cov) : ""}
+    <label class="check"><input type="checkbox" data-pref-auto ${S.prefs.autoApply ? "checked" : ""}><span>Apply automatically when I leave the row<span class="hint">Remembered, as is the reach. Entering the inspector does not count as leaving. Only rows whose values would change are written.</span></span></label>
   </div>`;
             }
 
@@ -1515,65 +1677,48 @@
             function commitEdit() {
                 const { id, field, draft } = S.editing;
                 const t = S.transactions.find((x) => x.id === id);
-                const value =
-                    field === "alias"
-                        ? draft || null
-                        : field === "tags"
-                          ? { mode: "add", tags: [...draft.tags] }
-                          : { ...draft };
-                const cleared =
-                    field === "alias"
-                        ? value == null
-                        : field === "tags"
-                          ? value.tags.length === 0
-                          : PEOPLE.every((p) => value[p] == null);
+                const plan = planEdit(t, field, draft);
                 setRow(id, (x) => {
                     const n = { ...x, tags: [...x.tags], alloc: { ...x.alloc } };
-                    if (field === "alias") n.alias = value;
-                    if (field === "tags") n.tags = [...value.tags];
-                    if (field === "alloc") n.alloc = { ...value };
+                    if (field === "alias") n.alias = plan.edit.value || null;
+                    if (field === "tags") n.tags = [...plan.edit.value.tags];
+                    if (field === "alloc") n.alloc = { ...plan.edit.value };
                     return n;
                 });
-                const own = S.rules.find(
-                    (r) =>
-                        r.outputs[field] != null &&
-                        r.reach.kind === "ids" &&
-                        r.reach.ids.has(id) &&
-                        matches(r, t)
-                );
-                if (cleared) {
-                    if (own) {
-                        S.rules = S.rules.filter((r) => r !== own);
-                        delete S.pending[own.id];
-                        toast("Value cleared and this transaction's rule " + own.id + " deleted.");
-                    } else toast("Value cleared. Clearing never creates a rule.");
-                } else if (own) {
-                    own.outputs[field] = value;
-                    S.pending[own.id] = {
-                        rowId: id,
-                        choice: defaultActionFor(own, t) ? "default" : "only"
-                    };
-                    toast("Updated " + own.id + " for this transaction.");
-                } else {
-                    const r = mkRule({
-                        outputs: { [field]: value },
+                if (plan.kind === "none") {
+                    toast("Value cleared. No rule governed it, so no rule is needed.");
+                    S.editing = null;
+                    return render();
+                }
+                let r = plan.own;
+                if (r) r.outputs[field] = plan.output;
+                else {
+                    r = mkRule({
+                        outputs: { [field]: plan.output },
                         reach: { kind: "ids", ids: new Set([id]) }
                     });
                     S.rules.push(r);
-                    const a = defaultActionFor(r, t);
-                    S.pending[r.id] = { rowId: id, choice: a ? "default" : "only" };
-                    toast(
-                        "Created rule " +
-                            r.id +
-                            " for this transaction" +
-                            (a
-                                ? S.prefs.autoApply
-                                    ? "; when you leave the row: " + actionLabel(r, a).toLowerCase()
-                                    : "; the card offers: " + actionLabel(r, a).toLowerCase()
-                                : " only") +
-                            "."
-                    );
                 }
+                S.pending["p" + r.id] = {
+                    ruleId: r.id,
+                    rowId: id,
+                    choice: S.prefs.reach,
+                    edit: plan.edit
+                };
+                const a = defaultActionFor(r, t, S.prefs.reach);
+                toast(
+                    (plan.own ? "Updated " : "Created rule ") +
+                        r.id +
+                        " for this transaction (" +
+                        valueLabel(field, plan.output) +
+                        ")" +
+                        (a
+                            ? (S.prefs.autoApply
+                                  ? "; when you leave the row: "
+                                  : "; the card offers: ") + actionLabel(r, a).toLowerCase()
+                            : "") +
+                        "."
+                );
                 S.editing = null;
                 render();
             }
@@ -1623,7 +1768,8 @@
                 const newly = S.transactions.filter((t) => governs(probe, t) && !governs(r, t));
                 r.reach = d.reach;
                 delete S.drafts[r.id];
-                delete S.pending[r.id];
+                for (const [k, v] of Object.entries(S.pending))
+                    if (v.ruleId === r.id) delete S.pending[k];
                 const changed = newly.filter((t) =>
                     outputFields(r).some((f) => winner(S.rules, t, f) === r && !agrees(r, t, f))
                 );
@@ -1649,7 +1795,8 @@
                 host.outputs[f] = oneRow.outputs[f];
                 S.rules = S.rules.filter((r) => r !== oneRow);
                 delete S.drafts[oneRow.id];
-                delete S.pending[oneRow.id];
+                for (const [k, v] of Object.entries(S.pending))
+                    if (v.ruleId === oneRow.id) delete S.pending[k];
                 const pop = governedBy(host, S.transactions).filter(
                     (t) => winner(S.rules, t, f) === host && !agrees(host, t, f)
                 );
@@ -1678,7 +1825,8 @@
                 render();
             }
             function importRow(date) {
-                const id = "I" + (S.transactions.filter((t) => t.id.startsWith("I")).length + 1);
+                S.importCount = (S.importCount ?? 0) + 1;
+                const id = "I" + S.importCount;
                 let t = tx(id, date, "A", -450);
                 const applied = [];
                 for (const f of FIELDS) {
@@ -1870,12 +2018,9 @@
                     return render();
                 }
                 if (el.dataset.pendChoice != null && r) {
-                    const pend = S.pending[r.id];
-                    if (el.value === "only") pend.choice = "only";
-                    else {
-                        pend.choice = "default";
-                        if (el.value === "from" || el.value === "all") S.prefs.reach = el.value;
-                    }
+                    const pend = Object.values(S.pending).find((p) => p.ruleId === r.id);
+                    pend.choice = el.value;
+                    S.prefs.reach = el.value;
                     return render();
                 }
             });
@@ -1910,14 +2055,11 @@
                     return render();
                 }
                 if (a === "apply-now") {
-                    const pend = S.pending[r.id];
-                    const action = defaultActionFor(r, t);
-                    if (!action || pend.choice === "only") {
-                        delete S.pending[r.id];
-                        return render();
-                    }
-                    delete S.pending[r.id];
-                    runAction(r, action);
+                    const pend = Object.values(S.pending).find((p) => p.ruleId === r.id);
+                    const action = pend ? defaultActionFor(r, t, pend.choice) : null;
+                    if (action) runAction(r, action);
+                    for (const [k, v] of Object.entries(S.pending))
+                        if (v.ruleId === r.id) delete S.pending[k];
                     return render();
                 }
                 if (a === "fold") return fold(r, ruleById(b.dataset.host));
