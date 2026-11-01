@@ -44,27 +44,21 @@ rule matches changes.
 
 ### 2.1 Precedence gains one dimension
 
-Today the most specific conditions win per field: text, then text plus amount, then text plus
-account, then both. Reach is added as the most significant dimension above conditions:
+Today the most specific conditions win per field. Reach is added as the most significant dimension
+above conditions, and it behaves like a timeline:
 
-1. A rule with an explicit transaction set beats any rule with a date or all reach, for the rows in
-   its set.
-2. Among rules with the same reach kind, conditions decide as today.
-3. Ties remain broken by recency then id, and remain reachable only through concurrent creation.
-
-So two one-off edits on the same description text with different values coexist: each governs its
-own row. An "all" rule on that text governs every other row. Widening a one-off rule to "all" when
-an "all" rule already exists in that slot is a collision, handled as a uniqueness refusal exactly as
-today, naming the holder.
+1. A rule with an explicit transaction set beats every other rule, for the rows in its set.
+2. A from-date rule beats an all rule on the rows it reaches, and among from-date rules the later
+   date wins. Editing a rule "from this date" therefore creates a new version that takes over from
+   that date onward while the earlier version keeps governing earlier rows.
+3. Among rules of the same reach tier and date, conditions decide as today.
+4. Ties remain broken by recency then id, and remain reachable only through concurrent creation.
 
 ### 2.2 Uniqueness
 
-Reach kinds form two groups: **explicit** (these transactions) and **wide** (from a date, all). At
-most one wide rule may exist per output field per conditions slot, because two wide rules on one
-slot would compete by recency on most rows. Any number of explicit-set rules may share the slot as
-long as their id sets are disjoint, and an explicit-set rule coexists with the wide rule, outranking
-it for its own rows. Widening an explicit-set rule into a slot whose wide rule already exists is not
-a collision: it folds into that rule (section 3.2).
+For each output field and conditions slot there may be: at most one all rule; at most one from-date
+rule per date; and any number of explicit-set rules whose id sets are disjoint. Creating or widening
+into an occupied position folds into the rule that holds it rather than colliding.
 
 ### 2.3 What the reach set is, and what it is not
 
@@ -79,43 +73,40 @@ union.
 ### 3.1 Editing a cell creates or updates a rule
 
 When the user finishes editing a description alias, tags or allocation on a transaction, a one-row
-rule is created at once: the row's conditions (description text only, unless the user chose a
-restriction), the edited field as its only output, and reach **these transactions = { this row }**.
-The row already holds the value, so nothing else is written. If the row already has a one-row rule
-for that field, its output is updated in place instead. The row is therefore always truthful, and
-nothing propagates until the row changes or the user asks.
+rule is created at once with reach **these transactions = { this row }**, or the row's existing
+one-row rule for that field is updated. The row already holds the value, so nothing else is written
+on Enter.
 
-The inspector card for that rule then shows what will happen next, pre-set from two remembered
-preferences:
+**The new output is the edit applied to the rule that governed the row.** If a rule governed the
+field on that row, the one-row rule is a copy of that rule's output for the edited field with the
+edit applied: for tags, the tags the user removed are removed and the tags they added are added,
+keeping the rule's add or set mode; for an alias or an allocation, the new value. Only the edited
+field is copied, so later changes to the governing rule's other outputs still reach the row. If no
+rule governed the field, the output is simply the row's new value. Clearing a value is an ordinary
+edit: the result may be an exception that adds nothing or clears the alias.
 
-- **The default target, applied later, never on Enter.** If a wide rule with identical conditions
-  governs the row, the default is to **update that rule** when the row changes or Apply is pressed:
-  replace its output for the field, or add the field to it if it lacks one. Its reach is unchanged;
-  the change applies across that reach where values differ. Otherwise the default is to **widen the
-  new rule** to the remembered reach (this transaction only, from this transaction's date, or all
-  matching). The card always offers "Only this transaction" as the alternative, which leaves the
-  one-row rule as it is.
-- **When it happens.** A remembered "Apply automatically when I leave the row" checkbox. Leaving the
-  row means the active row changing; entering the inspector is not leaving the row, so the card can
-  be adjusted first. When on, the default runs as the row changes; when off, the card keeps an Apply
-  button and the one-row rule waits.
+**What happens next depends on the chosen reach**, pre-set from the remembered preference and
+changeable on the card while still on the row:
 
-Whatever the trigger, the work is only done for rows whose values would actually change, which the
-description-text index and the population count make a cheap test. If nothing would change, nothing
-is written.
+| Choice                               | Result                                                                                                                                                   |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Only this transaction                | The one-row rule stays as it is. Nothing else changes.                                                                                                   |
+| Matching transactions from this date | The one-row rule becomes a from-date rule at this transaction's date. It takes over from that date; the previously governing rule keeps earlier rows.    |
+| All matching transactions            | If a rule governed the row, that rule itself is edited the same way and the one-row rule is folded away. Otherwise the one-row rule becomes an all rule. |
+
+Applying a choice writes only rows whose values would change, and propagates the edit itself: rows
+that gain the rule lose the tags the user removed and gain the ones they added.
+
+**When it happens** is the remembered "Apply automatically when I leave the row" preference. Leaving
+the row means the active row changing; entering the inspector is not leaving the row, so the card
+can be adjusted first. With it off, the card keeps an Apply button and the one-row rule waits.
 
 Changing the card's reach or the checkbox updates the remembered preference. The old four-mode
 preference maps onto the two: "Updating all" is all plus automatic, "Updating new" is from-date plus
-automatic, "Update all" and "Update new" are the same without automatic, so existing users' choices
-carry over.
+automatic, "Update all" and "Update new" are the same without automatic.
 
-While the cell is still being edited, the inspector shows a live preview computed from the draft
-value: "Creates a rule for this transaction, then applies it to all 3 matching when you leave the
-row", "Updates the Tags rule for 3 transactions when you leave the row", or "Creates a rule for this
-transaction only".
-
-Clearing a value never creates a rule. If the row has a one-row rule for that field, clearing
-deletes it. If a wide rule governs the row, clearing makes the row divergent.
+While the cell is still being edited, the inspector shows a live preview of what Enter and then
+leaving the row will do.
 
 ### 3.2 Widening and narrowing
 
@@ -203,33 +194,35 @@ default and showing its count.
 ## 5. Worked examples
 
 Shared facts: three imported rows for `COFFEE SHOP 123` on 2 Jul (A), 25 Jul (B) and 3 Aug (C), and
-one for `BOOKSTORE 99`. These are the steps of the interactive mockup `mockup.html`.
+one for `BOOKSTORE 99`. These are the steps of the interactive mockup `mockup.html`, which names the
+rows in a mock-only Row column and ticks each step when the state shows it done.
 
-| #   | Action                                                                                                                  | Result                                                                                                                                                                                                                                                             |
-| --- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| E1  | Tag B with `work`, remembered reach "this transaction", automatic off                                                   | Rule R1: text COFFEE SHOP 123, tags add work, reach {B}. Leaving the row changes nothing. A and C unchanged and not orange.                                                                                                                                        |
-| E2  | Tag A with `home`                                                                                                       | Rule R2: same conditions, tags add home, reach {A}. R1 and R2 coexist; their sets are disjoint.                                                                                                                                                                    |
-| E3  | On R1, widen reach to from 25 Jul                                                                                       | Governs B and C. C receives `work`. A stays with R2.                                                                                                                                                                                                               |
-| E4  | Import a COFFEE SHOP 123 row dated 1 Jun                                                                                | Reached by neither rule. No tag.                                                                                                                                                                                                                                   |
-| E5  | Import a COFFEE SHOP 123 row dated 10 Aug                                                                               | Reached by R1 on arrival; receives `work`.                                                                                                                                                                                                                         |
-| E6  | On R1, widen reach to all                                                                                               | Allowed: an explicit-set rule and an all rule coexist. The 1 Jun row receives `work`. A keeps `home`, because R2 outranks R1 for A, and A is not orange.                                                                                                           |
-| E7  | Remove `work` from C by hand                                                                                            | C is governed by R1 and differs: orange, with "Apply to this transaction".                                                                                                                                                                                         |
-| E8  | Change A's tag from `home` to `food`                                                                                    | R2's output is updated in place. Still only A.                                                                                                                                                                                                                     |
-| E9  | Clear A's tags entirely                                                                                                 | R2 is deleted. A one-row rule whose only row no longer carries the value has nothing left to govern. R1 now governs A, so A shows as divergent until reapplied or R1 is narrowed.                                                                                  |
-| E10 | Tag the 1 Jun row with `food`, keep "Only this transaction", then delete that row                                       | Its one-row rule's set becomes empty, so the rule disappears: it is no longer listed anywhere and governs nothing.                                                                                                                                                 |
-| E11 | Rename B to "Coffee", then open C                                                                                       | Rule R4: alias Coffee, reach {B}. C's inspector offers: "a rule renames this text; extend it to this transaction?"                                                                                                                                                 |
-| E12 | Split tags out of a rule with reach from 25 Jul                                                                         | Both rules reach from 25 Jul. No row changes.                                                                                                                                                                                                                      |
-| E13 | On the Automations page, create a rule by hand                                                                          | Default reach is all, as it is a deliberate rule. The count of rows that will change is shown before Save.                                                                                                                                                         |
-| E14 | Set remembered reach to all and automatic on; tag the 1 Jun row with `food`, press Enter, then move to another row      | R5 is created for the 1 Jun row, and as the row changes it is widened to all: every COFFEE SHOP 123 row without `food` gains it in one write. Rows that already had it are untouched.                                                                              |
-| E15 | With automatic on, change C's tag while R1 (all) governs C                                                              | A one-row exception is created; the card's default is "Update R1". As the row changes, R1's output is replaced and applied across its reach where values differ, and the exception is deleted. Choosing "Only this transaction" first keeps the exception instead. |
-| E16 | With one-row exceptions on A and C, edit B's tags; the default is Update R1. Tick "Also replace 2 exceptions" and apply | R1 is updated across its reach, both exceptions are deleted in the same action and their rows take the new value. A rule restricted to one account keeps its rows and is named in the count line.                                                                  |
+| #   | Action                                                                                                               | Result                                                                                                                                   |
+| --- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| E1  | Reach "this transaction only", automatic off. Tag B with `work`                                                      | Rule R1: tags add work, reach {B}. A and C unchanged and not orange.                                                                     |
+| E2  | Tag A with `home`                                                                                                    | Rule R2: tags add home, reach {A}. R1 and R2 coexist.                                                                                    |
+| E3  | On R1, change reach to from 25 Jul                                                                                   | Governs B and C. C receives `work`. A stays with R2.                                                                                     |
+| E4  | Import a row dated 1 Jun                                                                                             | Reached by neither rule. No tag.                                                                                                         |
+| E5  | Import a row dated 10 Aug                                                                                            | Reached by R1 on arrival; receives `work`.                                                                                               |
+| E6  | On R1, change reach to all                                                                                           | The 1 Jun row receives `work`. A keeps `home`: R2 outranks R1 for A.                                                                     |
+| E7  | Untick `work` on C                                                                                                   | A one-row rule for C: a copy of R1's tags without `work`. C is governed and agrees, so not orange. Nothing else changes.                 |
+| E8  | Change A's tag from `home` to `food`                                                                                 | R2 is updated in place. Still only A.                                                                                                    |
+| E9  | Untick everything on A                                                                                               | R2 becomes "add nothing". A stays empty and is not orange.                                                                               |
+| E10 | Tag the 1 Jun row with `food`, keep "Only this transaction", then delete it                                          | Its one-row rule has no transaction left and is garbage collected.                                                                       |
+| E11 | Rename B to "Coffee", then open C                                                                                    | C's inspector offers: "a rule renames this text; extend it to this transaction?"                                                         |
+| E12 | On B, add the Coffee rule's alias to R1, then split it back out                                                      | Adding the alias renames every row R1 covers. Splitting it back out keeps both rules on the same reach and changes no row.               |
+| E13 | On the Automations page, create a rule by hand                                                                       | Default reach is all. The count of rows that will change is shown before Save.                                                           |
+| E14 | Reach "all matching", automatic on. Tag the 10 Aug row with `coffee`, leave the row                                  | R1 itself gains `coffee`; every row it governs gains it. A and C keep their own rules.                                                   |
+| E15 | Reach "from this date", automatic on. Untick `work` on the 10 Aug row, leave the row, then import a row dated 20 Aug | A from-10-Aug version of R1 without `work` governs the 10 Aug row and later. The 20 Aug import gets `coffee` but not `work`. B keeps R1. |
+| E16 | Reach "all matching", automatic off. Tag B with `home`, tick "Also replace 2 exceptions", Apply now                  | R1 gains `home` across its reach; the exceptions on A and C are deleted in the same action and their rows take R1's value.               |
 
 Two rules the examples rely on, stated once:
 
-- **Clearing.** Clearing a value never creates a rule. If the row has a one-row rule for that field,
-  clearing deletes it (E9). If a wider rule governs the row, clearing makes the row divergent (E7).
 - **Offers.** A row shows "extend to this transaction" offers only for fields no rule governs on
-  that row, grouped in one card, so one-row rules on a busy description text do not pile up.
+  that row, grouped in one card.
+- **Garbage collection.** An explicit-set rule with no surviving transaction, or a one-row exception
+  whose output equals the rule that would otherwise govern its row, has no possible effect and is
+  deleted.
 
 ## 6. What changes in the code, at a high level
 
