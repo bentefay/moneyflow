@@ -187,6 +187,11 @@
               # Python for spec-kit
               pkgs.python312
               pkgs.uv
+
+              # Infrastructure as code. The CLI is a Go binary that isn't published to npm, so it is
+              # pinned here rather than through bun. The -bin build bundles the Node.js language host
+              # that TypeScript programs need.
+              pkgs.pulumi-bin
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
               pkgs.glibcLocales
