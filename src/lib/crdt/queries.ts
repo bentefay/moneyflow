@@ -258,8 +258,12 @@ export function getAllTransactions(store: TransactionStore): Transaction[] {
  * copy cannot hide an active copy of the same logical ID.
  */
 export function getActivePublicTransactionIdentities(store: TransactionStore): Transaction[] {
-    const activeRepresentations: Transaction[] = [];
+    return getCanonicalTransactions(iterateActivePublicTransactionRepresentations(store));
+}
 
+export function* iterateActivePublicTransactionRepresentations(
+    store: TransactionStore
+): Generator<Transaction> {
     for (const tree of Object.values(store)) {
         if (!tree || typeof tree === "string") continue;
 
@@ -268,12 +272,12 @@ export function getActivePublicTransactionIdentities(store: TransactionStore): T
                 for (const dayBucket of monthBucket.days) {
                     for (const transaction of dayBucket.transactions) {
                         if (!isPublicTransaction(transaction)) continue;
-                        if (!transaction.deletedAt) activeRepresentations.push(transaction);
+                        if (!transaction.deletedAt) yield transaction;
 
                         for (const duplicate of transaction.suspectedDuplicates) {
                             const nestedTransaction = materializeNestedTransaction(duplicate);
                             if (!nestedTransaction.deletedAt) {
-                                activeRepresentations.push(nestedTransaction);
+                                yield nestedTransaction;
                             }
                         }
                     }
@@ -281,8 +285,6 @@ export function getActivePublicTransactionIdentities(store: TransactionStore): T
             }
         }
     }
-
-    return getCanonicalTransactions(activeRepresentations);
 }
 
 /**

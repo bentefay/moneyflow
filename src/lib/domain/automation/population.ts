@@ -66,7 +66,7 @@ export function ruleOutputAgrees(
     switch (current.field) {
         case "descriptionAlias": {
             const output = rule.outputs.descriptionAlias;
-            return output == null ? null : output.aliasId === current.currentAliasId;
+            return output == null ? null : output.aliasId === (current.currentAliasId ?? "");
         }
         case "tags": {
             const output = rule.outputs.tags;
@@ -116,6 +116,7 @@ export interface RulePopulationQuery {
      * narrow is saved. Absent means the rule's own reach.
      */
     readonly reach?: RuleReach;
+    readonly removedTagIds?: readonly string[];
     readonly scope: ApplyScope;
     /**
      * The date Update new counts from, inclusive. `null` on the Automations page, where Update new
@@ -155,7 +156,13 @@ export function countRulePopulation(query: RulePopulationQuery): number {
         return fields.some(
             (field) =>
                 selectWinningRule(rules, field, transaction.subject)?.id === rule.id &&
-                ruleOutputAgrees(rule, populationFieldValue(transaction, field)) === false
+                (ruleOutputAgrees(rule, populationFieldValue(transaction, field)) === false ||
+                    (field === "tags" &&
+                        query.removedTagIds?.some(
+                            (id) =>
+                                transaction.tagIds.includes(id) &&
+                                !rule.outputs.tags?.tagIds.includes(id)
+                        )))
         );
     }).length;
 }

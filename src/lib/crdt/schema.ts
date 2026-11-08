@@ -409,6 +409,8 @@ export const userAutomationPreferenceSchema = schema.LoroMap({
      * Last four-mode apply SELECT choice (HS-007 / P17D, frozen `:270`). Optional so absent (older
      * vaults or a user who never changed it) falls back to the session default with NO migration.
      */
+    lastReach: richSchema.StringEnum(["all", "from", "transactions"], { required: false }),
+    applyOnLeaveRow: schema.Boolean({ required: false }),
     lastApplyMode: richSchema.StringEnum(["updatingAll", "updatingNew", "updateAll", "updateNew"], {
         required: false
     })

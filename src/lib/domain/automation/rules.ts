@@ -23,15 +23,12 @@ import { Temporal } from "temporal-polyfill";
 import { z } from "zod";
 
 import {
-    asTransactionId,
-    type TransactionId
-} from "@/components/features/transactions/table-model/ids";
-import {
     type AllocationValidationError,
     type ValidatedAllocationSet,
     validateAllocationSet
 } from "@/lib/domain/allocation";
 import { asMinorUnits, type MoneyMinorUnits } from "@/lib/domain/currency";
+import { asTransactionId, type TransactionId } from "@/lib/domain/transaction-id";
 import { assertNever } from "@/lib/utils/exhaustive";
 
 import { ruleCandidatesForText, type RuleSource } from "./rule-index";
@@ -226,7 +223,10 @@ export function ruleOutput(
 }
 
 /** `outputs` without its `field` output. Empty when that was the only one. */
-export function withoutRuleOutput(outputs: RuleOutputs, field: RuleField): PartialRuleOutputs {
+export function withoutRuleOutput(
+    outputs: PartialRuleOutputs,
+    field: RuleField
+): PartialRuleOutputs {
     const { descriptionAlias, tags, allocation } = outputs;
     return {
         ...(field === "descriptionAlias" || descriptionAlias == null ? {} : { descriptionAlias }),
@@ -255,15 +255,20 @@ export function rulePredicatesEqual(left: RulePredicate, right: RulePredicate): 
 // Precedence and uniqueness
 // ============================================================================
 
-/**
- * Reach rank, the most significant precedence dimension: an explicit set (1) beats a date or all
- * reach (0) on the rows in its set, so a one-row edit is an exception to a wider rule rather than a
- * collision with it. Date and all reach share a rank and fall through to the conditions.
- */
-export type RuleReachRank = 0 | 1;
+/** Reach tier: explicit exceptions beat the date timeline, which beats all. */
+export type RuleReachRank = 0 | 1 | 2;
 
 export function ruleReachRank(rule: Pick<FieldRule, "reach">): RuleReachRank {
-    return rule.reach.kind === "transactions" ? 1 : 0;
+    switch (rule.reach.kind) {
+        case "all":
+            return 0;
+        case "from":
+            return 1;
+        case "transactions":
+            return 2;
+        default:
+            return assertNever(rule.reach);
+    }
 }
 
 /**
@@ -303,7 +308,8 @@ export function ruleUniquenessKeyFor(field: RuleField, owner: RuleSlotOwner): Ru
         owner.descriptionText,
         owner.accountId ?? null,
         owner.amount ?? null,
-        owner.reach.kind
+        owner.reach.kind,
+        owner.reach.kind === "from" ? owner.reach.date.toString() : null
     ]);
     return RuleUniquenessKeySchema.parse(encoded);
 }
@@ -496,6 +502,10 @@ export function compareRulePrecedence(
 ): number {
     const byReach = ruleReachRank(left) - ruleReachRank(right);
     if (byReach !== 0) return byReach;
+    if (left.reach.kind === "from" && right.reach.kind === "from") {
+        const byDate = Temporal.PlainDate.compare(left.reach.date, right.reach.date);
+        if (byDate !== 0) return byDate;
+    }
     return ruleScopeRank(left) - ruleScopeRank(right);
 }
 
@@ -648,7 +658,7 @@ export interface RuleOutputsInput<AllocationValue = unknown> {
 }
 
 /**
- * Validate proposed outputs into {@link RuleOutputs}: at least one output, a non-empty alias id, and
+ * Validate proposed outputs into {@link RuleOutputs}: at least one output, an alias id including empty for clearing, and
  * a whole valid allocation set. Tag ids are de-duplicated preserving order. Rejects (rather than
  * clamps) any invalid allocation set so a malformed complete-set can never be silently normalised.
  * The single validation path for both wire decode and the CRUD mutations.
@@ -660,9 +670,6 @@ export function validateRuleOutputs(
     | { readonly ok: false; readonly error: FieldRuleDecodeError } {
     const outputs: { -readonly [F in RuleField]?: RuleOutputSlots[F] } = {};
     if (input.descriptionAlias != null) {
-        if (input.descriptionAlias.aliasId.length === 0) {
-            return invalidShapeError(["descriptionAlias output requires a non-empty aliasId"]);
-        }
         outputs.descriptionAlias = { aliasId: input.descriptionAlias.aliasId };
     }
     if (input.tags != null) {
@@ -699,10 +706,8 @@ function wireOutputsInput(
     for (const field of fields) {
         switch (field) {
             case "descriptionAlias":
-                if (base.aliasId == null || base.aliasId.length === 0) {
-                    return invalidShapeError([
-                        "descriptionAlias rule requires a non-empty aliasId"
-                    ]);
+                if (base.aliasId == null) {
+                    return invalidShapeError(["descriptionAlias rule requires an aliasId"]);
                 }
                 input.descriptionAlias = { aliasId: base.aliasId };
                 break;

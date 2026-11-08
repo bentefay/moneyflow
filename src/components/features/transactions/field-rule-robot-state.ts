@@ -23,7 +23,7 @@ import {
     type FieldRule,
     type RuleField,
     type RuleMatchSubject,
-    ruleScopeRank,
+    compareRulePrecedence,
     selectWinningRule
 } from "@/lib/domain/automation/rules";
 
@@ -90,7 +90,7 @@ export function computeRuleCardStates(
     }
     return [...byRule.values()].sort(
         (left, right) =>
-            ruleScopeRank(right.rule) - ruleScopeRank(left.rule) ||
+            compareRulePrecedence(right.rule, left.rule) ||
             (left.rule.id < right.rule.id ? -1 : left.rule.id > right.rule.id ? 1 : 0)
     );
 }

@@ -13,6 +13,11 @@ import {
     rewriteDescriptionAliasMaintenanceReference,
     type DescriptionAliasMaintenanceReference
 } from "./description-aliases";
+import {
+    createFieldRuleGarbageProof,
+    advanceFieldRuleGarbageProof,
+    type FieldRuleGarbageProof
+} from "./field-rule-garbage-proof";
 import type { VaultMirror } from "./mirror";
 import type {
     AccountTransactionTree,
@@ -39,7 +44,15 @@ export const DEFAULT_VAULT_MAINTENANCE_BUDGET: VaultMaintenanceBudget = {
     maxMilliseconds: 4
 };
 
-type MaintenancePhase = "keys" | "years" | "months" | "days" | "transactions" | "aliases" | "done";
+type MaintenancePhase =
+    | "keys"
+    | "years"
+    | "months"
+    | "days"
+    | "transactions"
+    | "aliases"
+    | "rules"
+    | "done";
 
 const LEGACY_MAINTENANCE_METADATA_ACCOUNT_KEY = "__moneyflow_gc_metadata__";
 export const VAULT_MAINTENANCE_COMMIT_MESSAGE = "__moneyflow_gc_commit_v1__";
@@ -69,6 +82,7 @@ export interface VaultMaintenanceCursor {
     /** A mutation landed during this pass, so one fresh proof pass is still required. */
     readonly needsRescan: boolean;
     readonly aliasProof?: AliasProofCursor;
+    readonly ruleGarbageProof?: FieldRuleGarbageProof;
     readonly transactionSearch?: TransactionSearchCursor;
     readonly transactionTarget?: TransactionTargetCursor;
     readonly transactionShadows: Map<string, TransactionShadowCursor>;
@@ -224,14 +238,22 @@ type AliasMaintenancePlan =
           readonly provenState: VaultState;
       };
 
-export type VaultMaintenancePlan = StructuralMaintenancePlan | AliasMaintenancePlan;
+export type VaultMaintenancePlan =
+    | StructuralMaintenancePlan
+    | AliasMaintenancePlan
+    | {
+          readonly kind: "remove-field-rules";
+          readonly ruleIds: readonly string[];
+          readonly provenState: VaultState;
+      };
 
 export function isVaultMaintenancePlanCurrent(
     state: VaultState,
     plan: VaultMaintenancePlan
 ): boolean {
     return (
-        (plan.kind !== "remove-alias-symlink" &&
+        (plan.kind !== "remove-field-rules" &&
+            plan.kind !== "remove-alias-symlink" &&
             plan.kind !== "relocate-conflict-transaction" &&
             plan.kind !== "discard-transaction-shadow") ||
         plan.provenState === state
@@ -1137,7 +1159,7 @@ function planTransactionStep(
 
 function planAliasStep(state: VaultState, cursor: VaultMaintenanceCursor): VaultMaintenanceStep {
     const aliasId = cursor.aliasIds[cursor.aliasIndex];
-    if (!aliasId) return { cursor: withPosition(cursor, { phase: "done" }) };
+    if (!aliasId) return { cursor: withPosition(cursor, { phase: "rules" }) };
     const alias = state.descriptionAliases[aliasId];
     if (
         typeof alias !== "object" ||
@@ -1358,7 +1380,8 @@ function planAliasStep(state: VaultState, cursor: VaultMaintenanceCursor): Vault
 /** Process exactly one deterministic discovery item. */
 export function planVaultMaintenanceStep(
     state: VaultState,
-    cursor: VaultMaintenanceCursor
+    cursor: VaultMaintenanceCursor,
+    retainedRuleIds?: ReadonlySet<string>
 ): VaultMaintenanceStep {
     if (cursor.phase === "keys") return planKeyStep(cursor);
     if (cursor.phase === "years") return planYearStep(state, cursor);
@@ -1366,6 +1389,23 @@ export function planVaultMaintenanceStep(
     if (cursor.phase === "days") return planDayStep(state, cursor);
     if (cursor.phase === "transactions") return planTransactionStep(state, cursor);
     if (cursor.phase === "aliases") return planAliasStep(state, cursor);
+    if (cursor.phase === "rules") {
+        const proof =
+            cursor.ruleGarbageProof?.state === state &&
+            cursor.ruleGarbageProof.retainedRuleIds === retainedRuleIds
+                ? cursor.ruleGarbageProof
+                : createFieldRuleGarbageProof(state, retainedRuleIds);
+        const ruleIds = advanceFieldRuleGarbageProof(proof);
+        const nextCursor = { ...cursor, ruleGarbageProof: proof };
+        if (ruleIds == null) return { cursor: nextCursor };
+        return {
+            cursor: withPosition(nextCursor, { phase: "done" }),
+            plan:
+                ruleIds.length === 0
+                    ? undefined
+                    : { kind: "remove-field-rules", ruleIds, provenState: state }
+        };
+    }
     return { cursor };
 }
 
@@ -1791,6 +1831,10 @@ export function applyVaultMaintenancePlan(
     plan: VaultMaintenancePlan,
     doc?: LoroDoc
 ): boolean {
+    if (plan.kind === "remove-field-rules") {
+        for (const id of plan.ruleIds) delete state.fieldRules[id];
+        return plan.ruleIds.length > 0;
+    }
     if (plan.kind === "rewrite-alias-reference") {
         return rewriteDescriptionAliasMaintenanceReference(state, plan);
     }
@@ -1966,6 +2010,7 @@ export function runVaultMaintenanceFrame(input: {
     readonly budget?: VaultMaintenanceBudget;
     readonly cursor: VaultMaintenanceCursor;
     readonly getState: () => VaultState;
+    readonly retainedFieldRuleIds?: ReadonlySet<string>;
     readonly now: () => number;
 }): VaultMaintenanceFrameResult {
     const budget = input.budget ?? DEFAULT_VAULT_MAINTENANCE_BUDGET;
@@ -1979,7 +2024,7 @@ export function runVaultMaintenanceFrame(input: {
             return { applied, complete: false, cursor, processed, yieldReason: "time" };
         }
         const stepCursor = cursor;
-        const step = planVaultMaintenanceStep(input.getState(), cursor);
+        const step = planVaultMaintenanceStep(input.getState(), cursor, input.retainedFieldRuleIds);
         cursor = step.cursor;
         processed += 1;
         if (input.now() - startedAt >= budget.maxMilliseconds) {
@@ -2011,7 +2056,10 @@ export function runVaultMaintenanceFrame(input: {
 function touchesMaintenanceDomain(event: LoroEventBatch): boolean {
     if (event.origin === "system:gc") return false;
     return event.events.some(
-        (item) => item.path[0] === "transactions" || item.path[0] === "descriptionAliases"
+        (item) =>
+            item.path[0] === "transactions" ||
+            item.path[0] === "descriptionAliases" ||
+            item.path[0] === "fieldRules"
     );
 }
 
@@ -2080,6 +2128,7 @@ export function startVaultMaintenanceScheduler(input: {
     readonly doc: LoroDoc;
     readonly host: VaultMaintenanceFrameHost;
     readonly store: Pick<VaultMirror, "getState" | "setState">;
+    readonly getRetainedFieldRuleIds?: () => ReadonlySet<string>;
 }): () => void {
     let cursor = createVaultMaintenanceCursor(input.store.getState());
     let frameId: number | undefined;
@@ -2172,6 +2221,7 @@ export function startVaultMaintenanceScheduler(input: {
                 budget: input.budget,
                 cursor,
                 getState: () => input.store.getState(),
+                retainedFieldRuleIds: input.getRetainedFieldRuleIds?.(),
                 now: input.host.now
             });
             cursor = result.cursor;

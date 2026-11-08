@@ -153,20 +153,20 @@ describe("field-rule CRUD mutations", () => {
             expect(rules[0]?.outputs).toEqual({ tags: { mode: "add", tagIds: ["tag-coffee"] } });
         });
 
-        it("rejects a second rule that collides on the uniqueness key (same field/text/scope)", () => {
+        it("folds a second rule into its slot holder", () => {
             const vault = seed([
                 { id: "rule-1", outputs: { tags: { mode: "add", tagIds: ["tag-a"] } } }
             ]);
-            expectNoRuleWrite(vault, (state) => {
+            vault.mirror.setState((state: VaultState) => {
                 const second = createFieldRule(state, {
                     id: "rule-2",
                     descriptionText: DESCRIPTION,
                     outputs: { tags: { mode: "set", tagIds: ["tag-b"] } },
                     createdAtEpochMs: 2000
                 });
-                expect(second).toEqual({
-                    ok: false,
-                    error: { type: "duplicate-key", existingRuleId: "rule-1" }
+                expect(second).toMatchObject({
+                    ok: true,
+                    value: { id: "rule-1", outputs: { tags: { mode: "set", tagIds: ["tag-b"] } } }
                 });
             });
             expect(readActiveFieldRules(vault.mirror.getState())).toHaveLength(1);
@@ -198,11 +198,6 @@ describe("field-rule CRUD mutations", () => {
                 name: "an invalid allocation set",
                 outputs: { allocation: { allocations: { "person-1": Number.NaN } } },
                 type: "invalid-allocations"
-            },
-            {
-                name: "a descriptionAlias rule with an empty aliasId",
-                outputs: { descriptionAlias: { aliasId: "" } },
-                type: "invalid-rule"
             }
         ])("rejects $name with zero mutation", ({ outputs, type }) => {
             const vault = seed([
@@ -231,23 +226,23 @@ describe("field-rule CRUD mutations", () => {
         it.each([
             { name: "alias holder first", first: "rule-alias", second: "rule-tags" },
             { name: "tags holder first", first: "rule-tags", second: "rule-alias" }
-        ])("reports the earliest of several colliding rules: $name", ({ first, second }) => {
+        ])("folds occupied outputs into the first holder: $name", ({ first, second }) => {
             const outputsOf = (id: string): FieldRuleOutputsInput =>
                 id === "rule-alias" ? ALIAS : TAGS;
             const vault = seed([
                 { id: first, outputs: outputsOf(first) },
                 { id: second, outputs: outputsOf(second) }
             ]);
-            expectNoRuleWrite(vault, (state) => {
+            vault.mirror.setState((state: VaultState) => {
                 const result = createFieldRule(state, {
                     id: "rule-both",
                     descriptionText: DESCRIPTION,
                     outputs: { ...ALIAS, ...TAGS },
                     createdAtEpochMs: 3000
                 });
-                expect(result).toEqual({
-                    ok: false,
-                    error: { type: "duplicate-key", existingRuleId: first }
+                expect(result).toMatchObject({
+                    ok: true,
+                    value: { id: first, outputs: { ...ALIAS, ...TAGS } }
                 });
             });
         });
@@ -330,11 +325,7 @@ describe("field-rule CRUD mutations", () => {
 
         it.each([
             { name: "no outputs", outputs: {}, type: "invalid-rule" },
-            {
-                name: "an empty alias id",
-                outputs: { descriptionAlias: { aliasId: "" } },
-                type: "invalid-rule"
-            },
+
             {
                 name: "an invalid allocation set",
                 outputs: { allocation: { allocations: { "person-1": Number.NaN } } },
@@ -417,21 +408,18 @@ describe("field-rule CRUD mutations", () => {
                 });
             });
 
-            it("rejects a grouped rule when any one of its outputs collides, naming the holder", () => {
+            it("folds a grouped rule into the existing holder", () => {
                 const vault = seed([{ id: "rule-tags", outputs: { tags: TAGS_OUTPUT } }]);
-                expectNoRuleWrite(vault, (state) => {
+                vault.mirror.setState((state: VaultState) => {
                     const result = createFieldRule(state, {
                         id: "rule-grouped",
                         descriptionText: DESCRIPTION,
                         outputs: { descriptionAlias: ALIAS_OUTPUT, tags: TAGS_OUTPUT },
                         createdAtEpochMs: 5000
                     });
-                    expect(result).toEqual({
-                        ok: false,
-                        error: { type: "duplicate-key", existingRuleId: "rule-tags" }
-                    });
+                    expect(result).toMatchObject({ ok: true, value: { id: "rule-tags" } });
                 });
-                expect(activeById(vault)).toEqual({ "rule-tags": ["tags"] });
+                expect(activeById(vault)).toEqual({ "rule-tags": ["descriptionAlias", "tags"] });
             });
         });
 
@@ -507,18 +495,6 @@ describe("field-rule CRUD mutations", () => {
                     name: "a slot another rule holds",
                     input: { id: "rule-alias", field: "tags", output: TAGS_OUTPUT } as const,
                     error: { type: "duplicate-key", existingRuleId: "rule-tags" }
-                },
-                {
-                    name: "an empty alias id",
-                    input: {
-                        id: "rule-tags",
-                        field: "descriptionAlias",
-                        output: { aliasId: "" }
-                    } as const,
-                    error: {
-                        type: "invalid-rule",
-                        issues: ["descriptionAlias output requires a non-empty aliasId"]
-                    }
                 }
             ])("refuses $name with zero mutation", ({ input, error }) => {
                 const vault = seed([
@@ -976,7 +952,11 @@ describe("field-rule CRUD mutations", () => {
                     });
                     expect(result.ok).toBe(true);
                 });
-                expect(activeById(vault)).toEqual({ "rule-alias": ["descriptionAlias", "tags"] });
+                expect(activeById(vault)).toEqual({});
+                expect(vault.mirror.getState().fieldRules["rule-alias"]?.outputFields).toEqual([
+                    "descriptionAlias",
+                    "tags"
+                ]);
             });
 
             it("keeps the reach when an update rewrites the outputs", () => {
@@ -1053,6 +1033,8 @@ describe("field-rule CRUD mutations", () => {
                         tagMode: "set",
                         useAccountScope: true,
                         useAmountScope: false,
+                        reach: "all",
+                        applyOnLeaveRow: true,
                         applyMode: "updatingAll"
                     }
                 });
@@ -1086,6 +1068,8 @@ describe("field-rule CRUD mutations", () => {
                         tagMode: "set",
                         useAccountScope: true,
                         useAmountScope: true,
+                        reach: "all",
+                        applyOnLeaveRow: true,
                         applyMode: "updatingAll"
                     }
                 });
@@ -1096,6 +1080,8 @@ describe("field-rule CRUD mutations", () => {
                         tagMode: "add",
                         useAccountScope: false,
                         useAmountScope: true,
+                        reach: "all",
+                        applyOnLeaveRow: false,
                         applyMode: "updateAll"
                     }
                 });
@@ -1108,6 +1094,8 @@ describe("field-rule CRUD mutations", () => {
                 tagMode: "set",
                 useAccountScope: true,
                 useAmountScope: true,
+                reach: "all",
+                applyOnLeaveRow: true,
                 applyMode: "updatingAll"
             });
             expect(xyz).toEqual({
@@ -1115,6 +1103,8 @@ describe("field-rule CRUD mutations", () => {
                 tagMode: "add",
                 useAccountScope: false,
                 useAmountScope: true,
+                reach: "all",
+                applyOnLeaveRow: false,
                 applyMode: "updateAll"
             });
 
@@ -1124,6 +1114,8 @@ describe("field-rule CRUD mutations", () => {
                 tagMode: "add",
                 useAccountScope: false,
                 useAmountScope: false,
+                reach: "from",
+                applyOnLeaveRow: false,
                 applyMode: "updateNew"
             });
         });

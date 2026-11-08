@@ -21,7 +21,9 @@ describe("user automation preferences", () => {
                 tagMode: DEFAULT_REMEMBERED_CHOICE.tagMode,
                 useAccountScope: false,
                 useAmountScope: false,
-                applyMode: DEFAULT_REMEMBERED_CHOICE.applyMode
+                applyMode: DEFAULT_REMEMBERED_CHOICE.applyMode,
+                reach: DEFAULT_REMEMBERED_CHOICE.reach,
+                applyOnLeaveRow: DEFAULT_REMEMBERED_CHOICE.applyOnLeaveRow
             }
         );
     });
@@ -41,6 +43,8 @@ describe("user automation preferences", () => {
             tagMode: "set",
             useAccountScope: true,
             useAmountScope: false,
+            reach: "from",
+            applyOnLeaveRow: true,
             applyMode: "updatingNew"
         };
         const record = nextUserPreference("user-1", choice);
@@ -52,8 +56,20 @@ describe("user automation preferences", () => {
     it.each([
         { applyMode: "updatingAll", scope: "all", applyOnBlur: true },
         { applyMode: "updateAll", scope: "all", applyOnBlur: false },
-        { applyMode: "updatingNew", scope: "new", applyOnBlur: true },
-        { applyMode: "updateNew", scope: "new", applyOnBlur: false }
+        {
+            reach: "from",
+            applyOnLeaveRow: true,
+            applyMode: "updatingNew",
+            scope: "new",
+            applyOnBlur: true
+        },
+        {
+            reach: "from",
+            applyOnLeaveRow: false,
+            applyMode: "updateNew",
+            scope: "new",
+            applyOnBlur: false
+        }
     ] as const)(
         "reads $applyMode as scope $scope and apply-on-blur $applyOnBlur",
         ({ applyMode, scope, applyOnBlur }) => {
@@ -69,3 +85,25 @@ describe("user automation preferences", () => {
         expect(rememberedApplyOnBlur(choice)).toBe(false);
     });
 });
+
+it.each([
+    ["updatingAll", "all", true],
+    ["updatingNew", "from", true],
+    ["updateAll", "all", false],
+    ["updateNew", "from", false]
+] as const)(
+    "seeds reach and automatic application from %s once",
+    (lastApplyMode, reach, applyOnLeaveRow) => {
+        const first = readRememberedChoice({ pubkeyHash: "user", lastApplyMode });
+        expect(first).toMatchObject({ reach, applyOnLeaveRow });
+        const persisted = nextUserPreference("user", {
+            ...first,
+            reach: "transactions",
+            applyOnLeaveRow: false
+        });
+        expect(readRememberedChoice({ ...persisted, lastApplyMode: "updatingAll" })).toMatchObject({
+            reach: "transactions",
+            applyOnLeaveRow: false
+        });
+    }
+);

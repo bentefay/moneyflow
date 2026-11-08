@@ -26,13 +26,11 @@
  * only through that same engine, after every precondition has passed.
  */
 
-import { type Temporal } from "temporal-polyfill";
+import { Temporal } from "temporal-polyfill";
 
-import {
-    asTransactionId,
-    type TransactionId
-} from "@/components/features/transactions/table-model/ids";
 import { type AllocationValidationError } from "@/lib/domain/allocation";
+import { type FieldRuleEdit, transformFieldRuleEdit } from "@/lib/domain/automation/output-edit";
+import { pendingReachAction } from "@/lib/domain/automation/pending-reach";
 import {
     nextUserPreference,
     readRememberedChoice,
@@ -43,10 +41,12 @@ import {
     decodeFieldRule,
     decodeFieldRuleReach,
     type FieldRule,
+    type FieldRuleId,
     type FieldRuleCandidate,
     type FieldRuleDecodeResult,
     nonEmptyRuleOutputs,
-    RULE_REACH_ALL,
+    type PartialRuleOutputs,
+    rulesShareUniquenessSlot,
     type RuleField,
     ruleGoverns,
     ruleMatchesSubject,
@@ -56,19 +56,24 @@ import {
     type RuleOutputsInput,
     rulePredicatesEqual,
     type RuleReach,
+    type RuleReachKind,
     ruleReaches,
     ruleReachesEqual,
     type RuleUniquenessKey,
     ruleUniquenessKeys,
+    selectWinningRule,
     uniquenessHoldersCollide,
     withoutRuleOutput
 } from "@/lib/domain/automation/rules";
+import { asTransactionId, type TransactionId } from "@/lib/domain/transaction-id";
 import { assertNever } from "@/lib/utils/exhaustive";
 
 import {
     applyOneFieldRuleToTransactions,
     type BulkFieldRuleEntry,
     readActiveFieldRules,
+    readStoredFieldRules,
+    readRuleReachSubjects,
     readActiveTransactionsWithSubjects,
     ruleMatchSubjectForTransaction,
     toFieldRuleInput
@@ -154,7 +159,7 @@ export type CreateFieldRuleFromEditInput = {
     readonly accountId?: string;
     readonly amount?: number;
     readonly createdAtEpochMs: number;
-} & FieldRuleOutputChange;
+} & FieldRuleEdit;
 
 /**
  * The reach a rule is changed to. Narrowing to an explicit set takes no ids: the set is always the
@@ -166,11 +171,18 @@ export type RuleReachChange =
     | { readonly kind: "transactions" };
 
 export interface SetFieldRuleReachInput {
+    /** Save outputs and conditions together with reach in one validated action. */
+    readonly update?: Omit<UpdateFieldRuleInput, "id">;
+    readonly retainedRuleIds?: ReadonlySet<string>;
     readonly id: string;
     readonly reach: RuleReachChange;
+    readonly edit?: FieldRuleEdit;
+    readonly replaceExceptions?: boolean;
+    readonly deletedAtEpochMs?: number;
 }
 
 export interface ExtendFieldRuleReachInput {
+    readonly retainedRuleIds?: ReadonlySet<string>;
     readonly id: string;
     readonly transactionId: string;
 }
@@ -180,9 +192,12 @@ export interface ExtendFieldRuleReachInput {
  * one-row rule at `deletedAtEpochMs`.
  */
 export interface FoldFieldRuleIntoHostInput {
+    readonly retainedRuleIds?: ReadonlySet<string>;
     readonly oneRowRuleId: string;
     readonly hostId: string;
     readonly deletedAtEpochMs: number;
+    readonly edit?: FieldRuleEdit;
+    readonly replaceExceptions?: boolean;
 }
 
 // ============================================================================
@@ -237,11 +252,13 @@ export interface MoveFieldRuleOutputValue {
     readonly source: FieldRule | null;
 }
 
-export interface CreateFieldRuleFromEditValue {
-    /** `updated` when the row already had a one-row rule for the field with these conditions. */
-    readonly kind: "created" | "updated";
-    readonly rule: FieldRule;
-}
+export type CreateFieldRuleFromEditValue =
+    | {
+          /** `updated` when the row already had a one-row rule for the field with these conditions. */
+          readonly kind: "created" | "updated";
+          readonly rule: FieldRule;
+      }
+    | { readonly kind: "cleared"; readonly rule: null };
 
 /** A rule write that also applied the rule's outputs to the rows it newly governs. */
 export interface FieldRuleApplicationValue {
@@ -304,8 +321,11 @@ function rulesAfterWrite(
     written: readonly FieldRule[],
     removed: ReadonlySet<string> = new Set()
 ): readonly FieldRule[] {
-    const byId = new Map(written.map((rule) => [rule.id, rule]));
-    return rules.filter((rule) => !removed.has(rule.id)).map((rule) => byId.get(rule.id) ?? rule);
+    const writtenIds = new Set(written.map((rule) => rule.id));
+    return [
+        ...rules.filter((rule) => !removed.has(rule.id) && !writtenIds.has(rule.id)),
+        ...written
+    ];
 }
 
 function withOutput(
@@ -363,12 +383,15 @@ type UniquenessSlots = ReadonlyMap<
     readonly { readonly rule: FieldRule; readonly order: number }[]
 >;
 
-function readUniquenessSlots(state: VaultState): UniquenessSlots {
+function readUniquenessSlots(
+    state: VaultState,
+    retainedRuleIds?: ReadonlySet<string>
+): UniquenessSlots {
     const slots = new Map<
         RuleUniquenessKey,
         { readonly rule: FieldRule; readonly order: number }[]
     >();
-    for (const [order, rule] of readActiveFieldRules(state).entries()) {
+    for (const [order, rule] of readActiveFieldRules(state, retainedRuleIds).entries()) {
         for (const key of ruleUniquenessKeys(rule)) {
             const held = slots.get(key);
             if (held == null) slots.set(key, [{ rule, order }]);
@@ -387,9 +410,10 @@ function readUniquenessSlots(state: VaultState): UniquenessSlots {
 function findUniquenessCollision(
     state: VaultState,
     rule: FieldRule,
-    ignore: ReadonlySet<string>
+    ignore: ReadonlySet<string>,
+    retainedRuleIds?: ReadonlySet<string>
 ): FieldRule | null {
-    const slots = readUniquenessSlots(state);
+    const slots = readUniquenessSlots(state, retainedRuleIds);
     let collision: { readonly rule: FieldRule; readonly order: number } | null = null;
     for (const key of ruleUniquenessKeys(rule)) {
         const holder = slots
@@ -410,15 +434,29 @@ function findUniquenessCollision(
 function collisionError(
     state: VaultState,
     rule: FieldRule,
-    ignore: ReadonlySet<string> = new Set()
+    ignore: ReadonlySet<string> = new Set(),
+    retainedRuleIds?: ReadonlySet<string>
 ): FieldRuleMutationError | null {
-    const collision = findUniquenessCollision(state, rule, ignore);
+    const collision = findUniquenessCollision(state, rule, ignore, retainedRuleIds);
     return collision == null ? null : { type: "duplicate-key", existingRuleId: collision.id };
 }
 
 function writeRule(state: VaultState, rule: FieldRule): void {
     const draft: Record<string, FieldRuleInput> = state.fieldRules;
-    draft[rule.id] = toFieldRuleInput(rule);
+    draft[rule.id] = toFieldRuleInput(cleanExplicitReach(state, rule));
+}
+
+/** Existing ids that changed their matching facts must leave the reach on the next write. */
+function cleanExplicitReach(state: VaultState, rule: FieldRule): FieldRule {
+    if (rule.reach.kind !== "transactions") return rule;
+    const subjects = readRuleReachSubjects(state, rule.reach.ids);
+    const ids = new Set(
+        [...rule.reach.ids].filter((id) => {
+            const subject = subjects.get(id);
+            return subject == null || ruleMatchesSubject(rule, subject);
+        })
+    );
+    return { ...rule, reach: { kind: "transactions", ids } };
 }
 
 // ============================================================================
@@ -427,8 +465,8 @@ function writeRule(state: VaultState, rule: FieldRule): void {
 
 /**
  * Create a new field rule, in place. Rejects (with no mutation) an invalid rule (bad shape, no
- * output or an invalid allocation set) and a rule any of whose outputs collides on the uniqueness
- * key with an existing active rule. On success the rule is written to `state.fieldRules[id]`.
+ * output or an invalid allocation set). Occupied slots fold into their holders; explicit slots
+ * fold per field so unrelated outputs retain their reach.
  */
 export function createFieldRule(
     state: VaultState,
@@ -436,12 +474,119 @@ export function createFieldRule(
 ): FieldRuleMutationResult {
     const built = buildRule(input);
     if (!built.ok) return built;
-
-    const collision = collisionError(state, built.value);
+    if (state.fieldRules[input.id] != null)
+        return err({ type: "invalid-rule", issues: ["rule id already exists"] });
+    const holder = findUniquenessCollision(state, built.value, new Set());
+    if (holder == null) {
+        writeRule(state, built.value);
+        return built;
+    }
+    if (built.value.reach.kind === "transactions") return foldExplicitCreation(state, built.value);
+    const absorbed: FieldRule[] = [holder];
+    const ignored = new Set<string>([holder.id]);
+    for (;;) {
+        const next = findUniquenessCollision(state, built.value, ignored);
+        if (next == null) break;
+        absorbed.push(next);
+        ignored.add(next.id);
+    }
+    const reach = holder.reach;
+    const outputs = absorbed.reduce<RuleOutputsInput>(
+        (outputs, rule) => ({ ...outputs, ...rule.outputs }),
+        {}
+    );
+    const merged = rebuildWithOutputs(withReach(holder, reach), {
+        ...outputs,
+        ...built.value.outputs
+    });
+    if (!merged.ok) return merged;
+    const collision = collisionError(state, merged.value, ignored);
     if (collision != null) return err(collision);
+    writeRule(state, merged.value);
+    softDeleteRules(
+        state,
+        new Set(absorbed.slice(1).map((rule) => rule.id)),
+        input.createdAtEpochMs
+    );
+    return merged;
+}
 
-    writeRule(state, built.value);
-    return built;
+/** Fold explicit slots field by field so unrelated grouped outputs keep their original reach. */
+function foldExplicitCreation(state: VaultState, candidate: FieldRule): FieldRuleMutationResult {
+    if (candidate.reach.kind !== "transactions")
+        return err({ type: "not-explicit-reach", ruleId: candidate.id });
+    const active = readActiveFieldRules(state);
+    const consumed = new Map<FieldRuleId, Set<RuleField>>();
+    const plans = ruleOutputFields(candidate).map((field) => {
+        const ids = new Set(candidate.reach.kind === "transactions" ? candidate.reach.ids : []);
+        const holders: FieldRule[] = [];
+        for (;;) {
+            const holder = active.find(
+                (rule) =>
+                    rule.reach.kind === "transactions" &&
+                    rule.outputs[field] != null &&
+                    rulePredicatesEqual(rule, candidate) &&
+                    !holders.includes(rule) &&
+                    [...rule.reach.ids].some((id) => ids.has(id))
+            );
+            if (holder == null || holder.reach.kind !== "transactions") break;
+            holders.push(holder);
+            for (const id of holder.reach.ids) ids.add(id);
+            const fields = consumed.get(holder.id) ?? new Set<RuleField>();
+            fields.add(field);
+            consumed.set(holder.id, fields);
+        }
+        return { field, ids, holders };
+    });
+    const remainders = active.flatMap((rule) => {
+        const fields = consumed.get(rule.id);
+        if (fields == null) return [rule];
+        const outputs = nonEmptyRuleOutputs(
+            [...fields].reduce<PartialRuleOutputs>(
+                (outputs, field) => withoutRuleOutput(outputs, field),
+                rule.outputs
+            )
+        );
+        return outputs == null ? [] : [{ ...rule, outputs }];
+    });
+    const preservedIds = new Set(remainders.map((rule) => rule.id));
+    const written: FieldRule[] = [];
+    for (const plan of plans) {
+        const holder = plan.holders.find(
+            (rule) => !preservedIds.has(rule.id) && !written.some((next) => next.id === rule.id)
+        );
+        const id =
+            holder?.id ??
+            (written.some((rule) => rule.id === candidate.id) ? crypto.randomUUID() : candidate.id);
+        const output = ruleOutput(candidate, plan.field);
+        if (output == null)
+            return err({ type: "missing-output", ruleId: candidate.id, field: plan.field });
+        const built = buildRule({
+            ...candidate,
+            id,
+            outputs: withOutput({}, output),
+            reach: { kind: "transactions", ids: plan.ids },
+            createdAtEpochMs:
+                holder?.createdAt.epochMilliseconds ?? candidate.createdAt.epochMilliseconds
+        });
+        if (!built.ok) return built;
+        const collision = remainders.find((rule) =>
+            rulesShareUniquenessSlot(rule, built.value, plan.field)
+        );
+        if (collision != null) return err({ type: "duplicate-key", existingRuleId: collision.id });
+        written.push(built.value);
+    }
+    const first = written[0];
+    if (first == null) return err({ type: "invalid-rule", issues: ["no output to fold"] });
+    for (const rule of remainders) if (consumed.has(rule.id)) writeRule(state, rule);
+    for (const rule of written) writeRule(state, rule);
+    const writtenIds = new Set(written.map((rule) => rule.id));
+    softDeleteRules(
+        state,
+        new Set([...consumed.keys()].filter((id) => !preservedIds.has(id) && !writtenIds.has(id))),
+        candidate.createdAt.epochMilliseconds
+    );
+    return ok(first);
 }
 
 /**
@@ -622,29 +767,90 @@ export function createFieldRuleFromEdit(
     input: CreateFieldRuleFromEditInput
 ): FieldRuleMutationOutcome<CreateFieldRuleFromEditValue> {
     const transactionId = asTransactionId(input.transactionId);
+    const found = findTransactionById(state.transactions, input.transactionId);
+    if (found == null || found.transaction.deletedAt != null) {
+        return err({ type: "transaction-not-found", transactionId: input.transactionId });
+    }
+    const rules = readStoredFieldRules(state);
+    const governing = selectWinningRule(
+        rules,
+        input.field,
+        ruleMatchSubjectForTransaction(state, found.transaction)
+    );
+    const cleared =
+        input.field === "tags"
+            ? input.edit.value.tagIds.length === 0
+            : input.field === "descriptionAlias"
+              ? input.edit.value.aliasId === ""
+              : Object.keys(input.edit.value.allocations).length === 0;
+    if (governing == null && cleared) return ok({ kind: "cleared", rule: null });
+    const change = transformFieldRuleEdit(governing?.outputs ?? {}, input);
     const created = buildRule({
         id: input.id,
         descriptionText: input.descriptionText,
         accountId: input.accountId,
         amount: input.amount,
-        outputs: withOutput({}, input),
+        outputs: withOutput({}, change),
         reach: { kind: "transactions", ids: new Set([transactionId]) },
         createdAtEpochMs: input.createdAtEpochMs
     });
     if (!created.ok) return created;
+    if (
+        !ruleMatchesSubject(created.value, ruleMatchSubjectForTransaction(state, found.transaction))
+    ) {
+        return err({
+            type: "transaction-not-matched",
+            ruleId: input.id,
+            transactionId: input.transactionId
+        });
+    }
 
-    const own = readActiveFieldRules(state).find(
+    const own = rules.find(
         (rule) =>
             rule.reach.kind === "transactions" &&
             rule.reach.ids.has(transactionId) &&
             rule.outputs[input.field] != null &&
             rulePredicatesEqual(rule, created.value)
     );
+    if (own != null && own.reach.kind === "transactions" && own.reach.ids.size > 1) {
+        if (state.fieldRules[input.id] != null) {
+            return err({ type: "invalid-rule", issues: [`rule id ${input.id} already exists`] });
+        }
+        const collision = collisionError(state, created.value, new Set([own.id]));
+        if (collision != null) return err(collision);
+        const previous = ruleOutput(own, input.field);
+        if (previous == null)
+            return err({ type: "missing-output", ruleId: own.id, field: input.field });
+        const otherOutputs = nonEmptyRuleOutputs(withoutRuleOutput(own.outputs, input.field));
+        const remainder = buildRule({
+            ...own,
+            id: otherOutputs == null ? own.id : crypto.randomUUID(),
+            outputs: withOutput({}, previous),
+            reach: {
+                kind: "transactions",
+                ids: new Set([...own.reach.ids].filter((id) => id !== transactionId))
+            },
+            createdAtEpochMs: own.createdAt.epochMilliseconds
+        });
+        if (!remainder.ok) return remainder;
+        const other = otherOutputs == null ? null : rebuildWithOutputs(own, otherOutputs);
+        if (other != null && !other.ok) return other;
+        if (other?.ok) writeRule(state, other.value);
+        writeRule(state, remainder.value);
+        writeRule(state, created.value);
+        return ok({ kind: "created", rule: created.value });
+    }
     if (own != null) {
-        const updated = rebuildWithOutputs(own, withOutput(own.outputs, input));
+        const otherOutputs = nonEmptyRuleOutputs(withoutRuleOutput(own.outputs, input.field));
+        if (otherOutputs != null && state.fieldRules[input.id] != null) {
+            return err({ type: "invalid-rule", issues: ["split rule id already exists"] });
+        }
+        const updated = rebuildWithOutputs(own, withOutput({}, change));
         if (!updated.ok) return updated;
         const collision = collisionError(state, updated.value);
         if (collision != null) return err(collision);
+        if (otherOutputs != null)
+            writeRule(state, { ...own, id: created.value.id, outputs: otherOutputs });
         writeRule(state, updated.value);
         return ok({ kind: "updated", rule: updated.value });
     }
@@ -663,54 +869,293 @@ export function createFieldRuleFromEdit(
  *
  * Widening to a date or `all` writes the outputs to each newly governed row, but only the fields
  * the rule wins there, so a one-row exception keeps its value. Narrowing to an explicit set records
- * the rows governed now as the set and changes no row. Rejects a missing rule and a reach whose slot
- * another rule already holds (`duplicate-key`, naming the holder). Every check precedes the first
- * write.
+ * each field's won rows and changes no row. An occupied wide slot absorbs the changed outputs.
+ * Every check precedes the first write.
  */
 export function setFieldRuleReach(
     state: VaultState,
     input: SetFieldRuleReachInput
 ): FieldRuleMutationOutcome<FieldRuleApplicationValue> {
-    const rule = readActiveRule(state, input.id);
-    if (rule == null) return err({ type: "not-found", ruleId: input.id });
+    const previous = readActiveRule(state, input.id);
+    if (previous == null) return err({ type: "not-found", ruleId: input.id });
+    const candidate =
+        input.update == null
+            ? ok(previous)
+            : buildRule({
+                  ...previous,
+                  ...input.update,
+                  accountId: input.update.accountId,
+                  amount: input.update.amount,
+                  createdAtEpochMs: previous.createdAt.epochMilliseconds
+              });
+    if (!candidate.ok) return candidate;
+    const rule = candidate.value;
+    const applicationEdit = applicationEditForSave(previous, rule, input);
 
     const matching = readActiveTransactionsWithSubjects(state, (subject) =>
         ruleMatchesSubject(rule, subject)
     );
-    const reach = nextReach(rule, input.reach, matching);
+    const activeRules = rulesAfterWrite(readActiveFieldRules(state, input.retainedRuleIds), [rule]);
+    if (input.reach.kind === "transactions" && rule.reach.kind !== "transactions") {
+        return narrowFieldRule(state, rule, matching, activeRules, input.retainedRuleIds);
+    }
+    const reach = input.reach.kind === "transactions" ? rule.reach : input.reach;
     const next = withReach(rule, reach);
-    const collision = collisionError(state, next);
-    if (collision != null) return err(collision);
-
-    const newlyGoverned = matching.filter(
-        ({ subject }) => ruleGoverns(next, subject) && !ruleGoverns(rule, subject)
-    );
-    const rules = rulesAfterWrite(readActiveFieldRules(state), [next]);
+    const holder = findUniquenessCollision(state, next, new Set(), input.retainedRuleIds);
+    if (holder != null) {
+        if (reach.kind === "transactions")
+            return err({ type: "duplicate-key", existingRuleId: holder.id });
+        return foldReachIntoHolder(state, rule, holder, input);
+    }
+    const removed = input.replaceExceptions ? coveredFieldRuleExceptions(state, next) : [];
+    const removedIds = new Set(removed.map((exception) => exception.id));
+    const rules = rulesAfterWrite(activeRules, [next], removedIds);
+    const rows =
+        reach.kind === "transactions" && input.update == null
+            ? []
+            : matching.filter(
+                  ({ subject }) =>
+                      ruleGoverns(next, subject) &&
+                      (input.edit != null ||
+                          input.update != null ||
+                          !ruleGoverns(rule, subject) ||
+                          removed.some((exception) => ruleGoverns(exception, subject)))
+              );
     writeRule(state, next);
-    return ok(applyRuleToRows(state, next, rules, newlyGoverned));
+    softDeleteRules(
+        state,
+        removedIds,
+        input.deletedAtEpochMs ?? Temporal.Now.instant().epochMilliseconds
+    );
+    return ok(applyRuleToRows(state, next, rules, rows, undefined, applicationEdit));
 }
 
-function nextReach(
-    rule: FieldRule,
-    change: RuleReachChange,
-    matching: ReturnType<typeof readActiveTransactionsWithSubjects>
-): RuleReach {
-    switch (change.kind) {
-        case "all":
-            return RULE_REACH_ALL;
-        case "from":
-            return { kind: "from", date: change.date };
-        case "transactions": {
-            if (rule.reach.kind === "transactions") return rule.reach;
-            const governed = new Set<TransactionId>();
-            for (const { subject } of matching) {
-                if (ruleGoverns(rule, subject)) governed.add(subject.transactionId);
-            }
-            return { kind: "transactions", ids: governed };
+function applicationEditForSave(
+    previous: FieldRule,
+    next: FieldRule,
+    input: SetFieldRuleReachInput
+): FieldRuleEdit | undefined {
+    if (input.edit != null) return input.edit;
+    const tags = next.outputs.tags;
+    if (input.update == null || tags == null) return undefined;
+    const previousIds = previous.outputs.tags?.tagIds ?? [];
+    return {
+        field: "tags",
+        edit: {
+            value: tags,
+            added: tags.tagIds.filter((id) => !previousIds.includes(id)),
+            removed: previousIds.filter((id) => !tags.tagIds.includes(id))
         }
-        default:
-            return assertNever(change, "reach change");
+    };
+}
+
+/** Covered explicit exceptions with identical conditions; narrower conditions are deliberate. */
+export function coveredFieldRuleExceptions(
+    state: VaultState,
+    rule: FieldRule,
+    fields = new Set(ruleOutputFields(rule))
+): readonly FieldRule[] {
+    const subjects = readActiveTransactionsWithSubjects(state, (subject) =>
+        ruleGoverns(rule, subject)
+    );
+    return readStoredFieldRules(state).filter(
+        (candidate) =>
+            candidate.id !== rule.id &&
+            candidate.reach.kind === "transactions" &&
+            rulePredicatesEqual(candidate, rule) &&
+            ruleOutputFields(candidate).some((field) => fields.has(field)) &&
+            subjects.some(({ subject }) => ruleGoverns(candidate, subject))
+    );
+}
+
+function softDeleteRules(state: VaultState, ids: ReadonlySet<string>, now: number): void {
+    for (const id of ids) {
+        const stored = state.fieldRules[id];
+        if (stored != null) stored.deletedAtEpochMs = now;
     }
+}
+
+function foldReachIntoHolder(
+    state: VaultState,
+    source: FieldRule,
+    host: FieldRule,
+    input: SetFieldRuleReachInput
+): FieldRuleMutationOutcome<FieldRuleApplicationValue> {
+    const applicationEdit = applicationEditForSave(
+        readActiveRule(state, source.id) ?? source,
+        source,
+        input
+    );
+    const fields = input.edit == null ? ruleOutputFields(source) : [input.edit.field];
+    const timestamp = input.deletedAtEpochMs ?? Temporal.Now.instant().epochMilliseconds;
+    const outputs = fields.reduce<RuleOutputsInput>((current, field) => {
+        const change =
+            input.edit?.field === field
+                ? transformFieldRuleEdit(host.outputs, input.edit)
+                : ruleOutput(source, field);
+        return change == null ? current : withOutput(current, change);
+    }, host.outputs);
+    const absorbed = new Set<string>([source.id]);
+    let built = rebuildWithOutputs(host, outputs);
+    if (!built.ok) return built;
+    for (;;) {
+        const holder = findUniquenessCollision(state, built.value, absorbed, input.retainedRuleIds);
+        if (holder == null) break;
+        if (!rulePredicatesEqual(holder, host) || !ruleReachesEqual(holder.reach, host.reach)) {
+            return err({ type: "duplicate-key", existingRuleId: holder.id });
+        }
+        absorbed.add(holder.id);
+        built = rebuildWithOutputs(host, { ...holder.outputs, ...built.value.outputs });
+        if (!built.ok) return built;
+    }
+    const remainingSource = nonEmptyRuleOutputs(
+        fields.reduce<PartialRuleOutputs>(
+            (remaining, field) => withoutRuleOutput(remaining, field),
+            source.outputs
+        )
+    );
+    if (remainingSource != null) absorbed.delete(source.id);
+    const removed = new Set<string>([
+        ...absorbed,
+        ...(input.replaceExceptions
+            ? coveredFieldRuleExceptions(state, built.value, new Set(fields))
+                  .filter((rule) => rule.id !== source.id)
+                  .map((rule) => rule.id)
+            : [])
+    ]);
+    const nextSource = remainingSource == null ? null : { ...source, outputs: remainingSource };
+    const rules = rulesAfterWrite(
+        readActiveFieldRules(state, input.retainedRuleIds),
+        nextSource == null ? [built.value] : [built.value, nextSource],
+        removed
+    );
+    const matching = readActiveTransactionsWithSubjects(state, (subject) =>
+        ruleGoverns(built.value, subject)
+    );
+    if (nextSource != null) writeRule(state, nextSource);
+    writeRule(state, built.value);
+    softDeleteRules(state, removed, timestamp);
+    const applied = applyRuleToRows(
+        state,
+        built.value,
+        rules,
+        matching,
+        new Set(fields),
+        applicationEdit
+    );
+    // An empty add output on a wide rule cannot affect future rows. Apply removals first,
+    // then retire that output, as the reference all-matching action does.
+    if (
+        input.edit?.field === "tags" &&
+        built.value.outputs.tags?.mode === "add" &&
+        built.value.outputs.tags.tagIds.length === 0
+    ) {
+        const remaining = nonEmptyRuleOutputs(withoutRuleOutput(built.value.outputs, "tags"));
+        if (remaining == null) {
+            softDeleteRules(state, new Set([host.id]), timestamp);
+        } else {
+            writeRule(state, { ...built.value, outputs: remaining });
+        }
+    }
+    return ok(applied);
+}
+
+export interface ApplyPendingFieldRuleInput {
+    readonly retainedRuleIds?: ReadonlySet<string>;
+    readonly ruleId: string;
+    readonly transactionId: string;
+    readonly choice: RuleReachKind;
+    readonly edit: FieldRuleEdit;
+    readonly replaceExceptions?: boolean;
+    readonly deletedAtEpochMs: number;
+}
+
+/** One action owns the reach change, exception replacement, and every changed transaction. */
+export function applyPendingFieldRule(
+    state: VaultState,
+    input: ApplyPendingFieldRuleInput
+): FieldRuleMutationOutcome<FieldRuleApplicationValue> {
+    const rule = readActiveRule(state, input.ruleId);
+    if (rule == null) return err({ type: "not-found", ruleId: input.ruleId });
+    if (rule.reach.kind !== "transactions")
+        return err({ type: "not-explicit-reach", ruleId: rule.id });
+    if (rule.outputs[input.edit.field] == null)
+        return err({ type: "missing-output", ruleId: rule.id, field: input.edit.field });
+    const found = findTransactionById(state.transactions, input.transactionId);
+    if (found == null || found.transaction.deletedAt != null)
+        return err({ type: "transaction-not-found", transactionId: input.transactionId });
+    const subject = ruleMatchSubjectForTransaction(state, found.transaction);
+    if (!ruleGoverns(rule, subject))
+        return err({
+            type: "transaction-not-matched",
+            ruleId: rule.id,
+            transactionId: input.transactionId
+        });
+    const action = pendingReachAction(
+        readStoredFieldRules(state),
+        input.edit.field,
+        subject,
+        input.choice
+    );
+    if (action.kind === "keep") return ok({ rule, appliedCount: 0, entries: [] });
+    const options = {
+        id: rule.id,
+        edit: input.edit,
+        replaceExceptions: input.replaceExceptions,
+        retainedRuleIds: input.retainedRuleIds,
+        deletedAtEpochMs: input.deletedAtEpochMs
+    };
+    return action.kind === "update"
+        ? foldReachIntoHolder(state, rule, action.host, {
+              ...options,
+              reach:
+                  action.host.reach.kind === "transactions"
+                      ? { kind: "transactions" }
+                      : action.host.reach
+          })
+        : setFieldRuleReach(state, { ...options, reach: action.reach });
+}
+
+/** Each output captures its won population; differing populations become separate rules. */
+function narrowFieldRule(
+    state: VaultState,
+    rule: FieldRule,
+    rows: ReturnType<typeof readActiveTransactionsWithSubjects>,
+    rules: readonly FieldRule[],
+    retainedRuleIds?: ReadonlySet<string>
+): FieldRuleMutationOutcome<FieldRuleApplicationValue> {
+    const groups: FieldRule[] = [];
+    for (const field of ruleOutputFields(rule)) {
+        const reach: RuleReach = {
+            kind: "transactions",
+            ids: new Set(
+                rows
+                    .filter(
+                        ({ subject }) => selectWinningRule(rules, field, subject)?.id === rule.id
+                    )
+                    .map(({ subject }) => subject.transactionId)
+            )
+        };
+        const entry = ruleOutput(rule, field);
+        if (entry == null) continue;
+        const existing = groups.find((candidate) => ruleReachesEqual(candidate.reach, reach));
+        const built = buildRule({
+            ...rule,
+            id: existing?.id ?? (groups.length === 0 ? rule.id : crypto.randomUUID()),
+            outputs: withOutput(existing?.outputs ?? {}, entry),
+            reach,
+            createdAtEpochMs: rule.createdAt.epochMilliseconds
+        });
+        if (!built.ok) return built;
+        const collision = collisionError(state, built.value, new Set([rule.id]), retainedRuleIds);
+        if (collision != null) return err(collision);
+        if (existing == null) groups.push(built.value);
+        else groups.splice(groups.indexOf(existing), 1, built.value);
+    }
+    const first = groups[0];
+    if (first == null) return err({ type: "invalid-rule", issues: ["no output to narrow"] });
+    for (const group of groups) writeRule(state, group);
+    return ok({ rule: first, appliedCount: 0, entries: [] });
 }
 
 function applyRuleToRows(
@@ -718,13 +1163,18 @@ function applyRuleToRows(
     rule: FieldRule,
     rules: readonly FieldRule[],
     rows: ReturnType<typeof readActiveTransactionsWithSubjects>,
-    fields?: ReadonlySet<RuleField>
+    fields?: ReadonlySet<RuleField>,
+    edit?: FieldRuleEdit
 ): FieldRuleApplicationValue {
     const entries = applyOneFieldRuleToTransactions(
         state,
         rules,
         rows.map(({ transaction }) => transaction),
-        { ruleId: rule.id, fields }
+        {
+            ruleId: rule.id,
+            fields,
+            removedTagIds: edit?.field === "tags" ? edit.edit.removed : undefined
+        }
     );
     return { rule, appliedCount: entries.length, entries };
 }
@@ -767,10 +1217,10 @@ export function extendFieldRuleReachToTransaction(
         kind: "transactions",
         ids: new Set([...rule.reach.ids, subject.transactionId])
     });
-    const collision = collisionError(state, next);
+    const collision = collisionError(state, next, new Set(), input.retainedRuleIds);
     if (collision != null) return err(collision);
 
-    const rules = rulesAfterWrite(readActiveFieldRules(state), [next]);
+    const rules = rulesAfterWrite(readActiveFieldRules(state, input.retainedRuleIds), [next]);
     addReachMember(state, next, subject.transactionId);
     return ok(applyRuleToRows(state, next, rules, [{ transaction, subject }]));
 }
@@ -781,6 +1231,12 @@ function addReachMember(state: VaultState, rule: FieldRule, transactionId: Trans
     if (members == null) {
         writeRule(state, rule);
         return;
+    }
+    const cleaned = cleanExplicitReach(state, rule);
+    if (cleaned.reach.kind === "transactions") {
+        for (const id of Object.keys(members)) {
+            if (id !== "$cid" && !cleaned.reach.ids.has(asTransactionId(id))) delete members[id];
+        }
     }
     members[transactionId] = true;
 }
@@ -824,27 +1280,14 @@ export function foldFieldRuleIntoHost(
         return err({ type: "reach-mismatch", sourceId: oneRow.id, hostId: host.id });
     }
 
-    const folded = ruleOutputFields(oneRow);
-    const outputs = folded.reduce<RuleOutputsInput>((current, field) => {
-        const entry = ruleOutput(oneRow, field);
-        return entry == null ? current : withOutput(current, entry);
-    }, host.outputs);
-    const nextHost = rebuildWithOutputs(host, outputs);
-    if (!nextHost.ok) return nextHost;
-    const collision = collisionError(state, nextHost.value, new Set([oneRow.id]));
-    if (collision != null) return err(collision);
-
-    const rules = rulesAfterWrite(
-        readActiveFieldRules(state),
-        [nextHost.value],
-        new Set([oneRow.id])
-    );
-    writeRule(state, nextHost.value);
-    const stored = state.fieldRules[oneRow.id];
-    if (stored != null) stored.deletedAtEpochMs = input.deletedAtEpochMs;
-
-    const hostRows = matching.filter(({ subject }) => ruleGoverns(nextHost.value, subject));
-    return ok(applyRuleToRows(state, nextHost.value, rules, hostRows, new Set(folded)));
+    return foldReachIntoHolder(state, oneRow, host, {
+        id: oneRow.id,
+        reach: host.reach.kind === "transactions" ? { kind: "transactions" } : host.reach,
+        edit: input.edit,
+        replaceExceptions: input.replaceExceptions,
+        retainedRuleIds: input.retainedRuleIds,
+        deletedAtEpochMs: input.deletedAtEpochMs
+    });
 }
 
 /**
@@ -896,7 +1339,9 @@ export function persistUserAutomationPreference(
         lastTagMode: record.lastTagMode,
         lastUseAccountScope: record.lastUseAccountScope,
         lastUseAmountScope: record.lastUseAmountScope,
-        lastApplyMode: record.lastApplyMode
+        lastApplyMode: record.lastApplyMode,
+        lastReach: record.lastReach,
+        applyOnLeaveRow: record.applyOnLeaveRow
     };
 }
 
@@ -913,6 +1358,8 @@ export function readUserAutomationChoice(
         lastTagMode: record.lastTagMode,
         lastUseAccountScope: record.lastUseAccountScope,
         lastUseAmountScope: record.lastUseAmountScope,
-        lastApplyMode: record.lastApplyMode
+        lastApplyMode: record.lastApplyMode,
+        lastReach: record.lastReach,
+        applyOnLeaveRow: record.applyOnLeaveRow
     });
 }

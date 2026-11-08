@@ -28,6 +28,7 @@ import {
     type LegacyAutomationView
 } from "@/lib/domain/automation/migration";
 import { type RulePopulationTransaction } from "@/lib/domain/automation/population";
+import { collectibleRuleIds } from "@/lib/domain/automation/rule-garbage";
 import { buildRuleIndex, type RuleSource } from "@/lib/domain/automation/rule-index";
 import {
     decodeFieldRule,
@@ -35,23 +36,30 @@ import {
     type FieldRule,
     isOnOrAfterTransactionDate,
     projectRuleMatchSubject,
+    selectWinningRule,
     type RuleField,
     type RuleMatchSubject
 } from "@/lib/domain/automation/rules";
 import { asMinorUnits } from "@/lib/domain/currency";
 import { resolveAlias } from "@/lib/domain/description-aliases";
+import { asTransactionId } from "@/lib/domain/transaction-id";
 import { asPercentage, type Percentage } from "@/types";
 
 import { type AllocationBoundaryError } from "./allocations";
-import { assignDescriptionAlias, type DescriptionAliasMutationError } from "./description-aliases";
+import {
+    removeOneDescriptionAlias,
+    assignDescriptionAlias,
+    type DescriptionAliasMutationError
+} from "./description-aliases";
 import { type TransactionLocation } from "./mutations";
-import { getAllTransactions } from "./queries";
+import { iterateActivePublicTransactionRepresentations, getAllTransactions } from "./queries";
 import {
     type FieldRuleInput,
     type Transaction,
     type TransactionStore,
     type VaultState
 } from "./schema";
+import { preferCanonicalTransaction } from "./transaction-canonical-key";
 
 // ============================================================================
 // Reading active rules out of vault state
@@ -61,7 +69,7 @@ import {
  * Decode the active (non-deleted, valid) field rules from vault state. Invalid or soft-deleted
  * wire entries are skipped so a single malformed rule can never break application for the rest.
  */
-export function readActiveFieldRules(state: VaultState): readonly FieldRule[] {
+export function readStoredFieldRules(state: VaultState): readonly FieldRule[] {
     const rules: FieldRule[] = [];
     for (const [id, wire] of Object.entries(state.fieldRules)) {
         if (id === "$cid") continue;
@@ -71,6 +79,49 @@ export function readActiveFieldRules(state: VaultState): readonly FieldRule[] {
         if (decoded.ok) rules.push(decoded.value);
     }
     return rules;
+}
+
+/** Derived garbage stays on the wire until maintenance; concurrent extensions can revive it. */
+export function readCollectibleFieldRuleIds(
+    state: VaultState,
+    rules = readStoredFieldRules(state)
+): ReadonlySet<string> {
+    const referenced = new Set(
+        rules.flatMap((rule) => (rule.reach.kind === "transactions" ? [...rule.reach.ids] : []))
+    );
+    if (referenced.size === 0) return collectibleRuleIds(rules, new Map());
+    return collectibleRuleIds(rules, readRuleReachSubjects(state, referenced));
+}
+
+/** Project only referenced rows; unrelated rows need no alias resolution or date projection. */
+export function readRuleReachSubjects(
+    state: VaultState,
+    referenced: ReadonlySet<string>
+): ReadonlyMap<string, RuleMatchSubject> {
+    const transactions = new Map<string, Transaction>();
+    for (const transaction of iterateActivePublicTransactionRepresentations(state.transactions)) {
+        if (!referenced.has(asTransactionId(transaction.id))) continue;
+        const previous = transactions.get(transaction.id);
+        transactions.set(
+            transaction.id,
+            previous == null ? transaction : preferCanonicalTransaction(previous, transaction)
+        );
+    }
+    return new Map(
+        [...transactions.values()].map((transaction) => {
+            const subject = ruleMatchSubjectForTransaction(state, transaction);
+            return [subject.transactionId, subject] as const;
+        })
+    );
+}
+
+export function readActiveFieldRules(
+    state: VaultState,
+    retainedRuleIds?: ReadonlySet<string>
+): readonly FieldRule[] {
+    const rules = readStoredFieldRules(state);
+    const garbage = readCollectibleFieldRuleIds(state, rules);
+    return rules.filter((rule) => retainedRuleIds?.has(rule.id) || !garbage.has(rule.id));
 }
 
 // ============================================================================
@@ -199,6 +250,7 @@ export interface BulkFieldRuleEntry {
 export interface FieldRuleApplicationFilter {
     readonly ruleId: string;
     readonly fields?: ReadonlySet<RuleField>;
+    readonly removedTagIds?: readonly string[];
 }
 
 /**
@@ -214,11 +266,38 @@ export function applyFieldRulesToTransaction(
     only?: FieldRuleApplicationFilter
 ): readonly AppliedFieldRuleOutcome[] {
     const target = targetForTransaction(transaction, state.descriptionAliases);
-    const plans = planRuleApplications(rules, target).filter(
-        (plan) =>
-            only == null ||
-            (plan.ruleId === only.ruleId && (only.fields == null || only.fields.has(plan.field)))
-    );
+    const plans = planRuleApplications(rules, target)
+        .map((plan) => {
+            if (plan.field !== "tags" || only?.removedTagIds == null) return plan;
+            const winner = selectWinningRule(rules, "tags", target.subject);
+            const kept = new Set(winner?.outputs.tags?.tagIds ?? []);
+            const removed = new Set(only.removedTagIds);
+            const nextTagIds = plan.nextTagIds.filter((id) => !removed.has(id) || kept.has(id));
+            return {
+                ...plan,
+                nextTagIds,
+                changed:
+                    nextTagIds.length !== target.currentTagIds.length ||
+                    nextTagIds.some((id) => !target.currentTagIds.includes(id))
+            };
+        })
+        .filter((plan) => {
+            if (only == null) return true;
+            if (plan.field === "tags") return plan.changed;
+            if (plan.field === "descriptionAlias")
+                return (transaction.descriptionAliasId ?? "") !== plan.aliasId;
+            const current = explicitAllocations(transaction.allocations);
+            return (
+                Object.keys(current).length !== Object.keys(plan.allocations).length ||
+                Object.entries(plan.allocations).some(([id, value]) => current[id] !== value)
+            );
+        })
+        .filter(
+            (plan) =>
+                only == null ||
+                (plan.ruleId === only.ruleId &&
+                    (only.fields == null || only.fields.has(plan.field)))
+        );
 
     const aliasPlans = plans.filter((plan) => plan.field === "descriptionAlias");
     const nonAliasPlans = plans.filter((plan) => plan.field !== "descriptionAlias");
@@ -244,17 +323,25 @@ export function applyFieldRulesToTransaction(
     // Description alias strictly via the existing P11 write path.
     for (const plan of aliasPlans) {
         if (plan.field !== "descriptionAlias") continue;
-        const result = assignDescriptionAlias(state, {
-            location: target.location,
-            aliasId: plan.aliasId
-        });
+        const result =
+            plan.aliasId === ""
+                ? transaction.descriptionAliasId == null
+                    ? ({ ok: true, value: "" } as const)
+                    : removeOneDescriptionAlias(state, {
+                          location: target.location,
+                          expectedAliasId: transaction.descriptionAliasId
+                      })
+                : assignDescriptionAlias(state, {
+                      location: target.location,
+                      aliasId: plan.aliasId
+                  });
         outcomes.push(
             result.ok
                 ? {
                       field: "descriptionAlias",
                       ruleId: plan.ruleId,
                       status: "applied",
-                      aliasId: result.value
+                      aliasId: result.value ?? ""
                   }
                 : {
                       field: "descriptionAlias",

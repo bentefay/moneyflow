@@ -149,6 +149,8 @@ describe("field-rule root wiring and hydration", () => {
                 lastTagMode: "add",
                 lastUseAccountScope: true,
                 lastUseAmountScope: false,
+                lastReach: undefined,
+                applyOnLeaveRow: undefined,
                 lastApplyMode: "updateAll"
             };
         });
@@ -172,6 +174,8 @@ describe("field-rule root wiring and hydration", () => {
                 lastTagMode: undefined,
                 lastUseAccountScope: undefined,
                 lastUseAmountScope: undefined,
+                lastReach: undefined,
+                applyOnLeaveRow: undefined,
                 lastApplyMode: undefined
             };
         });

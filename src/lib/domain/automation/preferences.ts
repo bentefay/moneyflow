@@ -18,7 +18,7 @@ import {
     type ApplyScope,
     DEFAULT_APPLY_MODE
 } from "./apply-mode";
-import { type RuleField, type TagRuleMode } from "./rules";
+import { type RuleField, type RuleReachKind, type TagRuleMode } from "./rules";
 
 /** Structural view of a stored per-user preference record. */
 export interface UserAutomationPreferenceView {
@@ -33,6 +33,8 @@ export interface UserAutomationPreferenceView {
      * required to introduce this field.
      */
     readonly lastApplyMode?: ApplyMode;
+    readonly lastReach?: RuleReachKind;
+    readonly applyOnLeaveRow?: boolean;
 }
 
 /** A fully-resolved set of remembered choices with defaults applied. */
@@ -42,6 +44,8 @@ export interface RememberedRuleChoice {
     readonly useAccountScope: boolean;
     readonly useAmountScope: boolean;
     readonly applyMode: ApplyMode;
+    readonly reach?: RuleReachKind;
+    readonly applyOnLeaveRow?: boolean;
 }
 
 export const DEFAULT_REMEMBERED_CHOICE: RememberedRuleChoice = {
@@ -49,7 +53,9 @@ export const DEFAULT_REMEMBERED_CHOICE: RememberedRuleChoice = {
     tagMode: "add",
     useAccountScope: false,
     useAmountScope: false,
-    applyMode: DEFAULT_APPLY_MODE
+    applyMode: DEFAULT_APPLY_MODE,
+    reach: applyModeTargetsNewOnly(DEFAULT_APPLY_MODE) ? "from" : "all",
+    applyOnLeaveRow: applyModeIsAutomatic(DEFAULT_APPLY_MODE)
 };
 
 /** Project a stored record (or its absence) into a defaulted choice. Total and pure. */
@@ -62,7 +68,13 @@ export function readRememberedChoice(
         tagMode: record.lastTagMode ?? DEFAULT_REMEMBERED_CHOICE.tagMode,
         useAccountScope: record.lastUseAccountScope ?? DEFAULT_REMEMBERED_CHOICE.useAccountScope,
         useAmountScope: record.lastUseAmountScope ?? DEFAULT_REMEMBERED_CHOICE.useAmountScope,
-        applyMode: record.lastApplyMode ?? DEFAULT_REMEMBERED_CHOICE.applyMode
+        applyMode: record.lastApplyMode ?? DEFAULT_REMEMBERED_CHOICE.applyMode,
+        reach:
+            record.lastReach ??
+            (applyModeTargetsNewOnly(record.lastApplyMode ?? DEFAULT_APPLY_MODE) ? "from" : "all"),
+        applyOnLeaveRow:
+            record.applyOnLeaveRow ??
+            applyModeIsAutomatic(record.lastApplyMode ?? DEFAULT_APPLY_MODE)
     };
 }
 
@@ -77,7 +89,9 @@ export function nextUserPreference(
         lastTagMode: choice.tagMode,
         lastUseAccountScope: choice.useAccountScope,
         lastUseAmountScope: choice.useAmountScope,
-        lastApplyMode: choice.applyMode
+        lastApplyMode: choice.applyMode,
+        lastReach: choice.reach ?? (applyModeTargetsNewOnly(choice.applyMode) ? "from" : "all"),
+        applyOnLeaveRow: choice.applyOnLeaveRow ?? applyModeIsAutomatic(choice.applyMode)
     };
 }
 

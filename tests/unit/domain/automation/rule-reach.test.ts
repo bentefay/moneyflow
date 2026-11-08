@@ -16,10 +16,12 @@ import {
     type TransactionId
 } from "@/components/features/transactions/table-model/ids";
 import { type RuleFoldOffer, resolveRuleFoldOffer } from "@/lib/domain/automation/extension";
+import { transformRuleOutput } from "@/lib/domain/automation/output-edit";
 import {
     countRulePopulation,
     type RulePopulationTransaction
 } from "@/lib/domain/automation/population";
+import { collectibleRuleIds } from "@/lib/domain/automation/rule-garbage";
 import { buildRuleIndex } from "@/lib/domain/automation/rule-index";
 import {
     compareRulePrecedence,
@@ -196,9 +198,9 @@ describe("ruleReachesEqual", () => {
 });
 
 describe("reach rank", () => {
-    it("ranks an explicit set above a date and all, which rank equally", () => {
-        expect(ruleReachRank(rule({ id: "r", reach: only(B) }))).toBe(1);
-        expect(ruleReachRank(rule({ id: "r", reach: from(JUL_25) }))).toBe(0);
+    it("ranks explicit sets above dates above all", () => {
+        expect(ruleReachRank(rule({ id: "r", reach: only(B) }))).toBe(2);
+        expect(ruleReachRank(rule({ id: "r", reach: from(JUL_25) }))).toBe(1);
         expect(ruleReachRank(rule({ id: "r", reach: RULE_REACH_ALL }))).toBe(0);
     });
 
@@ -209,7 +211,7 @@ describe("reach rank", () => {
         expect(compareRulePrecedence(allMostSpecific, oneRowUnscoped)).toBeLessThan(0);
         const fromUnscoped = rule({ id: "from", reach: from(JUL_25) });
         const allUnscoped = rule({ id: "all2" });
-        expect(compareRulePrecedence(fromUnscoped, allUnscoped)).toBe(0);
+        expect(compareRulePrecedence(fromUnscoped, allUnscoped)).toBeGreaterThan(0);
     });
 });
 
@@ -323,7 +325,7 @@ describe("uniqueness with reach", () => {
             name: "two from rules with different dates",
             left: { id: "l", reach: from(JUL_2) },
             right: { id: "r", reach: from(JUL_25) },
-            collide: true
+            collide: false
         },
         {
             name: "an explicit set and an all rule",
@@ -578,4 +580,145 @@ describe("resolveRuleFoldOffer", () => {
             candidates: [owner1, owner2]
         });
     });
+});
+
+describe("timeline, copied edits and derived garbage", () => {
+    it("later dates beat earlier dates and more specific conditions", () => {
+        const earlier = rule({
+            id: "early",
+            reach: from(JUL_2),
+            accountId: "acct-a",
+            amount: -450
+        });
+        const later = rule({ id: "late", reach: from(JUL_25) });
+        expect(compareRulePrecedence(later, earlier)).toBeGreaterThan(0);
+        expect(hasUniqueRuleKeys([earlier, later])).toBe(true);
+    });
+
+    it.each(["add", "set"] as const)("copies the %s rule instead of unrelated row tags", (mode) => {
+        expect(
+            transformRuleOutput(
+                "tags",
+                { mode, tagIds: ["work", "coffee"] },
+                {
+                    value: { mode: "add", tagIds: ["coffee", "personal", "food"] },
+                    removed: ["work"],
+                    added: ["food"]
+                }
+            )
+        ).toEqual({ mode, tagIds: ["coffee", "food"] });
+    });
+
+    it("clears aliases and allocations as ordinary edits", () => {
+        expect(
+            transformRuleOutput(
+                "descriptionAlias",
+                { aliasId: "coffee" },
+                {
+                    value: { aliasId: "" },
+                    added: [],
+                    removed: []
+                }
+            )
+        ).toEqual({ aliasId: "" });
+        expect(
+            transformRuleOutput("allocation", undefined, {
+                value: { allocations: {} },
+                added: [],
+                removed: []
+            })
+        ).toEqual({ allocations: {} });
+    });
+
+    it("tag transforms are idempotent and retain their base mode", () => {
+        fc.assert(
+            fc.property(
+                fc.uniqueArray(fc.string()),
+                fc.uniqueArray(fc.string()),
+                fc.uniqueArray(fc.string()),
+                fc.constantFrom("add" as const, "set" as const),
+                (tagIds, added, removed, mode) => {
+                    const edit = {
+                        value: { mode, tagIds },
+                        added,
+                        removed: removed.filter((id) => !added.includes(id))
+                    };
+                    const once = transformRuleOutput("tags", { mode, tagIds }, edit);
+                    expect(transformRuleOutput("tags", once, edit)).toEqual(once);
+                    expect(once.mode).toBe(mode);
+                    expect(once.tagIds).toEqual([
+                        ...new Set([...tagIds.filter((id) => !edit.removed.includes(id)), ...added])
+                    ]);
+                }
+            ),
+            { seed: SEED }
+        );
+    });
+
+    it("date precedence is antisymmetric and transitive", () => {
+        fc.assert(
+            fc.property(
+                fc.integer({ min: 0, max: 365 }),
+                fc.integer({ min: 0, max: 365 }),
+                (a, b) => {
+                    const left = rule({ id: "l", reach: from(JUL_2.add({ days: a })) });
+                    const right = rule({ id: "r", reach: from(JUL_2.add({ days: b })) });
+                    expect(Math.sign(compareRulePrecedence(left, right))).toBe(Math.sign(a - b));
+                    expect(hasUniqueRuleKeys([left, right])).toBe(a !== b);
+                }
+            ),
+            { seed: SEED }
+        );
+    });
+
+    it("collects redundant exceptions but preserves deliberate differences and every wide rule", () => {
+        const subject: RuleMatchSubject = {
+            transactionId: B,
+            date: JUL_25,
+            descriptionText: TEXT,
+            accountId: "acct-a",
+            amount: asMinorUnits(-450),
+            isManual: false
+        };
+        const wide = rule({ id: "wide" });
+        const equal = rule({ id: "equal", reach: only(B) });
+        const different = rule({ id: "different", reach: only(B), outputs: HOME });
+        const orphan = rule({ id: "orphan", reach: only(A) });
+        expect(
+            collectibleRuleIds([wide, equal, different, orphan], new Map([[B, subject]]))
+        ).toEqual(new Set(["equal", "orphan"]));
+        fc.assert(
+            fc.property(fc.array(fc.string()), (ids) => {
+                const explicit = rule({ id: "explicit", reach: only(...ids.map(asTransactionId)) });
+                const collected = collectibleRuleIds([wide, explicit], new Map());
+                expect(collected.has("wide")).toBe(false);
+                expect(collected.has("explicit")).toBe(true);
+            }),
+            { seed: SEED }
+        );
+    });
+});
+
+it("counts a removal even when the resulting add output already agrees", () => {
+    const next = rule({ id: "next", outputs: { tags: { mode: "add", tagIds: ["coffee"] } } });
+    const subject: RuleMatchSubject = {
+        transactionId: B,
+        date: JUL_25,
+        descriptionText: TEXT,
+        accountId: "acct-a",
+        amount: asMinorUnits(-450),
+        isManual: false
+    };
+    const query = {
+        rule: next,
+        rules: [next],
+        transactions: [
+            { subject, date: JUL_25, aliasId: null, allocations: {}, tagIds: ["work", "coffee"] }
+        ],
+        scope: "all" as const,
+        referenceDate: null
+    };
+    expect(countRulePopulation(query)).toBe(0);
+    expect(countRulePopulation({ ...query, removedTagIds: ["work"] })).toBe(1);
+    expect(countRulePopulation({ ...query, removedTagIds: ["coffee"] })).toBe(0);
 });

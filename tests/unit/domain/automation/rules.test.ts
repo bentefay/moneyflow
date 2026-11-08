@@ -742,11 +742,6 @@ describe("buildFieldRule", () => {
 
     it.each([
         {
-            name: "an empty alias id",
-            outputs: { descriptionAlias: { aliasId: "" } },
-            type: "invalid-shape"
-        },
-        {
             name: "an invalid allocation set",
             outputs: { allocation: { allocations: { "person-a": Number.NaN } } },
             type: "invalid-allocations"

@@ -12,9 +12,11 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { applyFieldRulesToSingleTransaction } from "@/lib/crdt/apply-field-rule-to-transaction";
+import { createFieldRuleFromEdit, applyPendingFieldRule } from "@/lib/crdt/field-rule-mutations";
 import { readActiveFieldRules, readRulePopulation } from "@/lib/crdt/field-rules";
 import { updateTransaction } from "@/lib/crdt/mutations";
 import { type VaultState } from "@/lib/crdt/schema";
+import { type FieldRuleEdit } from "@/lib/domain/automation/output-edit";
 import {
     countRulePopulation,
     type RulePopulationTransaction
@@ -114,5 +116,46 @@ describe("rule engine cost at 5,000 rows and 500 rules", () => {
         const median = (samples: readonly number[]): number =>
             [...samples].sort((left, right) => left - right)[Math.floor(samples.length / 2)] ?? 0;
         expect(median(applySamples)).toBeLessThan(median(plainSamples) * SINGLE_ROW_RATIO_CEILING);
+    });
+    it("applies a leave-row edit within the interactive bulk-action ceiling", () => {
+        const { vault, sampleLocation } = fixture;
+        let sequence = 0;
+        let changed = 0;
+        const milliseconds = medianMs(5, () => {
+            sequence += 1;
+            const ruleId = "pending-" + sequence;
+            const edit: FieldRuleEdit = {
+                field: "tags",
+                edit: {
+                    value: { mode: "add", tagIds: ["new-" + sequence] },
+                    added: ["new-" + sequence],
+                    removed: []
+                }
+            };
+            vault.mirror.setState((state: VaultState) => {
+                const created = createFieldRuleFromEdit(state, {
+                    id: ruleId,
+                    transactionId: sampleLocation.transactionId,
+                    descriptionText: "MERCHANT 0",
+                    createdAtEpochMs: 9000 + sequence,
+                    ...edit
+                });
+                expect(created.ok).toBe(true);
+            });
+            vault.mirror.setState((state: VaultState) => {
+                const result = applyPendingFieldRule(state, {
+                    ruleId,
+                    transactionId: sampleLocation.transactionId,
+                    choice: "all",
+                    edit,
+                    deletedAtEpochMs: 10000 + sequence
+                });
+                expect(result.ok).toBe(true);
+                changed = result.ok ? result.value.appliedCount : 0;
+            });
+        });
+        expect(changed).toBeGreaterThan(0);
+        // Includes both real mirror actions, including CRDT encoding and change tracking.
+        expect(milliseconds).toBeLessThan(500);
     });
 });
